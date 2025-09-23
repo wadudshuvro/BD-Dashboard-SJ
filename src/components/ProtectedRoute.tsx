@@ -18,6 +18,14 @@ export default function ProtectedRoute({
   const { user, loading } = useAuth();
   const location = useLocation();
 
+  // Add debugging
+  console.log('ProtectedRoute Debug:', {
+    user: user?.role,
+    requiredRole,
+    requiredMinimumRole,
+    path: location.pathname
+  });
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -27,11 +35,13 @@ export default function ProtectedRoute({
   }
 
   if (!user) {
+    console.log('No user found, redirecting to login');
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
   // Check specific role requirement
   if (requiredRole && user.role !== requiredRole) {
+    console.log('Role mismatch:', user.role, 'vs required:', requiredRole);
     return <Navigate to="/unauthorized" replace />;
   }
 
@@ -44,10 +54,23 @@ export default function ProtectedRoute({
       'super_admin': 4
     };
 
-    if (roleHierarchy[user.role] < roleHierarchy[requiredMinimumRole]) {
+    const userLevel = roleHierarchy[user.role];
+    const requiredLevel = roleHierarchy[requiredMinimumRole];
+    
+    console.log('Role hierarchy check:', {
+      userRole: user.role,
+      userLevel,
+      requiredRole: requiredMinimumRole,
+      requiredLevel,
+      hasAccess: userLevel >= requiredLevel
+    });
+
+    if (userLevel < requiredLevel) {
+      console.log('Insufficient role level');
       return <Navigate to="/unauthorized" replace />;
     }
   }
 
+  console.log('Access granted for role:', user.role);
   return <>{children}</>;
 }
