@@ -14,7 +14,9 @@ import {
   UserCheck,
   UserX,
   Mail,
-  Calendar
+  Calendar,
+  Shield,
+  Settings2
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -41,14 +43,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { mockUsers, mockBrands, User } from "@/data/mockData";
+import { mockUsers, mockBrands, User, UserPermissions } from "@/data/mockData";
+import { UserPermissionDialog } from "@/components/admin/UserPermissionDialog";
 
 const UserManagement = () => {
-  const [users] = useState<User[]>(mockUsers);
+  const [users, setUsers] = useState<User[]>(mockUsers);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterRole, setFilterRole] = useState<string>("all");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<"cards" | "table">("cards");
+  const [viewMode, setViewMode] = useState<"cards" | "table">("table");
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [isPermissionDialogOpen, setIsPermissionDialogOpen] = useState(false);
 
   const filteredUsers = users.filter(user => {
     const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -59,23 +64,32 @@ const UserManagement = () => {
 
   const getRoleColor = (role: string) => {
     switch (role) {
-      case 'super_admin': return 'bg-destructive text-destructive-foreground';
+      case 'admin': return 'bg-destructive text-destructive-foreground';
       case 'manager': return 'bg-primary text-primary-foreground';
-      case 'brand_owner': return 'bg-accent text-accent-foreground';
-      case 'contributor': return 'bg-secondary text-secondary-foreground';
-      case 'viewer': return 'bg-muted text-muted-foreground';
+      case 'user': return 'bg-secondary text-secondary-foreground';
       default: return 'bg-muted text-muted-foreground';
     }
   };
 
   const getRoleName = (role: string) => {
-    return role.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+    return role.charAt(0).toUpperCase() + role.slice(1);
   };
 
   const getUserBrandNames = (user: User) => {
     return user.assigned_brands.map(brandId => 
       mockBrands.find(brand => brand.id === brandId)?.name
     ).filter(Boolean);
+  };
+
+  const handleEditPermissions = (user: User) => {
+    setSelectedUser(user);
+    setIsPermissionDialogOpen(true);
+  };
+
+  const handleSavePermissions = (userId: string, permissions: UserPermissions) => {
+    setUsers(prev => prev.map(user => 
+      user.id === userId ? { ...user, permissions } : user
+    ));
   };
 
   return (
@@ -126,10 +140,9 @@ const UserManagement = () => {
                       <SelectValue placeholder="Select role" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="admin">Admin</SelectItem>
                       <SelectItem value="manager">Manager</SelectItem>
-                      <SelectItem value="brand_owner">Brand Owner</SelectItem>
-                      <SelectItem value="contributor">Contributor</SelectItem>
-                      <SelectItem value="viewer">Viewer</SelectItem>
+                      <SelectItem value="user">User</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -179,11 +192,9 @@ const UserManagement = () => {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Roles</SelectItem>
-            <SelectItem value="super_admin">Super Admin</SelectItem>
+            <SelectItem value="admin">Admin</SelectItem>
             <SelectItem value="manager">Manager</SelectItem>
-            <SelectItem value="brand_owner">Brand Owner</SelectItem>
-            <SelectItem value="contributor">Contributor</SelectItem>
-            <SelectItem value="viewer">Viewer</SelectItem>
+            <SelectItem value="user">User</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -208,24 +219,126 @@ const UserManagement = () => {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Brand Owners</CardTitle>
+            <CardTitle className="text-sm font-medium">Managers</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{users.filter(u => u.role === 'brand_owner').length}</div>
+            <div className="text-2xl font-bold">{users.filter(u => u.role === 'manager').length}</div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Contributors</CardTitle>
+            <CardTitle className="text-sm font-medium">Regular Users</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{users.filter(u => u.role === 'contributor').length}</div>
+            <div className="text-2xl font-bold">{users.filter(u => u.role === 'user').length}</div>
           </CardContent>
         </Card>
       </div>
 
       {/* User List */}
-      {viewMode === "cards" ? (
+      {viewMode === "table" ? (
+        <Card>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>User</TableHead>
+                <TableHead>Role</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Brands</TableHead>
+                <TableHead>Last Login</TableHead>
+                <TableHead className="w-[100px]">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredUsers.map((user) => {
+                const brandNames = getUserBrandNames(user);
+                
+                return (
+                  <TableRow 
+                    key={user.id} 
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => handleEditPermissions(user)}
+                  >
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                          <span className="text-xs font-medium text-primary">
+                            {user.name.split(' ').map(n => n[0]).join('')}
+                          </span>
+                        </div>
+                        <div>
+                          <div className="font-medium">{user.name}</div>
+                          <div className="text-sm text-muted-foreground">{user.email}</div>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge className={getRoleColor(user.role)}>
+                        {getRoleName(user.role)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={user.is_active ? "default" : "destructive"}>
+                        {user.is_active ? "Active" : "Inactive"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1">
+                        {brandNames.slice(0, 2).map((brandName) => (
+                          <Badge key={brandName} variant="outline" className="text-xs">
+                            {brandName}
+                          </Badge>
+                        ))}
+                        {brandNames.length > 2 && (
+                          <Badge variant="outline" className="text-xs">
+                            +{brandNames.length - 2}
+                          </Badge>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {user.last_login ? new Date(user.last_login).toLocaleDateString() : 'Never'}
+                    </TableCell>
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                          <Button variant="ghost" size="icon">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditPermissions(user);
+                          }}>
+                            <Shield className="mr-2 h-4 w-4" />
+                            Manage Permissions
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={(e) => e.stopPropagation()}>
+                            <Edit className="mr-2 h-4 w-4" />
+                            Edit User
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={(e) => e.stopPropagation()}>
+                            <Mail className="mr-2 h-4 w-4" />
+                            Send Email
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-destructive"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete User
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </Card>
+      ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {filteredUsers.map((user) => {
             const brandNames = getUserBrandNames(user);
@@ -334,95 +447,18 @@ const UserManagement = () => {
             );
           })}
         </div>
-      ) : (
-        <Card>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>User</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Brands</TableHead>
-                <TableHead>Last Login</TableHead>
-                <TableHead className="w-[50px]"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredUsers.map((user) => {
-                const brandNames = getUserBrandNames(user);
-                
-                return (
-                  <TableRow key={user.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                          <span className="text-xs font-medium text-primary">
-                            {user.name.split(' ').map(n => n[0]).join('')}
-                          </span>
-                        </div>
-                        <div>
-                          <div className="font-medium">{user.name}</div>
-                          <div className="text-sm text-muted-foreground">{user.email}</div>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge className={getRoleColor(user.role)}>
-                        {getRoleName(user.role)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={user.is_active ? "default" : "destructive"}>
-                        {user.is_active ? "Active" : "Inactive"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap gap-1">
-                        {brandNames.slice(0, 2).map((brandName) => (
-                          <Badge key={brandName} variant="outline" className="text-xs">
-                            {brandName}
-                          </Badge>
-                        ))}
-                        {brandNames.length > 2 && (
-                          <Badge variant="outline" className="text-xs">
-                            +{brandNames.length - 2}
-                          </Badge>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {user.last_login ? new Date(user.last_login).toLocaleDateString() : 'Never'}
-                    </TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem>
-                            <Edit className="mr-2 h-4 w-4" />
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem>
-                            <Mail className="mr-2 h-4 w-4" />
-                            Email
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive">
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </Card>
       )}
+
+      {/* Permission Management Dialog */}
+      <UserPermissionDialog
+        user={selectedUser}
+        isOpen={isPermissionDialogOpen}
+        onClose={() => {
+          setIsPermissionDialogOpen(false);
+          setSelectedUser(null);
+        }}
+        onSave={handleSavePermissions}
+      />
 
       {filteredUsers.length === 0 && (
         <Card>

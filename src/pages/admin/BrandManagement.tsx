@@ -114,7 +114,7 @@ const BrandManagement = () => {
                       <SelectValue placeholder="Select owner" />
                     </SelectTrigger>
                     <SelectContent>
-                      {mockUsers.filter(user => user.role === 'brand_owner' || user.role === 'manager').map(user => (
+                      {mockUsers.filter(user => user.role === 'manager' || user.role === 'admin').map(user => (
                         <SelectItem key={user.id} value={user.id}>{user.name}</SelectItem>
                       ))}
                     </SelectContent>

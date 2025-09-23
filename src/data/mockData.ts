@@ -19,12 +19,35 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  role: 'super_admin' | 'manager' | 'brand_owner' | 'contributor' | 'viewer';
+  role: 'admin' | 'manager' | 'user';
   avatar?: string;
   assigned_brands: string[];
   is_active: boolean;
   last_login?: string;
   created_at: string;
+  permissions?: UserPermissions;
+}
+
+export interface UserPermissions {
+  modules: {
+    dashboard: boolean;
+    taskHub: boolean;
+    reports: boolean;
+    settings: boolean;
+    adminPanel: boolean;
+  };
+  brands: {
+    [brandId: string]: {
+      access: boolean;
+      level: 'owner' | 'member' | 'viewer';
+      permissions: {
+        viewKPIs: boolean;
+        editKPIs: boolean;
+        manageTeam: boolean;
+        editSettings: boolean;
+      };
+    };
+  };
 }
 
 export interface Integration {
@@ -223,151 +246,232 @@ export const mockUsers: User[] = [
     id: '1',
     name: 'Super Admin',
     email: 'admin@sjinnovation.com',
-    role: 'super_admin',
+    role: 'admin',
     assigned_brands: ['1', '2', '3', '4', '5', '6', '7', '8'],
     is_active: true,
     last_login: '2024-12-20T10:30:00Z',
-    created_at: '2024-01-01'
+    created_at: '2024-01-01',
+    permissions: {
+      modules: {
+        dashboard: true,
+        taskHub: true,
+        reports: true,
+        settings: true,
+        adminPanel: true,
+      },
+      brands: {
+        '1': { access: true, level: 'owner', permissions: { viewKPIs: true, editKPIs: true, manageTeam: true, editSettings: true } },
+        '2': { access: true, level: 'owner', permissions: { viewKPIs: true, editKPIs: true, manageTeam: true, editSettings: true } },
+        '3': { access: true, level: 'owner', permissions: { viewKPIs: true, editKPIs: true, manageTeam: true, editSettings: true } },
+        '4': { access: true, level: 'owner', permissions: { viewKPIs: true, editKPIs: true, manageTeam: true, editSettings: true } },
+        '5': { access: true, level: 'owner', permissions: { viewKPIs: true, editKPIs: true, manageTeam: true, editSettings: true } },
+        '6': { access: true, level: 'owner', permissions: { viewKPIs: true, editKPIs: true, manageTeam: true, editSettings: true } },
+        '7': { access: true, level: 'owner', permissions: { viewKPIs: true, editKPIs: true, manageTeam: true, editSettings: true } },
+        '8': { access: true, level: 'owner', permissions: { viewKPIs: true, editKPIs: true, manageTeam: true, editSettings: true } },
+      }
+    }
   },
   {
     id: '2',
     name: 'Fozle Rahman',
     email: 'fozle@sjinnovation.com',
-    role: 'brand_owner',
+    role: 'manager',
     assigned_brands: ['1'],
     is_active: true,
     last_login: '2024-12-20T09:15:00Z',
-    created_at: '2024-01-15'
+    created_at: '2024-01-15',
+    permissions: {
+      modules: {
+        dashboard: true,
+        taskHub: true,
+        reports: true,
+        settings: true,
+        adminPanel: false,
+      },
+      brands: {
+        '1': { access: true, level: 'owner', permissions: { viewKPIs: true, editKPIs: true, manageTeam: true, editSettings: true } },
+      }
+    }
   },
   {
     id: '3',
     name: 'John Smith',
     email: 'john@sjinnovation.com',
-    role: 'contributor',
+    role: 'user',
     assigned_brands: ['1', '2'],
     is_active: true,
     last_login: '2024-12-19T16:45:00Z',
-    created_at: '2024-01-20'
+    created_at: '2024-01-20',
+    permissions: {
+      modules: {
+        dashboard: true,
+        taskHub: true,
+        reports: true,
+        settings: false,
+        adminPanel: false,
+      },
+      brands: {
+        '1': { access: true, level: 'member', permissions: { viewKPIs: true, editKPIs: false, manageTeam: false, editSettings: false } },
+        '2': { access: true, level: 'member', permissions: { viewKPIs: true, editKPIs: false, manageTeam: false, editSettings: false } },
+      }
+    }
   },
   {
     id: '4',
     name: 'Alice Johnson',
     email: 'alice@sjinnovation.com',
-    role: 'contributor',
+    role: 'user',
     assigned_brands: ['1', '4'],
     is_active: true,
     last_login: '2024-12-20T08:20:00Z',
-    created_at: '2024-01-25'
+    created_at: '2024-01-25',
+    permissions: {
+      modules: {
+        dashboard: true,
+        taskHub: true,
+        reports: true,
+        settings: false,
+        adminPanel: false,
+      },
+      brands: {
+        '1': { access: true, level: 'member', permissions: { viewKPIs: true, editKPIs: false, manageTeam: false, editSettings: false } },
+        '4': { access: true, level: 'member', permissions: { viewKPIs: true, editKPIs: false, manageTeam: false, editSettings: false } },
+      }
+    }
   },
   {
     id: '5',
     name: 'Sarah Johnson',
     email: 'sarah@sjinnovation.com',
-    role: 'brand_owner',
+    role: 'manager',
     assigned_brands: ['2'],
     is_active: true,
     last_login: '2024-12-19T14:30:00Z',
-    created_at: '2024-02-01'
+    created_at: '2024-02-01',
+    permissions: {
+      modules: {
+        dashboard: true,
+        taskHub: true,
+        reports: true,
+        settings: true,
+        adminPanel: false,
+      },
+      brands: {
+        '2': { access: true, level: 'owner', permissions: { viewKPIs: true, editKPIs: true, manageTeam: true, editSettings: true } },
+      }
+    }
   },
   {
     id: '6',
     name: 'Mark Wilson',
     email: 'mark@sjinnovation.com',
-    role: 'contributor',
+    role: 'user',
     assigned_brands: ['2', '6'],
     is_active: true,
     last_login: '2024-12-18T11:15:00Z',
-    created_at: '2024-02-05'
+    created_at: '2024-02-05',
+    permissions: {
+      modules: {
+        dashboard: true,
+        taskHub: true,
+        reports: false,
+        settings: false,
+        adminPanel: false,
+      },
+      brands: {
+        '2': { access: true, level: 'viewer', permissions: { viewKPIs: true, editKPIs: false, manageTeam: false, editSettings: false } },
+        '6': { access: true, level: 'member', permissions: { viewKPIs: true, editKPIs: false, manageTeam: false, editSettings: false } },
+      }
+    }
   },
   {
     id: '7',
     name: 'Debanjan Bhaumik',
     email: 'debanjan@sjinnovation.com',
-    role: 'brand_owner',
+    role: 'manager',
     assigned_brands: ['3'],
     is_active: true,
     last_login: '2024-12-20T07:45:00Z',
-    created_at: '2024-01-20'
+    created_at: '2024-01-20',
+    permissions: {
+      modules: {
+        dashboard: true,
+        taskHub: true,
+        reports: true,
+        settings: true,
+        adminPanel: false,
+      },
+      brands: {
+        '3': { access: true, level: 'owner', permissions: { viewKPIs: true, editKPIs: true, manageTeam: true, editSettings: true } },
+      }
+    }
   },
   {
     id: '8',
     name: 'Mike Chen',
     email: 'mike@sjinnovation.com',
-    role: 'brand_owner',
+    role: 'manager',
     assigned_brands: ['4'],
     is_active: true,
     last_login: '2024-12-19T13:20:00Z',
-    created_at: '2024-02-10'
+    created_at: '2024-02-10',
+    permissions: {
+      modules: {
+        dashboard: true,
+        taskHub: true,
+        reports: true,
+        settings: true,
+        adminPanel: false,
+      },
+      brands: {
+        '4': { access: true, level: 'owner', permissions: { viewKPIs: true, editKPIs: true, manageTeam: true, editSettings: true } },
+      }
+    }
   },
   {
     id: '9',
     name: 'David Kim',
     email: 'david@sjinnovation.com',
-    role: 'contributor',
+    role: 'user',
     assigned_brands: ['4', '5'],
     is_active: true,
     last_login: '2024-12-20T12:10:00Z',
-    created_at: '2024-02-15'
+    created_at: '2024-02-15',
+    permissions: {
+      modules: {
+        dashboard: true,
+        taskHub: true,
+        reports: false,
+        settings: false,
+        adminPanel: false,
+      },
+      brands: {
+        '4': { access: true, level: 'member', permissions: { viewKPIs: true, editKPIs: false, manageTeam: false, editSettings: false } },
+        '5': { access: true, level: 'member', permissions: { viewKPIs: true, editKPIs: false, manageTeam: false, editSettings: false } },
+      }
+    }
   },
   {
     id: '10',
     name: 'Alex Turner',
     email: 'alex@sjinnovation.com',
-    role: 'brand_owner',
+    role: 'manager',
     assigned_brands: ['5'],
     is_active: true,
     last_login: '2024-12-19T15:30:00Z',
-    created_at: '2024-01-25'
-  },
-  {
-    id: '11',
-    name: 'Ryan Brooks',
-    email: 'ryan@sjinnovation.com',
-    role: 'contributor',
-    assigned_brands: ['5', '8'],
-    is_active: true,
-    last_login: '2024-12-18T09:45:00Z',
-    created_at: '2024-02-20'
-  },
-  {
-    id: '12',
-    name: 'Emma Wilson',
-    email: 'emma@sjinnovation.com',
-    role: 'brand_owner',
-    assigned_brands: ['6'],
-    is_active: true,
-    last_login: '2024-12-20T11:20:00Z',
-    created_at: '2024-02-05'
-  },
-  {
-    id: '13',
-    name: 'Tom Anderson',
-    email: 'tom@sjinnovation.com',
-    role: 'contributor',
-    assigned_brands: ['6', '7'],
-    is_active: true,
-    last_login: '2024-12-19T10:15:00Z',
-    created_at: '2024-02-25'
-  },
-  {
-    id: '14',
-    name: 'Lisa Garcia',
-    email: 'lisa@sjinnovation.com',
-    role: 'brand_owner',
-    assigned_brands: ['7'],
-    is_active: true,
-    last_login: '2024-12-20T14:40:00Z',
-    created_at: '2024-01-30'
-  },
-  {
-    id: '15',
-    name: 'Chris Taylor',
-    email: 'chris@sjinnovation.com',
-    role: 'contributor',
-    assigned_brands: ['7', '8'],
-    is_active: true,
-    last_login: '2024-12-19T16:20:00Z',
-    created_at: '2024-03-01'
+    created_at: '2024-01-25',
+    permissions: {
+      modules: {
+        dashboard: true,
+        taskHub: true,
+        reports: true,
+        settings: true,
+        adminPanel: false,
+      },
+      brands: {
+        '5': { access: true, level: 'owner', permissions: { viewKPIs: true, editKPIs: true, manageTeam: true, editSettings: true } },
+      }
+    }
   }
 ];
 
