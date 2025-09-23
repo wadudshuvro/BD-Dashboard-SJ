@@ -14,6 +14,7 @@ import NotFound from "./pages/NotFound";
 import AdminOverview from "./pages/admin/AdminOverview";
 import BrandManagement from "./pages/admin/BrandManagement";
 import UserManagement from "./pages/admin/UserManagement";
+import UserDetail from "./pages/admin/UserDetail";
 import IntegrationManager from "./pages/admin/IntegrationManager";
 import KPIConfigurator from "./pages/admin/KPIConfigurator";
 import AdminSettings from "./pages/admin/AdminSettings";
@@ -41,6 +42,7 @@ const App = () => (
             <Route index element={<AdminOverview />} />
             <Route path="brands" element={<BrandManagement />} />
             <Route path="users" element={<UserManagement />} />
+            <Route path="users/:userId" element={<UserDetail />} />
             <Route path="integrations" element={<IntegrationManager />} />
             <Route path="kpis" element={<KPIConfigurator />} />
             <Route path="settings" element={<AdminSettings />} />
