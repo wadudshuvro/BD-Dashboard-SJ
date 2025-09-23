@@ -34,6 +34,7 @@ export interface Integration {
   description: string;
   icon: string;
   is_available: boolean;
+  is_enabled: boolean;
   setup_complexity: 'easy' | 'medium' | 'complex';
   required_fields: string[];
 }
@@ -379,6 +380,7 @@ export const mockIntegrations: Integration[] = [
     description: 'Website traffic and conversion tracking',
     icon: '📊',
     is_available: true,
+    is_enabled: true,
     setup_complexity: 'medium',
     required_fields: ['property_id', 'api_key', 'view_id']
   },
@@ -389,6 +391,7 @@ export const mockIntegrations: Integration[] = [
     description: 'CRM and marketing automation platform',
     icon: '🎯',
     is_available: true,
+    is_enabled: true,
     setup_complexity: 'medium',
     required_fields: ['api_key', 'location_id']
   },
@@ -399,6 +402,7 @@ export const mockIntegrations: Integration[] = [
     description: 'Professional social media analytics',
     icon: '💼',
     is_available: true,
+    is_enabled: true,
     setup_complexity: 'complex',
     required_fields: ['client_id', 'client_secret', 'company_id']
   },
@@ -409,6 +413,7 @@ export const mockIntegrations: Integration[] = [
     description: 'Inbound marketing and sales platform',
     icon: '🧲',
     is_available: true,
+    is_enabled: true,
     setup_complexity: 'medium',
     required_fields: ['api_key', 'portal_id']
   },
@@ -419,6 +424,7 @@ export const mockIntegrations: Integration[] = [
     description: 'Social media advertising and analytics',
     icon: '📘',
     is_available: true,
+    is_enabled: true,
     setup_complexity: 'complex',
     required_fields: ['app_id', 'app_secret', 'access_token', 'page_id']
   },
@@ -429,6 +435,7 @@ export const mockIntegrations: Integration[] = [
     description: 'Visual social media analytics',
     icon: '📷',
     is_available: true,
+    is_enabled: true,
     setup_complexity: 'medium',
     required_fields: ['access_token', 'business_account_id']
   },
@@ -439,6 +446,7 @@ export const mockIntegrations: Integration[] = [
     description: 'Video content and analytics tracking',
     icon: '📹',
     is_available: true,
+    is_enabled: true,
     setup_complexity: 'medium',
     required_fields: ['api_key', 'channel_id']
   },
@@ -449,6 +457,7 @@ export const mockIntegrations: Integration[] = [
     description: 'Email delivery and analytics service',
     icon: '📧',
     is_available: true,
+    is_enabled: true,
     setup_complexity: 'easy',
     required_fields: ['api_key', 'domain']
   },
@@ -459,6 +468,7 @@ export const mockIntegrations: Integration[] = [
     description: 'Payment processing and revenue tracking',
     icon: '💳',
     is_available: true,
+    is_enabled: true,
     setup_complexity: 'easy',
     required_fields: ['api_key', 'webhook_secret']
   },
@@ -469,6 +479,7 @@ export const mockIntegrations: Integration[] = [
     description: 'Event management and ticket sales',
     icon: '🎟️',
     is_available: true,
+    is_enabled: true,
     setup_complexity: 'easy',
     required_fields: ['api_key', 'organization_id']
   },
@@ -479,6 +490,7 @@ export const mockIntegrations: Integration[] = [
     description: 'Code repository and development analytics',
     icon: '🐱',
     is_available: true,
+    is_enabled: true,
     setup_complexity: 'easy',
     required_fields: ['access_token', 'organization']
   },
@@ -489,8 +501,31 @@ export const mockIntegrations: Integration[] = [
     description: 'Meeting scheduling and booking analytics',
     icon: '📅',
     is_available: true,
+    is_enabled: true,
     setup_complexity: 'easy',
     required_fields: ['api_key', 'user_uuid']
+  },
+  {
+    id: '13',
+    name: 'OpenAI',
+    type: 'openai',
+    description: 'AI-powered content generation and analysis',
+    icon: '🤖',
+    is_available: true,
+    is_enabled: false,
+    setup_complexity: 'easy',
+    required_fields: ['api_key', 'organization_id', 'model_preference']
+  },
+  {
+    id: '14',
+    name: 'CollabAI',
+    type: 'collab_ai',
+    description: 'Collaborative AI platform for team productivity',
+    icon: '🚀',
+    is_available: true,
+    is_enabled: false,
+    setup_complexity: 'easy',
+    required_fields: ['api_key', 'workspace_id', 'model_preference']
   }
 ];
 

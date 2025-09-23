@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { 
   Plug, 
   Search,
@@ -11,7 +12,8 @@ import {
   AlertCircle,
   Clock,
   ExternalLink,
-  RefreshCw
+  RefreshCw,
+  Power
 } from "lucide-react";
 import {
   Dialog,
@@ -28,7 +30,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { mockIntegrations, mockBrands, Integration } from "@/data/mockData";
 
 const IntegrationManager = () => {
-  const [integrations] = useState<Integration[]>(mockIntegrations);
+  const [integrations, setIntegrations] = useState<Integration[]>(mockIntegrations);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedBrand, setSelectedBrand] = useState<string>("all");
   const [isConfigDialogOpen, setIsConfigDialogOpen] = useState(false);
@@ -38,6 +40,16 @@ const IntegrationManager = () => {
     integration.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     integration.description.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const toggleIntegration = (id: string) => {
+    setIntegrations(prev => 
+      prev.map(integration => 
+        integration.id === id 
+          ? { ...integration, is_enabled: !integration.is_enabled }
+          : integration
+      )
+    );
+  };
 
   const getComplexityColor = (complexity: string) => {
     switch (complexity) {
@@ -140,7 +152,18 @@ const IntegrationManager = () => {
                 <div className="flex items-center gap-3">
                   <div className="text-2xl">{integration.icon}</div>
                   <div>
-                    <CardTitle className="text-lg">{integration.name}</CardTitle>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      {integration.name}
+                      {(integration.type === 'openai' || integration.type === 'collab_ai') && (
+                        <div className="flex items-center gap-2 ml-2">
+                          <Power className={`h-4 w-4 ${integration.is_enabled ? 'text-success' : 'text-muted-foreground'}`} />
+                          <Switch
+                            checked={integration.is_enabled}
+                            onCheckedChange={() => toggleIntegration(integration.id)}
+                          />
+                        </div>
+                      )}
+                    </CardTitle>
                     <CardDescription className="text-sm">
                       {integration.description}
                     </CardDescription>
@@ -150,6 +173,7 @@ const IntegrationManager = () => {
                   variant="ghost"
                   size="icon"
                   onClick={() => openConfigDialog(integration)}
+                  disabled={(integration.type === 'openai' || integration.type === 'collab_ai') && !integration.is_enabled}
                 >
                   <Settings className="h-4 w-4" />
                 </Button>
@@ -159,6 +183,11 @@ const IntegrationManager = () => {
                 <Badge variant={integration.is_available ? "default" : "destructive"}>
                   {integration.is_available ? "Available" : "Unavailable"}
                 </Badge>
+                {(integration.type === 'openai' || integration.type === 'collab_ai') && (
+                  <Badge variant={integration.is_enabled ? "default" : "secondary"}>
+                    {integration.is_enabled ? "Enabled" : "Disabled"}
+                  </Badge>
+                )}
                 <Badge className={getComplexityColor(integration.setup_complexity)}>
                   {integration.setup_complexity}
                 </Badge>
@@ -234,13 +263,14 @@ const IntegrationManager = () => {
                   size="sm" 
                   className="flex-1"
                   onClick={() => openConfigDialog(integration)}
+                  disabled={(integration.type === 'openai' || integration.type === 'collab_ai') && !integration.is_enabled}
                 >
                   {selectedBrand !== "all" && getBrandIntegrationStatus(integration.type, selectedBrand) === 'connected' 
                     ? 'Manage' 
                     : 'Configure'
                   }
                 </Button>
-                <Button size="sm" variant="outline">
+                <Button size="sm" variant="outline" disabled={(integration.type === 'openai' || integration.type === 'collab_ai') && !integration.is_enabled}>
                   <ExternalLink className="h-3 w-3" />
                 </Button>
               </div>
@@ -269,32 +299,65 @@ const IntegrationManager = () => {
               </TabsList>
               
               <TabsContent value="config" className="space-y-4">
-                <div className="space-y-4">
-                  {selectedIntegration.required_fields.map((field) => (
-                    <div key={field} className="space-y-2">
-                      <Label htmlFor={field} className="capitalize">
-                        {field.replace(/_/g, ' ')}
-                      </Label>
-                      {field.includes('secret') || field.includes('key') ? (
-                        <Input 
-                          id={field} 
-                          type="password" 
-                          placeholder={`Enter ${field.replace(/_/g, ' ')}`}
-                        />
-                      ) : (
-                        <Input 
-                          id={field} 
-                          placeholder={`Enter ${field.replace(/_/g, ' ')}`}
-                        />
-                      )}
-                    </div>
-                  ))}
-                  
-                  <div className="space-y-2">
-                    <Label>Additional Notes</Label>
-                    <Textarea placeholder="Any additional configuration notes..." />
+                {((selectedIntegration.type === 'openai' || selectedIntegration.type === 'collab_ai') && !selectedIntegration.is_enabled) ? (
+                  <div className="text-center py-8">
+                    <Power className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-medium text-muted-foreground mb-2">Integration Disabled</h3>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Please enable this integration to configure its settings.
+                    </p>
+                    <Button onClick={() => toggleIntegration(selectedIntegration.id)}>
+                      Enable {selectedIntegration.name}
+                    </Button>
                   </div>
-                </div>
+                ) : (
+                  <div className="space-y-4">
+                    {selectedIntegration.required_fields.map((field) => (
+                      <div key={field} className="space-y-2">
+                        <Label htmlFor={field} className="capitalize">
+                          {field.replace(/_/g, ' ')}
+                        </Label>
+                        {field.includes('secret') || field.includes('key') ? (
+                          <Input 
+                            id={field} 
+                            type="password" 
+                            placeholder={`Enter ${field.replace(/_/g, ' ')}`}
+                          />
+                        ) : field === 'model_preference' ? (
+                          <select 
+                            id={field}
+                            className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            <option value="">Select model</option>
+                            {selectedIntegration.type === 'openai' ? (
+                              <>
+                                <option value="gpt-4">GPT-4</option>
+                                <option value="gpt-4-turbo">GPT-4 Turbo</option>
+                                <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                              </>
+                            ) : (
+                              <>
+                                <option value="collab-pro">CollabAI Pro</option>
+                                <option value="collab-standard">CollabAI Standard</option>
+                                <option value="collab-lite">CollabAI Lite</option>
+                              </>
+                            )}
+                          </select>
+                        ) : (
+                          <Input 
+                            id={field} 
+                            placeholder={`Enter ${field.replace(/_/g, ' ')}`}
+                          />
+                        )}
+                      </div>
+                    ))}
+                    
+                    <div className="space-y-2">
+                      <Label>Additional Notes</Label>
+                      <Textarea placeholder="Any additional configuration notes..." />
+                    </div>
+                  </div>
+                )}
               </TabsContent>
               
               <TabsContent value="brands" className="space-y-4">
