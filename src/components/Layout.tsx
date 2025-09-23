@@ -76,7 +76,6 @@ const Layout = ({ userRole }: LayoutProps) => {
           { name: "Tasks", href: `${basePath}/tasks`, icon: CheckSquare, current: false },
           { name: "Reports", href: `${basePath}/reports`, icon: BarChart3, current: false },
           { name: "Clients", href: `${basePath}/clients`, icon: Users, current: false },
-          { name: "Settings", href: `${basePath}/settings`, icon: Settings, current: false },
         ];
       
       case 'user':

@@ -13,7 +13,6 @@ import PMDashboard from "./pages/PMDashboard";
 import ManagerDashboard from "./pages/ManagerDashboard";
 import TaskHub from "./pages/TaskHub";
 import Reports from "./pages/Reports";
-import Settings from "./pages/Settings";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 import Unauthorized from "./pages/Unauthorized";
@@ -76,7 +75,6 @@ const App = () => (
               <Route path="dashboard" element={<UserDashboard />} />
               <Route path="tasks" element={<TaskHub />} />
               <Route path="reports" element={<Reports />} />
-              <Route path="settings" element={<Settings />} />
             </Route>
             
             {/* PM Role Routes */}
@@ -88,7 +86,6 @@ const App = () => (
               <Route path="dashboard" element={<PMDashboard />} />
               <Route path="tasks" element={<TaskHub />} />
               <Route path="reports" element={<Reports />} />
-              <Route path="settings" element={<Settings />} />
               <Route path="clients" element={<ClientManagement />} />
               <Route path="clients/:clientId" element={<ClientDetail />} />
             </Route>
@@ -129,7 +126,6 @@ const App = () => (
             <Route element={<Layout />}>
               <Route path="tasks" element={<TaskHub />} />
               <Route path="reports" element={<Reports />} />
-              <Route path="settings" element={<Settings />} />
             </Route>
             
             {/* Catch-all route */}
