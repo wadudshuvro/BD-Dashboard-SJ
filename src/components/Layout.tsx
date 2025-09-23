@@ -1,6 +1,4 @@
 import { Outlet, NavLink } from "react-router-dom";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { 
   LayoutDashboard, 
@@ -10,7 +8,6 @@ import {
   Users, 
   Menu,
   X,
-  LogOut,
   Bot,
   Wrench,
   FolderOpen,
@@ -19,6 +16,7 @@ import {
   Target
 } from "lucide-react";
 import { useState } from "react";
+import ProfileDropdown from "./ProfileDropdown";
 
 interface LayoutProps {
   userRole?: 'super_admin' | 'manager' | 'pm' | 'user';
@@ -87,7 +85,6 @@ const Layout = ({ userRole }: LayoutProps) => {
           ...baseNavigation,
           { name: "AI Task Hub", href: `${basePath}/tasks`, icon: CheckSquare, current: false },
           { name: "Reports", href: `${basePath}/reports`, icon: BarChart3, current: false },
-          { name: "Settings", href: `${basePath}/settings`, icon: Settings, current: false },
         ];
     }
   };
@@ -152,32 +149,7 @@ const Layout = ({ userRole }: LayoutProps) => {
 
           {/* User profile */}
           <div className="p-4 border-t border-border">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <Avatar className="h-8 w-8">
-                  <AvatarImage src={user?.avatar} />
-                  <AvatarFallback>
-                    {user?.name?.split(' ').map(n => n[0]).join('') || 'U'}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex flex-col">
-                  <span className="text-sm font-medium text-gray-900 dark:text-white">
-                    {user?.name || 'User'}
-                  </span>
-                  <span className="text-xs text-gray-500 dark:text-gray-400 capitalize">
-                    {currentRole.replace('_', ' ')}
-                  </span>
-                </div>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleLogout}
-                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-              >
-                <LogOut className="h-4 w-4" />
-              </Button>
-            </div>
+            <ProfileDropdown />
           </div>
         </div>
 
@@ -207,6 +179,9 @@ const Layout = ({ userRole }: LayoutProps) => {
               <h2 className="text-lg font-semibold text-foreground">
                 {navigation.find(item => window.location.pathname.includes(item.href))?.name || 'Dashboard'}
               </h2>
+            </div>
+            <div className="flex items-center gap-x-4 lg:gap-x-6">
+              <ProfileDropdown />
             </div>
           </div>
         </div>
