@@ -30,6 +30,7 @@ import UserDetail from "./pages/admin/UserDetail";
 import IntegrationManager from "./pages/admin/IntegrationManager";
 import KPIConfigurator from "./pages/admin/KPIConfigurator";
 import AdminSettings from "./pages/admin/AdminSettings";
+import UserBrands from "./pages/UserBrands";
 
 const queryClient = new QueryClient();
 
@@ -75,6 +76,10 @@ const App = () => (
               <Route path="dashboard" element={<UserDashboard />} />
               <Route path="tasks" element={<TaskHub />} />
               <Route path="reports" element={<Reports />} />
+              <Route path="ai-tools" element={<AITools />} />
+              <Route path="ai-agents" element={<AIAgents />} />
+              <Route path="people" element={<People />} />
+              <Route path="brands" element={<UserBrands />} />
             </Route>
             
             {/* PM Role Routes */}

@@ -84,6 +84,10 @@ const Layout = ({ userRole }: LayoutProps) => {
           ...baseNavigation,
           { name: "AI Task Hub", href: `${basePath}/tasks`, icon: CheckSquare, current: false },
           { name: "Reports", href: `${basePath}/reports`, icon: BarChart3, current: false },
+          { name: "AI Tools", href: `${basePath}/ai-tools`, icon: Wrench, current: false },
+          { name: "AI Agents", href: `${basePath}/ai-agents`, icon: Bot, current: false },
+          { name: "People", href: `${basePath}/people`, icon: Users, current: false },
+          { name: "Brands", href: `${basePath}/brands`, icon: Building2, current: false },
         ];
     }
   };

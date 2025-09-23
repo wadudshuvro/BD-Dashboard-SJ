@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Progress } from "@/components/ui/progress";
+import { useAuth } from "@/hooks/useAuth";
 
 interface AIAgent {
   id: string;
@@ -55,7 +56,11 @@ const mockAgents: AIAgent[] = [
 ];
 
 export default function AIAgents() {
+  const { user } = useAuth();
   const [agents, setAgents] = useState<AIAgent[]>(mockAgents);
+  
+  // Check if user has management permissions
+  const canManage = user?.role === 'manager' || user?.role === 'super_admin';
 
   const toggleAgentStatus = (agentId: string) => {
     setAgents(prev => prev.map(agent => 
@@ -96,10 +101,12 @@ export default function AIAgents() {
           <h1 className="text-2xl font-bold text-foreground">AI Agents</h1>
           <p className="text-muted-foreground">Manage and monitor your AI-powered automation agents</p>
         </div>
-        <Button className="bg-gradient-primary text-white hover:opacity-90">
-          <Plus className="mr-2 h-4 w-4" />
-          Create Agent
-        </Button>
+        {canManage && (
+          <Button className="bg-gradient-primary text-white hover:opacity-90">
+            <Plus className="mr-2 h-4 w-4" />
+            Create Agent
+          </Button>
+        )}
       </div>
 
       {/* Stats Cards */}
@@ -172,10 +179,12 @@ export default function AIAgents() {
                     <CardDescription className="text-sm">{agent.description}</CardDescription>
                   </div>
                 </div>
-                <Switch
-                  checked={agent.status === 'active'}
-                  onCheckedChange={() => toggleAgentStatus(agent.id)}
-                />
+                {canManage && (
+                  <Switch
+                    checked={agent.status === 'active'}
+                    onCheckedChange={() => toggleAgentStatus(agent.id)}
+                  />
+                )}
               </div>
             </CardHeader>
 
@@ -222,9 +231,11 @@ export default function AIAgents() {
                   Last active: {new Date(agent.lastActive).toLocaleDateString()}
                 </span>
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm">
-                    <Settings className="h-4 w-4" />
-                  </Button>
+                  {canManage && (
+                    <Button variant="outline" size="sm">
+                      <Settings className="h-4 w-4" />
+                    </Button>
+                  )}
                   <Button variant="outline" size="sm">
                     {agent.status === 'active' ? (
                       <Pause className="h-4 w-4" />
@@ -244,14 +255,19 @@ export default function AIAgents() {
         <Card className="text-center py-12">
           <CardContent>
             <Bot className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-            <CardTitle className="mb-2">No AI Agents Created</CardTitle>
+            <CardTitle className="mb-2">No AI Agents Available</CardTitle>
             <CardDescription className="mb-4">
-              Create your first AI agent to start automating your marketing tasks
+              {canManage 
+                ? "Create your first AI agent to start automating your marketing tasks"
+                : "No AI agents have been created yet. Contact your manager to set up agents."
+              }
             </CardDescription>
-            <Button className="bg-gradient-primary text-white">
-              <Plus className="mr-2 h-4 w-4" />
-              Create Your First Agent
-            </Button>
+            {canManage && (
+              <Button className="bg-gradient-primary text-white">
+                <Plus className="mr-2 h-4 w-4" />
+                Create Your First Agent
+              </Button>
+            )}
           </CardContent>
         </Card>
       )}

@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { useAuth } from "@/hooks/useAuth";
 
 interface AITool {
   id: string;
@@ -53,6 +54,7 @@ const mockTools: AITool[] = [
 ];
 
 export default function AITools() {
+  const { user } = useAuth();
   const [tools, setTools] = useState<AITool[]>(mockTools);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newTool, setNewTool] = useState({
@@ -61,6 +63,9 @@ export default function AITools() {
     category: 'automation' as const,
     prompt: ''
   });
+  
+  // Check if user has management permissions
+  const canManage = user?.role === 'manager' || user?.role === 'super_admin';
 
   const toggleToolStatus = (toolId: string) => {
     setTools(prev => prev.map(tool => 
@@ -120,17 +125,21 @@ export default function AITools() {
           <p className="text-muted-foreground">Build and manage custom AI-powered tools for your workflow</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline">
-            <Upload className="mr-2 h-4 w-4" />
-            Import
-          </Button>
-          <Button 
-            className="bg-gradient-primary text-white hover:opacity-90"
-            onClick={() => setShowCreateForm(true)}
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Create Tool
-          </Button>
+          {canManage && (
+            <>
+              <Button variant="outline">
+                <Upload className="mr-2 h-4 w-4" />
+                Import
+              </Button>
+              <Button 
+                className="bg-gradient-primary text-white hover:opacity-90"
+                onClick={() => setShowCreateForm(true)}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Create Tool
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
@@ -190,7 +199,7 @@ export default function AITools() {
       </div>
 
       {/* Create Tool Form */}
-      {showCreateForm && (
+      {showCreateForm && canManage && (
         <Card>
           <CardHeader>
             <CardTitle>Create New AI Tool</CardTitle>
@@ -269,7 +278,7 @@ export default function AITools() {
                     <CardDescription className="text-sm">{tool.description}</CardDescription>
                   </div>
                 </div>
-                {tool.status !== 'draft' && (
+                {canManage && tool.status !== 'draft' && (
                   <Switch
                     checked={tool.status === 'active'}
                     onCheckedChange={() => toggleToolStatus(tool.id)}
@@ -303,14 +312,18 @@ export default function AITools() {
                   Last used: {new Date(tool.lastUsed).toLocaleDateString()}
                 </span>
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm">
-                    <Settings className="h-4 w-4" />
-                  </Button>
+                  {canManage && (
+                    <>
+                      <Button variant="outline" size="sm">
+                        <Settings className="h-4 w-4" />
+                      </Button>
+                      <Button variant="outline" size="sm">
+                        <Download className="h-4 w-4" />
+                      </Button>
+                    </>
+                  )}
                   <Button variant="outline" size="sm">
                     <Play className="h-4 w-4" />
-                  </Button>
-                  <Button variant="outline" size="sm">
-                    <Download className="h-4 w-4" />
                   </Button>
                 </div>
               </div>
@@ -324,17 +337,22 @@ export default function AITools() {
         <Card className="text-center py-12">
           <CardContent>
             <Wrench className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-            <CardTitle className="mb-2">No AI Tools Created</CardTitle>
+            <CardTitle className="mb-2">No AI Tools Available</CardTitle>
             <CardDescription className="mb-4">
-              Create your first AI tool to start automating your workflow
+              {canManage 
+                ? "Create your first AI tool to start automating your workflow"
+                : "No AI tools have been created yet. Contact your manager to set up tools."
+              }
             </CardDescription>
-            <Button 
-              className="bg-gradient-primary text-white"
-              onClick={() => setShowCreateForm(true)}
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Create Your First Tool
-            </Button>
+            {canManage && (
+              <Button 
+                className="bg-gradient-primary text-white"
+                onClick={() => setShowCreateForm(true)}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Create Your First Tool
+              </Button>
+            )}
           </CardContent>
         </Card>
       )}
