@@ -1,83 +1,102 @@
-import { useState } from "react";
-import { Outlet, NavLink, useLocation } from "react-router-dom";
+import { Outlet, NavLink } from "react-router-dom";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
 import { 
   LayoutDashboard, 
-  Bot, 
-  FileText, 
+  CheckSquare, 
+  BarChart3, 
   Settings, 
-  LogOut, 
+  Users, 
   Menu,
   X,
-  BarChart3,
-  Shield,
+  LogOut,
+  Bot,
   Wrench,
+  FolderOpen,
   Building2,
-  Palette,
-  CheckSquare,
-  Users
+  Zap,
+  Target
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-
-const navigation = [
-  { name: "Dashboard", href: "/", icon: LayoutDashboard },
-  { name: "AI Task Hub", href: "/tasks", icon: Bot },
-  { name: "Reports", href: "/reports", icon: FileText },
-  { name: "Settings", href: "/settings", icon: Settings },
-];
+import { useState } from "react";
 
 interface LayoutProps {
   userRole?: 'super_admin' | 'manager' | 'pm' | 'user';
-  userName?: string;
 }
 
-export default function Layout({ userRole = 'user', userName = 'John Doe' }: LayoutProps) {
+const Layout = ({ userRole }: LayoutProps) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const location = useLocation();
+  const { user, logout } = useAuth();
+  
+  // Use the actual user role if available, otherwise fall back to prop
+  const currentRole = user?.role || userRole || 'user';
+  
+  // Base path for current role
+  const getBasePath = (role: string) => {
+    switch (role) {
+      case 'super_admin': return '/adminpanel';
+      case 'manager': return '/manager';
+      case 'pm': return '/pm';
+      case 'user': return '/user';
+      default: return '/user';
+    }
+  };
+  
+  const basePath = getBasePath(currentRole);
 
-  const isActive = (path: string) => location.pathname === path;
-
-  // Role-based navigation structure
-  const getNavigation = () => {
-    const baseNav = [
-      { name: "Dashboard", href: "/", icon: LayoutDashboard },
-      { name: "AI Task Hub", href: "/tasks", icon: Bot },
-      { name: "Reports", href: "/reports", icon: FileText },
-      { name: "Settings", href: "/settings", icon: Settings },
+  // Get navigation based on role
+  const getNavigation = (role: string) => {
+    const baseNavigation = [
+      { name: "Dashboard", href: `${basePath}/dashboard`, icon: LayoutDashboard, current: false },
     ];
-    
-    // Add role-specific navigation
-    switch (userRole) {
+
+    switch (role) {
       case 'super_admin':
         return [
-          ...baseNav,
-          { name: "Admin Panel", href: "/adminpanel", icon: Shield }
+          { name: "Overview", href: "/adminpanel", icon: LayoutDashboard, current: false },
+          { name: "Brands", href: "/adminpanel/brands", icon: Building2, current: false },
+          { name: "Users", href: "/adminpanel/users", icon: Users, current: false },
+          { name: "Integrations", href: "/adminpanel/integrations", icon: Zap, current: false },
+          { name: "KPIs", href: "/adminpanel/kpis", icon: Target, current: false },
+          { name: "Settings", href: "/adminpanel/settings", icon: Settings, current: false },
         ];
       
       case 'manager':
         return [
-          { name: "Dashboard", href: "/", icon: LayoutDashboard },
-          { name: "AI Agents", href: "/ai-agents", icon: Bot },
-          { name: "AI Tools", href: "/ai-tools", icon: Wrench },
-          { name: "Clients & Projects", href: "/clients", icon: Building2 },
-          { name: "Brands", href: "/brands", icon: Palette },
-          { name: "Actions/Tasks", href: "/tasks", icon: CheckSquare },
-          { name: "People", href: "/people", icon: Users },
+          ...baseNavigation,
+          { name: "AI Agents", href: `${basePath}/ai-agents`, icon: Bot, current: false },
+          { name: "AI Tools", href: `${basePath}/ai-tools`, icon: Wrench, current: false },
+          { name: "Clients & Projects", href: `${basePath}/clients-projects`, icon: FolderOpen, current: false },
+          { name: "Brands", href: `${basePath}/brands`, icon: Building2, current: false },
+          { name: "Actions & Tasks", href: `${basePath}/actions-tasks`, icon: CheckSquare, current: false },
+          { name: "People", href: `${basePath}/people`, icon: Users, current: false },
         ];
       
       case 'pm':
         return [
-          ...baseNav,
-          { name: "Clients", href: "/clients", icon: Building2 }
+          ...baseNavigation,
+          { name: "Tasks", href: `${basePath}/tasks`, icon: CheckSquare, current: false },
+          { name: "Reports", href: `${basePath}/reports`, icon: BarChart3, current: false },
+          { name: "Clients", href: `${basePath}/clients`, icon: Users, current: false },
+          { name: "Settings", href: `${basePath}/settings`, icon: Settings, current: false },
         ];
       
       case 'user':
       default:
-        return baseNav;
+        return [
+          ...baseNavigation,
+          { name: "AI Task Hub", href: `${basePath}/tasks`, icon: CheckSquare, current: false },
+          { name: "Reports", href: `${basePath}/reports`, icon: BarChart3, current: false },
+          { name: "Settings", href: `${basePath}/settings`, icon: Settings, current: false },
+        ];
     }
   };
 
-  const navItems = getNavigation();
+  const navigation = getNavigation(currentRole);
+
+  const handleLogout = () => {
+    logout();
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary">
@@ -106,56 +125,56 @@ export default function Layout({ userRole = 'user', userName = 'John Doe' }: Lay
               </div>
               <div>
                 <h1 className="font-bold text-lg text-foreground">MarketingIQ</h1>
-                <p className="text-xs text-muted-foreground capitalize">{userRole.replace('_', ' ')} Dashboard</p>
+                <p className="text-xs text-muted-foreground capitalize">{currentRole.replace('_', ' ')} Dashboard</p>
               </div>
             </div>
           </div>
 
           {/* Navigation */}
           <nav className="flex-1 px-4 py-6 space-y-2">
-            {navItems.map((item) => {
-              const active = isActive(item.href);
-              const isAdminPanel = item.name === "Admin Panel";
-              
-              return (
-                <NavLink
-                  key={item.name}
-                  to={item.href}
-                  className={`
-                    flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-smooth
-                    ${active 
-                      ? 'bg-gradient-primary text-white shadow-md' 
-                      : isAdminPanel
-                      ? 'text-muted-foreground hover:text-foreground hover:bg-warning/10 border border-warning/20'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'
-                    }
-                  `}
-                >
-                  <item.icon className="mr-3 h-5 w-5" />
-                  {item.name}
-                  {isAdminPanel && (
-                    <div className="ml-auto">
-                      <div className="h-2 w-2 bg-warning rounded-full"></div>
-                    </div>
-                  )}
-                </NavLink>
-              );
-            })}
+            {navigation.map((item) => (
+              <NavLink
+                key={item.name}
+                to={item.href}
+                className={({ isActive }) => `
+                  flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-smooth
+                  ${isActive 
+                    ? 'bg-gradient-primary text-white shadow-md' 
+                    : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'
+                  }
+                `}
+              >
+                <item.icon className="mr-3 h-5 w-5" />
+                {item.name}
+              </NavLink>
+            ))}
           </nav>
 
           {/* User profile */}
           <div className="p-4 border-t border-border">
-            <div className="flex items-center space-x-3">
-              <Avatar>
-                <AvatarFallback className="bg-gradient-primary text-white">
-                  {userName.split(' ').map(n => n[0]).join('')}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-foreground truncate">{userName}</p>
-                <p className="text-xs text-muted-foreground capitalize">{userRole.replace('_', ' ')}</p>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <Avatar className="h-8 w-8">
+                  <AvatarImage src={user?.avatar} />
+                  <AvatarFallback>
+                    {user?.name?.split(' ').map(n => n[0]).join('') || 'U'}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex flex-col">
+                  <span className="text-sm font-medium text-gray-900 dark:text-white">
+                    {user?.name || 'User'}
+                  </span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400 capitalize">
+                    {currentRole.replace('_', ' ')}
+                  </span>
+                </div>
               </div>
-              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleLogout}
+                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+              >
                 <LogOut className="h-4 w-4" />
               </Button>
             </div>
@@ -186,7 +205,7 @@ export default function Layout({ userRole = 'user', userName = 'John Doe' }: Lay
           <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
             <div className="flex flex-1 items-center">
               <h2 className="text-lg font-semibold text-foreground">
-                {navItems.find(item => isActive(item.href))?.name || 'Dashboard'}
+                {navigation.find(item => window.location.pathname.includes(item.href))?.name || 'Dashboard'}
               </h2>
             </div>
           </div>
@@ -201,4 +220,6 @@ export default function Layout({ userRole = 'user', userName = 'John Doe' }: Lay
       </div>
     </div>
   );
-}
+};
+
+export default Layout;

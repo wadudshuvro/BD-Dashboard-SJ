@@ -1,32 +1,40 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { BarChart3, Mail, Lock, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useAuth } from "@/hooks/useAuth";
+import { Navigate, useNavigate, useLocation } from "react-router-dom";
+import { Loader2, BarChart3 } from "lucide-react";
 
 export default function Login() {
-  const [isLoading, setIsLoading] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const { user, login, loading } = useAuth();
   const navigate = useNavigate();
-  const { toast } = useToast();
+  const location = useLocation();
 
-  const handleLogin = async (e: React.FormEvent, role: 'manager' | 'team') => {
+  const from = location.state?.from?.pathname || "/dashboard";
+
+  // If user is already logged in, redirect them
+  if (user && !loading) {
+    return <Navigate to={from} replace />;
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
+    setError("");
     
-    // Simulate login
-    setTimeout(() => {
-      setIsLoading(false);
-      toast({
-        title: "Login successful!",
-        description: `Welcome to MarketingIQ Dashboard as ${role}.`,
-      });
-      navigate('/dashboard');
-    }, 1500);
+    try {
+      await login({ email, password });
+      
+      // The redirect will happen automatically through the DashboardRedirect component
+      
+    } catch (err) {
+      setError("Invalid email or password");
+    }
   };
 
   return (
@@ -41,117 +49,62 @@ export default function Login() {
         </div>
 
         <Card className="backdrop-blur-sm bg-white/95 shadow-2xl">
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl text-foreground">Sign In</CardTitle>
+          <CardHeader>
+            <CardTitle className="text-2xl text-center">Sign In</CardTitle>
+            <CardDescription className="text-center">
+              Enter your credentials to access your account
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="manager" className="space-y-6">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="manager">Manager</TabsTrigger>
-                <TabsTrigger value="team">Team Member</TabsTrigger>
-              </TabsList>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  placeholder="Enter your email"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  placeholder="Enter your password"
+                />
+              </div>
               
-              <TabsContent value="manager" className="space-y-4">
-                <form onSubmit={(e) => handleLogin(e, 'manager')} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="manager-email">Email</Label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="manager-email"
-                        type="email"
-                        placeholder="manager@company.com"
-                        className="pl-10"
-                        defaultValue="john.doe@company.com"
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="manager-password">Password</Label>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="manager-password"
-                        type="password"
-                        placeholder="••••••••"
-                        className="pl-10"
-                        defaultValue="demo123"
-                      />
-                    </div>
-                  </div>
-
-                  <Button 
-                    type="submit" 
-                    className="w-full bg-gradient-primary hover:shadow-glow"
-                    disabled={isLoading}
-                  >
-                    {isLoading ? "Signing in..." : "Sign in as Manager"}
-                  </Button>
-                </form>
-              </TabsContent>
-
-              <TabsContent value="team" className="space-y-4">
-                <form onSubmit={(e) => handleLogin(e, 'team')} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="team-email">Email</Label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="team-email"
-                        type="email"
-                        placeholder="team@company.com"
-                        className="pl-10"
-                        defaultValue="sarah.smith@company.com"
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="team-password">Password</Label>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="team-password"
-                        type="password"
-                        placeholder="••••••••"
-                        className="pl-10"
-                        defaultValue="demo123"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="team-role">Role</Label>
-                    <Select defaultValue="content-creator">
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select your role" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="content-creator">Content Creator</SelectItem>
-                        <SelectItem value="social-media">Social Media Specialist</SelectItem>
-                        <SelectItem value="seo-specialist">SEO Specialist</SelectItem>
-                        <SelectItem value="campaign-manager">Campaign Manager</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <Button 
-                    type="submit" 
-                    className="w-full bg-gradient-primary hover:shadow-glow"
-                    disabled={isLoading}
-                  >
-                    {isLoading ? "Signing in..." : "Sign in as Team Member"}
-                  </Button>
-                </form>
-              </TabsContent>
-            </Tabs>
-
-            <div className="mt-6 text-center text-sm text-muted-foreground">
-              <p>Demo credentials are pre-filled</p>
-              <p className="mt-1">
-                Manager: john.doe@company.com | Team: sarah.smith@company.com
-              </p>
+              {error && (
+                <Alert variant="destructive">
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+              
+              <Button 
+                type="submit" 
+                className="w-full bg-gradient-primary hover:shadow-glow" 
+                disabled={loading}
+              >
+                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Sign In
+              </Button>
+            </form>
+            
+            <div className="mt-6 p-4 bg-muted rounded-lg">
+              <p className="text-sm font-medium mb-2">Demo Accounts:</p>
+              <div className="space-y-1 text-xs">
+                <div><strong>Super Admin:</strong> admin@company.com</div>
+                <div><strong>Manager:</strong> manager@company.com</div>
+                <div><strong>PM:</strong> pm@company.com</div>
+                <div><strong>User:</strong> user@company.com</div>
+                <div className="mt-2"><strong>Password:</strong> password</div>
+              </div>
             </div>
           </CardContent>
         </Card>
