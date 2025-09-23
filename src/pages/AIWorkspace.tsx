@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { Bot, FileText, Search, Calendar, Sparkles, Send, Copy, Check, Wrench, Plus, Settings, Download, Upload, Play, Code, Database, Zap } from "lucide-react";
+import { Bot, FileText, Search, Calendar, Sparkles, Send, Copy, Check, Wrench, Plus, Settings, Download, Upload, Play, Code, Database, Zap, TrendingUp, Activity, Pause } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
+import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
@@ -161,6 +162,102 @@ What's your experience with AI tools in marketing? Share your thoughts below! ðŸ
 â€¢ 12% increase in trial signups`
 };
 
+// AI Agents interface and mock data
+interface AIAgent {
+  id: string;
+  name: string;
+  description: string;
+  provider: 'CollabAI' | 'OpenAI';
+  type: 'content' | 'analytics' | 'social' | 'seo' | 'chatbot' | 'assistant';
+  status: 'active' | 'inactive' | 'training';
+  performance: number;
+  tasksCompleted: number;
+  lastActive: string;
+  integrations: string[];
+  model?: string;
+}
+
+const mockAgents: AIAgent[] = [
+  {
+    id: '1',
+    name: 'GPT-4 Content Creator',
+    description: 'Advanced content generation using OpenAI GPT-4 for blogs, social media, and marketing copy',
+    provider: 'OpenAI',
+    type: 'content',
+    status: 'active',
+    performance: 94,
+    tasksCompleted: 156,
+    lastActive: '2024-01-15T10:30:00Z',
+    integrations: ['WordPress', 'LinkedIn API', 'Content Calendar'],
+    model: 'gpt-4'
+  },
+  {
+    id: '2', 
+    name: 'CollabAI Analytics Expert',
+    description: 'Specialized AI agent for marketing analytics and performance insights using CollabAI',
+    provider: 'CollabAI',
+    type: 'analytics',
+    status: 'active', 
+    performance: 91,
+    tasksCompleted: 89,
+    lastActive: '2024-01-15T09:15:00Z',
+    integrations: ['Google Analytics', 'Facebook Ads', 'HubSpot'],
+    model: 'collab-analytics-v2'
+  },
+  {
+    id: '3',
+    name: 'GPT-4 Social Media Manager',
+    description: 'Manages social media posting, engagement, and community interactions using OpenAI',
+    provider: 'OpenAI',
+    type: 'social',
+    status: 'training',
+    performance: 76,
+    tasksCompleted: 34,
+    lastActive: '2024-01-14T16:45:00Z',
+    integrations: ['Facebook API', 'Instagram API', 'Twitter API'],
+    model: 'gpt-4'
+  },
+  {
+    id: '4',
+    name: 'CollabAI SEO Optimizer',
+    description: 'Advanced SEO analysis and optimization recommendations powered by CollabAI',
+    provider: 'CollabAI',
+    type: 'seo',
+    status: 'active',
+    performance: 88,
+    tasksCompleted: 67,
+    lastActive: '2024-01-15T11:20:00Z',
+    integrations: ['SEMrush', 'Google Search Console', 'Ahrefs'],
+    model: 'collab-seo-pro'
+  },
+  {
+    id: '5',
+    name: 'GPT-4 Customer Support Bot',
+    description: 'Intelligent customer support chatbot using OpenAI GPT-4 for instant responses',
+    provider: 'OpenAI',
+    type: 'chatbot',
+    status: 'active',
+    performance: 96,
+    tasksCompleted: 234,
+    lastActive: '2024-01-15T14:10:00Z',
+    integrations: ['Zendesk', 'Intercom', 'Slack'],
+    model: 'gpt-4-turbo'
+  },
+  {
+    id: '6',
+    name: 'CollabAI Executive Assistant',
+    description: 'AI-powered executive assistant for scheduling, email management, and task coordination',
+    provider: 'CollabAI',
+    type: 'assistant',
+    status: 'active',
+    performance: 92,
+    tasksCompleted: 145,
+    lastActive: '2024-01-15T13:45:00Z',
+    integrations: ['Google Calendar', 'Gmail', 'Microsoft Teams'],
+    model: 'collab-assistant-v3'
+  }
+];
+
 // AI Tools interface and mock data
 interface AITool {
   id: string;
@@ -221,6 +318,9 @@ export default function AIWorkspace() {
   const [isLoading, setIsLoading] = useState(false);
   const [copied, setCopied] = useState(false);
 
+  // AI Agents State
+  const [agents, setAgents] = useState<AIAgent[]>(mockAgents);
+
   // AI Tools State
   const [tools, setTools] = useState<AITool[]>(mockTools);
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -267,6 +367,45 @@ export default function AIWorkspace() {
 
   const handleExampleClick = (example: string) => {
     setPrompt(example);
+  };
+
+  // AI Agents Functions
+  const toggleAgentStatus = (agentId: string) => {
+    if (!canManage) return;
+    setAgents(prev => prev.map(agent => 
+      agent.id === agentId 
+        ? { ...agent, status: agent.status === 'active' ? 'inactive' : 'active' }
+        : agent
+    ));
+  };
+
+  const getAgentStatusColor = (status: string) => {
+    switch (status) {
+      case 'active': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
+      case 'inactive': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300';
+      case 'training': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300';
+      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300';
+    }
+  };
+
+  const getAgentTypeColor = (type: string) => {
+    switch (type) {
+      case 'content': return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300';
+      case 'analytics': return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300';
+      case 'social': return 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-300';
+      case 'seo': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
+      case 'chatbot': return 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300';
+      case 'assistant': return 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-300';
+      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300';
+    }
+  };
+
+  const getProviderColor = (provider: string) => {
+    switch (provider) {
+      case 'OpenAI': return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-300';
+      case 'CollabAI': return 'bg-violet-100 text-violet-800 dark:bg-violet-900 dark:text-violet-300';
+      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300';
+    }
   };
 
   // AI Tools Functions
@@ -317,6 +456,9 @@ export default function AIWorkspace() {
   };
 
   // Calculate stats
+  const totalAgentTasks = agents.reduce((sum, agent) => sum + agent.tasksCompleted, 0);
+  const activeAgents = agents.filter(agent => agent.status === 'active').length;
+  const averageAgentPerformance = Math.round(agents.reduce((sum, agent) => sum + agent.performance, 0) / agents.length);
   const totalUsage = tools.reduce((sum, tool) => sum + tool.usageCount, 0);
   const activeTools = tools.filter(tool => tool.status === 'active').length;
   const customTools = tools.filter(tool => tool.isCustom).length;
@@ -332,8 +474,9 @@ export default function AIWorkspace() {
       </div>
 
       <Tabs defaultValue="assistants" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="assistants">AI Assistants</TabsTrigger>
+          <TabsTrigger value="agents">AI Agents</TabsTrigger>
           <TabsTrigger value="tools">AI Tools</TabsTrigger>
         </TabsList>
         
@@ -481,6 +624,196 @@ export default function AIWorkspace() {
               )}
             </div>
           </div>
+        </TabsContent>
+
+        {/* AI Agents Tab */}
+        <TabsContent value="agents" className="space-y-6">
+          {/* Agents Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h2 className="text-2xl font-bold text-foreground">AI Agents</h2>
+              <p className="text-muted-foreground">Manage and monitor your AI-powered agents from CollabAI and OpenAI</p>
+            </div>
+            {canManage && (
+              <Button className="bg-gradient-primary text-white hover:opacity-90">
+                <Plus className="mr-2 h-4 w-4" />
+                Deploy New Agent
+              </Button>
+            )}
+          </div>
+
+          {/* Agent Stats Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Active Agents</CardTitle>
+                <Bot className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{activeAgents}</div>
+                <p className="text-xs text-muted-foreground">
+                  {agents.length} total agents
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Tasks Completed</CardTitle>
+                <Activity className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{totalAgentTasks}</div>
+                <p className="text-xs text-muted-foreground">
+                  This month
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Avg Performance</CardTitle>
+                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{averageAgentPerformance}%</div>
+                <p className="text-xs text-muted-foreground">
+                  Across all agents
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Cost Savings</CardTitle>
+                <Zap className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">$12.4k</div>
+                <p className="text-xs text-muted-foreground">
+                  Estimated monthly
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Agents List */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {agents.map((agent) => (
+              <Card key={agent.id} className="hover:shadow-md transition-shadow">
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-gradient-primary rounded-lg">
+                        <Bot className="h-5 w-5 text-white" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-lg">{agent.name}</CardTitle>
+                        <CardDescription className="text-sm">{agent.description}</CardDescription>
+                      </div>
+                    </div>
+                    {canManage && (
+                      <Switch
+                        checked={agent.status === 'active'}
+                        onCheckedChange={() => toggleAgentStatus(agent.id)}
+                      />
+                    )}
+                  </div>
+                </CardHeader>
+
+                <CardContent className="space-y-4">
+                  {/* Status, Type, and Provider */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex gap-2 flex-wrap">
+                      <Badge className={getAgentStatusColor(agent.status)}>
+                        {agent.status}
+                      </Badge>
+                      <Badge className={getAgentTypeColor(agent.type)}>
+                        {agent.type}
+                      </Badge>
+                      <Badge className={getProviderColor(agent.provider)}>
+                        {agent.provider}
+                      </Badge>
+                    </div>
+                    <span className="text-sm text-muted-foreground">
+                      {agent.tasksCompleted} tasks completed
+                    </span>
+                  </div>
+
+                  {/* Model Info */}
+                  {agent.model && (
+                    <div className="text-xs text-muted-foreground">
+                      <span className="font-medium">Model:</span> {agent.model}
+                    </div>
+                  )}
+
+                  {/* Performance */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Performance Score</span>
+                      <span className="font-medium">{agent.performance}%</span>
+                    </div>
+                    <Progress value={agent.performance} className="h-2" />
+                  </div>
+
+                  {/* Integrations */}
+                  <div>
+                    <p className="text-sm font-medium mb-2">Connected Integrations</p>
+                    <div className="flex flex-wrap gap-1">
+                      {agent.integrations.map((integration, index) => (
+                        <Badge key={index} variant="outline" className="text-xs">
+                          {integration}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex justify-between items-center pt-2">
+                    <span className="text-xs text-muted-foreground">
+                      Last active: {new Date(agent.lastActive).toLocaleDateString()}
+                    </span>
+                    <div className="flex gap-2">
+                      {canManage && (
+                        <Button variant="outline" size="sm">
+                          <Settings className="h-4 w-4" />
+                        </Button>
+                      )}
+                      <Button variant="outline" size="sm">
+                        {agent.status === 'active' ? (
+                          <Pause className="h-4 w-4" />
+                        ) : (
+                          <Play className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {/* Empty State for when no agents exist */}
+          {agents.length === 0 && (
+            <Card className="text-center py-12">
+              <CardContent>
+                <Bot className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                <CardTitle className="mb-2">No AI Agents Deployed</CardTitle>
+                <CardDescription className="mb-4">
+                  {canManage 
+                    ? "Deploy your first AI agent to start automating your marketing tasks"
+                    : "No AI agents have been deployed yet. Contact your manager to set up agents."
+                  }
+                </CardDescription>
+                {canManage && (
+                  <Button className="bg-gradient-primary text-white">
+                    <Plus className="mr-2 h-4 w-4" />
+                    Deploy Your First Agent
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         {/* AI Tools Tab */}
