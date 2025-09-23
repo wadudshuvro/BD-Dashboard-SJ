@@ -36,8 +36,8 @@ export default function Layout({ userRole = 'manager', userName = 'John Doe' }: 
   const getNavigation = () => {
     const baseNav = navigation;
     
-    // Add Admin Panel for super admins and managers
-    if (userRole === 'super_admin' || userRole === 'manager') {
+    // Add Admin Panel only for super admins
+    if (userRole === 'super_admin') {
       return [
         ...baseNav,
         { name: "Admin Panel", href: "/adminpanel", icon: Shield }
