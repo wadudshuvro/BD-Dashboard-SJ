@@ -86,7 +86,12 @@ const UserBrands = () => {
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
                   <div className="space-y-1">
-                    <CardTitle className="text-lg">{brand.name}</CardTitle>
+                    <CardTitle 
+                      className="text-lg cursor-pointer hover:text-primary transition-colors"
+                      onClick={() => window.location.href = `/user/brands/${brand.id}`}
+                    >
+                      {brand.name}
+                    </CardTitle>
                     <CardDescription className="text-sm">
                       {brand.description}
                     </CardDescription>

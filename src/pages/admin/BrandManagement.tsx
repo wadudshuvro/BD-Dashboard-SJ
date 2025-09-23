@@ -266,9 +266,9 @@ const BrandManagement = () => {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => window.location.href = `/adminpanel/brands/${brand.id}`}>
                         <Eye className="mr-2 h-4 w-4" />
-                        View Dashboard
+                        View Details
                       </DropdownMenuItem>
                       <DropdownMenuItem>
                         <Edit className="mr-2 h-4 w-4" />

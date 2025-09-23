@@ -21,13 +21,14 @@ import ClientsProjects from "./pages/ClientsProjects";
 import People from "./pages/People";
 import ActionsTasks from "./pages/ActionsTasks";
 import AIWorkspace from "./pages/AIWorkspace";
+import UserManagement from "./pages/admin/UserManagement";
 import AdminOverview from "./pages/admin/AdminOverview";
 import BrandManagement from "./pages/admin/BrandManagement";
-import UserManagement from "./pages/admin/UserManagement";
-import UserDetail from "./pages/admin/UserDetail";
+import BrandDetail from "./pages/admin/BrandDetail";
 import IntegrationManager from "./pages/admin/IntegrationManager";
 import KPIConfigurator from "./pages/admin/KPIConfigurator";
 import AdminSettings from "./pages/admin/AdminSettings";
+import UserDetail from "./pages/admin/UserDetail";
 import UserBrands from "./pages/UserBrands";
 
 const queryClient = new QueryClient();
@@ -76,6 +77,7 @@ const App = () => (
               <Route path="reports" element={<Reports />} />
               <Route path="people" element={<People />} />
               <Route path="brands" element={<UserBrands />} />
+              <Route path="brands/:brandId" element={<BrandDetail />} />
             </Route>
             
             {/* PM Role Routes */}
@@ -103,6 +105,7 @@ const App = () => (
               <Route path="clients" element={<ClientManagement />} />
               <Route path="clients/:clientId" element={<ClientDetail />} />
               <Route path="brands" element={<BrandManagement />} />
+              <Route path="brands/:brandId" element={<BrandDetail />} />
               <Route path="actions-tasks" element={<ActionsTasks />} />
               <Route path="people" element={<People />} />
             </Route>
@@ -115,6 +118,7 @@ const App = () => (
             }>
               <Route index element={<AdminOverview />} />
               <Route path="brands" element={<BrandManagement />} />
+              <Route path="brands/:brandId" element={<BrandDetail />} />
               <Route path="users" element={<UserManagement />} />
               <Route path="users/:userId" element={<UserDetail />} />
               <Route path="integrations" element={<IntegrationManager />} />
