@@ -40,9 +40,9 @@ const ModuleIcons = {
   adminPanel: Shield,
 };
 
-const getDefaultPermissions = (role: 'admin' | 'manager' | 'user'): UserPermissions => {
+const getDefaultPermissions = (role: 'super_admin' | 'manager' | 'pm' | 'user'): UserPermissions => {
   switch (role) {
-    case 'admin':
+    case 'super_admin':
       return {
         modules: {
           dashboard: true,
@@ -54,6 +54,17 @@ const getDefaultPermissions = (role: 'admin' | 'manager' | 'user'): UserPermissi
         brands: {}
       };
     case 'manager':
+      return {
+        modules: {
+          dashboard: true,
+          taskHub: true,
+          reports: true,
+          settings: true,
+          adminPanel: false,
+        },
+        brands: {}
+      };
+    case 'pm':
       return {
         modules: {
           dashboard: true,

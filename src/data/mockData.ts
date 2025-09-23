@@ -19,7 +19,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  role: 'admin' | 'manager' | 'user';
+  role: 'super_admin' | 'manager' | 'pm' | 'user';
   avatar?: string;
   assigned_brands: string[];
   is_active: boolean;
@@ -246,7 +246,7 @@ export const mockUsers: User[] = [
     id: '1',
     name: 'Super Admin',
     email: 'admin@sjinnovation.com',
-    role: 'admin',
+    role: 'super_admin',
     assigned_brands: ['1', '2', '3', '4', '5', '6', '7', '8'],
     is_active: true,
     last_login: '2024-12-20T10:30:00Z',

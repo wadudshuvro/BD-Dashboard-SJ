@@ -9,7 +9,12 @@ import {
   Menu,
   X,
   BarChart3,
-  Shield
+  Shield,
+  Wrench,
+  Building2,
+  Palette,
+  CheckSquare,
+  Users
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -22,29 +27,54 @@ const navigation = [
 ];
 
 interface LayoutProps {
-  userRole?: 'super_admin' | 'manager' | 'brand_owner' | 'contributor';
+  userRole?: 'super_admin' | 'manager' | 'pm' | 'user';
   userName?: string;
 }
 
-export default function Layout({ userRole = 'manager', userName = 'John Doe' }: LayoutProps) {
+export default function Layout({ userRole = 'user', userName = 'John Doe' }: LayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
 
   const isActive = (path: string) => location.pathname === path;
 
-  // Filter navigation based on user role
+  // Role-based navigation structure
   const getNavigation = () => {
-    const baseNav = navigation;
+    const baseNav = [
+      { name: "Dashboard", href: "/", icon: LayoutDashboard },
+      { name: "AI Task Hub", href: "/tasks", icon: Bot },
+      { name: "Reports", href: "/reports", icon: FileText },
+      { name: "Settings", href: "/settings", icon: Settings },
+    ];
     
-    // Add Admin Panel only for super admins
-    if (userRole === 'super_admin') {
-      return [
-        ...baseNav,
-        { name: "Admin Panel", href: "/adminpanel", icon: Shield }
-      ];
+    // Add role-specific navigation
+    switch (userRole) {
+      case 'super_admin':
+        return [
+          ...baseNav,
+          { name: "Admin Panel", href: "/adminpanel", icon: Shield }
+        ];
+      
+      case 'manager':
+        return [
+          { name: "Dashboard", href: "/", icon: LayoutDashboard },
+          { name: "AI Agents", href: "/ai-agents", icon: Bot },
+          { name: "AI Tools", href: "/ai-tools", icon: Wrench },
+          { name: "Clients & Projects", href: "/clients", icon: Building2 },
+          { name: "Brands", href: "/brands", icon: Palette },
+          { name: "Actions/Tasks", href: "/tasks", icon: CheckSquare },
+          { name: "People", href: "/people", icon: Users },
+        ];
+      
+      case 'pm':
+        return [
+          ...baseNav,
+          { name: "Clients", href: "/clients", icon: Building2 }
+        ];
+      
+      case 'user':
+      default:
+        return baseNav;
     }
-    
-    return baseNav;
   };
 
   const navItems = getNavigation();

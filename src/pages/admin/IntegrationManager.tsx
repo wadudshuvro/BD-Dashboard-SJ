@@ -33,6 +33,14 @@ import {
   mockBrandIntegrations
 } from "@/data/mockData";
 
+// Union type for different integration config structures
+type IntegrationConfig = 
+  | { api_key: string; location_id: string } // GoHighLevel
+  | { access_token: string; company_id: string } // LinkedIn
+  | { tracking_id: string; domain: string } // Analytics
+  | { access_token: string; account_id: string } // Meta Ads
+  | Record<string, any>; // Fallback for other configs
+
 interface GlobalIntegration {
   id: string;
   name: string;
@@ -46,6 +54,12 @@ interface GlobalIntegration {
   required_fields: string[];
 }
 
+interface BrandConnection {
+  is_enabled: boolean;
+  config: IntegrationConfig;
+  status: 'connected' | 'error' | 'pending';
+}
+
 interface BrandIntegration {
   id: string;
   name: string;
@@ -57,17 +71,13 @@ interface BrandIntegration {
   setup_complexity: 'easy' | 'medium' | 'complex';
   required_fields: string[];
   brand_connections: {
-    [brandId: string]: {
-      is_enabled: boolean;
-      config: Record<string, any>;
-      status: 'connected' | 'error' | 'pending';
-    };
+    [brandId: string]: BrandConnection;
   };
 }
 
 const IntegrationManager = () => {
   const [globalIntegrations, setGlobalIntegrations] = useState(mockGlobalIntegrations);
-  const [brandIntegrations, setBrandIntegrations] = useState(mockBrandIntegrations);
+  const [brandIntegrations, setBrandIntegrations] = useState<BrandIntegration[]>(mockBrandIntegrations as BrandIntegration[]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedBrand, setSelectedBrand] = useState<string>("all");
   const [isConfigDialogOpen, setIsConfigDialogOpen] = useState(false);
@@ -100,9 +110,18 @@ const IntegrationManager = () => {
         if (integration.id === integrationId) {
           const updatedConnections = { ...integration.brand_connections };
           if (updatedConnections[brandId]) {
-            updatedConnections[brandId].is_enabled = !updatedConnections[brandId].is_enabled;
+            updatedConnections[brandId] = {
+              ...updatedConnections[brandId],
+              is_enabled: !updatedConnections[brandId].is_enabled
+            };
           } else {
-            updatedConnections[brandId] = { is_enabled: true, config: {}, status: 'pending' };
+            // Create default config based on integration type
+            const defaultConfig: IntegrationConfig = {};
+            updatedConnections[brandId] = { 
+              is_enabled: true, 
+              config: defaultConfig, 
+              status: 'pending' as const
+            };
           }
           return { ...integration, brand_connections: updatedConnections };
         }
