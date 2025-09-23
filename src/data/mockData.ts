@@ -523,148 +523,61 @@ export const mockBrandIntegrations = [
     type: 'gohighlevel',
     description: 'CRM and marketing automation platform',
     icon: '🎯',
-    category: 'crm',
+    category: 'crm' as const,
     is_available: true,
-    setup_complexity: 'medium',
+    setup_complexity: 'medium' as const,
     required_fields: ['api_key', 'location_id', 'webhook_url'],
     brand_connections: {
-      '1': { is_enabled: true, config: { api_key: '***', location_id: 'loc_123' }, status: 'connected' },
-      '2': { is_enabled: false, config: {}, status: 'pending' }
+      '1': { is_enabled: true, config: { api_key: '***', location_id: 'loc_123' }, status: 'connected' as const },
+      '2': { is_enabled: false, config: {}, status: 'pending' as const }
     }
   },
   {
-    id: 'brand_2',
+    id: 'brand_2', 
     name: 'LinkedIn Business',
     type: 'linkedin_business',
     description: 'LinkedIn marketing and analytics integration',
     icon: '💼',
-    category: 'social',
+    category: 'social' as const,
     is_available: true,
-    setup_complexity: 'medium',
+    setup_complexity: 'medium' as const,
     required_fields: ['access_token', 'company_id', 'campaign_account'],
     brand_connections: {
-      '1': { is_enabled: true, config: { access_token: '***', company_id: 'comp_456' }, status: 'connected' }
+      '1': { is_enabled: true, config: { access_token: '***', company_id: 'comp_456' }, status: 'connected' as const }
     }
   },
   {
     id: 'brand_3',
-    name: 'Brand Analytics',
+    name: 'Brand Analytics', 
     type: 'brand_analytics',
     description: 'Custom analytics tracking for brand performance',
     icon: '📊',
-    category: 'analytics',
+    category: 'analytics' as const,
     is_available: true,
-    setup_complexity: 'easy',
+    setup_complexity: 'easy' as const,
     required_fields: ['tracking_id', 'domain'],
     brand_connections: {
-      '1': { is_enabled: true, config: { tracking_id: 'GA_789', domain: 'brand1.com' }, status: 'connected' },
-      '2': { is_enabled: true, config: { tracking_id: 'GA_101', domain: 'brand2.com' }, status: 'connected' }
-    }
-  }
-];
-
-// Mock Integrations Data (Legacy - keeping for backward compatibility)
-  {
-    id: 'global_1',
-    name: 'CollabAI',
-    type: 'collab_ai',
-    description: 'Collaborative AI platform for team productivity',
-    icon: '🚀',
-    category: 'ai',
-    is_available: true,
-    is_enabled: false,
-    setup_complexity: 'easy',
-    required_fields: ['api_key', 'workspace_id', 'model_preference']
-  },
-  {
-    id: 'global_2',
-    name: 'OpenAI',
-    type: 'openai',
-    description: 'AI-powered content generation and analysis',
-    icon: '🤖',
-    category: 'ai',
-    is_available: true,
-    is_enabled: false,
-    setup_complexity: 'easy',
-    required_fields: ['api_key', 'organization_id', 'model_preference']
-  },
-  {
-    id: 'global_3',
-    name: 'SendGrid',
-    type: 'sendgrid',
-    description: 'Email delivery service for system notifications',
-    icon: '📧',
-    category: 'communication',
-    is_available: true,
-    is_enabled: true,
-    setup_complexity: 'easy',
-    required_fields: ['api_key', 'sender_email']
-  }
-];
-
-// Mock Brand Integrations (Per-brand configuration)
-export const mockBrandIntegrations: BrandIntegration[] = [
-  {
-    id: 'brand_1',
-    name: 'GoHighLevel',
-    type: 'gohighlevel',
-    description: 'CRM and marketing automation platform',
-    icon: '🎯',
-    category: 'crm',
-    is_available: true,
-    setup_complexity: 'medium',
-    required_fields: ['api_key', 'location_id', 'webhook_url'],
-    brand_connections: {
-      '1': { is_enabled: true, config: { api_key: '***', location_id: 'loc_123' }, status: 'connected' },
-      '2': { is_enabled: false, config: {}, status: 'pending' }
-    }
-  },
-  {
-    id: 'brand_2',
-    name: 'LinkedIn Business',
-    type: 'linkedin_business',
-    description: 'LinkedIn marketing and analytics integration',
-    icon: '💼',
-    category: 'social',
-    is_available: true,
-    setup_complexity: 'medium',
-    required_fields: ['access_token', 'company_id', 'campaign_account'],
-    brand_connections: {
-      '1': { is_enabled: true, config: { access_token: '***', company_id: 'comp_456' }, status: 'connected' }
-    }
-  },
-  {
-    id: 'brand_3',
-    name: 'Brand Analytics',
-    type: 'brand_analytics',
-    description: 'Custom analytics tracking for brand performance',
-    icon: '📊',
-    category: 'analytics',
-    is_available: true,
-    setup_complexity: 'easy',
-    required_fields: ['tracking_id', 'domain'],
-    brand_connections: {
-      '1': { is_enabled: true, config: { tracking_id: 'GA_789', domain: 'brand1.com' }, status: 'connected' },
-      '2': { is_enabled: true, config: { tracking_id: 'GA_101', domain: 'brand2.com' }, status: 'connected' }
+      '1': { is_enabled: true, config: { tracking_id: 'GA_789', domain: 'brand1.com' }, status: 'connected' as const },
+      '2': { is_enabled: true, config: { tracking_id: 'GA_101', domain: 'brand2.com' }, status: 'connected' as const }
     }
   },
   {
     id: 'brand_4',
     name: 'Meta Ads',
-    type: 'meta_ads',
+    type: 'meta_ads', 
     description: 'Facebook and Instagram advertising platform integration',
     icon: '📘',
-    category: 'marketing',
+    category: 'marketing' as const,
     is_available: true,
-    setup_complexity: 'medium',
+    setup_complexity: 'medium' as const,
     required_fields: ['access_token', 'account_id', 'pixel_id'],
     brand_connections: {
-      '1': { is_enabled: true, config: { access_token: '***', account_id: 'act_123' }, status: 'connected' }
+      '1': { is_enabled: true, config: { access_token: '***', account_id: 'act_123' }, status: 'connected' as const }
     }
   }
 ];
 
-// Mock Integrations Data (Legacy - keeping for backward compatibility)
+// Mock Integrations
 export const mockIntegrations: Integration[] = [
   {
     id: '1',

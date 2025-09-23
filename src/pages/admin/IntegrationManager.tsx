@@ -66,12 +66,12 @@ interface BrandIntegration {
 }
 
 const IntegrationManager = () => {
-  const [globalIntegrations, setGlobalIntegrations] = useState<GlobalIntegration[]>(mockGlobalIntegrations);
-  const [brandIntegrations, setBrandIntegrations] = useState<BrandIntegration[]>(mockBrandIntegrations);
+  const [globalIntegrations, setGlobalIntegrations] = useState(mockGlobalIntegrations);
+  const [brandIntegrations, setBrandIntegrations] = useState(mockBrandIntegrations);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedBrand, setSelectedBrand] = useState<string>("all");
   const [isConfigDialogOpen, setIsConfigDialogOpen] = useState(false);
-  const [selectedIntegration, setSelectedIntegration] = useState<GlobalIntegration | BrandIntegration | null>(null);
+  const [selectedIntegration, setSelectedIntegration] = useState<any>(null);
   const [activeTab, setActiveTab] = useState("global");
 
   const filteredGlobalIntegrations = globalIntegrations.filter(integration => 
@@ -120,7 +120,7 @@ const IntegrationManager = () => {
     }
   };
 
-  const openConfigDialog = (integration: GlobalIntegration | BrandIntegration) => {
+  const openConfigDialog = (integration: any) => {
     setSelectedIntegration(integration);
     setIsConfigDialogOpen(true);
   };
