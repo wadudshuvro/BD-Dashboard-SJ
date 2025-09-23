@@ -8,20 +8,21 @@ import {
   LogOut, 
   Menu,
   X,
-  BarChart3
+  BarChart3,
+  Shield
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 const navigation = [
-  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { name: "Dashboard", href: "/", icon: LayoutDashboard },
   { name: "AI Task Hub", href: "/tasks", icon: Bot },
   { name: "Reports", href: "/reports", icon: FileText },
   { name: "Settings", href: "/settings", icon: Settings },
 ];
 
 interface LayoutProps {
-  userRole?: 'manager' | 'team';
+  userRole?: 'super_admin' | 'manager' | 'brand_owner' | 'contributor';
   userName?: string;
 }
 
@@ -30,6 +31,23 @@ export default function Layout({ userRole = 'manager', userName = 'John Doe' }: 
   const location = useLocation();
 
   const isActive = (path: string) => location.pathname === path;
+
+  // Filter navigation based on user role
+  const getNavigation = () => {
+    const baseNav = navigation;
+    
+    // Add Admin Panel for super admins and managers
+    if (userRole === 'super_admin' || userRole === 'manager') {
+      return [
+        ...baseNav,
+        { name: "Admin Panel", href: "/adminpanel", icon: Shield }
+      ];
+    }
+    
+    return baseNav;
+  };
+
+  const navItems = getNavigation();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-secondary">
@@ -58,15 +76,17 @@ export default function Layout({ userRole = 'manager', userName = 'John Doe' }: 
               </div>
               <div>
                 <h1 className="font-bold text-lg text-foreground">MarketingIQ</h1>
-                <p className="text-xs text-muted-foreground capitalize">{userRole} Dashboard</p>
+                <p className="text-xs text-muted-foreground capitalize">{userRole.replace('_', ' ')} Dashboard</p>
               </div>
             </div>
           </div>
 
           {/* Navigation */}
           <nav className="flex-1 px-4 py-6 space-y-2">
-            {navigation.map((item) => {
+            {navItems.map((item) => {
               const active = isActive(item.href);
+              const isAdminPanel = item.name === "Admin Panel";
+              
               return (
                 <NavLink
                   key={item.name}
@@ -75,12 +95,19 @@ export default function Layout({ userRole = 'manager', userName = 'John Doe' }: 
                     flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-smooth
                     ${active 
                       ? 'bg-gradient-primary text-white shadow-md' 
+                      : isAdminPanel
+                      ? 'text-muted-foreground hover:text-foreground hover:bg-warning/10 border border-warning/20'
                       : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'
                     }
                   `}
                 >
                   <item.icon className="mr-3 h-5 w-5" />
                   {item.name}
+                  {isAdminPanel && (
+                    <div className="ml-auto">
+                      <div className="h-2 w-2 bg-warning rounded-full"></div>
+                    </div>
+                  )}
                 </NavLink>
               );
             })}
@@ -96,7 +123,7 @@ export default function Layout({ userRole = 'manager', userName = 'John Doe' }: 
               </Avatar>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-foreground truncate">{userName}</p>
-                <p className="text-xs text-muted-foreground capitalize">{userRole}</p>
+                <p className="text-xs text-muted-foreground capitalize">{userRole.replace('_', ' ')}</p>
               </div>
               <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
                 <LogOut className="h-4 w-4" />
@@ -129,7 +156,7 @@ export default function Layout({ userRole = 'manager', userName = 'John Doe' }: 
           <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
             <div className="flex flex-1 items-center">
               <h2 className="text-lg font-semibold text-foreground">
-                {navigation.find(item => isActive(item.href))?.name || 'Dashboard'}
+                {navItems.find(item => isActive(item.href))?.name || 'Dashboard'}
               </h2>
             </div>
           </div>

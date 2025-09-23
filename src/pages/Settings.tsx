@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Bell, Key, Users, Database, Palette, Shield } from "lucide-react";
+import { Bell, Palette, Users } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,48 +22,36 @@ export default function Settings() {
       <div className="space-y-2">
         <h1 className="text-3xl font-bold text-foreground">Settings</h1>
         <p className="text-muted-foreground">
-          Manage your dashboard preferences and integrations
+          Manage your personal preferences and team settings
         </p>
       </div>
 
       <Tabs defaultValue="general" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
-          <TabsTrigger value="integrations">Integrations</TabsTrigger>
           <TabsTrigger value="team">Team</TabsTrigger>
-          <TabsTrigger value="security">Security</TabsTrigger>
           <TabsTrigger value="appearance">Appearance</TabsTrigger>
         </TabsList>
 
+        {/* General Tab */}
         <TabsContent value="general" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Company Information</CardTitle>
+              <CardTitle>Personal Information</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Update your personal details and preferences.
+              </p>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="company-name">Company Name</Label>
-                  <Input id="company-name" defaultValue="TechCorp Marketing" />
+                  <Label htmlFor="full-name">Full Name</Label>
+                  <Input id="full-name" defaultValue="John Doe" />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="website">Website</Label>
-                  <Input id="website" defaultValue="https://techcorp.com" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="industry">Industry</Label>
-                  <Select defaultValue="saas">
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="saas">SaaS</SelectItem>
-                      <SelectItem value="ecommerce">E-commerce</SelectItem>
-                      <SelectItem value="consulting">Consulting</SelectItem>
-                      <SelectItem value="agency">Marketing Agency</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="email">Email</Label>
+                  <Input id="email" defaultValue="john.doe@company.com" />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="timezone">Timezone</Label>
@@ -79,12 +67,27 @@ export default function Settings() {
                     </SelectContent>
                   </Select>
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="language">Language</Label>
+                  <Select defaultValue="en">
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="en">English</SelectItem>
+                      <SelectItem value="es">Spanish</SelectItem>
+                      <SelectItem value="fr">French</SelectItem>
+                      <SelectItem value="de">German</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
               <Button className="bg-gradient-primary">Save Changes</Button>
             </CardContent>
           </Card>
         </TabsContent>
 
+        {/* Notifications Tab */}
         <TabsContent value="notifications" className="space-y-6">
           <Card>
             <CardHeader>
@@ -92,6 +95,9 @@ export default function Settings() {
                 <Bell className="h-5 w-5" />
                 <span>Notification Preferences</span>
               </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Choose how you want to receive updates and alerts.
+              </p>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-4">
@@ -138,117 +144,45 @@ export default function Settings() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="integrations" className="space-y-6">
-          <div className="grid gap-6 md:grid-cols-2">
-            {[
-              { name: 'Google Analytics', status: 'Connected', icon: '📊' },
-              { name: 'LinkedIn', status: 'Connected', icon: '💼' }, 
-              { name: 'Facebook/Meta', status: 'Not Connected', icon: '📘' },
-              { name: 'HubSpot CRM', status: 'Connected', icon: '🔄' },
-              { name: 'Google Ads', status: 'Not Connected', icon: '🎯' },
-              { name: 'Mailchimp', status: 'Connected', icon: '📧' },
-            ].map((integration, index) => (
-              <Card key={index}>
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <span className="text-2xl">{integration.icon}</span>
-                      <div>
-                        <h4 className="font-medium">{integration.name}</h4>
-                        <p className={`text-sm ${
-                          integration.status === 'Connected' 
-                            ? 'text-success' 
-                            : 'text-muted-foreground'
-                        }`}>
-                          {integration.status}
-                        </p>
-                      </div>
-                    </div>
-                    <Button
-                      variant={integration.status === 'Connected' ? 'outline' : 'default'}
-                      size="sm"
-                      className={integration.status === 'Not Connected' ? 'bg-gradient-primary' : ''}
-                    >
-                      {integration.status === 'Connected' ? 'Manage' : 'Connect'}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="team" className="space-y-6">
+        {/* Team Tab */}
+        <TabsContent value="team" className="space-y-4">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
                 <Users className="h-5 w-5" />
-                <span>Team Members</span>
+                <span>Team Invitations</span>
               </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Invite new team members to your assigned brands.
+              </p>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {[
-                { name: 'John Doe', email: 'john.doe@company.com', role: 'Manager', status: 'Active' },
-                { name: 'Sarah Smith', email: 'sarah.smith@company.com', role: 'Content Creator', status: 'Active' },
-                { name: 'Mike Johnson', email: 'mike.johnson@company.com', role: 'SEO Specialist', status: 'Active' },
-                { name: 'Lisa Chen', email: 'lisa.chen@company.com', role: 'Social Media Manager', status: 'Invited' },
-              ].map((member, index) => (
-                <div key={index} className="flex items-center justify-between p-4 border border-border rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-gradient-primary rounded-full flex items-center justify-center text-white font-medium">
-                      {member.name.split(' ').map(n => n[0]).join('')}
-                    </div>
-                    <div>
-                      <h4 className="font-medium">{member.name}</h4>
-                      <p className="text-sm text-muted-foreground">{member.email}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <span className="text-sm text-muted-foreground">{member.role}</span>
-                    <span className={`text-xs px-2 py-1 rounded-full ${
-                      member.status === 'Active' 
-                        ? 'bg-success-light text-success' 
-                        : 'bg-warning-light text-warning'
-                    }`}>
-                      {member.status}
-                    </span>
-                    <Button variant="ghost" size="sm">Edit</Button>
-                  </div>
-                </div>
-              ))}
-              <Button className="w-full bg-gradient-primary">Invite Team Member</Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="security" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <Shield className="h-5 w-5" />
-                <span>Security Settings</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent>
               <div className="space-y-4">
-                <div>
-                  <Label htmlFor="current-password">Current Password</Label>
-                  <Input id="current-password" type="password" />
+                <div className="grid gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="invite-email">Email Address</Label>
+                    <Input id="invite-email" type="email" placeholder="teammate@company.com" />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="invite-role">Role</Label>
+                    <Select>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select role" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="contributor">Contributor</SelectItem>
+                        <SelectItem value="brand_owner">Brand Owner</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-                <div>
-                  <Label htmlFor="new-password">New Password</Label>
-                  <Input id="new-password" type="password" />
-                </div>
-                <div>
-                  <Label htmlFor="confirm-password">Confirm New Password</Label>
-                  <Input id="confirm-password" type="password" />
-                </div>
+                <Button className="bg-gradient-primary">Send Invitation</Button>
               </div>
-              <Button className="bg-gradient-primary">Update Password</Button>
             </CardContent>
           </Card>
         </TabsContent>
 
+        {/* Appearance Tab */}
         <TabsContent value="appearance" className="space-y-6">
           <Card>
             <CardHeader>
@@ -256,6 +190,9 @@ export default function Settings() {
                 <Palette className="h-5 w-5" />
                 <span>Appearance</span>
               </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Customize the look and feel of your dashboard.
+              </p>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-4">
@@ -286,6 +223,7 @@ export default function Settings() {
                   </Select>
                 </div>
               </div>
+              <Button className="bg-gradient-primary">Save Preferences</Button>
             </CardContent>
           </Card>
         </TabsContent>
