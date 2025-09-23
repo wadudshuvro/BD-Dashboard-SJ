@@ -14,7 +14,8 @@ import {
   Edit,
   Trash2,
   Eye,
-  DollarSign
+  DollarSign,
+  Loader2
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -33,20 +34,53 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { mockBrands, mockUsers, Brand } from "@/data/mockData";
+import { useAdminBrands, Brand, CreateBrandData } from "@/hooks/useAdminBrands";
+import { useAdminUsers } from "@/hooks/useAdminUsers";
 
 const BrandManagement = () => {
-  const [brands] = useState<Brand[]>(mockBrands);
+  const { brands, loading, createBrand } = useAdminBrands();
+  const { users } = useAdminUsers();
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState<"all" | "internal" | "client">("all");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  
+  // Form state for new brand
+  const [newBrandData, setNewBrandData] = useState<CreateBrandData>({
+    name: "",
+    description: "",
+    type: "internal",
+    owner_id: "",
+    monthly_budget: undefined
+  });
 
   const filteredBrands = brands.filter(brand => {
     const matchesSearch = brand.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         brand.owner_name.toLowerCase().includes(searchTerm.toLowerCase());
+                         (brand.owner_name || '').toLowerCase().includes(searchTerm.toLowerCase());
     const matchesFilter = filterType === "all" || brand.type === filterType;
     return matchesSearch && matchesFilter;
   });
+
+  const handleCreateBrand = async () => {
+    if (!newBrandData.name || !newBrandData.description || !newBrandData.owner_id) {
+      return;
+    }
+
+    setIsCreating(true);
+    const success = await createBrand(newBrandData);
+    setIsCreating(false);
+    
+    if (success) {
+      setIsAddDialogOpen(false);
+      setNewBrandData({
+        name: "",
+        description: "",
+        type: "internal",
+        owner_id: "",
+        monthly_budget: undefined
+      });
+    }
+  };
 
   const getBrandStats = (brand: Brand) => {
     const totalKPIs = brand.kpis.length;
@@ -87,11 +121,21 @@ const BrandManagement = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="brand-name">Brand Name</Label>
-                  <Input id="brand-name" placeholder="Enter brand name" />
+                  <Input 
+                    id="brand-name" 
+                    placeholder="Enter brand name" 
+                    value={newBrandData.name}
+                    onChange={(e) => setNewBrandData(prev => ({ ...prev, name: e.target.value }))}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="brand-type">Brand Type</Label>
-                  <Select>
+                  <Select 
+                    value={newBrandData.type} 
+                    onValueChange={(value: "internal" | "client") => 
+                      setNewBrandData(prev => ({ ...prev, type: value }))
+                    }
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Select type" />
                     </SelectTrigger>
@@ -104,25 +148,49 @@ const BrandManagement = () => {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="brand-description">Description</Label>
-                <Textarea id="brand-description" placeholder="Brief description of the brand" />
+                <Textarea 
+                  id="brand-description" 
+                  placeholder="Brief description of the brand"
+                  value={newBrandData.description}
+                  onChange={(e) => setNewBrandData(prev => ({ ...prev, description: e.target.value }))}
+                />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="brand-owner">Brand Owner</Label>
-                  <Select>
+                  <Select 
+                    value={newBrandData.owner_id} 
+                    onValueChange={(value) => 
+                      setNewBrandData(prev => ({ ...prev, owner_id: value }))
+                    }
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Select owner" />
                     </SelectTrigger>
                     <SelectContent>
-                      {mockUsers.filter(user => user.role === 'manager' || user.role === 'super_admin').map(user => (
-                        <SelectItem key={user.id} value={user.id}>{user.name}</SelectItem>
+                      {users.filter(user => user.role === 'manager' || user.role === 'super_admin').map(user => (
+                        <SelectItem key={user.id} value={user.id}>
+                          {user.first_name && user.last_name 
+                            ? `${user.first_name} ${user.last_name}` 
+                            : user.email
+                          }
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="monthly-budget">Monthly Budget ($)</Label>
-                  <Input id="monthly-budget" type="number" placeholder="0" />
+                  <Input 
+                    id="monthly-budget" 
+                    type="number" 
+                    placeholder="0"
+                    value={newBrandData.monthly_budget || ""}
+                    onChange={(e) => setNewBrandData(prev => ({ 
+                      ...prev, 
+                      monthly_budget: e.target.value ? Number(e.target.value) : undefined 
+                    }))}
+                  />
                 </div>
               </div>
             </div>
@@ -130,7 +198,11 @@ const BrandManagement = () => {
               <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button onClick={() => setIsAddDialogOpen(false)}>
+              <Button 
+                onClick={handleCreateBrand}
+                disabled={isCreating || !newBrandData.name || !newBrandData.description || !newBrandData.owner_id}
+              >
+                {isCreating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Create Brand
               </Button>
             </div>
@@ -163,9 +235,17 @@ const BrandManagement = () => {
         </Select>
       </div>
 
+      {/* Loading State */}
+      {loading && (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      )}
+
       {/* Brand Cards Grid */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {filteredBrands.map((brand) => {
+      {!loading && (
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {filteredBrands.map((brand) => {
           const stats = getBrandStats(brand);
           
           return (
@@ -228,11 +308,11 @@ const BrandManagement = () => {
                 <div className="flex items-center gap-2">
                   <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
                     <span className="text-xs font-medium text-primary">
-                      {brand.owner_name.split(' ').map(n => n[0]).join('')}
+                      {(brand.owner_name || 'U').split(' ').map(n => n[0]).join('').slice(0, 2)}
                     </span>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground">{brand.owner_name}</p>
+                    <p className="text-sm font-medium text-foreground">{brand.owner_name || 'Unknown'}</p>
                     <p className="text-xs text-muted-foreground">Brand Owner</p>
                   </div>
                 </div>
@@ -240,15 +320,15 @@ const BrandManagement = () => {
                 {/* Stats */}
                 <div className="grid grid-cols-3 gap-3 text-center">
                   <div>
-                    <div className="text-lg font-bold text-foreground">{brand.team_members.length}</div>
+                    <div className="text-lg font-bold text-foreground">{brand.team_members?.length || 0}</div>
                     <div className="text-xs text-muted-foreground">Team</div>
                   </div>
                   <div>
-                    <div className="text-lg font-bold text-foreground">{brand.active_integrations.length}</div>
+                    <div className="text-lg font-bold text-foreground">{brand.active_integrations?.length || 0}</div>
                     <div className="text-xs text-muted-foreground">Integrations</div>
                   </div>
                   <div>
-                    <div className="text-lg font-bold text-foreground">{brand.kpis.length}</div>
+                    <div className="text-lg font-bold text-foreground">{brand.kpis?.length || 0}</div>
                     <div className="text-xs text-muted-foreground">KPIs</div>
                   </div>
                 </div>
@@ -270,23 +350,28 @@ const BrandManagement = () => {
                 <div className="space-y-2">
                   <h4 className="text-sm font-medium text-foreground">Recent KPIs</h4>
                   <div className="space-y-1">
-                    {brand.kpis.slice(0, 2).map((kpi) => (
-                      <div key={kpi.id} className="flex items-center justify-between text-xs">
-                        <span className="text-muted-foreground">{kpi.name}</span>
-                        <span className="font-medium">
-                          {kpi.type === 'currency' ? '$' : ''}
-                          {kpi.current_value.toLocaleString()}
-                          {kpi.type === 'percentage' ? '%' : ''}
-                        </span>
-                      </div>
-                    ))}
+                    {brand.kpis && brand.kpis.length > 0 ? (
+                      brand.kpis.slice(0, 2).map((kpi) => (
+                        <div key={kpi.id} className="flex items-center justify-between text-xs">
+                          <span className="text-muted-foreground">{kpi.name}</span>
+                          <span className="font-medium">
+                            {kpi.type === 'currency' ? '$' : ''}
+                            {kpi.current_value.toLocaleString()}
+                            {kpi.type === 'percentage' ? '%' : ''}
+                          </span>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-xs text-muted-foreground">No KPIs configured</p>
+                    )}
                   </div>
                 </div>
               </CardContent>
             </Card>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
 
       {filteredBrands.length === 0 && (
         <Card>
