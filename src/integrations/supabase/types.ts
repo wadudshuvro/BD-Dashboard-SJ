@@ -14,41 +14,117 @@ export type Database = {
   }
   public: {
     Tables: {
+      brand_kpis: {
+        Row: {
+          brand_id: string
+          created_at: string | null
+          current_value: number
+          description: string | null
+          display_order: number | null
+          id: string
+          name: string
+          source: string
+          target_value: number | null
+          type: string
+          updated_at: string | null
+        }
+        Insert: {
+          brand_id: string
+          created_at?: string | null
+          current_value?: number
+          description?: string | null
+          display_order?: number | null
+          id?: string
+          name: string
+          source: string
+          target_value?: number | null
+          type: string
+          updated_at?: string | null
+        }
+        Update: {
+          brand_id?: string
+          created_at?: string | null
+          current_value?: number
+          description?: string | null
+          display_order?: number | null
+          id?: string
+          name?: string
+          source?: string
+          target_value?: number | null
+          type?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brand_kpis_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       brands: {
         Row: {
+          active_integrations: string[] | null
           created_at: string
           description: string | null
           id: string
+          is_active: boolean | null
           logo_url: string | null
+          monthly_budget: number | null
           name: string
+          owner_id: string | null
           slug: string
           status: string
+          team_members: string[] | null
+          type: string | null
           updated_at: string
           website_url: string | null
         }
         Insert: {
+          active_integrations?: string[] | null
           created_at?: string
           description?: string | null
           id?: string
+          is_active?: boolean | null
           logo_url?: string | null
+          monthly_budget?: number | null
           name: string
+          owner_id?: string | null
           slug: string
           status?: string
+          team_members?: string[] | null
+          type?: string | null
           updated_at?: string
           website_url?: string | null
         }
         Update: {
+          active_integrations?: string[] | null
           created_at?: string
           description?: string | null
           id?: string
+          is_active?: boolean | null
           logo_url?: string | null
+          monthly_budget?: number | null
           name?: string
+          owner_id?: string | null
           slug?: string
           status?: string
+          team_members?: string[] | null
+          type?: string | null
           updated_at?: string
           website_url?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "brands_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_brands: {
         Row: {
