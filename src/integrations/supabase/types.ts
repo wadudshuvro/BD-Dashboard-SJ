@@ -14,16 +14,87 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      users: {
+        Row: {
+          created_at: string
+          email: string
+          first_name: string | null
+          id: string
+          last_name: string | null
+          password_hash: string
+          refresh_token: string | null
+          refresh_token_expires_at: string | null
+          role: Database["public"]["Enums"]["app_role"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          password_hash: string
+          refresh_token?: string | null
+          refresh_token_expires_at?: string | null
+          role: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          password_hash?: string
+          refresh_token?: string | null
+          refresh_token_expires_at?: string | null
+          role?: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      citext: {
+        Args: { "": boolean } | { "": string } | { "": unknown }
+        Returns: string
+      }
+      citext_hash: {
+        Args: { "": string }
+        Returns: number
+      }
+      citextin: {
+        Args: { "": unknown }
+        Returns: string
+      }
+      citextout: {
+        Args: { "": string }
+        Returns: unknown
+      }
+      citextrecv: {
+        Args: { "": unknown }
+        Returns: string
+      }
+      citextsend: {
+        Args: { "": string }
+        Returns: string
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "super_admin" | "manager" | "pm" | "user"
+      user_role:
+        | "manager"
+        | "assistant_manager"
+        | "project_coordinator"
+        | "content_writer"
+        | "seo_specialist"
+        | "design_consultant"
+        | "marketing_executive"
+        | "brand_owner"
+        | "team_member"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +221,19 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["super_admin", "manager", "pm", "user"],
+      user_role: [
+        "manager",
+        "assistant_manager",
+        "project_coordinator",
+        "content_writer",
+        "seo_specialist",
+        "design_consultant",
+        "marketing_executive",
+        "brand_owner",
+        "team_member",
+      ],
+    },
   },
 } as const
