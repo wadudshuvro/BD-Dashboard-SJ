@@ -37,6 +37,18 @@ export default function Login() {
     }
   };
 
+  const handleDemoLogin = async (demoEmail: string) => {
+    setError("");
+    setEmail(demoEmail);
+    setPassword("password");
+    
+    try {
+      await login({ email: demoEmail, password: "password" });
+    } catch (err) {
+      setError("Login failed");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-hero flex items-center justify-center p-4">
       <div className="w-full max-w-md">
@@ -97,14 +109,48 @@ export default function Login() {
             </form>
             
             <div className="mt-6 p-4 bg-muted rounded-lg">
-              <p className="text-sm font-medium mb-2">Demo Accounts:</p>
-              <div className="space-y-1 text-xs">
-                <div><strong>Super Admin:</strong> admin@company.com</div>
-                <div><strong>Manager:</strong> manager@company.com</div>
-                <div><strong>PM:</strong> pm@company.com</div>
-                <div><strong>User:</strong> user@company.com</div>
-                <div className="mt-2"><strong>Password:</strong> password</div>
+              <p className="text-sm font-medium mb-3">Quick Demo Login:</p>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleDemoLogin("admin@company.com")}
+                  disabled={loading}
+                  className="text-xs h-8"
+                >
+                  Super Admin
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleDemoLogin("manager@company.com")}
+                  disabled={loading}
+                  className="text-xs h-8"
+                >
+                  Manager
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleDemoLogin("pm@company.com")}
+                  disabled={loading}
+                  className="text-xs h-8"
+                >
+                  Project Manager
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleDemoLogin("user@company.com")}
+                  disabled={loading}
+                  className="text-xs h-8"
+                >
+                  User
+                </Button>
               </div>
+              <p className="text-xs text-muted-foreground mt-2 text-center">
+                Click any role above to login instantly
+              </p>
             </div>
           </CardContent>
         </Card>
