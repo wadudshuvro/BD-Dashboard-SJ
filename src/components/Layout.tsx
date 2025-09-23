@@ -62,8 +62,7 @@ const Layout = ({ userRole }: LayoutProps) => {
       case 'manager':
         return [
           ...baseNavigation,
-          { name: "AI Agents", href: `${basePath}/ai-agents`, icon: Bot, current: false },
-          { name: "AI Tools", href: `${basePath}/ai-tools`, icon: Wrench, current: false },
+          { name: "AI Workspace", href: `${basePath}/workspace`, icon: Bot, current: false },
           { name: "Clients & Projects", href: `${basePath}/clients-projects`, icon: FolderOpen, current: false },
           { name: "Brands", href: `${basePath}/brands`, icon: Building2, current: false },
           { name: "Actions & Tasks", href: `${basePath}/actions-tasks`, icon: CheckSquare, current: false },
@@ -73,7 +72,7 @@ const Layout = ({ userRole }: LayoutProps) => {
       case 'pm':
         return [
           ...baseNavigation,
-          { name: "Tasks", href: `${basePath}/tasks`, icon: CheckSquare, current: false },
+          { name: "AI Workspace", href: `${basePath}/workspace`, icon: Bot, current: false },
           { name: "Reports", href: `${basePath}/reports`, icon: BarChart3, current: false },
           { name: "Clients", href: `${basePath}/clients`, icon: Users, current: false },
         ];
@@ -82,10 +81,8 @@ const Layout = ({ userRole }: LayoutProps) => {
       default:
         return [
           ...baseNavigation,
-          { name: "AI Task Hub", href: `${basePath}/tasks`, icon: CheckSquare, current: false },
+          { name: "AI Workspace", href: `${basePath}/workspace`, icon: Bot, current: false },
           { name: "Reports", href: `${basePath}/reports`, icon: BarChart3, current: false },
-          { name: "AI Tools", href: `${basePath}/ai-tools`, icon: Wrench, current: false },
-          { name: "AI Agents", href: `${basePath}/ai-agents`, icon: Bot, current: false },
           { name: "People", href: `${basePath}/people`, icon: Users, current: false },
           { name: "Brands", href: `${basePath}/brands`, icon: Building2, current: false },
         ];

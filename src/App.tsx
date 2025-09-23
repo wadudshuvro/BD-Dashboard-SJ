@@ -11,7 +11,6 @@ import Dashboard from "./pages/Dashboard";
 import UserDashboard from "./pages/UserDashboard";
 import PMDashboard from "./pages/PMDashboard";
 import ManagerDashboard from "./pages/ManagerDashboard";
-import TaskHub from "./pages/TaskHub";
 import Reports from "./pages/Reports";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
@@ -19,10 +18,9 @@ import Unauthorized from "./pages/Unauthorized";
 import ClientManagement from "./pages/ClientManagement";
 import ClientDetail from "./pages/ClientDetail";
 import ClientsProjects from "./pages/ClientsProjects";
-import AIAgents from "./pages/AIAgents";
-import AITools from "./pages/AITools";
 import People from "./pages/People";
 import ActionsTasks from "./pages/ActionsTasks";
+import AIWorkspace from "./pages/AIWorkspace";
 import AdminOverview from "./pages/admin/AdminOverview";
 import BrandManagement from "./pages/admin/BrandManagement";
 import UserManagement from "./pages/admin/UserManagement";
@@ -74,10 +72,8 @@ const App = () => (
               </ProtectedRoute>
             }>
               <Route path="dashboard" element={<UserDashboard />} />
-              <Route path="tasks" element={<TaskHub />} />
+              <Route path="workspace" element={<AIWorkspace />} />
               <Route path="reports" element={<Reports />} />
-              <Route path="ai-tools" element={<AITools />} />
-              <Route path="ai-agents" element={<AIAgents />} />
               <Route path="people" element={<People />} />
               <Route path="brands" element={<UserBrands />} />
             </Route>
@@ -89,7 +85,7 @@ const App = () => (
               </ProtectedRoute>
             }>
               <Route path="dashboard" element={<PMDashboard />} />
-              <Route path="tasks" element={<TaskHub />} />
+              <Route path="workspace" element={<AIWorkspace />} />
               <Route path="reports" element={<Reports />} />
               <Route path="clients" element={<ClientManagement />} />
               <Route path="clients/:clientId" element={<ClientDetail />} />
@@ -102,8 +98,7 @@ const App = () => (
               </ProtectedRoute>
             }>
               <Route path="dashboard" element={<ManagerDashboard />} />
-              <Route path="ai-agents" element={<AIAgents />} />
-              <Route path="ai-tools" element={<AITools />} />
+              <Route path="workspace" element={<AIWorkspace />} />
               <Route path="clients-projects" element={<ClientsProjects />} />
               <Route path="clients" element={<ClientManagement />} />
               <Route path="clients/:clientId" element={<ClientDetail />} />
@@ -129,7 +124,7 @@ const App = () => (
             
             {/* Legacy/Fallback Routes */}
             <Route element={<Layout />}>
-              <Route path="tasks" element={<TaskHub />} />
+              <Route path="workspace" element={<AIWorkspace />} />
               <Route path="reports" element={<Reports />} />
             </Route>
             
