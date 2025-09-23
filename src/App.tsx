@@ -4,12 +4,19 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Layout from "./components/Layout";
+import AdminLayout from "./components/AdminLayout";
 import Dashboard from "./pages/Dashboard";
 import TaskHub from "./pages/TaskHub";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
+import AdminOverview from "./pages/admin/AdminOverview";
+import BrandManagement from "./pages/admin/BrandManagement";
+import UserManagement from "./pages/admin/UserManagement";
+import IntegrationManager from "./pages/admin/IntegrationManager";
+import KPIConfigurator from "./pages/admin/KPIConfigurator";
+import AdminSettings from "./pages/admin/AdminSettings";
 
 const queryClient = new QueryClient();
 
@@ -28,6 +35,17 @@ const App = () => (
             <Route path="/reports" element={<Reports />} />
             <Route path="/settings" element={<Settings />} />
           </Route>
+          
+          {/* Admin Panel Routes - Super Admin Only */}
+          <Route path="/adminpanel" element={<AdminLayout />}>
+            <Route index element={<AdminOverview />} />
+            <Route path="brands" element={<BrandManagement />} />
+            <Route path="users" element={<UserManagement />} />
+            <Route path="integrations" element={<IntegrationManager />} />
+            <Route path="kpis" element={<KPIConfigurator />} />
+            <Route path="settings" element={<AdminSettings />} />
+          </Route>
+          
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
