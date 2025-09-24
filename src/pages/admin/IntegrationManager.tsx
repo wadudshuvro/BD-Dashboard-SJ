@@ -706,31 +706,6 @@ const IntegrationManager = () => {
           </div>
         </DialogContent>
       </Dialog>
-          </DialogHeader>
-          
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 gap-4">
-              <div>
-                <Label htmlFor="api-key">API Key</Label>
-                <Input id="api-key" placeholder="Enter API key" type="password" />
-              </div>
-              <div>
-                <Label htmlFor="settings">Additional Settings</Label>
-                <Textarea id="settings" placeholder="Enter additional configuration settings" />
-              </div>
-            </div>
-            
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setIsConfigDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={() => setIsConfigDialogOpen(false)}>
-                Save Configuration
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };
