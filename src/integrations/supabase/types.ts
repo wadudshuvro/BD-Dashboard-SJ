@@ -126,6 +126,213 @@ export type Database = {
           },
         ]
       }
+      client_communications: {
+        Row: {
+          client_id: string
+          content: string | null
+          created_at: string
+          created_by: string
+          direction: string
+          id: string
+          project_id: string | null
+          subject: string | null
+          type: string
+        }
+        Insert: {
+          client_id: string
+          content?: string | null
+          created_at?: string
+          created_by: string
+          direction?: string
+          id?: string
+          project_id?: string | null
+          subject?: string | null
+          type?: string
+        }
+        Update: {
+          client_id?: string
+          content?: string | null
+          created_at?: string
+          created_by?: string
+          direction?: string
+          id?: string
+          project_id?: string | null
+          subject?: string | null
+          type?: string
+        }
+        Relationships: []
+      }
+      clients: {
+        Row: {
+          address: string | null
+          assigned_manager: string | null
+          city: string | null
+          company: string | null
+          contact_person: string | null
+          country: string | null
+          created_at: string
+          email: string | null
+          id: string
+          industry: string | null
+          name: string
+          notes: string | null
+          phone: string | null
+          satisfaction_score: number | null
+          status: string
+          total_revenue: number | null
+          updated_at: string
+          website: string | null
+        }
+        Insert: {
+          address?: string | null
+          assigned_manager?: string | null
+          city?: string | null
+          company?: string | null
+          contact_person?: string | null
+          country?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          industry?: string | null
+          name: string
+          notes?: string | null
+          phone?: string | null
+          satisfaction_score?: number | null
+          status?: string
+          total_revenue?: number | null
+          updated_at?: string
+          website?: string | null
+        }
+        Update: {
+          address?: string | null
+          assigned_manager?: string | null
+          city?: string | null
+          company?: string | null
+          contact_person?: string | null
+          country?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          industry?: string | null
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          satisfaction_score?: number | null
+          status?: string
+          total_revenue?: number | null
+          updated_at?: string
+          website?: string | null
+        }
+        Relationships: []
+      }
+      project_tasks: {
+        Row: {
+          actual_hours: number | null
+          assigned_to: string | null
+          completed_at: string | null
+          created_at: string
+          description: string | null
+          due_date: string | null
+          estimated_hours: number | null
+          id: string
+          priority: string
+          project_id: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          actual_hours?: number | null
+          assigned_to?: string | null
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          estimated_hours?: number | null
+          id?: string
+          priority?: string
+          project_id: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          actual_hours?: number | null
+          assigned_to?: string | null
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          estimated_hours?: number | null
+          id?: string
+          priority?: string
+          project_id?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      projects: {
+        Row: {
+          actual_cost: number | null
+          assigned_team: string[] | null
+          budget: number | null
+          client_id: string
+          created_at: string
+          deadline: string | null
+          description: string | null
+          end_date: string | null
+          id: string
+          name: string
+          priority: string
+          progress: number | null
+          project_manager: string | null
+          start_date: string | null
+          status: string
+          tags: string[] | null
+          updated_at: string
+        }
+        Insert: {
+          actual_cost?: number | null
+          assigned_team?: string[] | null
+          budget?: number | null
+          client_id: string
+          created_at?: string
+          deadline?: string | null
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          name: string
+          priority?: string
+          progress?: number | null
+          project_manager?: string | null
+          start_date?: string | null
+          status?: string
+          tags?: string[] | null
+          updated_at?: string
+        }
+        Update: {
+          actual_cost?: number | null
+          assigned_team?: string[] | null
+          budget?: number | null
+          client_id?: string
+          created_at?: string
+          deadline?: string | null
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          name?: string
+          priority?: string
+          progress?: number | null
+          project_manager?: string | null
+          start_date?: string | null
+          status?: string
+          tags?: string[] | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_brands: {
         Row: {
           access_level: string

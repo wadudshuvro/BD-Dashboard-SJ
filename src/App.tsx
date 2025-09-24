@@ -16,6 +16,7 @@ import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 import Unauthorized from "./pages/Unauthorized";
 import ClientManagement from "./pages/ClientManagement";
+import ProjectManagement from "./pages/ProjectManagement";
 import ClientDetail from "./pages/ClientDetail";
 import ClientsProjects from "./pages/ClientsProjects";
 import People from "./pages/People";
@@ -91,6 +92,8 @@ const App = () => (
               <Route path="reports" element={<Reports />} />
               <Route path="clients" element={<ClientManagement />} />
               <Route path="clients/:clientId" element={<ClientDetail />} />
+              <Route path="projects" element={<ProjectManagement />} />
+              <Route path="tasks" element={<ActionsTasks />} />
             </Route>
             
             {/* Manager Role Routes */}
@@ -104,6 +107,7 @@ const App = () => (
               <Route path="clients-projects" element={<ClientsProjects />} />
               <Route path="clients" element={<ClientManagement />} />
               <Route path="clients/:clientId" element={<ClientDetail />} />
+              <Route path="projects" element={<ProjectManagement />} />
               <Route path="brands" element={<BrandManagement />} />
               <Route path="brands/:brandId" element={<BrandDetail />} />
               <Route path="actions-tasks" element={<ActionsTasks />} />
@@ -121,6 +125,8 @@ const App = () => (
               <Route path="brands/:brandId" element={<BrandDetail />} />
               <Route path="users" element={<UserManagement />} />
               <Route path="users/:userId" element={<UserDetail />} />
+              <Route path="clients" element={<ClientManagement />} />
+              <Route path="projects" element={<ProjectManagement />} />
               <Route path="integrations" element={<IntegrationManager />} />
               <Route path="kpis" element={<KPIConfigurator />} />
               <Route path="settings" element={<AdminSettings />} />

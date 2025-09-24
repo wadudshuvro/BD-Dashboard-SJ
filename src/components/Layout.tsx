@@ -54,6 +54,8 @@ const Layout = ({ userRole }: LayoutProps) => {
           { name: "Overview", href: "/adminpanel", icon: LayoutDashboard, current: false },
           { name: "Brands", href: "/adminpanel/brands", icon: Building2, current: false },
           { name: "Users", href: "/adminpanel/users", icon: Users, current: false },
+          { name: "Clients", href: "/adminpanel/clients", icon: Users, current: false },
+          { name: "Projects", href: "/adminpanel/projects", icon: FolderOpen, current: false },
           { name: "Integrations", href: "/adminpanel/integrations", icon: Zap, current: false },
           { name: "KPIs", href: "/adminpanel/kpis", icon: Target, current: false },
           { name: "Settings", href: "/adminpanel/settings", icon: Settings, current: false },
@@ -63,7 +65,8 @@ const Layout = ({ userRole }: LayoutProps) => {
         return [
           ...baseNavigation,
           { name: "AI Workspace", href: `${basePath}/workspace`, icon: Bot, current: false },
-          { name: "Clients & Projects", href: `${basePath}/clients-projects`, icon: FolderOpen, current: false },
+          { name: "Clients", href: `${basePath}/clients`, icon: Users, current: false },
+          { name: "Projects", href: `${basePath}/projects`, icon: FolderOpen, current: false },
           { name: "Brands", href: `${basePath}/brands`, icon: Building2, current: false },
           { name: "Actions & Tasks", href: `${basePath}/actions-tasks`, icon: CheckSquare, current: false },
           { name: "People", href: `${basePath}/people`, icon: Users, current: false },
@@ -73,8 +76,10 @@ const Layout = ({ userRole }: LayoutProps) => {
         return [
           ...baseNavigation,
           { name: "AI Workspace", href: `${basePath}/workspace`, icon: Bot, current: false },
-          { name: "Reports", href: `${basePath}/reports`, icon: BarChart3, current: false },
           { name: "Clients", href: `${basePath}/clients`, icon: Users, current: false },
+          { name: "Projects", href: `${basePath}/projects`, icon: FolderOpen, current: false },
+          { name: "Tasks", href: `${basePath}/tasks`, icon: Target, current: false },
+          { name: "Reports", href: `${basePath}/reports`, icon: BarChart3, current: false },
         ];
       
       case 'user':
