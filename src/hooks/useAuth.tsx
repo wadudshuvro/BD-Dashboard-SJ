@@ -30,6 +30,12 @@ const mockUsers: Record<string, User> = {
     email: 'admin@company.com',
     role: 'super_admin'
   },
+  'shahed@sjinnovation.com': {
+    id: '5',
+    name: 'Shahed',
+    email: 'shahed@sjinnovation.com',
+    role: 'super_admin'
+  },
   'manager@company.com': {
     id: '2',
     name: 'Manager User',
@@ -85,9 +91,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await new Promise(resolve => setTimeout(resolve, 1000));
     
     const mockUser = mockUsers[credentials.email];
-    if (mockUser && credentials.password === 'password') {
-      setUser(mockUser);
-      localStorage.setItem('user', JSON.stringify(mockUser));
+    if (mockUser) {
+      // Check specific passwords for specific users
+      const validPassword = 
+        (credentials.email === 'shahed@sjinnovation.com' && credentials.password === '123Newyork$$') ||
+        (credentials.email !== 'shahed@sjinnovation.com' && credentials.password === 'password');
+      
+      if (validPassword) {
+        setUser(mockUser);
+        localStorage.setItem('user', JSON.stringify(mockUser));
+      } else {
+        throw new Error('Invalid credentials');
+      }
     } else {
       throw new Error('Invalid credentials');
     }
