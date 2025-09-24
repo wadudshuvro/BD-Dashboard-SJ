@@ -15,7 +15,12 @@ export default function EffortChart() {
   return (
     <Card className="col-span-1 lg:col-span-2">
       <CardHeader>
-        <CardTitle className="text-foreground">Effort vs Results Trend</CardTitle>
+        <CardTitle className="text-foreground">
+          Effort vs Results Trend
+          <span className="bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300 text-xs px-2 py-1 rounded-full font-medium ml-2">
+            🔴 DUMMY
+          </span>
+        </CardTitle>
         <p className="text-sm text-muted-foreground">
           Weekly comparison of team effort hours vs marketing results
         </p>

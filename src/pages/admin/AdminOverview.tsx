@@ -38,6 +38,11 @@ const AdminOverview = () => {
         <p className="text-muted-foreground">
           System-wide analytics and management dashboard for all brand modules
         </p>
+        <div className="mt-2">
+          <span className="bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300 text-xs px-2 py-1 rounded-full font-medium">
+            🔴 DUMMY DATA - Needs Database Connection
+          </span>
+        </div>
       </div>
 
       {/* Stats Cards */}
