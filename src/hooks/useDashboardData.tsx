@@ -23,11 +23,21 @@ interface TeamMember {
 interface BrandPerformance {
   id: string;
   name: string;
+  slug: string;
+  type: 'internal' | 'client';
+  description: string;
+  owner_id: string;
+  owner_name?: string;
+  is_active: boolean;
+  team_members: string[];
+  active_integrations: string[];
+  monthly_budget?: number;
   revenue: number;
   growth: number;
   status: 'growing' | 'stable' | 'declining';
   activeTasks: number;
   kpis: Array<{
+    id?: string;
     name: string;
     current_value: number;
     target_value: number | null;
@@ -250,11 +260,25 @@ export function useDashboardData() {
       brandPerformanceData.push({
         id: brand.id,
         name: brand.name,
+        slug: brand.slug || '',
+        type: brand.type || 'internal',
+        description: brand.description || '',
+        owner_id: brand.owner_id || '',
+        owner_name: brand.owner_name || 'Unknown',
+        is_active: brand.is_active || false,
+        team_members: brand.team_members || [],
+        active_integrations: brand.active_integrations || [],
+        monthly_budget: brand.monthly_budget,
         revenue: Math.round(revenue),
         growth: Math.round(growth * 10) / 10,
         status,
         activeTasks: Math.round(15 + Math.random() * 30),
-        kpis: kpis || []
+        kpis: (kpis || []).map(kpi => ({
+          id: kpi.id,
+          name: kpi.name,
+          current_value: kpi.current_value,
+          target_value: kpi.target_value
+        }))
       });
     }
 

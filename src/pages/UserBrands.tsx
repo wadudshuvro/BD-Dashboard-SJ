@@ -8,193 +8,363 @@ import {
   Plug, 
   Search,
   Eye,
-  DollarSign
+  DollarSign,
+  AlertCircle,
+  TrendingUp,
+  Target,
+  BarChart3
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { mockBrands, Brand } from "@/data/mockData";
+import { useDashboardData } from "@/hooks/useDashboardData";
 import { useAuth } from "@/hooks/useAuth";
+import { Button } from "@/components/ui/button";
 
 const UserBrands = () => {
   const { user } = useAuth();
+  const dashboardData = useDashboardData();
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState<"all" | "internal" | "client">("all");
 
-  // Filter brands that the user has access to (mock logic - would be based on actual user permissions)
-  const userBrands = mockBrands.filter(brand => {
-    // Mock: users can see brands they're assigned to or all active brands for this demo
-    return brand.is_active;
-  });
+  // Get brands from dashboard data
+  const allBrands = dashboardData.brandPerformance;
 
-  const filteredBrands = userBrands.filter(brand => {
+  // Filter brands based on search and type
+  const filteredBrands = allBrands.filter(brand => {
     const matchesSearch = brand.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         brand.owner_name.toLowerCase().includes(searchTerm.toLowerCase());
+                         (brand.owner_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         brand.description.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesFilter = filterType === "all" || brand.type === filterType;
     return matchesSearch && matchesFilter;
   });
 
-  const getBrandStats = (brand: Brand) => {
+  const getBrandStats = (brand: typeof allBrands[0]) => {
     const totalKPIs = brand.kpis.length;
     const achievedKPIs = brand.kpis.filter(kpi => 
-      kpi.current_value >= (kpi.target_value || kpi.current_value)
+      kpi.target_value ? kpi.current_value >= kpi.target_value : true
     ).length;
     const achievementRate = totalKPIs > 0 ? Math.round((achievedKPIs / totalKPIs) * 100) : 0;
     
     return { totalKPIs, achievedKPIs, achievementRate };
   };
 
+  const getBrandIcon = (brandName: string) => {
+    const iconMap: Record<string, any> = {
+      "Community Outreach": Users,
+      "CollabAI": Building2,
+      "LeadsLift": TrendingUp,
+      "BuildYourAI": Building2,
+      "GHL Developer": Building2,
+      "Crafted.Email": Building2,
+      "PlatePresence": DollarSign,
+      "SJ Innovation": Building2,
+    };
+    return iconMap[brandName] || Building2;
+  };
+
+  if (dashboardData.loading) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <span className="ml-2 text-muted-foreground">Loading your brands...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (dashboardData.error) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <AlertCircle className="h-8 w-8 text-destructive mx-auto mb-2" />
+            <p className="text-destructive font-medium">Error loading brands</p>
+            <p className="text-sm text-muted-foreground">{dashboardData.error}</p>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="mt-4"
+              onClick={dashboardData.refreshData}
+            >
+              Try Again
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight text-foreground">My Brands</h1>
-        <p className="text-muted-foreground">
-          View brands you have access to and their current performance
-        </p>
-        <div className="mt-2">
-          <span className="bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300 text-xs px-2 py-1 rounded-full font-medium">
-            🔴 DUMMY DATA - Needs Database Connection
-          </span>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="space-y-6">
+        {/* Header */}
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">My Brands</h1>
+          <p className="text-muted-foreground">
+            View brands you have access to and their current performance
+          </p>
+          <div className="mt-2">
+            <span className="bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300 text-xs px-2 py-1 rounded-full font-medium">
+              ✅ Connected to Database
+            </span>
+          </div>
         </div>
-      </div>
 
-      {/* Filters and Search */}
-      <div className="flex gap-4 items-center">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-          <Input
-            placeholder="Search brands..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-        
-        <Select value={filterType} onValueChange={(value: "all" | "internal" | "client") => setFilterType(value)}>
-          <SelectTrigger className="w-40">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Types</SelectItem>
-            <SelectItem value="internal">Internal</SelectItem>
-            <SelectItem value="client">Client</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Brand Cards Grid */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {filteredBrands.map((brand) => {
-          const stats = getBrandStats(brand);
+        {/* Stats Overview */}
+        <div className="grid gap-4 md:grid-cols-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Brands</CardTitle>
+              <Building2 className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{allBrands.length}</div>
+              <p className="text-xs text-muted-foreground">
+                {allBrands.filter(b => b.is_active).length} active
+              </p>
+            </CardContent>
+          </Card>
           
-          return (
-            <Card key={brand.id} className="relative">
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div className="space-y-1">
-                    <CardTitle 
-                      className="text-lg cursor-pointer hover:text-primary transition-colors"
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                ${(allBrands.reduce((sum, b) => sum + b.revenue, 0) / 1000).toFixed(0)}K
+              </div>
+              <p className="text-xs text-muted-foreground">
+                across all brands
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Active Tasks</CardTitle>
+              <Target className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {allBrands.reduce((sum, b) => sum + b.activeTasks, 0)}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                in progress
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Avg Performance</CardTitle>
+              <BarChart3 className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {allBrands.length > 0 ? Math.round(
+                  allBrands.reduce((sum, b) => {
+                    const stats = getBrandStats(b);
+                    return sum + stats.achievementRate;
+                  }, 0) / allBrands.length
+                ) : 0}%
+              </div>
+              <p className="text-xs text-muted-foreground">
+                KPI achievement
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Filters and Search */}
+        <div className="flex gap-4 items-center">
+          <div className="relative flex-1 max-w-sm">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+            <Input
+              placeholder="Search brands..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+          
+          <Select value={filterType} onValueChange={(value: "all" | "internal" | "client") => setFilterType(value)}>
+            <SelectTrigger className="w-40">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Types</SelectItem>
+              <SelectItem value="internal">Internal</SelectItem>
+              <SelectItem value="client">Client</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Brands Grid */}
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {filteredBrands.map((brand) => {
+            const stats = getBrandStats(brand);
+            const IconComponent = getBrandIcon(brand.name);
+            
+            return (
+              <Card key={brand.id} className="relative group hover:shadow-lg transition-all duration-300">
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-1">
+                      <CardTitle 
+                        className="text-lg cursor-pointer hover:text-primary transition-colors group-hover:text-primary"
+                        onClick={() => window.location.href = `/user/brands/${brand.id}`}
+                      >
+                        {brand.name}
+                      </CardTitle>
+                      <CardDescription className="text-sm">
+                        {brand.description}
+                      </CardDescription>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <div className="h-8 w-8 bg-gradient-primary rounded-lg flex items-center justify-center">
+                        <IconComponent className="h-4 w-4 text-white" />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2 mt-2">
+                    <Badge variant={brand.type === 'internal' ? 'default' : 'secondary'}>
+                      {brand.type}
+                    </Badge>
+                    <Badge variant={brand.is_active ? 'default' : 'destructive'} className="text-xs">
+                      {brand.is_active ? 'Active' : 'Inactive'}
+                    </Badge>
+                    <Badge variant={
+                      brand.status === 'growing' ? 'default' : 
+                      brand.status === 'stable' ? 'secondary' : 'destructive'
+                    }>
+                      {brand.status}
+                    </Badge>
+                  </div>
+                </CardHeader>
+
+                <CardContent className="space-y-4">
+                  {/* Owner & Budget Info */}
+                  <div className="flex justify-between items-center text-sm">
+                    <div className="flex items-center gap-1">
+                      <Users className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-muted-foreground">Owner:</span>
+                      <span className="font-medium">{brand.owner_name || 'Unknown'}</span>
+                    </div>
+                    {brand.monthly_budget && (
+                      <div className="flex items-center gap-1">
+                        <DollarSign className="h-4 w-4 text-muted-foreground" />
+                        <span className="font-medium">${(brand.monthly_budget / 1000).toFixed(0)}K</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Revenue & Growth */}
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Revenue</p>
+                      <p className="text-lg font-bold">${brand.revenue.toLocaleString()}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm text-muted-foreground">Growth</p>
+                      <p className={`text-lg font-bold ${
+                        brand.growth > 0 ? 'text-success' : 
+                        brand.growth < 0 ? 'text-destructive' : 'text-muted-foreground'
+                      }`}>
+                        {brand.growth > 0 ? '+' : ''}{brand.growth}%
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* KPI Progress */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">KPI Achievement</span>
+                      <span className="font-medium">{stats.achievementRate}%</span>
+                    </div>
+                    <div className="w-full bg-muted rounded-full h-2">
+                      <div 
+                        className={`h-2 rounded-full transition-all duration-300 ${
+                          stats.achievementRate >= 80 ? 'bg-success' :
+                          stats.achievementRate >= 60 ? 'bg-warning' : 'bg-destructive'
+                        }`}
+                        style={{ width: `${stats.achievementRate}%` }}
+                      />
+                    </div>
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>{stats.achievedKPIs}/{stats.totalKPIs} KPIs achieved</span>
+                      <span>{brand.activeTasks} active tasks</span>
+                    </div>
+                  </div>
+
+                  {/* Integrations */}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-1">
+                      <Plug className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm text-muted-foreground">
+                        {brand.active_integrations.length} integrations
+                      </span>
+                    </div>
+                    {brand.active_integrations.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {brand.active_integrations.slice(0, 3).map((integration, index) => (
+                          <Badge key={index} variant="outline" className="text-xs">
+                            {integration}
+                          </Badge>
+                        ))}
+                        {brand.active_integrations.length > 3 && (
+                          <Badge variant="outline" className="text-xs">
+                            +{brand.active_integrations.length - 3} more
+                          </Badge>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Action Button */}
+                  <div className="pt-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-colors"
                       onClick={() => window.location.href = `/user/brands/${brand.id}`}
                     >
-                      {brand.name}
-                    </CardTitle>
-                    <CardDescription className="text-sm">
-                      {brand.description}
-                    </CardDescription>
+                      <Eye className="h-4 w-4 mr-2" />
+                      View Details
+                    </Button>
                   </div>
-                </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
 
-                <div className="flex gap-2 mt-2">
-                  <Badge variant={brand.type === 'internal' ? 'default' : 'secondary'}>
-                    {brand.type}
-                  </Badge>
-                  <Badge variant={brand.is_active ? 'default' : 'destructive'}>
-                    {brand.is_active ? 'Active' : 'Inactive'}
-                  </Badge>
-                  <Badge variant="outline" className="text-xs">
-                    KPI Score: {stats.achievementRate}%
-                  </Badge>
-                </div>
-              </CardHeader>
-
-              <CardContent className="space-y-4">
-                {/* Owner Info */}
-                <div className="flex items-center gap-2">
-                  <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                    <span className="text-xs font-medium text-primary">
-                      {brand.owner_name.split(' ').map(n => n[0]).join('')}
-                    </span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground">{brand.owner_name}</p>
-                    <p className="text-xs text-muted-foreground">Brand Owner</p>
-                  </div>
-                </div>
-
-                {/* Stats */}
-                <div className="grid grid-cols-3 gap-3 text-center">
-                  <div>
-                    <div className="text-lg font-bold text-foreground">{brand.team_members.length}</div>
-                    <div className="text-xs text-muted-foreground">Team</div>
-                  </div>
-                  <div>
-                    <div className="text-lg font-bold text-foreground">{brand.active_integrations.length}</div>
-                    <div className="text-xs text-muted-foreground">Integrations</div>
-                  </div>
-                  <div>
-                    <div className="text-lg font-bold text-foreground">{brand.kpis.length}</div>
-                    <div className="text-xs text-muted-foreground">KPIs</div>
-                  </div>
-                </div>
-
-                {/* Budget (if available) */}
-                {brand.monthly_budget && (
-                  <div className="flex items-center justify-between p-2 bg-accent/10 rounded-md">
-                    <div className="flex items-center gap-2">
-                      <DollarSign className="h-4 w-4 text-success" />
-                      <span className="text-sm font-medium">Monthly Budget</span>
-                    </div>
-                    <span className="text-sm font-bold text-success">
-                      ${brand.monthly_budget.toLocaleString()}
-                    </span>
-                  </div>
-                )}
-
-                {/* Recent KPIs */}
-                <div className="space-y-2">
-                  <h4 className="text-sm font-medium text-foreground">Key Metrics</h4>
-                  <div className="space-y-1">
-                    {brand.kpis.slice(0, 2).map((kpi) => (
-                      <div key={kpi.id} className="flex items-center justify-between text-xs">
-                        <span className="text-muted-foreground">{kpi.name}</span>
-                        <span className="font-medium">
-                          {kpi.type === 'currency' ? '$' : ''}
-                          {kpi.current_value.toLocaleString()}
-                          {kpi.type === 'percentage' ? '%' : ''}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
-
-      {filteredBrands.length === 0 && (
-        <Card>
-          <CardContent className="text-center py-12">
+        {/* No Results State */}
+        {filteredBrands.length === 0 && !dashboardData.loading && (
+          <div className="text-center py-12">
             <Building2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-lg font-medium text-foreground mb-2">No brands found</h3>
             <p className="text-muted-foreground mb-4">
               {searchTerm || filterType !== "all" 
-                ? "Try adjusting your search or filter criteria"
-                : "You don't have access to any brand modules yet. Contact your manager for access."
+                ? "Try adjusting your search or filter criteria."
+                : "You don't have access to any brands yet."
               }
             </p>
-          </CardContent>
-        </Card>
-      )}
+            {(searchTerm || filterType !== "all") && (
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setSearchTerm("");
+                  setFilterType("all");
+                }}
+              >
+                Clear Filters
+              </Button>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 };
