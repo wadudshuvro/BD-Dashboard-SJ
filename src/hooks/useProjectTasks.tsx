@@ -1,0 +1,235 @@
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/components/ui/use-toast';
+
+export interface ProjectTask {
+  id: string;
+  project_id: string;
+  title: string;
+  description?: string;
+  status: 'todo' | 'in_progress' | 'review' | 'completed' | 'blocked';
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  assigned_to?: string;
+  estimated_hours?: number;
+  actual_hours?: number;
+  due_date?: string;
+  completed_at?: string;
+  created_at: string;
+  updated_at: string;
+  // Relations
+  projects?: {
+    name: string;
+    client_id: string;
+    clients?: {
+      name: string;
+    };
+  };
+  assigned_user?: {
+    first_name: string;
+    last_name: string;
+    email: string;
+  };
+}
+
+export interface CreateProjectTaskData {
+  project_id: string;
+  title: string;
+  description?: string;
+  status?: 'todo' | 'in_progress' | 'review' | 'completed' | 'blocked';
+  priority?: 'low' | 'medium' | 'high' | 'urgent';
+  assigned_to?: string;
+  estimated_hours?: number;
+  due_date?: string;
+}
+
+export interface UpdateProjectTaskData {
+  title?: string;
+  description?: string;
+  status?: 'todo' | 'in_progress' | 'review' | 'completed' | 'blocked';
+  priority?: 'low' | 'medium' | 'high' | 'urgent';
+  assigned_to?: string;
+  estimated_hours?: number;
+  actual_hours?: number;
+  due_date?: string;
+  completed_at?: string | null;
+}
+
+export const useProjectTasks = (projectId?: string) => {
+  return useQuery({
+    queryKey: ['project-tasks', projectId],
+    queryFn: async () => {
+      let query = supabase
+        .from('project_tasks')
+        .select(`
+          *,
+          projects:project_id (
+            name,
+            client_id,
+            clients:client_id (
+              name
+            )
+          )
+        `)
+        .order('created_at', { ascending: false });
+
+      if (projectId) {
+        query = query.eq('project_id', projectId);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('Error fetching project tasks:', error);
+        throw error;
+      }
+
+      return data as unknown as ProjectTask[];
+    },
+  });
+};
+
+export const useAllProjectTasks = () => {
+  return useQuery({
+    queryKey: ['all-project-tasks'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('project_tasks')
+        .select(`
+          *,
+          projects:project_id (
+            name,
+            client_id,
+            clients:client_id (
+              name
+            )
+          )
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching all project tasks:', error);
+        throw error;
+      }
+
+      return data as unknown as ProjectTask[];
+    },
+  });
+};
+
+export const useCreateProjectTask = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (taskData: CreateProjectTaskData) => {
+      const { data, error } = await supabase
+        .from('project_tasks')
+        .insert([taskData])
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating project task:', error);
+        throw error;
+      }
+
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['project-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['all-project-tasks'] });
+      toast({
+        title: "Task created",
+        description: "Project task has been created successfully.",
+      });
+    },
+    onError: (error) => {
+      console.error('Create project task error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create project task. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+};
+
+export const useUpdateProjectTask = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, updates }: { id: string; updates: UpdateProjectTaskData }) => {
+      const updateData = { ...updates };
+      
+      // Set completed_at when status changes to completed
+      if (updates.status === 'completed' && !updateData.completed_at) {
+        updateData.completed_at = new Date().toISOString();
+      } else if (updates.status !== 'completed') {
+        updateData.completed_at = null;
+      }
+
+      const { data, error } = await supabase
+        .from('project_tasks')
+        .update(updateData)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error updating project task:', error);
+        throw error;
+      }
+
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['project-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['all-project-tasks'] });
+      toast({
+        title: "Task updated",
+        description: "Project task has been updated successfully.",
+      });
+    },
+    onError: (error) => {
+      console.error('Update project task error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update project task. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+};
+
+export const useDeleteProjectTask = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('project_tasks')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        console.error('Error deleting project task:', error);
+        throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['project-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['all-project-tasks'] });
+      toast({
+        title: "Task deleted",
+        description: "Project task has been deleted successfully.",
+      });
+    },
+    onError: (error) => {
+      console.error('Delete project task error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete project task. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+};
