@@ -27,7 +27,7 @@ const navigation = [
   {
     section: 'Quick Access',
     items: [
-      { name: 'Back to Dashboard', href: '/', icon: ArrowLeft, isExternal: true },
+      { name: 'Back to Dashboard', href: '/dashboard', icon: ArrowLeft, isExternal: true },
     ]
   },
   {
@@ -46,7 +46,7 @@ const navigation = [
     items: [
       { name: 'Client Management', href: '/adminpanel/clients', icon: UserCheck },
       { name: 'Project Management', href: '/adminpanel/projects', icon: Briefcase },
-      { name: 'Reports & Analytics', href: '/manager/dashboard', icon: FileText, isExternal: true },
+      { name: 'Reports & Analytics', href: '/dashboard', icon: FileText, isExternal: true },
     ]
   },
   {
@@ -213,7 +213,7 @@ const AdminLayout = () => {
 
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" asChild>
-              <NavLink to="/" className="flex items-center gap-2">
+              <NavLink to="/dashboard" className="flex items-center gap-2">
                 <Home className="h-4 w-4" />
                 Dashboard
               </NavLink>

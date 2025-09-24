@@ -47,7 +47,7 @@ function DashboardRedirect() {
   
   switch (user.role) {
     case 'super_admin':
-      return <Navigate to="/manager/dashboard" replace />; // Admin uses manager interface
+      return <Navigate to="/dashboard" replace />; // Super admin gets own dashboard
     case 'manager':
       return <Navigate to="/manager/dashboard" replace />;
     case 'pm':
@@ -105,9 +105,29 @@ const App = () => (
               <Route path="gohighlevel" element={<GoHighLevelPage />} />
             </Route>
             
-            {/* Manager Role Routes - Also accessible by Super Admin */}
+            {/* Super Admin Dashboard Routes */}
+            <Route path="/dashboard/*" element={
+              <ProtectedRoute requiredRole="super_admin">
+                <Layout userRole="super_admin" />
+              </ProtectedRoute>
+            }>
+              <Route index element={<ManagerDashboard />} />
+              <Route path="workspace" element={<AIWorkspace />} />
+              <Route path="clients-projects" element={<ClientsProjects />} />
+              <Route path="clients" element={<ClientManagement />} />
+              <Route path="clients/:clientId" element={<ClientDetail />} />
+              <Route path="projects" element={<ProjectManagement />} />
+              <Route path="brands" element={<BrandManagement />} />
+              <Route path="brands/:brandId" element={<BrandDetail />} />
+              <Route path="actions-tasks" element={<ActionsTasks />} />
+              <Route path="people" element={<People />} />
+              <Route path="ai-agents" element={<AIAgentsPage />} />
+              <Route path="gohighlevel" element={<GoHighLevelPage />} />
+            </Route>
+
+            {/* Manager Role Routes */}
             <Route path="/manager/*" element={
-              <ProtectedRoute requiredMinimumRole="manager">
+              <ProtectedRoute requiredRole="manager">
                 <Layout userRole="manager" />
               </ProtectedRoute>
             }>

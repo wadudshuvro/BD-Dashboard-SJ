@@ -37,10 +37,10 @@ const Layout = ({ userRole }: LayoutProps) => {
   // Use the actual user role if available, otherwise fall back to prop
   const currentRole = user?.role || userRole || 'user';
   
-  // Base path for current role - Super admin uses manager interface
+  // Base path for current role
   const getBasePath = (role: string) => {
     switch (role) {
-      case 'super_admin': return '/manager'; // Super admin uses manager interface
+      case 'super_admin': return '/dashboard'; // Super admin has own dashboard
       case 'manager': return '/manager';
       case 'pm': return '/pm';
       case 'user': return '/user';
@@ -58,7 +58,7 @@ const Layout = ({ userRole }: LayoutProps) => {
 
     switch (role) {
       case 'super_admin':
-        // Super admin gets manager navigation + admin-specific items
+        // Super admin gets clean manager-like navigation
         return [
           ...baseNavigation,
           { name: "AI Workspace", href: `${basePath}/workspace`, icon: Bot, current: false },
@@ -67,13 +67,6 @@ const Layout = ({ userRole }: LayoutProps) => {
           { name: "Brands", href: `${basePath}/brands`, icon: Building2, current: false },
           { name: "Actions & Tasks", href: `${basePath}/actions-tasks`, icon: CheckSquare, current: false },
           { name: "People", href: `${basePath}/people`, icon: Users, current: false },
-          // Admin-specific menu items
-          { name: "— Admin Controls —", href: "#", icon: Wrench, current: false, isHeader: true },
-          { name: "User Management", href: `${basePath}/admin/users`, icon: Users, current: false },
-          { name: "System Overview", href: `${basePath}/admin/system`, icon: BarChart3, current: false },
-          { name: "Integrations", href: `${basePath}/admin/integrations`, icon: Zap, current: false },
-          { name: "KPI Configuration", href: `${basePath}/admin/kpis`, icon: Target, current: false },
-          { name: "System Settings", href: `${basePath}/admin/settings`, icon: Settings, current: false },
         ];
       
       case 'manager':
