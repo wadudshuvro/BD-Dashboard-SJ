@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import type { User as SupabaseUser, Session } from '@supabase/supabase-js';
 
 type UserRole = 'super_admin' | 'manager' | 'pm' | 'user';
 
@@ -22,45 +24,9 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Mock user data for demo
-const mockUsers: Record<string, User> = {
-  'admin@company.com': {
-    id: '1',
-    name: 'Super Admin',
-    email: 'admin@company.com',
-    role: 'super_admin'
-  },
-  'shahed@sjinnovation.com': {
-    id: '5',
-    name: 'Shahed',
-    email: 'shahed@sjinnovation.com',
-    role: 'super_admin'
-  },
-  'manager@company.com': {
-    id: '2',
-    name: 'Manager User',
-    email: 'manager@company.com',
-    role: 'manager',
-    brandAccess: ['Brand A', 'Brand B', 'Brand C']
-  },
-  'pm@company.com': {
-    id: '3',
-    name: 'Project Manager',
-    email: 'pm@company.com',
-    role: 'pm',
-    brandAccess: ['Brand A', 'Brand B']
-  },
-  'user@company.com': {
-    id: '4',
-    name: 'Regular User',
-    email: 'user@company.com',
-    role: 'user',
-    brandAccess: ['Brand A']
-  }
-};
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Role hierarchy for permission checking
@@ -71,48 +37,85 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     'super_admin': 4
   };
 
-  useEffect(() => {
-    // Check for stored user session
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      try {
-        setUser(JSON.parse(storedUser));
-      } catch (error) {
-        localStorage.removeItem('user');
+  // Fetch user profile from custom users table
+  const fetchUserProfile = async (authUser: SupabaseUser): Promise<User | null> => {
+    try {
+      const { data: userProfile, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', authUser.email)
+        .single();
+
+      if (error || !userProfile) {
+        console.error('Error fetching user profile:', error);
+        return null;
       }
+
+      return {
+        id: userProfile.id,
+        name: `${userProfile.first_name || ''} ${userProfile.last_name || ''}`.trim() || userProfile.email,
+        email: userProfile.email,
+        role: userProfile.role as UserRole,
+        avatar: authUser.user_metadata?.avatar_url
+      };
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+      return null;
     }
-    setLoading(false);
+  };
+
+  useEffect(() => {
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        setSession(session);
+        
+        if (session?.user) {
+          const userProfile = await fetchUserProfile(session.user);
+          setUser(userProfile);
+        } else {
+          setUser(null);
+        }
+        
+        setLoading(false);
+      }
+    );
+
+    // Check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      
+      if (session?.user) {
+        fetchUserProfile(session.user).then(setUser);
+      }
+      
+      setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const login = async (credentials: { email: string; password: string }) => {
     setLoading(true);
     
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    const mockUser = mockUsers[credentials.email];
-    if (mockUser) {
-      // Check specific passwords for specific users
-      const validPassword = 
-        (credentials.email === 'shahed@sjinnovation.com' && credentials.password === '123Newyork$$') ||
-        (credentials.email !== 'shahed@sjinnovation.com' && credentials.password === 'password');
-      
-      if (validPassword) {
-        setUser(mockUser);
-        localStorage.setItem('user', JSON.stringify(mockUser));
-      } else {
-        throw new Error('Invalid credentials');
-      }
-    } else {
-      throw new Error('Invalid credentials');
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: credentials.email,
+      password: credentials.password,
+    });
+
+    if (error) {
+      setLoading(false);
+      throw new Error(error.message);
     }
-    
+
+    // User profile will be fetched automatically by the auth state change listener
     setLoading(false);
   };
 
-  const logout = () => {
+  const logout = async () => {
+    await supabase.auth.signOut();
     setUser(null);
-    localStorage.removeItem('user');
+    setSession(null);
   };
 
   const hasRole = (role: UserRole): boolean => {

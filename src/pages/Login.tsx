@@ -29,23 +29,9 @@ export default function Login() {
     
     try {
       await login({ email, password });
-      
       // The redirect will happen automatically through the DashboardRedirect component
-      
     } catch (err) {
-      setError("Invalid email or password");
-    }
-  };
-
-  const handleDemoLogin = async (demoEmail: string) => {
-    setError("");
-    setEmail(demoEmail);
-    setPassword("password");
-    
-    try {
-      await login({ email: demoEmail, password: "password" });
-    } catch (err) {
-      setError("Login failed");
+      setError((err as Error).message || "Login failed");
     }
   };
 
@@ -107,51 +93,6 @@ export default function Login() {
                 Sign In
               </Button>
             </form>
-            
-            <div className="mt-6 p-4 bg-muted rounded-lg">
-              <p className="text-sm font-medium mb-3">Quick Demo Login:</p>
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleDemoLogin("admin@company.com")}
-                  disabled={loading}
-                  className="text-xs h-8"
-                >
-                  Super Admin
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleDemoLogin("manager@company.com")}
-                  disabled={loading}
-                  className="text-xs h-8"
-                >
-                  Manager
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleDemoLogin("pm@company.com")}
-                  disabled={loading}
-                  className="text-xs h-8"
-                >
-                  Project Manager
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleDemoLogin("user@company.com")}
-                  disabled={loading}
-                  className="text-xs h-8"
-                >
-                  User
-                </Button>
-              </div>
-              <p className="text-xs text-muted-foreground mt-2 text-center">
-                Click any role above to login instantly
-              </p>
-            </div>
           </CardContent>
         </Card>
       </div>
