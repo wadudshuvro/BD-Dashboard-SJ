@@ -234,7 +234,10 @@ export type Database = {
           description: string | null
           due_date: string | null
           estimated_hours: number | null
+          external_task_id: string | null
           id: string
+          imported_hours: number | null
+          last_hours_import: string | null
           priority: string
           project_id: string
           status: string
@@ -249,7 +252,10 @@ export type Database = {
           description?: string | null
           due_date?: string | null
           estimated_hours?: number | null
+          external_task_id?: string | null
           id?: string
+          imported_hours?: number | null
+          last_hours_import?: string | null
           priority?: string
           project_id: string
           status?: string
@@ -264,7 +270,10 @@ export type Database = {
           description?: string | null
           due_date?: string | null
           estimated_hours?: number | null
+          external_task_id?: string | null
           id?: string
+          imported_hours?: number | null
+          last_hours_import?: string | null
           priority?: string
           project_id?: string
           status?: string
@@ -283,7 +292,9 @@ export type Database = {
           deadline: string | null
           description: string | null
           end_date: string | null
+          external_project_id: string | null
           id: string
+          last_hours_import: string | null
           name: string
           priority: string
           progress: number | null
@@ -291,6 +302,7 @@ export type Database = {
           start_date: string | null
           status: string
           tags: string[] | null
+          total_logged_hours: number | null
           updated_at: string
         }
         Insert: {
@@ -302,7 +314,9 @@ export type Database = {
           deadline?: string | null
           description?: string | null
           end_date?: string | null
+          external_project_id?: string | null
           id?: string
+          last_hours_import?: string | null
           name: string
           priority?: string
           progress?: number | null
@@ -310,6 +324,7 @@ export type Database = {
           start_date?: string | null
           status?: string
           tags?: string[] | null
+          total_logged_hours?: number | null
           updated_at?: string
         }
         Update: {
@@ -321,7 +336,9 @@ export type Database = {
           deadline?: string | null
           description?: string | null
           end_date?: string | null
+          external_project_id?: string | null
           id?: string
+          last_hours_import?: string | null
           name?: string
           priority?: string
           progress?: number | null
@@ -329,6 +346,7 @@ export type Database = {
           start_date?: string | null
           status?: string
           tags?: string[] | null
+          total_logged_hours?: number | null
           updated_at?: string
         }
         Relationships: []
