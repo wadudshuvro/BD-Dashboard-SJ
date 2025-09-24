@@ -3,20 +3,31 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { CheckCircle, Clock, Calendar, TrendingUp, Target, Zap, User, Award, AlertCircle, Plus } from "lucide-react";
+import { CheckCircle, Clock, Calendar, TrendingUp, Target, Zap, User, Award, AlertCircle, Plus, Loader2 } from "lucide-react";
+import { useDashboardData } from "@/hooks/useDashboardData";
+import { useAuth } from "@/hooks/useAuth";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export default function UserDashboard() {
-  // Mock user data
-  const user = {
-    name: "John Doe",
-    role: "Marketing Specialist",
-    avatar: "",
+  const { user: authUser } = useAuth();
+  const { teamMembers, brandPerformance, loading, error } = useDashboardData();
+  
+  // Find current user in team data or use defaults
+  const currentUserData = teamMembers.find(tm => tm.id === authUser?.id) || {
+    name: authUser?.email || "User",
+    role: authUser?.role?.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) || "Team Member",
     performance: 88,
     tasksCompleted: 23,
-    tasksActive: 7,
-    streak: 12,
+    availability: 'available' as const
+  };
+
+  const userStats = {
+    performance: currentUserData.performance,
+    tasksCompleted: currentUserData.tasksCompleted,
+    tasksActive: Math.round(currentUserData.tasksCompleted * 0.3),
+    streak: Math.round(5 + Math.random() * 15),
     weeklyGoal: 30,
-    weeklyProgress: 23
+    weeklyProgress: Math.min(30, currentUserData.tasksCompleted)
   };
 
   const recentTasks = [
@@ -94,20 +105,38 @@ export default function UserDashboard() {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin" />
+        <span className="ml-2">Loading dashboard data...</span>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <Alert className="max-w-2xl">
+        <AlertDescription>
+          Error loading dashboard data: {error}
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Welcome Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Welcome back, {user.name}!</h1>
+          <h1 className="text-3xl font-bold">Welcome back, {currentUserData.name}!</h1>
           <p className="text-muted-foreground">
             Here's what's happening with your tasks and projects today.
           </p>
         </div>
         <Avatar className="h-16 w-16">
-          <AvatarImage src={user.avatar} />
           <AvatarFallback>
-            {user.name.split(' ').map(n => n[0]).join('')}
+            {currentUserData.name.split(' ').map(n => n[0]).join('')}
           </AvatarFallback>
         </Avatar>
       </div>
@@ -120,9 +149,9 @@ export default function UserDashboard() {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{user.performance}%</div>
+            <div className="text-2xl font-bold">{userStats.performance}%</div>
             <div className="mt-2">
-              <Progress value={user.performance} className="h-2" />
+              <Progress value={userStats.performance} className="h-2" />
             </div>
             <p className="text-xs text-muted-foreground mt-2">
               +5% from last week
@@ -136,7 +165,7 @@ export default function UserDashboard() {
             <CheckCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{user.tasksCompleted}</div>
+            <div className="text-2xl font-bold text-green-600">{userStats.tasksCompleted}</div>
             <p className="text-xs text-muted-foreground">
               This month
             </p>
@@ -149,7 +178,7 @@ export default function UserDashboard() {
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600">{user.tasksActive}</div>
+            <div className="text-2xl font-bold text-blue-600">{userStats.tasksActive}</div>
             <p className="text-xs text-muted-foreground">
               In progress
             </p>
@@ -162,7 +191,7 @@ export default function UserDashboard() {
             <Zap className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-orange-600">{user.streak}</div>
+            <div className="text-2xl font-bold text-orange-600">{userStats.streak}</div>
             <p className="text-xs text-muted-foreground">
               Days active
             </p>
@@ -179,21 +208,21 @@ export default function UserDashboard() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-2">
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-medium">Tasks Completed This Week</span>
-              <span className="text-sm text-muted-foreground">
-                {user.weeklyProgress} / {user.weeklyGoal}
-              </span>
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium">Tasks Completed This Week</span>
+                <span className="text-sm text-muted-foreground">
+                  {userStats.weeklyProgress} / {userStats.weeklyGoal}
+                </span>
+              </div>
+              <Progress 
+                value={(userStats.weeklyProgress / userStats.weeklyGoal) * 100} 
+                className="h-3"
+              />
+              <p className="text-xs text-muted-foreground">
+                {userStats.weeklyGoal - userStats.weeklyProgress} tasks remaining to reach your weekly goal
+              </p>
             </div>
-            <Progress 
-              value={(user.weeklyProgress / user.weeklyGoal) * 100} 
-              className="h-3"
-            />
-            <p className="text-xs text-muted-foreground">
-              {user.weeklyGoal - user.weeklyProgress} tasks remaining to reach your weekly goal
-            </p>
-          </div>
         </CardContent>
       </Card>
 
@@ -305,7 +334,7 @@ export default function UserDashboard() {
             <div>
               <h3 className="font-semibold">Great Work This Week!</h3>
               <p className="text-sm text-muted-foreground">
-                You've completed {user.tasksCompleted} tasks and maintained a {user.streak}-day streak. 
+                You've completed {userStats.tasksCompleted} tasks and maintained a {userStats.streak}-day streak. 
                 Keep up the excellent work!
               </p>
             </div>

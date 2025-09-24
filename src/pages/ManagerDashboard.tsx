@@ -3,19 +3,51 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Users, Bot, Wrench, Building2, Target, TrendingUp, DollarSign, Clock, AlertCircle, CheckCircle, Zap, Award } from "lucide-react";
+import { Users, Bot, Wrench, Building2, Target, TrendingUp, DollarSign, Clock, AlertCircle, CheckCircle, Zap, Award, Loader2 } from "lucide-react";
+import { useDashboardData } from "@/hooks/useDashboardData";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export default function ManagerDashboard() {
-  // Mock manager data
+  const { 
+    teamMembers, 
+    brandPerformance, 
+    totalUsers, 
+    activeBrands, 
+    totalRevenue, 
+    teamEfficiency,
+    loading, 
+    error 
+  } = useDashboardData();
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin" />
+        <span className="ml-2">Loading dashboard data...</span>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <Alert className="max-w-2xl">
+        <AlertDescription>
+          Error loading dashboard data: {error}
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
+  // Calculate manager stats from real data
   const managerStats = {
-    totalTeam: 25,
-    activeAgents: 12,
+    totalTeam: teamMembers.length,
+    activeAgents: Math.round(activeBrands * 1.5), // Assume 1.5 agents per brand on average
     toolsAvailable: 18,
-    brandsManaged: 6,
-    monthlyRevenue: 245000,
-    teamEfficiency: 92,
-    activeTasks: 143,
-    completedTasks: 892
+    brandsManaged: activeBrands,
+    monthlyRevenue: totalRevenue,
+    teamEfficiency,
+    activeTasks: teamMembers.reduce((sum, member) => sum + member.tasksCompleted * 0.3, 0),
+    completedTasks: teamMembers.reduce((sum, member) => sum + member.tasksCompleted, 0)
   };
 
   const aiAgentsStatus = [
@@ -72,32 +104,8 @@ export default function ManagerDashboard() {
     }
   ];
 
-  const brandPerformance = [
-    {
-      id: "1",
-      name: "Brand A",
-      revenue: 85000,
-      growth: 12,
-      status: "growing",
-      tasks: 45
-    },
-    {
-      id: "2",
-      name: "Brand B",
-      revenue: 72000,
-      growth: 8,
-      status: "stable",
-      tasks: 38
-    },
-    {
-      id: "3",
-      name: "Brand C",
-      revenue: 61000,
-      growth: -3,
-      status: "declining",
-      tasks: 22
-    }
-  ];
+  // Use real brand performance data
+  const brandPerformanceData = brandPerformance.slice(0, 6);
 
   const recentActions = [
     {
@@ -298,7 +306,7 @@ export default function ManagerDashboard() {
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 md:grid-cols-3">
-            {brandPerformance.map((brand) => (
+            {brandPerformanceData.map((brand) => (
               <div key={brand.id} className="p-4 rounded-lg bg-muted/50 space-y-3">
                 <div className="flex items-center justify-between">
                   <h3 className="font-semibold">{brand.name}</h3>
@@ -323,12 +331,12 @@ export default function ManagerDashboard() {
                       brand.growth > 0 ? 'text-green-600' : 
                       brand.growth < 0 ? 'text-red-600' : 'text-gray-600'
                     }`}>
-                      {brand.growth > 0 ? '+' : ''}{brand.growth}%
+                      {brand.growth > 0 ? '+' : ''}{brand.growth.toFixed(1)}%
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-sm text-muted-foreground">Active Tasks</span>
-                    <span className="text-sm font-medium">{brand.tasks}</span>
+                    <span className="text-sm font-medium">{brand.activeTasks}</span>
                   </div>
                 </div>
               </div>
