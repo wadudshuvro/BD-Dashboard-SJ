@@ -22,6 +22,14 @@ interface LayoutProps {
   userRole?: 'super_admin' | 'manager' | 'pm' | 'user';
 }
 
+interface NavigationItem {
+  name: string;
+  href: string;
+  icon: any;
+  current: boolean;
+  isHeader?: boolean;
+}
+
 const Layout = ({ userRole }: LayoutProps) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user, logout } = useAuth();
@@ -29,10 +37,10 @@ const Layout = ({ userRole }: LayoutProps) => {
   // Use the actual user role if available, otherwise fall back to prop
   const currentRole = user?.role || userRole || 'user';
   
-  // Base path for current role
+  // Base path for current role - Super admin uses manager interface
   const getBasePath = (role: string) => {
     switch (role) {
-      case 'super_admin': return '/adminpanel';
+      case 'super_admin': return '/manager'; // Super admin uses manager interface
       case 'manager': return '/manager';
       case 'pm': return '/pm';
       case 'user': return '/user';
@@ -43,22 +51,29 @@ const Layout = ({ userRole }: LayoutProps) => {
   const basePath = getBasePath(currentRole);
 
   // Get navigation based on role
-  const getNavigation = (role: string) => {
+  const getNavigation = (role: string): NavigationItem[] => {
     const baseNavigation = [
       { name: "Dashboard", href: `${basePath}/dashboard`, icon: LayoutDashboard, current: false },
     ];
 
     switch (role) {
       case 'super_admin':
+        // Super admin gets manager navigation + admin-specific items
         return [
-          { name: "Overview", href: "/adminpanel", icon: LayoutDashboard, current: false },
-          { name: "Brands", href: "/adminpanel/brands", icon: Building2, current: false },
-          { name: "Users", href: "/adminpanel/users", icon: Users, current: false },
-          { name: "Clients", href: "/adminpanel/clients", icon: Users, current: false },
-          { name: "Projects", href: "/adminpanel/projects", icon: FolderOpen, current: false },
-          { name: "Integrations", href: "/adminpanel/integrations", icon: Zap, current: false },
-          { name: "KPIs", href: "/adminpanel/kpis", icon: Target, current: false },
-          { name: "Settings", href: "/adminpanel/settings", icon: Settings, current: false },
+          ...baseNavigation,
+          { name: "AI Workspace", href: `${basePath}/workspace`, icon: Bot, current: false },
+          { name: "Clients", href: `${basePath}/clients`, icon: Users, current: false },
+          { name: "Projects", href: `${basePath}/projects`, icon: FolderOpen, current: false },
+          { name: "Brands", href: `${basePath}/brands`, icon: Building2, current: false },
+          { name: "Actions & Tasks", href: `${basePath}/actions-tasks`, icon: CheckSquare, current: false },
+          { name: "People", href: `${basePath}/people`, icon: Users, current: false },
+          // Admin-specific menu items
+          { name: "— Admin Controls —", href: "#", icon: Wrench, current: false, isHeader: true },
+          { name: "User Management", href: `${basePath}/admin/users`, icon: Users, current: false },
+          { name: "System Overview", href: `${basePath}/admin/system`, icon: BarChart3, current: false },
+          { name: "Integrations", href: `${basePath}/admin/integrations`, icon: Zap, current: false },
+          { name: "KPI Configuration", href: `${basePath}/admin/kpis`, icon: Target, current: false },
+          { name: "System Settings", href: `${basePath}/admin/settings`, icon: Settings, current: false },
         ];
       
       case 'manager':
@@ -134,22 +149,34 @@ const Layout = ({ userRole }: LayoutProps) => {
 
           {/* Navigation */}
           <nav className="flex-1 px-4 py-6 space-y-2">
-            {navigation.map((item) => (
-              <NavLink
-                key={item.name}
-                to={item.href}
-                className={({ isActive }) => `
-                  flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-smooth
-                  ${isActive 
-                    ? 'bg-gradient-primary text-white shadow-md' 
-                    : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'
-                  }
-                `}
-              >
-                <item.icon className="mr-3 h-5 w-5" />
-                {item.name}
-              </NavLink>
-            ))}
+            {navigation.map((item) => {
+              // Handle header items (non-clickable)
+              if (item.isHeader) {
+                return (
+                  <div key={item.name} className="flex items-center px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    <item.icon className="mr-3 h-4 w-4" />
+                    {item.name}
+                  </div>
+                );
+              }
+              
+              return (
+                <NavLink
+                  key={item.name}
+                  to={item.href}
+                  className={({ isActive }) => `
+                    flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-smooth
+                    ${isActive 
+                      ? 'bg-gradient-primary text-white shadow-md' 
+                      : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'
+                    }
+                  `}
+                >
+                  <item.icon className="mr-3 h-5 w-5" />
+                  {item.name}
+                </NavLink>
+              );
+            })}
           </nav>
 
           {/* User profile */}

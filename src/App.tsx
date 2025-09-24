@@ -47,7 +47,7 @@ function DashboardRedirect() {
   
   switch (user.role) {
     case 'super_admin':
-      return <Navigate to="/adminpanel" replace />;
+      return <Navigate to="/manager/dashboard" replace />; // Admin uses manager interface
     case 'manager':
       return <Navigate to="/manager/dashboard" replace />;
     case 'pm':
@@ -105,7 +105,7 @@ const App = () => (
               <Route path="gohighlevel" element={<GoHighLevelPage />} />
             </Route>
             
-            {/* Manager Role Routes */}
+            {/* Manager Role Routes - Also accessible by Super Admin */}
             <Route path="/manager/*" element={
               <ProtectedRoute requiredMinimumRole="manager">
                 <Layout userRole="manager" />
@@ -123,6 +123,13 @@ const App = () => (
               <Route path="people" element={<People />} />
               <Route path="ai-agents" element={<AIAgentsPage />} />
               <Route path="gohighlevel" element={<GoHighLevelPage />} />
+              {/* Admin-specific routes accessible from manager interface */}
+              <Route path="admin/users" element={<UserManagement />} />
+              <Route path="admin/users/:userId" element={<UserDetail />} />
+              <Route path="admin/system" element={<AdminOverview />} />
+              <Route path="admin/integrations" element={<IntegrationManager />} />
+              <Route path="admin/kpis" element={<KPIConfigurator />} />
+              <Route path="admin/settings" element={<AdminSettings />} />
             </Route>
             
             {/* Admin Panel Routes - Super Admin Only */}
