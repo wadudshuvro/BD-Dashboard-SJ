@@ -1,25 +1,35 @@
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-
-const mockData = [
-  { date: 'Jan 1', effort: 40, results: 65, ratio: 1.6 },
-  { date: 'Jan 8', effort: 45, results: 80, ratio: 1.8 },
-  { date: 'Jan 15', effort: 38, results: 95, ratio: 2.5 },
-  { date: 'Jan 22', effort: 50, results: 110, ratio: 2.2 },
-  { date: 'Jan 29', effort: 42, results: 125, ratio: 3.0 },
-  { date: 'Feb 5', effort: 48, results: 140, ratio: 2.9 },
-  { date: 'Feb 12', effort: 44, results: 160, ratio: 3.6 },
-];
+import { Loader2 } from "lucide-react";
+import { useAnalytics } from "@/hooks/useAnalytics";
 
 export default function EffortChart() {
+  const { chartData, stats, loading, error } = useAnalytics();
+
+  if (loading) {
+    return (
+      <Card className="col-span-1 lg:col-span-2">
+        <CardContent className="flex items-center justify-center h-80">
+          <Loader2 className="h-8 w-8 animate-spin" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card className="col-span-1 lg:col-span-2">
+        <CardContent className="flex items-center justify-center h-80">
+          <p className="text-muted-foreground">Error loading analytics data</p>
+        </CardContent>
+      </Card>
+    );
+  }
   return (
     <Card className="col-span-1 lg:col-span-2">
       <CardHeader>
         <CardTitle className="text-foreground">
           Effort vs Results Trend
-          <span className="bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300 text-xs px-2 py-1 rounded-full font-medium ml-2">
-            🔴 DUMMY
-          </span>
         </CardTitle>
         <p className="text-sm text-muted-foreground">
           Weekly comparison of team effort hours vs marketing results
@@ -28,7 +38,7 @@ export default function EffortChart() {
       <CardContent>
         <div className="h-80">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={mockData}>
+            <LineChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
               <XAxis 
                 dataKey="date" 
@@ -72,15 +82,15 @@ export default function EffortChart() {
         <div className="mt-4 grid grid-cols-3 gap-4 text-center">
           <div className="space-y-1">
             <p className="text-sm text-muted-foreground">Avg Effort</p>
-            <p className="text-lg font-semibold text-primary">44h</p>
+            <p className="text-lg font-semibold text-primary">{stats.avgEffort}h</p>
           </div>
           <div className="space-y-1">
             <p className="text-sm text-muted-foreground">Avg Results</p>
-            <p className="text-lg font-semibold text-accent">110</p>
+            <p className="text-lg font-semibold text-accent">{stats.avgResults}</p>
           </div>
           <div className="space-y-1">
             <p className="text-sm text-muted-foreground">Efficiency Ratio</p>
-            <p className="text-lg font-semibold text-success">2.5x</p>
+            <p className="text-lg font-semibold text-success">{stats.efficiencyRatio}x</p>
           </div>
         </div>
       </CardContent>

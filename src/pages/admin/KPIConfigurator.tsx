@@ -13,7 +13,8 @@ import {
   TrendingUp,
   DollarSign,
   Percent,
-  Hash
+  Hash,
+  Loader2
 } from "lucide-react";
 import {
   Dialog,
@@ -35,19 +36,46 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { mockBrands, mockIntegrations, BrandKPI } from "@/data/mockData";
+import { useBrandKPIs } from "@/hooks/useBrandKPIs";
 
 const KPIConfigurator = () => {
-  const [selectedBrand, setSelectedBrand] = useState<string>(mockBrands[0].id);
+  const { 
+    brands, 
+    kpis, 
+    loading, 
+    error, 
+    createKPI, 
+    updateKPI, 
+    deleteKPI, 
+    getKPIsByBrand 
+  } = useBrandKPIs();
+  
+  const [selectedBrand, setSelectedBrand] = useState<string>("");
   const [searchTerm, setSearchTerm] = useState("");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [selectedKPI, setSelectedKPI] = useState<BrandKPI | null>(null);
+  const [selectedKPI, setSelectedKPI] = useState<any>(null);
+  const [formData, setFormData] = useState({
+    name: "",
+    type: "number",
+    description: "",
+    target_value: "",
+    source: "manual",
+    display_order: 0
+  });
 
-  const selectedBrandData = mockBrands.find(b => b.id === selectedBrand);
-  const filteredKPIs = selectedBrandData?.kpis.filter(kpi => 
+  // Set default brand when brands load
+  useState(() => {
+    if (brands.length > 0 && !selectedBrand) {
+      setSelectedBrand(brands[0].id);
+    }
+  });
+
+  const selectedBrandData = brands.find(b => b.id === selectedBrand);
+  const brandKPIs = selectedBrand ? getKPIsByBrand(selectedBrand) : [];
+  const filteredKPIs = brandKPIs.filter(kpi => 
     kpi.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    kpi.description.toLowerCase().includes(searchTerm.toLowerCase())
-  ) || [];
+    (kpi.description && kpi.description.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
 
   const getKPIIcon = (type: string) => {
     switch (type) {
@@ -81,10 +109,68 @@ const KPIConfigurator = () => {
     return Math.min((current / target) * 100, 100);
   };
 
-  const openEditDialog = (kpi: BrandKPI) => {
+  const openEditDialog = (kpi: any) => {
     setSelectedKPI(kpi);
+    setFormData({
+      name: kpi.name,
+      type: kpi.type,
+      description: kpi.description || "",
+      target_value: kpi.target_value?.toString() || "",
+      source: kpi.source,
+      display_order: kpi.display_order
+    });
     setIsAddDialogOpen(true);
   };
+
+  const handleSaveKPI = async () => {
+    if (!selectedBrand || !formData.name.trim()) return;
+
+    try {
+      const kpiData = {
+        brand_id: selectedBrand,
+        name: formData.name.trim(),
+        type: formData.type,
+        description: formData.description.trim() || null,
+        current_value: 0,
+        target_value: formData.target_value ? Number(formData.target_value) : null,
+        source: formData.source,
+        display_order: formData.display_order || brandKPIs.length + 1
+      };
+
+      if (selectedKPI) {
+        await updateKPI(selectedKPI.id, kpiData);
+      } else {
+        await createKPI(kpiData);
+      }
+
+      setIsAddDialogOpen(false);
+      setSelectedKPI(null);
+      setFormData({
+        name: "",
+        type: "number", 
+        description: "",
+        target_value: "",
+        source: "manual",
+        display_order: 0
+      });
+    } catch (error) {
+      // Error handling is done in the hook
+    }
+  };
+
+  const handleDeleteKPI = async (kpiId: string) => {
+    if (confirm("Are you sure you want to delete this KPI?")) {
+      await deleteKPI(kpiId);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -95,16 +181,24 @@ const KPIConfigurator = () => {
           <p className="text-muted-foreground">
             Define and manage key performance indicators for each brand module
           </p>
-          <div className="mt-2">
-            <span className="bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300 text-xs px-2 py-1 rounded-full font-medium">
-              🔴 DUMMY DATA - Needs Database Connection
-            </span>
-          </div>
         </div>
 
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
-            <Button onClick={() => setSelectedKPI(null)}>
+            <Button 
+              onClick={() => {
+                setSelectedKPI(null);
+                setFormData({
+                  name: "",
+                  type: "number",
+                  description: "",
+                  target_value: "",
+                  source: "manual",
+                  display_order: brandKPIs.length + 1
+                });
+              }}
+              disabled={!selectedBrand}
+            >
               <Plus className="mr-2 h-4 w-4" />
               Add KPI
             </Button>
@@ -128,12 +222,16 @@ const KPIConfigurator = () => {
                   <Input 
                     id="kpi-name" 
                     placeholder="e.g., Website Sessions" 
-                    defaultValue={selectedKPI?.name || ''}
+                    value={formData.name}
+                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="kpi-type">KPI Type</Label>
-                  <Select defaultValue={selectedKPI?.type || 'number'}>
+                  <Select 
+                    value={formData.type} 
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, type: value }))}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Select type" />
                     </SelectTrigger>
@@ -151,7 +249,8 @@ const KPIConfigurator = () => {
                 <Textarea 
                   id="kpi-description" 
                   placeholder="Brief description of what this KPI measures"
-                  defaultValue={selectedKPI?.description || ''}
+                  value={formData.description}
+                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                 />
               </div>
               
@@ -162,22 +261,24 @@ const KPIConfigurator = () => {
                     id="target-value" 
                     type="number" 
                     placeholder="Set target goal"
-                    defaultValue={selectedKPI?.target_value || ''}
+                    value={formData.target_value}
+                    onChange={(e) => setFormData(prev => ({ ...prev, target_value: e.target.value }))}
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="data-source">Data Source</Label>
-                  <Select defaultValue={selectedKPI?.source || 'manual'}>
+                  <Select 
+                    value={formData.source} 
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, source: value }))}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Select source" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="manual">Manual Entry</SelectItem>
-                      {mockIntegrations.map(integration => (
-                        <SelectItem key={integration.id} value={integration.type}>
-                          {integration.name}
-                        </SelectItem>
-                      ))}
+                      <SelectItem value="collabai">CollabAI</SelectItem>
+                      <SelectItem value="gohighlevel">GoHighLevel</SelectItem>
+                      <SelectItem value="analytics">Analytics</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -189,7 +290,8 @@ const KPIConfigurator = () => {
                   id="display-order" 
                   type="number" 
                   placeholder="1" 
-                  defaultValue={selectedKPI?.display_order || filteredKPIs.length + 1}
+                  value={formData.display_order || brandKPIs.length + 1}
+                  onChange={(e) => setFormData(prev => ({ ...prev, display_order: Number(e.target.value) }))}
                 />
               </div>
             </div>
@@ -197,7 +299,7 @@ const KPIConfigurator = () => {
               <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button onClick={() => setIsAddDialogOpen(false)}>
+              <Button onClick={handleSaveKPI} disabled={!formData.name.trim()}>
                 {selectedKPI ? 'Update KPI' : 'Create KPI'}
               </Button>
             </div>
@@ -212,7 +314,7 @@ const KPIConfigurator = () => {
             <SelectValue placeholder="Select brand" />
           </SelectTrigger>
           <SelectContent>
-            {mockBrands.map(brand => (
+            {brands.map(brand => (
               <SelectItem key={brand.id} value={brand.id}>
                 {brand.name}
               </SelectItem>
@@ -240,30 +342,30 @@ const KPIConfigurator = () => {
               {selectedBrandData.name} KPI Overview
             </CardTitle>
             <CardDescription>
-              {selectedBrandData.description} • Owner: {selectedBrandData.owner_name}
+              {selectedBrandData.description}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid gap-4 md:grid-cols-4">
               <div className="text-center">
-                <div className="text-2xl font-bold text-foreground">{selectedBrandData.kpis.length}</div>
+                <div className="text-2xl font-bold text-foreground">{brandKPIs.length}</div>
                 <div className="text-sm text-muted-foreground">Total KPIs</div>
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-success">
-                  {selectedBrandData.kpis.filter(kpi => kpi.current_value >= (kpi.target_value || kpi.current_value)).length}
+                  {brandKPIs.filter(kpi => kpi.current_value >= (kpi.target_value || kpi.current_value)).length}
                 </div>
                 <div className="text-sm text-muted-foreground">Goals Met</div>
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-primary">
-                  {selectedBrandData.active_integrations.length}
+                  {selectedBrandData?.active_integrations?.length || 0}
                 </div>
                 <div className="text-sm text-muted-foreground">Data Sources</div>
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-accent">
-                  {Math.round((selectedBrandData.kpis.filter(kpi => kpi.current_value >= (kpi.target_value || kpi.current_value)).length / selectedBrandData.kpis.length) * 100) || 0}%
+                  {brandKPIs.length > 0 ? Math.round((brandKPIs.filter(kpi => kpi.current_value >= (kpi.target_value || kpi.current_value)).length / brandKPIs.length) * 100) : 0}%
                 </div>
                 <div className="text-sm text-muted-foreground">Achievement Rate</div>
               </div>
@@ -424,7 +526,11 @@ const KPIConfigurator = () => {
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon">
+                           <Button 
+                            variant="ghost" 
+                            size="icon"
+                            onClick={() => handleDeleteKPI(kpi.id)}
+                          >
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
