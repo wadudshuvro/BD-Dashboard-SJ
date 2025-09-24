@@ -821,6 +821,10 @@ export type Database = {
         Args: { "": string }
         Returns: string
       }
+      get_current_user_role: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
     }
     Enums: {
       app_role: "super_admin" | "manager" | "pm" | "user"
