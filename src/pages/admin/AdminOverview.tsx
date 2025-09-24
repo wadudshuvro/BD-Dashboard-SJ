@@ -9,26 +9,35 @@ import {
   Activity,
   Calendar,
   DollarSign,
-  AlertTriangle
+  AlertTriangle,
+  Loader2
 } from "lucide-react";
-import { mockBrands, mockUsers, mockIntegrations, getSystemStats } from "@/data/mockData";
+import { useSystemStats } from "@/hooks/useSystemStats";
 import { NavLink } from "react-router-dom";
 
 const AdminOverview = () => {
-  const stats = getSystemStats();
-  const recentActivity = [
-    { id: 1, action: 'New user registered', user: 'Chris Taylor', time: '2 hours ago', type: 'user' },
-    { id: 2, action: 'Brand KPI updated', brand: 'CollabAI', time: '4 hours ago', type: 'kpi' },
-    { id: 3, action: 'Integration connected', brand: 'LeadsLift', integration: 'Facebook', time: '6 hours ago', type: 'integration' },
-    { id: 4, action: 'User role changed', user: 'Alice Johnson', time: '1 day ago', type: 'user' },
-    { id: 5, action: 'New brand created', brand: 'TechStartup Pro', time: '2 days ago', type: 'brand' },
-  ];
+  const { stats, recentActivity, systemAlerts, topBrands, loading, error } = useSystemStats();
 
-  const systemAlerts = [
-    { id: 1, message: 'Google Analytics sync failed for CollabAI', severity: 'warning', time: '1 hour ago' },
-    { id: 2, message: 'High API usage detected for LeadsLift', severity: 'info', time: '3 hours ago' },
-    { id: 3, message: 'Backup completed successfully', severity: 'success', time: '12 hours ago' },
-  ];
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <p className="text-destructive">Error loading system data: {error}</p>
+          <Button variant="outline" onClick={() => window.location.reload()} className="mt-4">
+            Retry
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -38,11 +47,6 @@ const AdminOverview = () => {
         <p className="text-muted-foreground">
           System-wide analytics and management dashboard for all brand modules
         </p>
-        <div className="mt-2">
-          <span className="bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300 text-xs px-2 py-1 rounded-full font-medium">
-            🔴 DUMMY DATA - Needs Database Connection
-          </span>
-        </div>
       </div>
 
       {/* Stats Cards */}
@@ -113,12 +117,8 @@ const AdminOverview = () => {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {mockBrands.slice(0, 5).map((brand) => {
-              const achievementRate = Math.round(
-                (brand.kpis.reduce((sum, kpi) => sum + (kpi.current_value / (kpi.target_value || kpi.current_value)), 0) / brand.kpis.length) * 100
-              );
-              
-              return (
+            {topBrands.length > 0 ? (
+              topBrands.map((brand) => (
                 <div key={brand.id} className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="flex flex-col">
@@ -127,16 +127,20 @@ const AdminOverview = () => {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Badge variant={achievementRate >= 90 ? "default" : achievementRate >= 70 ? "secondary" : "outline"}>
-                      {achievementRate}%
+                    <Badge variant={brand.achievementRate >= 90 ? "default" : brand.achievementRate >= 70 ? "secondary" : "outline"}>
+                      {brand.achievementRate}%
                     </Badge>
                     <Badge variant={brand.type === 'internal' ? 'default' : 'secondary'}>
                       {brand.type}
                     </Badge>
                   </div>
                 </div>
-              );
-            })}
+              ))
+            ) : (
+              <div className="text-center py-4 text-muted-foreground">
+                No brand performance data available
+              </div>
+            )}
             <Button variant="outline" className="w-full" asChild>
               <NavLink to="/adminpanel/brands">View All Brands</NavLink>
             </Button>
