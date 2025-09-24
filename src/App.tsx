@@ -31,6 +31,7 @@ import IntegrationManager from "./pages/admin/IntegrationManager";
 import KPIConfigurator from "./pages/admin/KPIConfigurator";
 import AdminSettings from "./pages/admin/AdminSettings";
 import UserDetail from "./pages/admin/UserDetail";
+import AdminPanel from "./pages/admin/AdminPanel";
 import UserBrands from "./pages/UserBrands";
 import AIAgentsPage from "./pages/ai-agents";
 import GoHighLevelPage from "./pages/gohighlevel";
@@ -130,7 +131,8 @@ const App = () => (
                 <AdminLayout />
               </ProtectedRoute>
             }>
-              <Route index element={<AdminOverview />} />
+              <Route index element={<AdminPanel />} />
+              <Route path="overview" element={<AdminOverview />} />
               <Route path="brands" element={<BrandManagement />} />
               <Route path="brands/:brandId" element={<BrandDetail />} />
               <Route path="users" element={<UserManagement />} />

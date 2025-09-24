@@ -10,22 +10,54 @@ import {
   X,
   LogOut,
   Bot,
-  Target
+  Target,
+  ArrowLeft,
+  Home,
+  FileText,
+  Briefcase,
+  UserCheck,
+  Zap,
+  TrendingUp
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 
 const navigation = [
-  { name: 'Overview', href: '/adminpanel', icon: BarChart3, exact: true },
-  { name: 'Brand Management', href: '/adminpanel/brands', icon: Building2 },
-  { name: 'User Management', href: '/adminpanel/users', icon: Users },
-  { name: 'Integrations', href: '/adminpanel/integrations', icon: Plug },
-  { name: 'AI Dashboard', href: '/adminpanel/ai-dashboard', icon: Bot },
-  { name: 'AI Agents', href: '/adminpanel/ai-agents', icon: Bot },
-  { name: 'GoHighLevel', href: '/adminpanel/gohighlevel', icon: Target },
-  { name: 'KPI Configuration', href: '/adminpanel/kpis', icon: BarChart3 },
-  { name: 'System Settings', href: '/adminpanel/settings', icon: Settings },
+  {
+    section: 'Quick Access',
+    items: [
+      { name: 'Back to Dashboard', href: '/', icon: ArrowLeft, isExternal: true },
+    ]
+  },
+  {
+    section: 'Administration',
+    items: [
+      { name: 'Admin Panel', href: '/adminpanel', icon: Home, exact: true },
+      { name: 'System Overview', href: '/adminpanel/overview', icon: BarChart3 },
+      { name: 'User Management', href: '/adminpanel/users', icon: Users },
+      { name: 'Brand Management', href: '/adminpanel/brands', icon: Building2 },
+      { name: 'KPI Configuration', href: '/adminpanel/kpis', icon: TrendingUp },
+      { name: 'System Settings', href: '/adminpanel/settings', icon: Settings },
+    ]
+  },
+  {
+    section: 'Frontend Access',
+    items: [
+      { name: 'Client Management', href: '/adminpanel/clients', icon: UserCheck },
+      { name: 'Project Management', href: '/adminpanel/projects', icon: Briefcase },
+      { name: 'Reports & Analytics', href: '/manager/dashboard', icon: FileText, isExternal: true },
+    ]
+  },
+  {
+    section: 'Integrations & AI',
+    items: [
+      { name: 'Integrations Hub', href: '/adminpanel/integrations', icon: Plug },
+      { name: 'AI Dashboard', href: '/adminpanel/ai-dashboard', icon: Bot },
+      { name: 'AI Agents', href: '/adminpanel/ai-agents', icon: Zap },
+      { name: 'GoHighLevel', href: '/adminpanel/gohighlevel', icon: Target },
+    ]
+  }
 ];
 
 const AdminLayout = () => {
@@ -75,31 +107,67 @@ const AdminLayout = () => {
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 space-y-1 px-4 py-6">
-            {navigation.map((item) => {
-              const isActive = isActiveRoute(item.href, item.exact);
-              return (
-                <NavLink
-                  key={item.name}
-                  to={item.href}
-                  className={cn(
-                    "group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors",
-                    isActive
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                  )}
-                  onClick={() => setSidebarOpen(false)}
-                >
-                  <item.icon
-                    className={cn(
-                      "mr-3 h-5 w-5 flex-shrink-0",
-                      isActive ? "text-primary-foreground" : "text-muted-foreground"
-                    )}
-                  />
-                  {item.name}
-                </NavLink>
-              );
-            })}
+          <nav className="flex-1 space-y-4 px-4 py-6">
+            {navigation.map((section) => (
+              <div key={section.section}>
+                <h3 className="mb-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  {section.section}
+                </h3>
+                <div className="space-y-1">
+                  {section.items.map((item) => {
+                    const isActive = !item.isExternal && isActiveRoute(item.href, item.exact);
+                    
+                    if (item.isExternal) {
+                      return (
+                        <NavLink
+                          key={item.name}
+                          to={item.href}
+                          className={cn(
+                            "group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors",
+                            item.name === 'Back to Dashboard'
+                              ? "bg-success text-success-foreground hover:bg-success/90"
+                              : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                          )}
+                          onClick={() => setSidebarOpen(false)}
+                        >
+                          <item.icon
+                            className={cn(
+                              "mr-3 h-5 w-5 flex-shrink-0",
+                              item.name === 'Back to Dashboard'
+                                ? "text-success-foreground"
+                                : "text-muted-foreground"
+                            )}
+                          />
+                          {item.name}
+                        </NavLink>
+                      );
+                    }
+                    
+                    return (
+                      <NavLink
+                        key={item.name}
+                        to={item.href}
+                        className={cn(
+                          "group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors",
+                          isActive
+                            ? "bg-primary text-primary-foreground"
+                            : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                        )}
+                        onClick={() => setSidebarOpen(false)}
+                      >
+                        <item.icon
+                          className={cn(
+                            "mr-3 h-5 w-5 flex-shrink-0",
+                            isActive ? "text-primary-foreground" : "text-muted-foreground"
+                          )}
+                        />
+                        {item.name}
+                      </NavLink>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </nav>
 
           {/* User section */}
@@ -145,9 +213,13 @@ const AdminLayout = () => {
 
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" asChild>
-              <NavLink to="/dashboard">
-                Exit Admin
+              <NavLink to="/" className="flex items-center gap-2">
+                <Home className="h-4 w-4" />
+                Dashboard
               </NavLink>
+            </Button>
+            <Button variant="ghost" size="sm" title="Logout">
+              <LogOut className="h-4 w-4" />
             </Button>
           </div>
         </div>
