@@ -14,6 +14,152 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_agent_runs: {
+        Row: {
+          agent_id: string
+          ai_summary: Json
+          approval_status: string | null
+          approved_at: string | null
+          approved_by: string | null
+          business_context: string | null
+          category: string | null
+          created_at: string | null
+          error_message: string | null
+          executed_by: string | null
+          execution_context: Json | null
+          generated_tasks: Json | null
+          id: string
+          status: string | null
+          tags: Json | null
+          title: string | null
+        }
+        Insert: {
+          agent_id: string
+          ai_summary?: Json
+          approval_status?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          business_context?: string | null
+          category?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          executed_by?: string | null
+          execution_context?: Json | null
+          generated_tasks?: Json | null
+          id?: string
+          status?: string | null
+          tags?: Json | null
+          title?: string | null
+        }
+        Update: {
+          agent_id?: string
+          ai_summary?: Json
+          approval_status?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          business_context?: string | null
+          category?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          executed_by?: string | null
+          execution_context?: Json | null
+          generated_tasks?: Json | null
+          id?: string
+          status?: string | null
+          tags?: Json | null
+          title?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_agent_runs_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "ai_agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_agents: {
+        Row: {
+          category: string
+          created_at: string | null
+          created_by: string | null
+          data_sources: Json
+          description: string | null
+          id: string
+          is_enabled: boolean | null
+          name: string
+          output_actions: Json | null
+          required_role: Database["public"]["Enums"]["app_role"] | null
+          schedule_config: Json | null
+          slug: string
+          system_prompt: string
+          updated_at: string | null
+        }
+        Insert: {
+          category: string
+          created_at?: string | null
+          created_by?: string | null
+          data_sources?: Json
+          description?: string | null
+          id?: string
+          is_enabled?: boolean | null
+          name: string
+          output_actions?: Json | null
+          required_role?: Database["public"]["Enums"]["app_role"] | null
+          schedule_config?: Json | null
+          slug: string
+          system_prompt: string
+          updated_at?: string | null
+        }
+        Update: {
+          category?: string
+          created_at?: string | null
+          created_by?: string | null
+          data_sources?: Json
+          description?: string | null
+          id?: string
+          is_enabled?: boolean | null
+          name?: string
+          output_actions?: Json | null
+          required_role?: Database["public"]["Enums"]["app_role"] | null
+          schedule_config?: Json | null
+          slug?: string
+          system_prompt?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      ai_configurations: {
+        Row: {
+          configuration_data: Json
+          configuration_type: string
+          created_at: string | null
+          created_by: string | null
+          id: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          configuration_data?: Json
+          configuration_type: string
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          configuration_data?: Json
+          configuration_type?: string
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       brand_kpis: {
         Row: {
           brand_id: string

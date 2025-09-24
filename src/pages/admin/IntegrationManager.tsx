@@ -107,6 +107,18 @@ const IntegrationManager = () => {
         is_enabled: false,
         setup_complexity: 'easy',
         required_fields: ['api_key', 'base_url']
+      },
+      {
+        id: 'openai',
+        name: 'OpenAI',
+        type: 'openai',
+        description: 'AI-powered financial analysis and intelligent insights',
+        icon: '🤖',
+        category: 'ai',
+        is_available: true,
+        is_enabled: false,
+        setup_complexity: 'easy',
+        required_fields: ['api_key']
       }
     ];
 

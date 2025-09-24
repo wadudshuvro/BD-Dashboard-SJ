@@ -21,6 +21,7 @@ const navigation = [
   { name: 'Brand Management', href: '/adminpanel/brands', icon: Building2 },
   { name: 'User Management', href: '/adminpanel/users', icon: Users },
   { name: 'Integrations', href: '/adminpanel/integrations', icon: Plug },
+  { name: 'AI Dashboard', href: '/adminpanel/ai-dashboard', icon: Bot },
   { name: 'AI Agents', href: '/adminpanel/ai-agents', icon: Bot },
   { name: 'GoHighLevel', href: '/adminpanel/gohighlevel', icon: Target },
   { name: 'KPI Configuration', href: '/adminpanel/kpis', icon: BarChart3 },

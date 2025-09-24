@@ -34,6 +34,7 @@ import UserDetail from "./pages/admin/UserDetail";
 import UserBrands from "./pages/UserBrands";
 import AIAgentsPage from "./pages/ai-agents";
 import GoHighLevelPage from "./pages/gohighlevel";
+import AIDashboard from "./pages/ai-dashboard";
 
 const queryClient = new QueryClient();
 
@@ -141,6 +142,7 @@ const App = () => (
               <Route path="settings" element={<AdminSettings />} />
               <Route path="ai-agents" element={<AIAgentsPage />} />
               <Route path="gohighlevel" element={<GoHighLevelPage />} />
+              <Route path="ai-dashboard" element={<AIDashboard />} />
             </Route>
             
             {/* Legacy/Fallback Routes */}
