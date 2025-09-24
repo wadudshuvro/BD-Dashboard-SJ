@@ -8,7 +8,9 @@ import {
   Settings,
   Menu,
   X,
-  LogOut
+  LogOut,
+  Bot,
+  Target
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
@@ -19,6 +21,8 @@ const navigation = [
   { name: 'Brand Management', href: '/adminpanel/brands', icon: Building2 },
   { name: 'User Management', href: '/adminpanel/users', icon: Users },
   { name: 'Integrations', href: '/adminpanel/integrations', icon: Plug },
+  { name: 'AI Agents', href: '/adminpanel/ai-agents', icon: Bot },
+  { name: 'GoHighLevel', href: '/adminpanel/gohighlevel', icon: Target },
   { name: 'KPI Configuration', href: '/adminpanel/kpis', icon: BarChart3 },
   { name: 'System Settings', href: '/adminpanel/settings', icon: Settings },
 ];

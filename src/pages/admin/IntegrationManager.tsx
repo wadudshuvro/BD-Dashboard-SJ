@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -27,11 +27,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
-  mockBrands, 
-  mockGlobalIntegrations, 
-  mockBrandIntegrations
-} from "@/data/mockData";
+import { mockBrands } from "@/data/mockData";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 // Union type for different integration config structures
 type IntegrationConfig = 
@@ -76,13 +74,84 @@ interface BrandIntegration {
 }
 
 const IntegrationManager = () => {
-  const [globalIntegrations, setGlobalIntegrations] = useState(mockGlobalIntegrations);
-  const [brandIntegrations, setBrandIntegrations] = useState<BrandIntegration[]>(mockBrandIntegrations as BrandIntegration[]);
+  const { toast } = useToast();
+  const [globalIntegrations, setGlobalIntegrations] = useState<GlobalIntegration[]>([]);
+  const [brandIntegrations, setBrandIntegrations] = useState<BrandIntegration[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedBrand, setSelectedBrand] = useState<string>("all");
   const [isConfigDialogOpen, setIsConfigDialogOpen] = useState(false);
   const [selectedIntegration, setSelectedIntegration] = useState<any>(null);
   const [activeTab, setActiveTab] = useState("global");
+  const [configData, setConfigData] = useState<{apiKey: string; baseUrl?: string; locationId?: string}>({
+    apiKey: '',
+    baseUrl: '',
+    locationId: ''
+  });
+
+  // Load integrations on mount
+  useEffect(() => {
+    loadIntegrations();
+  }, []);
+
+  const loadIntegrations = async () => {
+    // Set up real integrations data
+    const globalIntegrationsData: GlobalIntegration[] = [
+      {
+        id: 'collabai',
+        name: 'CollabAI',
+        type: 'collab_ai',
+        description: 'Collaborative AI platform for team productivity',
+        icon: '🚀',
+        category: 'ai',
+        is_available: true,
+        is_enabled: false,
+        setup_complexity: 'easy',
+        required_fields: ['api_key', 'base_url']
+      }
+    ];
+
+    const brandIntegrationsData: BrandIntegration[] = [
+      {
+        id: 'gohighlevel',
+        name: 'GoHighLevel',
+        type: 'gohighlevel',
+        description: 'CRM and marketing automation platform',
+        icon: '🎯',
+        category: 'crm',
+        is_available: true,
+        setup_complexity: 'medium',
+        required_fields: ['api_key', 'location_id'],
+        brand_connections: {}
+      }
+    ];
+
+    // Load actual configuration states
+    try {
+      const { data: collabaiConfig } = await supabase.functions.invoke('collabai-manage', { method: 'GET' });
+      if (collabaiConfig?.configured) {
+        globalIntegrationsData[0].is_enabled = collabaiConfig.enabled;
+      }
+    } catch (e) {
+      console.error('Failed to load CollabAI config', e);
+    }
+
+    try {
+      const { data: ghlConfig } = await supabase.functions.invoke('gohighlevel-manage', { method: 'GET' });
+      if (ghlConfig?.configured) {
+        // Mark as connected for current user/brand
+        brandIntegrationsData[0].brand_connections['current'] = {
+          is_enabled: ghlConfig.enabled,
+          config: { location_id: ghlConfig.locationId || '' },
+          status: 'connected'
+        };
+      }
+    } catch (e) {
+      console.error('Failed to load GoHighLevel config', e);
+    }
+
+    setGlobalIntegrations(globalIntegrationsData);
+    setBrandIntegrations(brandIntegrationsData);
+  };
 
   const filteredGlobalIntegrations = globalIntegrations.filter(integration => 
     integration.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -115,7 +184,6 @@ const IntegrationManager = () => {
               is_enabled: !updatedConnections[brandId].is_enabled
             };
           } else {
-            // Create default config based on integration type
             const defaultConfig: IntegrationConfig = {};
             updatedConnections[brandId] = { 
               is_enabled: true, 
@@ -130,6 +198,110 @@ const IntegrationManager = () => {
     );
   };
 
+  const testConnection = async (integration: any) => {
+    if (integration.id === 'collabai') {
+      if (!configData.apiKey || !configData.baseUrl) {
+        toast({
+          title: 'Missing Configuration',
+          description: 'Please enter API key and Base URL before testing.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase.functions.invoke('collabai-manage', {
+          body: {
+            action: 'test',
+            apiKey: configData.apiKey,
+            baseUrl: configData.baseUrl,
+          },
+        });
+        if (error || !data?.ok) throw error || new Error(data?.error || 'Test failed');
+        toast({ title: 'Connection Successful', description: 'Successfully connected to CollabAI' });
+      } catch (err: any) {
+        toast({
+          title: 'Connection Failed',
+          description: err.message || 'Failed to connect to CollabAI. Please check your credentials.',
+          variant: 'destructive',
+        });
+      }
+      return;
+    }
+
+    if (integration.id === 'gohighlevel') {
+      if (!configData.apiKey) {
+        toast({
+          title: 'Missing API Key',
+          description: 'Please enter an API key before testing the connection.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase.functions.invoke('gohighlevel-manage', {
+          body: {
+            action: 'test',
+            apiKey: configData.apiKey,
+            locationId: configData.locationId,
+          },
+        });
+        if (error || !data?.ok) throw error || new Error(data?.error || 'Test failed');
+        toast({ title: 'Connection Successful', description: 'Successfully connected to GoHighLevel' });
+      } catch (err: any) {
+        toast({
+          title: 'Connection Failed',
+          description: err.message || 'Failed to connect to GoHighLevel. Please check your credentials.',
+          variant: 'destructive',
+        });
+      }
+      return;
+    }
+  };
+
+  const saveConfiguration = async (integration: any) => {
+    if (integration.id === 'collabai') {
+      if (!configData.apiKey?.trim() || !configData.baseUrl?.trim()) {
+        toast({ title: 'Missing fields', description: 'API key and Base URL are required.', variant: 'destructive' });
+        return;
+      }
+      try {
+        const { data, error } = await supabase.functions.invoke('collabai-manage', {
+          body: { action: 'save', apiKey: configData.apiKey.trim(), baseUrl: configData.baseUrl.trim() },
+        });
+        if (error || !data?.ok) throw error || new Error(data?.error || 'Save failed');
+        toast({ title: 'Settings Saved', description: 'CollabAI credentials stored successfully.' });
+        setIsConfigDialogOpen(false);
+        setConfigData({ apiKey: '', baseUrl: '', locationId: '' });
+        loadIntegrations(); // Reload to show updated status
+      } catch (e: any) {
+        toast({ title: 'Save failed', description: e?.message ?? 'Unable to save integration.', variant: 'destructive' });
+      }
+      return;
+    }
+
+    if (integration.id === 'gohighlevel') {
+      if (!configData.apiKey?.trim()) {
+        toast({ title: 'Missing API Key', description: 'API key is required.', variant: 'destructive' });
+        return;
+      }
+      try {
+        const { data, error } = await supabase.functions.invoke('gohighlevel-manage', {
+          body: { action: 'save', apiKey: configData.apiKey.trim(), locationId: configData.locationId?.trim() },
+        });
+        if (error || !data?.ok) throw error || new Error(data?.error || 'Save failed');
+        toast({ title: 'Settings Saved', description: 'GoHighLevel credentials stored successfully.' });
+        setIsConfigDialogOpen(false);
+        setConfigData({ apiKey: '', baseUrl: '', locationId: '' });
+        loadIntegrations(); // Reload to show updated status
+      } catch (e: any) {
+        toast({ title: 'Save failed', description: e?.message ?? 'Unable to save integration.', variant: 'destructive' });
+      }
+      return;
+    }
+  };
+
   const getComplexityColor = (complexity: string) => {
     switch (complexity) {
       case 'easy': return 'bg-success text-success-foreground';
@@ -141,6 +313,7 @@ const IntegrationManager = () => {
 
   const openConfigDialog = (integration: any) => {
     setSelectedIntegration(integration);
+    setConfigData({ apiKey: '', baseUrl: '', locationId: '' });
     setIsConfigDialogOpen(true);
   };
 
@@ -470,14 +643,69 @@ const IntegrationManager = () => {
 
       {/* Configuration Dialog */}
       <Dialog open={isConfigDialogOpen} onOpenChange={setIsConfigDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>
-              Configure {selectedIntegration?.name}
-            </DialogTitle>
+            <DialogTitle>Configure {selectedIntegration?.name}</DialogTitle>
             <DialogDescription>
-              Set up the integration configuration and manage settings.
+              Set up your {selectedIntegration?.name} integration settings
             </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="api-key" className="text-right">
+                API Key *
+              </Label>
+              <Input
+                id="api-key"
+                type="password"
+                placeholder="Enter API key..."
+                className="col-span-3"
+                value={configData.apiKey}
+                onChange={(e) => setConfigData(prev => ({ ...prev, apiKey: e.target.value }))}
+              />
+            </div>
+            {selectedIntegration?.id === 'collabai' && (
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="base-url" className="text-right">
+                  Base URL *
+                </Label>
+                <Input
+                  id="base-url"
+                  placeholder="https://your-collabai-instance.com"
+                  className="col-span-3"
+                  value={configData.baseUrl}
+                  onChange={(e) => setConfigData(prev => ({ ...prev, baseUrl: e.target.value }))}
+                />
+              </div>
+            )}
+            {selectedIntegration?.id === 'gohighlevel' && (
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="location-id" className="text-right">
+                  Location ID
+                </Label>
+                <Input
+                  id="location-id"
+                  placeholder="Optional location ID..."
+                  className="col-span-3"
+                  value={configData.locationId}
+                  onChange={(e) => setConfigData(prev => ({ ...prev, locationId: e.target.value }))}
+                />
+              </div>
+            )}
+          </div>
+          <div className="flex justify-end space-x-2">
+            <Button variant="outline" onClick={() => setIsConfigDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="outline" onClick={() => testConnection(selectedIntegration)}>
+              Test Connection
+            </Button>
+            <Button onClick={() => saveConfiguration(selectedIntegration)}>
+              Save Configuration
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
           </DialogHeader>
           
           <div className="space-y-4">

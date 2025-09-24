@@ -32,6 +32,8 @@ import KPIConfigurator from "./pages/admin/KPIConfigurator";
 import AdminSettings from "./pages/admin/AdminSettings";
 import UserDetail from "./pages/admin/UserDetail";
 import UserBrands from "./pages/UserBrands";
+import AIAgentsPage from "./pages/ai-agents";
+import GoHighLevelPage from "./pages/gohighlevel";
 
 const queryClient = new QueryClient();
 
@@ -80,6 +82,8 @@ const App = () => (
               <Route path="people" element={<People />} />
               <Route path="brands" element={<UserBrands />} />
               <Route path="brands/:brandId" element={<BrandDetail />} />
+              <Route path="ai-agents" element={<AIAgentsPage />} />
+              <Route path="gohighlevel" element={<GoHighLevelPage />} />
             </Route>
             
             {/* PM Role Routes */}
@@ -95,6 +99,8 @@ const App = () => (
               <Route path="clients/:clientId" element={<ClientDetail />} />
               <Route path="projects" element={<ProjectManagement />} />
               <Route path="tasks" element={<ActionsTasks />} />
+              <Route path="ai-agents" element={<AIAgentsPage />} />
+              <Route path="gohighlevel" element={<GoHighLevelPage />} />
             </Route>
             
             {/* Manager Role Routes */}
@@ -113,6 +119,8 @@ const App = () => (
               <Route path="brands/:brandId" element={<BrandDetail />} />
               <Route path="actions-tasks" element={<ActionsTasks />} />
               <Route path="people" element={<People />} />
+              <Route path="ai-agents" element={<AIAgentsPage />} />
+              <Route path="gohighlevel" element={<GoHighLevelPage />} />
             </Route>
             
             {/* Admin Panel Routes - Super Admin Only */}
@@ -131,6 +139,8 @@ const App = () => (
               <Route path="integrations" element={<IntegrationManager />} />
               <Route path="kpis" element={<KPIConfigurator />} />
               <Route path="settings" element={<AdminSettings />} />
+              <Route path="ai-agents" element={<AIAgentsPage />} />
+              <Route path="gohighlevel" element={<GoHighLevelPage />} />
             </Route>
             
             {/* Legacy/Fallback Routes */}

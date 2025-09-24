@@ -225,6 +225,161 @@ export type Database = {
         }
         Relationships: []
       }
+      collabai_chats: {
+        Row: {
+          agent_id: string
+          ai_response: string | null
+          created_at: string | null
+          id: string
+          integration_id: string
+          status: string | null
+          user_prompt: string
+        }
+        Insert: {
+          agent_id: string
+          ai_response?: string | null
+          created_at?: string | null
+          id?: string
+          integration_id: string
+          status?: string | null
+          user_prompt: string
+        }
+        Update: {
+          agent_id?: string
+          ai_response?: string | null
+          created_at?: string | null
+          id?: string
+          integration_id?: string
+          status?: string | null
+          user_prompt?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collabai_chats_integration_id_fkey"
+            columns: ["integration_id"]
+            isOneToOne: false
+            referencedRelation: "collabai_integrations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      collabai_integrations: {
+        Row: {
+          api_key_encrypted: string
+          base_url: string
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          api_key_encrypted: string
+          base_url: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          api_key_encrypted?: string
+          base_url?: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_collabai_user"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gohighlevel_contacts: {
+        Row: {
+          contact_id: string
+          created_at: string | null
+          email: string | null
+          id: string
+          integration_id: string
+          name: string | null
+          phone: string | null
+          status: string | null
+        }
+        Insert: {
+          contact_id: string
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          integration_id: string
+          name?: string | null
+          phone?: string | null
+          status?: string | null
+        }
+        Update: {
+          contact_id?: string
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          integration_id?: string
+          name?: string | null
+          phone?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gohighlevel_contacts_integration_id_fkey"
+            columns: ["integration_id"]
+            isOneToOne: false
+            referencedRelation: "gohighlevel_integrations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gohighlevel_integrations: {
+        Row: {
+          api_key_encrypted: string
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          location_id: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          api_key_encrypted: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          location_id?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          api_key_encrypted?: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          location_id?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_ghl_user"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_tasks: {
         Row: {
           actual_hours: number | null
