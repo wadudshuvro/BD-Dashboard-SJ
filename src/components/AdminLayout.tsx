@@ -42,14 +42,6 @@ const navigation = [
     ]
   },
   {
-    section: 'Frontend Access',
-    items: [
-      { name: 'Client Management', href: '/adminpanel/clients', icon: UserCheck },
-      { name: 'Project Management', href: '/adminpanel/projects', icon: Briefcase },
-      { name: 'Reports & Analytics', href: '/dashboard', icon: FileText, isExternal: true },
-    ]
-  },
-  {
     section: 'Integrations & AI',
     items: [
       { name: 'Integrations Hub', href: '/adminpanel/integrations', icon: Plug },
