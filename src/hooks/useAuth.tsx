@@ -83,23 +83,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             if (profile) {
               setUser(profile);
             } else {
-              // Fallback user for testing when no profile row exists
-              const email = session.user.email ?? "";
-              const fallbackRole: UserRole =
-                email.toLowerCase() === "sazzad.bashar@sjinnovation.com"
-                  ? "super_admin"
-                  : "user";
-
-              setUser({
-                id: session.user.id,
-                name:
-                  (session.user.user_metadata?.full_name as string) ||
-                  email.split("@")[0] ||
-                  "User",
-                email,
-                role: fallbackRole,
-                avatar: (session.user.user_metadata?.avatar_url as string) || undefined,
-              });
+              console.warn('No user profile found for authenticated user');
+              setUser(null);
             }
             setLoading(false);
           });
@@ -119,22 +104,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (profile) {
             setUser(profile);
           } else {
-            const email = session.user.email ?? "";
-            const fallbackRole: UserRole =
-              email.toLowerCase() === "sazzad.bashar@sjinnovation.com"
-                ? "super_admin"
-                : "user";
-
-            setUser({
-              id: session.user.id,
-              name:
-                (session.user.user_metadata?.full_name as string) ||
-                email.split("@")[0] ||
-                "User",
-              email,
-              role: fallbackRole,
-              avatar: (session.user.user_metadata?.avatar_url as string) || undefined,
-            });
+            console.warn('No user profile found for authenticated user');
+            setUser(null);
           }
           setLoading(false);
         });

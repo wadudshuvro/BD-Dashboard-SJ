@@ -757,7 +757,7 @@ export type Database = {
           first_name: string | null
           id: string
           last_name: string | null
-          password_hash: string
+          password_hash: string | null
           refresh_token: string | null
           refresh_token_expires_at: string | null
           role: Database["public"]["Enums"]["app_role"]
@@ -770,7 +770,7 @@ export type Database = {
           first_name?: string | null
           id?: string
           last_name?: string | null
-          password_hash: string
+          password_hash?: string | null
           refresh_token?: string | null
           refresh_token_expires_at?: string | null
           role: Database["public"]["Enums"]["app_role"]
@@ -783,7 +783,7 @@ export type Database = {
           first_name?: string | null
           id?: string
           last_name?: string | null
-          password_hash?: string
+          password_hash?: string | null
           refresh_token?: string | null
           refresh_token_expires_at?: string | null
           role?: Database["public"]["Enums"]["app_role"]
