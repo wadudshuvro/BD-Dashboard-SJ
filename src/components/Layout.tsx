@@ -124,7 +124,7 @@ const Layout = ({ userRole }: LayoutProps) => {
       <div className={`
         fixed inset-y-0 left-0 z-50 w-64 bg-card/95 backdrop-blur-sm border-r border-border
         transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-        transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0
+        transition-transform duration-300 ease-in-out lg:translate-x-0
       `}>
         <div className="flex h-full flex-col">
           {/* Logo */}
