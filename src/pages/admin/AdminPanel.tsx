@@ -11,10 +11,6 @@ import {
   Target,
   ArrowRight,
   Shield,
-  UserCheck,
-  Briefcase,
-  FileText,
-  Zap,
   TrendingUp
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
@@ -74,36 +70,6 @@ const AdminPanel = () => {
     }
   ];
 
-  const frontendAccess = [
-    {
-      title: "Client Management",
-      description: "Access full client management interface", 
-      icon: UserCheck,
-      href: "/adminpanel/clients",
-      external: false
-    },
-    {
-      title: "Project Management", 
-      description: "Manage projects and tasks across all clients",
-      icon: Briefcase,
-      href: "/adminpanel/projects", 
-      external: false
-    },
-    {
-      title: "Manager Dashboard",
-      description: "View manager-level analytics and reports",
-      icon: FileText,
-      href: "/manager/dashboard",
-      external: true
-    },
-    {
-      title: "AI Agents",
-      description: "Configure and monitor AI automation agents",
-      icon: Zap, 
-      href: "/adminpanel/ai-agents",
-      external: false
-    }
-  ];
 
   return (
     <div className="space-y-6">
@@ -174,32 +140,6 @@ const AdminPanel = () => {
         </div>
       </div>
 
-      {/* Frontend Access */}
-      <div>
-        <h2 className="text-xl font-semibold mb-4 text-foreground">Frontend Platform Access</h2>
-        <div className="grid gap-4 md:grid-cols-2">
-          {frontendAccess.map((item) => (
-            <Card key={item.title} className="group hover:shadow-md transition-shadow cursor-pointer">
-              <NavLink to={item.href} target={item.external ? "_blank" : undefined}>
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-md bg-accent">
-                        <item.icon className="h-5 w-5 text-accent-foreground" />
-                      </div>
-                      <div>
-                        <h3 className="font-medium text-foreground">{item.title}</h3>
-                        <p className="text-sm text-muted-foreground">{item.description}</p>
-                      </div>
-                    </div>
-                    <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
-                  </div>
-                </CardContent>
-              </NavLink>
-            </Card>
-          ))}
-        </div>
-      </div>
 
       {/* System Status */}
       <Card>
