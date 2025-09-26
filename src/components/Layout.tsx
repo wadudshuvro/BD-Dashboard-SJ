@@ -188,10 +188,14 @@ const Layout = ({ userRole }: LayoutProps) => {
       </div>
 
       {/* Main content */}
-      <div className="lg:pl-64 pt-16">
+      <div className="lg:pl-64">
         {/* Top bar */}
-        <header className="fixed top-0 right-0 left-0 lg:left-64 z-30 flex h-16 items-center gap-x-4 border-b border-border bg-card/95 backdrop-blur-sm px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
-          <button type="button" className="lg:hidden" onClick={() => setSidebarOpen(true)}>
+        <div className="sticky top-0 z-30 flex h-16 items-center gap-x-4 border-b border-border bg-card/95 backdrop-blur-sm px-4 shadow-sm sm:gap-x-6 sm:px-6 lg:px-8">
+          <button
+            type="button"
+            className="lg:hidden"
+            onClick={() => setSidebarOpen(true)}
+          >
             <Menu className="h-6 w-6 text-muted-foreground" />
           </button>
 
@@ -200,7 +204,7 @@ const Layout = ({ userRole }: LayoutProps) => {
               {navigation.find(item => window.location.pathname.includes(item.href))?.name || 'Dashboard'}
             </h2>
           </div>
-        </header>
+        </div>
 
         {/* Page content */}
         <main className="pb-6">
