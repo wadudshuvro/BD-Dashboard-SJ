@@ -108,18 +108,18 @@ const IntegrationManager = () => {
         setup_complexity: 'easy',
         required_fields: ['api_key', 'base_url']
       },
-      {
-        id: 'openai',
-        name: 'OpenAI',
-        type: 'openai',
-        description: 'AI-powered financial analysis and intelligent insights',
-        icon: '🤖',
-        category: 'ai',
-        is_available: true,
-        is_enabled: false,
-        setup_complexity: 'easy',
-        required_fields: ['api_key']
-      }
+        {
+          id: 'openai',
+          name: 'OpenAI',
+          type: 'openai',
+          description: 'AI-powered analysis and intelligent automation using GPT models',
+          icon: '🤖',
+          category: 'ai',
+          is_available: true,
+          is_enabled: true,
+          setup_complexity: 'easy',
+          required_fields: ['OPENAI_KEY (secret)']
+        }
     ];
 
     const brandIntegrationsData: BrandIntegration[] = [
@@ -145,6 +145,17 @@ const IntegrationManager = () => {
       }
     } catch (e) {
       console.error('Failed to load CollabAI config', e);
+    }
+
+    try {
+      const { data: openaiConfig } = await supabase.functions.invoke('openai-test', { 
+        body: { action: 'status' }
+      });
+      if (openaiConfig?.configured) {
+        globalIntegrationsData[1].is_enabled = openaiConfig.enabled;
+      }
+    } catch (e) {
+      console.error('Failed to load OpenAI config', e);
     }
 
     try {
@@ -235,6 +246,57 @@ const IntegrationManager = () => {
         toast({
           title: 'Connection Failed',
           description: err.message || 'Failed to connect to CollabAI. Please check your credentials.',
+          variant: 'destructive',
+        });
+      }
+      return;
+    }
+
+    if (integration.id === 'openai') {
+      try {
+        toast({
+          title: 'Testing Connection',
+          description: 'Testing OpenAI API connectivity...',
+        });
+
+        const { data, error } = await supabase.functions.invoke('openai-test', {
+          body: { action: 'test' },
+        });
+        
+        if (error) {
+          throw error;
+        }
+
+        if (!data?.ok) {
+          throw new Error(data?.error || 'OpenAI connection test failed');
+        }
+
+        const modelsInfo = data.models_available 
+          ? ` (${data.models_available} models available${data.has_gpt_models ? ', including GPT models' : ''})`
+          : '';
+
+        toast({ 
+          title: 'OpenAI Connection Successful', 
+          description: `Successfully connected to OpenAI API${modelsInfo}` 
+        });
+
+        // Also test text generation
+        const { data: genData } = await supabase.functions.invoke('openai-test', {
+          body: { action: 'generate_test' },
+        });
+
+        if (genData?.ok && genData?.generation_test) {
+          toast({
+            title: 'OpenAI Generation Test Passed',
+            description: `Text generation working. Response: "${genData.test_response}"`,
+          });
+        }
+
+      } catch (err: any) {
+        console.error('OpenAI test error:', err);
+        toast({
+          title: 'OpenAI Connection Failed',
+          description: err.message || 'Failed to connect to OpenAI API. Check your API key in secrets.',
           variant: 'destructive',
         });
       }
@@ -467,6 +529,16 @@ const IntegrationManager = () => {
                     >
                       <Settings className="h-4 w-4 mr-2" />
                       Configure
+                    </Button>
+                    <Button 
+                      variant="default" 
+                      size="sm" 
+                      onClick={() => testConnection(integration)}
+                      className="flex-1"
+                      disabled={!integration.is_available}
+                    >
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      {integration.id === 'openai' ? 'Test API' : 'Test'}
                     </Button>
                   </div>
                 </CardContent>
