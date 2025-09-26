@@ -13,7 +13,8 @@ import {
   FolderOpen,
   Building2,
   Zap,
-  Target
+  Target,
+  Shield
 } from "lucide-react";
 import { useState } from "react";
 import ProfileDropdown from "./ProfileDropdown";
@@ -61,6 +62,7 @@ const Layout = ({ userRole }: LayoutProps) => {
         // Super admin gets clean manager-like navigation
         return [
           ...baseNavigation,
+          { name: "Admin Panel", href: "/adminpanel", icon: Shield, current: false },
           { name: "AI Workspace", href: `${basePath}/workspace`, icon: Bot, current: false },
           { name: "Clients", href: `${basePath}/clients`, icon: Users, current: false },
           { name: "Projects", href: `${basePath}/projects`, icon: FolderOpen, current: false },
