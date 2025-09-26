@@ -199,20 +199,15 @@ const Layout = ({ userRole }: LayoutProps) => {
             <Menu className="h-6 w-6 text-muted-foreground" />
           </button>
 
-          <div className="flex flex-1 gap-x-4 self-stretch lg:gap-x-6">
-            <div className="flex flex-1 items-center">
-              <h2 className="text-lg font-semibold text-foreground">
-                {navigation.find(item => window.location.pathname.includes(item.href))?.name || 'Dashboard'}
-              </h2>
-            </div>
-            <div className="flex items-center gap-x-4 lg:gap-x-6">
-              <ProfileDropdown />
-            </div>
+          <div className="flex flex-1 items-center">
+            <h2 className="text-lg font-semibold text-foreground">
+              {navigation.find(item => window.location.pathname.includes(item.href))?.name || 'Dashboard'}
+            </h2>
           </div>
         </div>
 
         {/* Page content */}
-        <main className="py-8">
+        <main className="py-6">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <Outlet />
           </div>

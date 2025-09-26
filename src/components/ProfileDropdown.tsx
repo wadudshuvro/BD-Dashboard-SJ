@@ -25,22 +25,22 @@ export default function ProfileDropdown() {
     <Dialog open={profileOpen} onOpenChange={setProfileOpen}>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className="flex items-center space-x-2 h-auto p-2">
-            <Avatar className="h-8 w-8">
+          <Button variant="ghost" className="flex items-center space-x-2 h-auto p-2 w-full justify-start">
+            <Avatar className="h-8 w-8 flex-shrink-0">
               <AvatarImage src={user?.avatar} />
               <AvatarFallback>
-                {user?.name?.split(' ').map(n => n[0]).join('') || 'U'}
+                {user?.name?.split(' ').map(n => n[0]).join('') || user?.email?.charAt(0).toUpperCase() || 'U'}
               </AvatarFallback>
             </Avatar>
-            <div className="flex flex-col items-start">
-              <span className="text-sm font-medium text-foreground">
-                {user?.name || 'User'}
+            <div className="flex flex-col items-start min-w-0 flex-1">
+              <span className="text-sm font-medium text-foreground truncate w-full">
+                {user?.email || user?.name || 'User'}
               </span>
               <span className="text-xs text-muted-foreground capitalize">
                 {user?.role?.replace('_', ' ') || 'User'}
               </span>
             </div>
-            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0" />
           </Button>
         </DropdownMenuTrigger>
         
