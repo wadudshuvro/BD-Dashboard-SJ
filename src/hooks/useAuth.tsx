@@ -28,6 +28,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   // Role hierarchy for permission checking
   const roleHierarchy: Record<UserRole, number> = {
@@ -70,16 +71,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    let mounted = true;
+    
     // Set up auth state listener (sync callback only)
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!mounted) return;
+      
       setSession(session);
 
       if (session?.user) {
         // Defer Supabase calls to avoid deadlocks
         setTimeout(() => {
           fetchUserProfile(session.user).then((profile) => {
+            if (!mounted) return;
+            
             if (profile) {
               setUser(profile);
             } else {
@@ -87,20 +94,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               setUser(null);
             }
             setLoading(false);
+            setIsInitialized(true);
           });
         }, 0);
       } else {
         setUser(null);
         setLoading(false);
+        setIsInitialized(true);
       }
     });
 
     // Check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!mounted) return;
+      
       setSession(session);
 
       if (session?.user) {
         fetchUserProfile(session.user).then((profile) => {
+          if (!mounted) return;
+          
           if (profile) {
             setUser(profile);
           } else {
@@ -108,13 +121,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setUser(null);
           }
           setLoading(false);
+          setIsInitialized(true);
         });
       } else {
         setLoading(false);
+        setIsInitialized(true);
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const login = async (credentials: { email: string; password: string }) => {
@@ -149,6 +167,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return roleHierarchy[user.role] >= roleHierarchy[role];
   };
 
+  // Don't render children until the provider is initialized
+  if (!isInitialized) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
   return (
     <AuthContext.Provider value={{
       user,
@@ -165,7 +192,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
