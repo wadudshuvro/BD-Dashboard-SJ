@@ -1,4 +1,4 @@
-import { Outlet, NavLink } from "react-router-dom";
+import { Outlet, NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { 
   LayoutDashboard, 
@@ -29,11 +29,13 @@ interface NavigationItem {
   icon: any;
   current: boolean;
   isHeader?: boolean;
+  isAdmin?: boolean;
 }
 
 const Layout = ({ userRole }: LayoutProps) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user, logout } = useAuth();
+  const location = useLocation();
   
   // Use the actual user role if available, otherwise fall back to prop
   const currentRole = user?.role || userRole || 'user';
@@ -62,13 +64,14 @@ const Layout = ({ userRole }: LayoutProps) => {
         // Super admin gets clean manager-like navigation
         return [
           ...baseNavigation,
-          { name: "Admin Panel", href: "/adminpanel", icon: Shield, current: false },
           { name: "AI Workspace", href: `${basePath}/workspace`, icon: Bot, current: false },
           { name: "Clients", href: `${basePath}/clients`, icon: Users, current: false },
           { name: "Projects", href: `${basePath}/projects`, icon: FolderOpen, current: false },
           { name: "Brands", href: `${basePath}/brands`, icon: Building2, current: false },
           { name: "Actions & Tasks", href: `${basePath}/actions-tasks`, icon: CheckSquare, current: false },
           { name: "People", href: `${basePath}/people`, icon: Users, current: false },
+          { name: "SEPARATOR", href: "", icon: null, current: false, isHeader: true },
+          { name: "Admin Panel", href: "/adminpanel", icon: Shield, current: false, isAdmin: true },
         ];
       
       case 'manager':
@@ -144,7 +147,16 @@ const Layout = ({ userRole }: LayoutProps) => {
 
           {/* Navigation */}
           <nav className="flex-1 px-4 py-6 space-y-2">
-            {navigation.map((item) => {
+            {navigation.map((item, index) => {
+              // Handle separator
+              if (item.name === "SEPARATOR") {
+                return (
+                  <div key={`separator-${index}`} className="my-4">
+                    <div className="border-t border-border/50"></div>
+                  </div>
+                );
+              }
+
               // Handle header items (non-clickable)
               if (item.isHeader) {
                 return (
@@ -155,6 +167,9 @@ const Layout = ({ userRole }: LayoutProps) => {
                 );
               }
               
+              // Special styling for Admin Panel
+              const isAdminPanel = item.isAdmin;
+              
               return (
                 <NavLink
                   key={item.name}
@@ -162,12 +177,16 @@ const Layout = ({ userRole }: LayoutProps) => {
                   className={({ isActive }) => `
                     flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-smooth
                     ${isActive 
-                      ? 'bg-gradient-primary text-white shadow-md' 
-                      : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'
+                      ? isAdminPanel 
+                        ? 'bg-gradient-to-r from-red-500 to-orange-500 text-white shadow-lg shadow-red-500/25' 
+                        : 'bg-gradient-primary text-white shadow-md'
+                      : isAdminPanel
+                        ? 'text-red-500 hover:text-white hover:bg-gradient-to-r hover:from-red-500 hover:to-orange-500 hover:shadow-md hover:shadow-red-500/25 border border-red-200 dark:border-red-800'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'
                     }
                   `}
                 >
-                  <item.icon className="mr-3 h-5 w-5" />
+                  <item.icon className={`mr-3 h-5 w-5 ${isAdminPanel && !location.pathname.includes(item.href) ? 'text-red-500' : ''}`} />
                   {item.name}
                 </NavLink>
               );
