@@ -354,7 +354,7 @@ const UserManagement = () => {
                     <div className="flex items-center gap-3">
                       <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
                         <span className="text-xs font-medium text-primary">
-                          {user.first_name[0]}{user.last_name[0]}
+                          {(user.first_name?.[0] || '?')}{(user.last_name?.[0] || '?')}
                         </span>
                       </div>
                       <div>
@@ -448,7 +448,7 @@ const UserManagement = () => {
                   <div className="flex items-center gap-3">
                     <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
                       <span className="text-sm font-medium text-primary">
-                        {user.first_name[0]}{user.last_name[0]}
+                        {(user.first_name?.[0] || '?')}{(user.last_name?.[0] || '?')}
                       </span>
                     </div>
                     <div>
