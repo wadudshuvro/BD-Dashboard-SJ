@@ -70,31 +70,77 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setSession(session);
-        
-        if (session?.user) {
-          const userProfile = await fetchUserProfile(session.user);
-          setUser(userProfile);
-        } else {
-          setUser(null);
-        }
-        
+    // Set up auth state listener (sync callback only)
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      setSession(session);
+
+      if (session?.user) {
+        // Defer Supabase calls to avoid deadlocks
+        setTimeout(() => {
+          fetchUserProfile(session.user).then((profile) => {
+            if (profile) {
+              setUser(profile);
+            } else {
+              // Fallback user for testing when no profile row exists
+              const email = session.user.email ?? "";
+              const fallbackRole: UserRole =
+                email.toLowerCase() === "sazzad.bashar@sjinnovation.com"
+                  ? "super_admin"
+                  : "user";
+
+              setUser({
+                id: session.user.id,
+                name:
+                  (session.user.user_metadata?.full_name as string) ||
+                  email.split("@")[0] ||
+                  "User",
+                email,
+                role: fallbackRole,
+                avatar: (session.user.user_metadata?.avatar_url as string) || undefined,
+              });
+            }
+            setLoading(false);
+          });
+        }, 0);
+      } else {
+        setUser(null);
         setLoading(false);
       }
-    );
+    });
 
     // Check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-      
+
       if (session?.user) {
-        fetchUserProfile(session.user).then(setUser);
+        fetchUserProfile(session.user).then((profile) => {
+          if (profile) {
+            setUser(profile);
+          } else {
+            const email = session.user.email ?? "";
+            const fallbackRole: UserRole =
+              email.toLowerCase() === "sazzad.bashar@sjinnovation.com"
+                ? "super_admin"
+                : "user";
+
+            setUser({
+              id: session.user.id,
+              name:
+                (session.user.user_metadata?.full_name as string) ||
+                email.split("@")[0] ||
+                "User",
+              email,
+              role: fallbackRole,
+              avatar: (session.user.user_metadata?.avatar_url as string) || undefined,
+            });
+          }
+          setLoading(false);
+        });
+      } else {
+        setLoading(false);
       }
-      
-      setLoading(false);
     });
 
     return () => subscription.unsubscribe();
