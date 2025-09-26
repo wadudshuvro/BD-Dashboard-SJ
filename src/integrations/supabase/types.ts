@@ -371,6 +371,141 @@ export type Database = {
         }
         Relationships: []
       }
+      code_analysis_results: {
+        Row: {
+          agent_run_id: string | null
+          analysis_type: string
+          created_at: string
+          file_path: string | null
+          findings: Json
+          id: string
+          repository_id: string
+          severity: string | null
+          status: string | null
+          updated_at: string
+        }
+        Insert: {
+          agent_run_id?: string | null
+          analysis_type: string
+          created_at?: string
+          file_path?: string | null
+          findings?: Json
+          id?: string
+          repository_id: string
+          severity?: string | null
+          status?: string | null
+          updated_at?: string
+        }
+        Update: {
+          agent_run_id?: string | null
+          analysis_type?: string
+          created_at?: string
+          file_path?: string | null
+          findings?: Json
+          id?: string
+          repository_id?: string
+          severity?: string | null
+          status?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      code_generation_templates: {
+        Row: {
+          category: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          framework: string | null
+          id: string
+          is_active: boolean | null
+          language: string | null
+          name: string
+          template_content: string
+          updated_at: string
+          usage_count: number | null
+          variables: Json | null
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          framework?: string | null
+          id?: string
+          is_active?: boolean | null
+          language?: string | null
+          name: string
+          template_content: string
+          updated_at?: string
+          usage_count?: number | null
+          variables?: Json | null
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          framework?: string | null
+          id?: string
+          is_active?: boolean | null
+          language?: string | null
+          name?: string
+          template_content?: string
+          updated_at?: string
+          usage_count?: number | null
+          variables?: Json | null
+        }
+        Relationships: []
+      }
+      code_repositories: {
+        Row: {
+          analysis_status: string | null
+          branch: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          framework: string | null
+          id: string
+          language: string | null
+          last_analyzed_at: string | null
+          metadata: Json | null
+          name: string
+          repository_url: string | null
+          updated_at: string
+        }
+        Insert: {
+          analysis_status?: string | null
+          branch?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          framework?: string | null
+          id?: string
+          language?: string | null
+          last_analyzed_at?: string | null
+          metadata?: Json | null
+          name: string
+          repository_url?: string | null
+          updated_at?: string
+        }
+        Update: {
+          analysis_status?: string | null
+          branch?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          framework?: string | null
+          id?: string
+          language?: string | null
+          last_analyzed_at?: string | null
+          metadata?: Json | null
+          name?: string
+          repository_url?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       collabai_chats: {
         Row: {
           agent_id: string

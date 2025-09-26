@@ -4,7 +4,8 @@ import { AIModelConfiguration } from "@/components/ai/AIModelConfiguration";
 import { AIAgentRunner } from "@/components/ai/AIAgentRunner";
 import { useAIAgents } from "@/hooks/useLatestAIAgentRun";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Bot, Settings, BarChart3 } from "lucide-react";
+import { CodeAnalysisDashboard } from "@/components/code/CodeAnalysisDashboard";
+import { Bot, Settings, BarChart3, Code2 } from "lucide-react";
 
 export default function AIDashboard() {
   const { data: agents = [], isLoading } = useAIAgents();
@@ -19,10 +20,14 @@ export default function AIDashboard() {
       </div>
 
       <Tabs defaultValue="agents" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="agents" className="flex items-center gap-2">
             <Bot className="h-4 w-4" />
             AI Agents
+          </TabsTrigger>
+          <TabsTrigger value="code-analysis" className="flex items-center gap-2">
+            <Code2 className="h-4 w-4" />
+            Code Analysis
           </TabsTrigger>
           <TabsTrigger value="configuration" className="flex items-center gap-2">
             <Settings className="h-4 w-4" />
@@ -75,6 +80,10 @@ export default function AIDashboard() {
               </Card>
             )}
           </div>
+        </TabsContent>
+
+        <TabsContent value="code-analysis" className="space-y-6">
+          <CodeAnalysisDashboard />
         </TabsContent>
 
         <TabsContent value="configuration" className="space-y-6">
