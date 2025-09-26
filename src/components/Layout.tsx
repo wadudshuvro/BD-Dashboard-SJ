@@ -61,12 +61,10 @@ const Layout = ({ userRole }: LayoutProps) => {
 
     switch (role) {
       case 'super_admin':
-        // Super admin gets clean manager-like navigation
+        // Super admin gets clean navigation
         return [
           ...baseNavigation,
           { name: "AI Workspace", href: `${basePath}/workspace`, icon: Bot, current: false },
-          { name: "Clients", href: `${basePath}/clients`, icon: Users, current: false },
-          { name: "Projects", href: `${basePath}/projects`, icon: FolderOpen, current: false },
           { name: "Brands", href: `${basePath}/brands`, icon: Building2, current: false },
           { name: "Actions & Tasks", href: `${basePath}/actions-tasks`, icon: CheckSquare, current: false },
           { name: "People", href: `${basePath}/people`, icon: Users, current: false },
