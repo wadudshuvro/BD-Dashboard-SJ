@@ -43,11 +43,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { data: userProfile, error } = await supabase
         .from('users')
         .select('*')
-        .eq('email', authUser.email)
-        .single();
+        .eq('id', authUser.id)
+        .maybeSingle();
 
-      if (error || !userProfile) {
+      if (error) {
         console.error('Error fetching user profile:', error);
+        return null;
+      }
+
+      if (!userProfile) {
+        console.warn('No user profile found for authenticated user');
         return null;
       }
 
