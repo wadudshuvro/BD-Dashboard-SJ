@@ -34,6 +34,7 @@ import UserDetail from "./pages/admin/UserDetail";
 import AdminPanel from "./pages/admin/AdminPanel";
 import UserBrands from "./pages/UserBrands";
 import AIAgentsPage from "./pages/ai-agents";
+import MyAgentsPage from "./pages/my-agents";
 import GoHighLevelPage from "./pages/gohighlevel";
 import AIDashboard from "./pages/ai-dashboard";
 
@@ -84,7 +85,7 @@ const App = () => (
               <Route path="people" element={<People />} />
               <Route path="brands" element={<UserBrands />} />
               <Route path="brands/:brandId" element={<BrandDetail />} />
-              <Route path="ai-agents" element={<AIAgentsPage />} />
+              <Route path="my-agents" element={<MyAgentsPage />} />
               <Route path="gohighlevel" element={<GoHighLevelPage />} />
             </Route>
             
@@ -101,7 +102,7 @@ const App = () => (
               <Route path="clients/:clientId" element={<ClientDetail />} />
               <Route path="projects" element={<ProjectManagement />} />
               <Route path="tasks" element={<ActionsTasks />} />
-              <Route path="ai-agents" element={<AIAgentsPage />} />
+              <Route path="my-agents" element={<MyAgentsPage />} />
               <Route path="gohighlevel" element={<GoHighLevelPage />} />
             </Route>
             
@@ -121,7 +122,7 @@ const App = () => (
               <Route path="brands/:brandId" element={<BrandDetail />} />
               <Route path="actions-tasks" element={<ActionsTasks />} />
               <Route path="people" element={<People />} />
-              <Route path="ai-agents" element={<AIAgentsPage />} />
+              <Route path="my-agents" element={<MyAgentsPage />} />
               <Route path="gohighlevel" element={<GoHighLevelPage />} />
             </Route>
 
@@ -141,7 +142,7 @@ const App = () => (
               <Route path="brands/:brandId" element={<BrandDetail />} />
               <Route path="actions-tasks" element={<ActionsTasks />} />
               <Route path="people" element={<People />} />
-              <Route path="ai-agents" element={<AIAgentsPage />} />
+              <Route path="my-agents" element={<MyAgentsPage />} />
               <Route path="gohighlevel" element={<GoHighLevelPage />} />
               {/* Admin-specific routes accessible from manager interface */}
               <Route path="admin/users" element={<UserManagement />} />

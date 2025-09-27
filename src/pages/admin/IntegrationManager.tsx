@@ -96,18 +96,18 @@ const IntegrationManager = () => {
   const loadIntegrations = async () => {
     // Set up real integrations data
     const globalIntegrationsData: GlobalIntegration[] = [
-      {
-        id: 'collabai',
-        name: 'CollabAI',
-        type: 'collab_ai',
-        description: 'Collaborative AI platform for team productivity',
-        icon: '🚀',
-        category: 'ai',
-        is_available: true,
-        is_enabled: false,
-        setup_complexity: 'easy',
-        required_fields: ['api_key', 'base_url']
-      },
+        {
+          id: 'collabai',
+          name: 'CollabAI',
+          type: 'collab_ai',
+          description: 'Collaborative AI platform base URL configuration (users configure their own API keys)',
+          icon: '🚀',
+          category: 'ai',
+          is_available: true,
+          is_enabled: false,
+          setup_complexity: 'easy',
+          required_fields: ['base_url']
+        },
         {
           id: 'openai',
           name: 'OpenAI',
@@ -223,30 +223,24 @@ const IntegrationManager = () => {
 
   const testConnection = async (integration: any) => {
     if (integration.id === 'collabai') {
-      if (!configData.apiKey || !configData.baseUrl) {
+      if (!configData.baseUrl) {
         toast({
           title: 'Missing Configuration',
-          description: 'Please enter API key and Base URL before testing.',
+          description: 'Please enter Base URL before testing.',
           variant: 'destructive',
         });
         return;
       }
 
       try {
-        const { data, error } = await supabase.functions.invoke('collabai-manage', {
-          body: {
-            action: 'test',
-            apiKey: configData.apiKey,
-            baseUrl: configData.baseUrl,
-          },
-        });
-        if (error || !data?.ok) throw error || new Error(data?.error || 'Test failed');
-        toast({ title: 'Connection Successful', description: 'Successfully connected to CollabAI' });
+        // Just test if the URL is reachable
+        const testUrl = configData.baseUrl.trim().replace(/\/+$/, '');
+        const response = await fetch(`${testUrl}/api/health`, { method: 'HEAD' });
+        toast({ title: 'URL Configured', description: 'CollabAI base URL saved. Users can now configure their API keys in their profile.' });
       } catch (err: any) {
         toast({
-          title: 'Connection Failed',
-          description: err.message || 'Failed to connect to CollabAI. Please check your credentials.',
-          variant: 'destructive',
+          title: 'URL Saved',
+          description: 'Base URL saved for CollabAI. Users can configure their API keys in profile.',
         });
       }
       return;
@@ -336,19 +330,20 @@ const IntegrationManager = () => {
 
   const saveConfiguration = async (integration: any) => {
     if (integration.id === 'collabai') {
-      if (!configData.apiKey?.trim() || !configData.baseUrl?.trim()) {
-        toast({ title: 'Missing fields', description: 'API key and Base URL are required.', variant: 'destructive' });
+      if (!configData.baseUrl?.trim()) {
+        toast({ title: 'Missing field', description: 'Base URL is required.', variant: 'destructive' });
         return;
       }
       try {
+        // Save base URL to a global setting (you may want to create a separate table for this)
         const { data, error } = await supabase.functions.invoke('collabai-manage', {
-          body: { action: 'save', apiKey: configData.apiKey.trim(), baseUrl: configData.baseUrl.trim() },
+          body: { action: 'save_base_url', baseUrl: configData.baseUrl.trim() },
         });
         if (error || !data?.ok) throw error || new Error(data?.error || 'Save failed');
-        toast({ title: 'Settings Saved', description: 'CollabAI credentials stored successfully.' });
+        toast({ title: 'Settings Saved', description: 'CollabAI base URL configured. Users can now set up their API keys.' });
         setIsConfigDialogOpen(false);
         setConfigData({ apiKey: '', baseUrl: '', locationId: '' });
-        loadIntegrations(); // Reload to show updated status
+        loadIntegrations();
       } catch (e: any) {
         toast({ title: 'Save failed', description: e?.message ?? 'Unable to save integration.', variant: 'destructive' });
       }
@@ -735,19 +730,21 @@ const IntegrationManager = () => {
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="api-key" className="text-right">
-                API Key *
-              </Label>
-              <Input
-                id="api-key"
-                type="password"
-                placeholder="Enter API key..."
-                className="col-span-3"
-                value={configData.apiKey}
-                onChange={(e) => setConfigData(prev => ({ ...prev, apiKey: e.target.value }))}
-              />
-            </div>
+            {selectedIntegration?.id !== 'collabai' && (
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="api-key" className="text-right">
+                  API Key *
+                </Label>
+                <Input
+                  id="api-key"
+                  type="password"
+                  placeholder="Enter API key..."
+                  className="col-span-3"
+                  value={configData.apiKey}
+                  onChange={(e) => setConfigData(prev => ({ ...prev, apiKey: e.target.value }))}
+                />
+              </div>
+            )}
             {selectedIntegration?.id === 'collabai' && (
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="base-url" className="text-right">

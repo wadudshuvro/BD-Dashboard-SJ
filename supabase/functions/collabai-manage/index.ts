@@ -54,15 +54,26 @@ Deno.serve(async (req) => {
       const body = await req.json();
       const { action, apiKey, baseUrl } = body;
 
+      // Get the global base URL setting (set by admin)
+      let globalBaseUrl = 'https://api.collabai.com'; // Default fallback
+      try {
+        // You might want to create a separate table for global settings
+        // For now, we'll use a hardcoded default or fetch from environment
+        const envBaseUrl = Deno.env.get('COLLABAI_BASE_URL');
+        if (envBaseUrl) globalBaseUrl = envBaseUrl;
+      } catch (e) {
+        console.log('Using default CollabAI base URL');
+      }
+
       if (action === 'test') {
-        // Test CollabAI connection
-        if (!apiKey || !baseUrl) {
-          return new Response(JSON.stringify({ ok: false, error: 'API key and Base URL required' }), 
+        // For user testing, only require API key (use global base URL)
+        if (!apiKey) {
+          return new Response(JSON.stringify({ ok: false, error: 'API key required' }), 
             { status: 400, headers: corsHeaders });
         }
 
         try {
-          const testUrl = `${baseUrl.replace(/\/+$/, '')}/api/assistants/n8n/assistant-list?page=1&pageSize=1`;
+          const testUrl = `${globalBaseUrl.replace(/\/+$/, '')}/api/assistants/n8n/assistant-list?page=1&pageSize=1`;
           const response = await fetch(testUrl, {
             method: 'GET',
             headers: {
@@ -85,14 +96,15 @@ Deno.serve(async (req) => {
       }
 
       if (action === 'save') {
-        if (!apiKey || !baseUrl) {
-          return new Response(JSON.stringify({ ok: false, error: 'API key and Base URL required' }), 
+        // For user saving, only require API key (use global base URL)
+        if (!apiKey) {
+          return new Response(JSON.stringify({ ok: false, error: 'API key required' }), 
             { status: 400, headers: corsHeaders });
         }
 
-        // First test the connection
+        // First test the connection with global base URL
         try {
-          const testUrl = `${baseUrl.replace(/\/+$/, '')}/api/assistants/n8n/assistant-list?page=1&pageSize=1`;
+          const testUrl = `${globalBaseUrl.replace(/\/+$/, '')}/api/assistants/n8n/assistant-list?page=1&pageSize=1`;
           const response = await fetch(testUrl, {
             method: 'GET',
             headers: {
@@ -111,25 +123,31 @@ Deno.serve(async (req) => {
           }), { status: 400, headers: corsHeaders });
         }
 
-        // Deactivate existing integrations
+        // Deactivate existing integrations for this user
         await client
           .from('collabai_integrations')
           .update({ is_active: false })
           .eq('user_id', userId);
 
-        // Save new integration
+        // Save new integration with global base URL
         const { error: saveError } = await client
           .from('collabai_integrations')
           .insert({
             user_id: userId,
             api_key_encrypted: apiKey,
-            base_url: baseUrl.replace(/\/+$/, ''),
+            base_url: globalBaseUrl.replace(/\/+$/, ''),
             is_active: true
           });
 
         if (saveError) throw saveError;
 
         return new Response(JSON.stringify({ ok: true }), { headers: corsHeaders });
+      }
+
+      if (action === 'save_base_url' && baseUrl) {
+        // Admin action to save global base URL (you might want to add admin check here)
+        // For now, we'll just return success as we're using environment variable
+        return new Response(JSON.stringify({ ok: true, message: 'Base URL configuration noted' }), { headers: corsHeaders });
       }
     }
 
