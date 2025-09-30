@@ -22,6 +22,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import logo from "@/assets/logo-sji.png";
 
 const navigation = [
   {
@@ -82,7 +83,7 @@ const AdminLayout = () => {
           {/* Logo */}
           <div className="flex h-16 items-center justify-between px-6 border-b border-border">
             <div className="flex items-center gap-2">
-              <Shield className="h-8 w-8 text-primary" />
+              <img src={logo} alt="SJ Innovation" className="h-8 w-auto" />
               <div className="flex flex-col">
                 <span className="text-lg font-bold text-foreground">Admin Panel</span>
                 <span className="text-xs text-muted-foreground">Super Admin</span>

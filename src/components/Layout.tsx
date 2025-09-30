@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import ProfileDropdown from "./ProfileDropdown";
+import logo from "@/assets/logo-sji.png";
 
 interface LayoutProps {
   userRole?: 'super_admin' | 'manager' | 'pm' | 'user';
@@ -137,11 +138,9 @@ const Layout = ({ userRole }: LayoutProps) => {
           {/* Logo */}
           <div className="flex h-16 items-center px-6 border-b border-border">
             <div className="flex items-center space-x-3">
-              <div className="h-8 w-8 bg-gradient-primary rounded-lg flex items-center justify-center">
-                <BarChart3 className="h-5 w-5 text-white" />
-              </div>
+              <img src={logo} alt="SJ Innovation" className="h-8 w-auto" />
               <div>
-                <h1 className="font-bold text-lg text-foreground">MarketingIQ</h1>
+                <h1 className="font-bold text-lg text-foreground">SJ Innovation</h1>
                 <p className="text-xs text-muted-foreground capitalize">{currentRole.replace('_', ' ')} Dashboard</p>
               </div>
             </div>
