@@ -81,11 +81,11 @@ const AdminLayout = () => {
       )}>
         <div className="flex h-full flex-col">
           {/* Logo */}
-          <div className="flex h-28 items-center justify-between px-6 border-b border-border">
-            <div className="flex flex-col items-center flex-1 pb-4 gap-1">
+          <div className="flex h-auto items-center justify-between px-6 py-4 border-b border-border">
+            <div className="flex flex-col items-center flex-1 gap-2">
               <img src={logo} alt="SJ Innovation" className="h-20 w-auto" />
-              <p className="text-sm font-semibold text-foreground tracking-tight">Marketing Hub</p>
-              <div className="flex flex-col items-center">
+              <p className="text-sm font-semibold text-foreground tracking-tight">Marketing Intelligence Hub</p>
+              <div className="flex flex-col items-center gap-1">
                 <span className="text-sm font-bold text-foreground">Admin Panel</span>
                 <span className="text-xs text-muted-foreground">Super Admin</span>
               </div>
