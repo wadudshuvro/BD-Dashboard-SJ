@@ -139,7 +139,7 @@ const Layout = ({ userRole }: LayoutProps) => {
           <div className="flex h-auto items-center justify-center px-6 py-4 border-b border-border">
             <div className="flex flex-col items-center gap-2">
               <img src={logo} alt="SJ Innovation" className="h-20 w-auto" />
-              <p className="text-sm font-semibold text-foreground tracking-tight">Marketing Intelligence Hub</p>
+              <p className="text-[18px] font-bold text-foreground tracking-tight">Marketing Hub</p>
               <p className="text-xs text-muted-foreground capitalize">{currentRole.replace('_', ' ')} Dashboard</p>
             </div>
           </div>
