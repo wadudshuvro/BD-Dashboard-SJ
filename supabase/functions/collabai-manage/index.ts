@@ -57,12 +57,24 @@ Deno.serve(async (req) => {
       // Get the global base URL setting (set by admin)
       let globalBaseUrl = 'https://api.collabai.com'; // Default fallback
       try {
-        // You might want to create a separate table for global settings
-        // For now, we'll use a hardcoded default or fetch from environment
+        // Prefer env override if provided
         const envBaseUrl = Deno.env.get('COLLABAI_BASE_URL');
         if (envBaseUrl) globalBaseUrl = envBaseUrl;
+
+        // Attempt to derive base URL from API key (format: part1.part2.base64Url)
+        if (apiKey) {
+          const parts = apiKey.split('.');
+          const b64 = parts[2];
+          if (b64) {
+            const decoded = atob(b64).trim();
+            if (decoded.startsWith('http')) {
+              globalBaseUrl = decoded.replace(/\/+$/, '');
+              console.log('[collabai-manage] Derived base URL from API key:', globalBaseUrl);
+            }
+          }
+        }
       } catch (e) {
-        console.log('Using default CollabAI base URL');
+        console.log('[collabai-manage] Using default CollabAI base URL');
       }
 
       if (action === 'test') {
