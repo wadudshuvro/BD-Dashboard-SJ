@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Bot, Settings, TestTube } from "lucide-react";
+import { Bot, Settings, TestTube, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 export default function MyAgentsPage() {
@@ -20,11 +20,18 @@ export default function MyAgentsPage() {
   const [open, setOpen] = useState(false);
   const [agent, setAgent] = useState<any | null>(null);
   const [messages, setMessages] = useState<{ role: "user" | "assistant"; content: string }[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
   
   // Configuration state
   const [apiKey, setApiKey] = useState("");
   const [isConfiguring, setIsConfiguring] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
+
+  // Filter agents based on search query
+  const filteredAgents = agents.filter((agent) =>
+    agent.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    agent.description?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const handleTry = (a: any) => { 
     setAgent(a); 
@@ -185,13 +192,23 @@ export default function MyAgentsPage() {
         </Badge>
       </div>
 
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Search assistants..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-9"
+        />
+      </div>
+
       {isLoading ? (
         <div className="text-center py-8">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
           <p className="mt-2 text-muted-foreground">Loading your agents...</p>
         </div>
       ) : (
-        <AgentGrid agents={agents} onTry={handleTry} />
+        <AgentGrid agents={filteredAgents} onTry={handleTry} />
       )}
 
       <ChatPanel
