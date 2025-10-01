@@ -82,7 +82,7 @@ const AdminLayout = () => {
         <div className="flex h-full flex-col">
           {/* Logo */}
           <div className="flex h-auto items-center justify-between px-6 py-4 border-b border-border">
-            <div className="flex flex-col items-center flex-1 gap-2">
+            <div className="flex flex-col items-center flex-1 gap-1">
               <img src={logo} alt="SJ Innovation" className="h-20 w-auto" />
               <p className="text-sm font-semibold text-foreground tracking-tight">Marketing Intelligence Hub</p>
               <div className="flex flex-col items-center gap-1">
