@@ -7,7 +7,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAuth } from "@/hooks/useAuth";
 import { Navigate, useNavigate, useLocation } from "react-router-dom";
 import { Loader2 } from "lucide-react";
-import logo from "@/assets/logo-sji.png";
+import logo from "@/assets/logo-sji-login.png";
 
 export default function Login() {
   const [email, setEmail] = useState("");
