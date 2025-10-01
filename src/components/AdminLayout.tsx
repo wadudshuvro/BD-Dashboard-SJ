@@ -81,18 +81,18 @@ const AdminLayout = () => {
       )}>
         <div className="flex h-full flex-col">
           {/* Logo */}
-          <div className="flex h-16 items-center justify-between px-6 border-b border-border">
-            <div className="flex items-center gap-2">
-              <img src={logo} alt="SJ Innovation" className="h-8 w-auto" />
-              <div className="flex flex-col">
-                <span className="text-lg font-bold text-foreground">Admin Panel</span>
+          <div className="flex h-20 items-center justify-between px-6 border-b border-border">
+            <div className="flex flex-col items-center flex-1">
+              <img src={logo} alt="SJ Innovation" className="h-12 w-auto mb-1" />
+              <div className="flex flex-col items-center">
+                <span className="text-sm font-bold text-foreground">Admin Panel</span>
                 <span className="text-xs text-muted-foreground">Super Admin</span>
               </div>
             </div>
             <Button
               variant="ghost"
               size="icon"
-              className="lg:hidden"
+              className="lg:hidden absolute top-4 right-4"
               onClick={() => setSidebarOpen(false)}
             >
               <X className="h-5 w-5" />

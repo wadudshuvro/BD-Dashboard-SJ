@@ -136,13 +136,10 @@ const Layout = ({ userRole }: LayoutProps) => {
       `}>
         <div className="flex h-full flex-col">
           {/* Logo */}
-          <div className="flex h-16 items-center px-6 border-b border-border">
-            <div className="flex items-center space-x-3">
-              <img src={logo} alt="SJ Innovation" className="h-8 w-auto" />
-              <div>
-                <h1 className="font-bold text-lg text-foreground">SJ Innovation</h1>
-                <p className="text-xs text-muted-foreground capitalize">{currentRole.replace('_', ' ')} Dashboard</p>
-              </div>
+          <div className="flex h-20 items-center justify-center px-6 border-b border-border">
+            <div className="flex flex-col items-center space-y-1">
+              <img src={logo} alt="SJ Innovation" className="h-12 w-auto" />
+              <p className="text-xs text-muted-foreground capitalize">{currentRole.replace('_', ' ')} Dashboard</p>
             </div>
           </div>
 
