@@ -68,12 +68,15 @@ Deno.serve(async (req) => {
       if (action === 'test') {
         // For user testing, only require API key (use global base URL)
         if (!apiKey) {
+          console.error('[collabai-manage] Missing API key for test action');
           return new Response(JSON.stringify({ ok: false, error: 'API key required' }), 
             { status: 400, headers: corsHeaders });
         }
 
         try {
           const testUrl = `${globalBaseUrl.replace(/\/+$/, '')}/api/assistants/n8n/assistant-list?page=1&pageSize=1`;
+          console.log('[collabai-manage] Testing connection to:', testUrl);
+          
           const response = await fetch(testUrl, {
             method: 'GET',
             headers: {
@@ -82,12 +85,20 @@ Deno.serve(async (req) => {
             }
           });
 
+          console.log('[collabai-manage] Test response status:', response.status);
+          
           if (!response.ok) {
-            throw new Error(`Connection failed (${response.status})`);
+            const errorText = await response.text();
+            console.error('[collabai-manage] Test failed with status:', response.status, 'body:', errorText);
+            throw new Error(`Connection failed (${response.status}): ${errorText}`);
           }
 
+          const responseData = await response.json();
+          console.log('[collabai-manage] Test successful, response:', responseData);
+          
           return new Response(JSON.stringify({ ok: true }), { headers: corsHeaders });
         } catch (error) {
+          console.error('[collabai-manage] Test error:', error);
           return new Response(JSON.stringify({ 
             ok: false, 
             error: error instanceof Error ? error.message : 'Connection test failed' 
@@ -98,6 +109,7 @@ Deno.serve(async (req) => {
       if (action === 'save') {
         // For user saving, only require API key (use global base URL)
         if (!apiKey) {
+          console.error('[collabai-manage] Missing API key for save action');
           return new Response(JSON.stringify({ ok: false, error: 'API key required' }), 
             { status: 400, headers: corsHeaders });
         }
@@ -105,6 +117,8 @@ Deno.serve(async (req) => {
         // First test the connection with global base URL
         try {
           const testUrl = `${globalBaseUrl.replace(/\/+$/, '')}/api/assistants/n8n/assistant-list?page=1&pageSize=1`;
+          console.log('[collabai-manage] Testing connection before save to:', testUrl);
+          
           const response = await fetch(testUrl, {
             method: 'GET',
             headers: {
@@ -113,10 +127,17 @@ Deno.serve(async (req) => {
             }
           });
 
+          console.log('[collabai-manage] Save test response status:', response.status);
+          
           if (!response.ok) {
-            throw new Error(`Connection failed (${response.status})`);
+            const errorText = await response.text();
+            console.error('[collabai-manage] Save test failed with status:', response.status, 'body:', errorText);
+            throw new Error(`Connection failed (${response.status}): ${errorText}`);
           }
+          
+          console.log('[collabai-manage] Connection test successful, proceeding with save');
         } catch (error) {
+          console.error('[collabai-manage] Save test error:', error);
           return new Response(JSON.stringify({ 
             ok: false, 
             error: `Connection test failed: ${error instanceof Error ? error.message : 'Unknown error'}` 
@@ -124,12 +145,19 @@ Deno.serve(async (req) => {
         }
 
         // Deactivate existing integrations for this user
-        await client
+        console.log('[collabai-manage] Deactivating existing integrations for user:', userId);
+        const { error: deactivateError } = await client
           .from('collabai_integrations')
           .update({ is_active: false })
           .eq('user_id', userId);
 
+        if (deactivateError) {
+          console.error('[collabai-manage] Error deactivating integrations:', deactivateError);
+          throw deactivateError;
+        }
+
         // Save new integration with global base URL
+        console.log('[collabai-manage] Saving new integration for user:', userId);
         const { error: saveError } = await client
           .from('collabai_integrations')
           .insert({
@@ -139,8 +167,12 @@ Deno.serve(async (req) => {
             is_active: true
           });
 
-        if (saveError) throw saveError;
+        if (saveError) {
+          console.error('[collabai-manage] Error saving integration:', saveError);
+          throw saveError;
+        }
 
+        console.log('[collabai-manage] Integration saved successfully');
         return new Response(JSON.stringify({ ok: true }), { headers: corsHeaders });
       }
 
