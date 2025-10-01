@@ -82,8 +82,8 @@ const AdminLayout = () => {
         <div className="flex h-full flex-col">
           {/* Logo */}
           <div className="flex h-28 items-center justify-between px-6 border-b border-border">
-            <div className="flex flex-col items-center flex-1 pb-2">
-              <img src={logo} alt="SJ Innovation" className="h-20 w-auto mb-1" />
+            <div className="flex flex-col items-center flex-1 pb-4">
+              <img src={logo} alt="SJ Innovation" className="h-20 w-auto" />
               <div className="flex flex-col items-center">
                 <span className="text-sm font-bold text-foreground">Admin Panel</span>
                 <span className="text-xs text-muted-foreground">Super Admin</span>
