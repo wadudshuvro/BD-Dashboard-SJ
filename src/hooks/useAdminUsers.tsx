@@ -180,7 +180,7 @@ export function useAdminUsers() {
         throw new Error('No authentication token found');
       }
 
-      const { data, error } = await supabase.functions.invoke(`admin-users?userId=${userId}`, {
+      const { data, error } = await supabase.functions.invoke(`admin-users/${userId}`, {
         method: 'PUT',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -219,7 +219,7 @@ export function useAdminUsers() {
         throw new Error('No authentication token found');
       }
 
-      const { error } = await supabase.functions.invoke(`admin-users?userId=${userId}`, {
+      const { error } = await supabase.functions.invoke(`admin-users/${userId}`, {
         method: 'DELETE',
         headers: {
           Authorization: `Bearer ${token}`,
