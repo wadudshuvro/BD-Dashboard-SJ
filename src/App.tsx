@@ -51,6 +51,7 @@ function DashboardRedirect() {
     case 'super_admin':
       return <Navigate to="/dashboard" replace />; // Super admin gets own dashboard
     case 'manager':
+    case 'brand_manager':
       return <Navigate to="/manager/dashboard" replace />;
     case 'pm':
       return <Navigate to="/pm/dashboard" replace />;

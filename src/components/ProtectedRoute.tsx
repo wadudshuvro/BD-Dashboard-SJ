@@ -2,7 +2,7 @@ import { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 
-type UserRole = 'super_admin' | 'manager' | 'pm' | 'user';
+type UserRole = 'super_admin' | 'manager' | 'brand_manager' | 'pm' | 'user';
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -40,8 +40,9 @@ export default function ProtectedRoute({
     const roleHierarchy: Record<UserRole, number> = {
       'user': 1,
       'pm': 2,
-      'manager': 3,
-      'super_admin': 4
+      'brand_manager': 3,
+      'manager': 4,
+      'super_admin': 5
     };
 
     if (roleHierarchy[user.role] < roleHierarchy[requiredMinimumRole]) {
