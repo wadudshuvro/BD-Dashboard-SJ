@@ -66,9 +66,25 @@ const asNumber = (...values: Array<unknown>): number | undefined => {
   return undefined;
 };
 
+const VIDEO_ENHANCER_SYSTEM_PROMPT =
+  "You are an expert video prompt engineer helping marketers craft cinematic prompts for OpenAI Sora. " +
+  "Take the provided idea and expand it into a vivid, production-ready scene description that emphasizes mood, visuals, and camera direction.";
+
 export const enhanceVideoIdea = async (idea: string): Promise<string> => {
-  const response = await axiosPrivate.post<any>("/v1/videos/enhance", { idea: idea.trim() });
-  return response.data?.enhanced_prompt || response.data?.prompt || "";
+  const response = await axiosPrivate.post<any>("/v1/chat/completions", {
+    model: "gpt-4o-mini",
+    messages: [
+      { role: "system", content: VIDEO_ENHANCER_SYSTEM_PROMPT },
+      {
+        role: "user",
+        content: `Enhance this marketing idea into a cinematic Sora prompt: ${idea.trim()}`,
+      },
+    ],
+  });
+
+  const enhancedPrompt = response.data?.choices?.[0]?.message?.content;
+
+  return typeof enhancedPrompt === "string" ? enhancedPrompt.trim() : "";
 };
 
 export const getVideoById = async (id: string): Promise<SoraVideo> => {

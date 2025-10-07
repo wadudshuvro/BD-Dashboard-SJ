@@ -41,7 +41,9 @@ export const CreateVideoModal = ({ open, onOpenChange, onCreate, isLoading }: Cr
       }
     },
     onError: (error: unknown) => {
-      const message = error instanceof Error ? error.message : "Please try again.";
+      const errorData = (error as { data?: { error?: { message?: string } } })?.data;
+      const message =
+        errorData?.error?.message || (error instanceof Error ? error.message : "Please try again.");
       toast({
         title: "Unable to enhance idea",
         description: message,
