@@ -4,10 +4,14 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAdminUsers } from "@/hooks/useAdminUsers";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function People() {
   const { users, fetchUsers, loading } = useAdminUsers();
+  const { user: currentUser } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
+  const [currentUserBrands, setCurrentUserBrands] = useState<string[]>([]);
 
   useEffect(() => {
     fetchUsers({ limit: 200, isMarketing: true }).catch(() => {
@@ -15,10 +19,43 @@ export default function People() {
     });
   }, [fetchUsers]);
 
-  const marketingMembers = useMemo(
-    () => users.filter((user) => user.is_marketing),
-    [users]
-  );
+  useEffect(() => {
+    if (currentUser?.id) {
+      fetchCurrentUserBrands();
+    }
+  }, [currentUser]);
+
+  const fetchCurrentUserBrands = async () => {
+    if (!currentUser?.id) return;
+    
+    const { data } = await supabase
+      .from('user_brands')
+      .select('brand_id')
+      .eq('user_id', currentUser.id);
+    
+    if (data) {
+      setCurrentUserBrands(data.map(ub => ub.brand_id));
+    }
+  };
+
+  const marketingMembers = useMemo(() => {
+    const allMarketingUsers = users.filter((user) => user.is_marketing);
+    
+    // Super admins and managers see all marketing members
+    if (currentUser?.role === 'super_admin' || currentUser?.role === 'manager') {
+      return allMarketingUsers;
+    }
+    
+    // Regular users only see marketing members from their assigned brands
+    if (currentUserBrands.length === 0) {
+      return [];
+    }
+    
+    return allMarketingUsers.filter((user) => {
+      const userBrandIds = user.user_brands?.map(ub => ub.brand_id) || [];
+      return userBrandIds.some(brandId => currentUserBrands.includes(brandId));
+    });
+  }, [users, currentUser, currentUserBrands]);
 
   const filteredMembers = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();

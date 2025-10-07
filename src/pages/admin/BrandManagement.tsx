@@ -31,6 +31,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -43,7 +53,7 @@ import {
 import { useAdminUsers } from "@/hooks/useAdminUsers";
 
 const BrandManagement = () => {
-  const { brands, loading, createBrand, updateBrand, refetch } = useAdminBrands();
+  const { brands, loading, createBrand, updateBrand, deleteBrand, refetch } = useAdminBrands();
   const { users } = useAdminUsers();
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState<"all" | "internal" | "client">("all");
@@ -53,6 +63,9 @@ const BrandManagement = () => {
   const [isUpdating, setIsUpdating] = useState(false);
   const [selectedBrand, setSelectedBrand] = useState<Brand | null>(null);
   const [editBrandData, setEditBrandData] = useState<UpdateBrandData | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [brandToDelete, setBrandToDelete] = useState<Brand | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   
   // Form state for new brand
   const [newBrandData, setNewBrandData] = useState<CreateBrandData>({
@@ -137,6 +150,25 @@ const BrandManagement = () => {
 
     if (updated) {
       resetEditState();
+      refetch();
+    }
+  };
+
+  const handleDeleteClick = (brand: Brand) => {
+    setBrandToDelete(brand);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!brandToDelete) return;
+    
+    setIsDeleting(true);
+    const success = await deleteBrand(brandToDelete.id);
+    setIsDeleting(false);
+    
+    if (success) {
+      setDeleteDialogOpen(false);
+      setBrandToDelete(null);
       refetch();
     }
   };
@@ -415,6 +447,30 @@ const BrandManagement = () => {
         </div>
       )}
 
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Brand</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete <strong>{brandToDelete?.name}</strong>? 
+              This action cannot be undone and will remove all associated KPIs and data.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Delete Brand
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Brand Cards Grid */}
       {!loading && (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -455,7 +511,10 @@ const BrandManagement = () => {
                         <Plug className="mr-2 h-4 w-4" />
                         Integrations
                       </DropdownMenuItem>
-                      <DropdownMenuItem className="text-destructive">
+                      <DropdownMenuItem 
+                        className="text-destructive"
+                        onClick={() => handleDeleteClick(brand)}
+                      >
                         <Trash2 className="mr-2 h-4 w-4" />
                         Delete Brand
                       </DropdownMenuItem>
