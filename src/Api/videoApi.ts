@@ -46,6 +46,7 @@ export interface SoraVideo {
   brandId?: string;
   brandName?: string;
   brandSlug?: string;
+  inputReferenceName?: string;
   raw?: Record<string, unknown>;
 }
 
@@ -58,6 +59,8 @@ export interface VideoMetadata {
   title?: string;
   duration?: number;
   cost?: number;
+  input_reference_name?: string;
+  input_reference_type?: string;
 }
 
 export interface CreateVideoInput {
@@ -67,9 +70,15 @@ export interface CreateVideoInput {
   brandId?: string;
   brandName?: string;
   brandSlug?: string;
-  file?: File | null;
+  inputReference?: File | null;
   metadata?: VideoMetadata;
   seconds?: number;
+}
+
+interface EncodedInputReference {
+  name: string;
+  type?: string;
+  data: string;
 }
 
 export interface VideoBinaryContent {
@@ -82,7 +91,15 @@ type SoraVideoManagerOperation =
   | { operation: "enhance"; idea: string }
   | { operation: "list" }
   | { operation: "retrieve"; videoId: string }
-  | { operation: "create"; prompt: string; model?: string; title?: string; metadata?: VideoMetadata; seconds?: number }
+  | {
+      operation: "create";
+      prompt: string;
+      model?: string;
+      title?: string;
+      metadata?: VideoMetadata;
+      seconds?: number;
+      inputReference?: EncodedInputReference;
+    }
   | { operation: "delete"; videoId: string }
   | { operation: "thumbnail"; videoId: string }
   | { operation: "content"; videoId: string }
@@ -171,6 +188,23 @@ const pickFromNestedArray = (raw: any, key: string): any | undefined => {
     return container.find((item) => item);
   }
   return undefined;
+};
+
+const encodeFileToBase64 = async (file: File): Promise<EncodedInputReference> => {
+  const arrayBuffer = await file.arrayBuffer();
+  const bytes = new Uint8Array(arrayBuffer);
+  const chunkSize = 0x8000;
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, Math.min(bytes.length, i + chunkSize));
+    binary += String.fromCharCode(...chunk);
+  }
+
+  return {
+    name: file.name,
+    type: file.type || undefined,
+    data: btoa(binary),
+  };
 };
 
 const extractUrl = (raw: any): string | undefined => {
@@ -325,6 +359,13 @@ const normalizeVideo = (raw: any): SoraVideo => {
     raw.price_usd,
   );
 
+  const inputReferenceName =
+    asNonEmptyString(raw.input_reference_name) ||
+    asNonEmptyString(raw.reference_name) ||
+    asNonEmptyString(raw.metadata?.input_reference_name) ||
+    asNonEmptyString(raw.metadata?.reference_name) ||
+    asNonEmptyString(raw.metadata?.input_reference?.name);
+
   return {
     id,
     status: normalizeStatus(raw),
@@ -353,6 +394,7 @@ const normalizeVideo = (raw: any): SoraVideo => {
       asNonEmptyString(raw.brand_slug) ||
       asNonEmptyString((metadata as any).brand_slug) ||
       asNonEmptyString((metadata as any).brand?.slug),
+    inputReferenceName,
     raw: raw ?? undefined,
   };
 };
@@ -391,7 +433,7 @@ export const createVideo = async ({
   brandId,
   brandName,
   brandSlug,
-  file,
+  inputReference,
   metadata,
   seconds,
 }: CreateVideoInput): Promise<SoraVideo> => {
@@ -430,14 +472,24 @@ export const createVideo = async ({
     metadataPayload.duration = resolvedSeconds;
   }
 
+  if (inputReference instanceof File) {
+    if (!metadataPayload.input_reference_name) {
+      metadataPayload.input_reference_name = inputReference.name;
+    }
+    if (!metadataPayload.input_reference_type && inputReference.type) {
+      metadataPayload.input_reference_type = inputReference.type;
+    }
+  }
+
   const sanitizedMetadata = Object.fromEntries(
     Object.entries(metadataPayload).filter(([, value]) =>
       typeof value === "string" ? value.trim().length > 0 : value !== undefined && value !== null,
     ),
   ) as VideoMetadata;
 
-  if (file) {
-    throw new Error("Uploading reference files is not supported via the Supabase proxy.");
+  let encodedInputReference: EncodedInputReference | undefined;
+  if (inputReference instanceof File) {
+    encodedInputReference = await encodeFileToBase64(inputReference);
   }
 
   const payload = await invokeSoraVideoManager<any>({
@@ -447,6 +499,7 @@ export const createVideo = async ({
     title: trimmedTitle,
     metadata: Object.keys(sanitizedMetadata).length > 0 ? sanitizedMetadata : undefined,
     seconds: resolvedSeconds,
+    inputReference: encodedInputReference,
   });
   if (Array.isArray(payload?.data) && payload.data.length > 0) {
     return normalizeVideo(payload.data[0]);

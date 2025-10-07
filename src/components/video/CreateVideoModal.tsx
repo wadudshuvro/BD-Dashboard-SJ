@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { ChangeEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { Loader2, Sparkles, Wand2 } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import {
@@ -29,6 +29,7 @@ interface CreateVideoModalProps {
     brandName?: string;
     brandSlug?: string;
     durationSeconds: number;
+    inputReference?: File | null;
   }) => void;
   isLoading?: boolean;
   defaultModel?: string;
@@ -65,6 +66,7 @@ export const CreateVideoModal = ({
   const [brandId, setBrandId] = useState<string | undefined>(undefined);
   const [duration, setDuration] = useState<string>(String(DEFAULT_DURATION_SECONDS));
   const [durationTouched, setDurationTouched] = useState(false);
+  const [inputReference, setInputReference] = useState<File | null>(null);
   const { toast } = useToast();
 
   const enhanceMutation = useMutation({
@@ -102,6 +104,7 @@ export const CreateVideoModal = ({
       setBrandId(undefined);
       setDuration(String(DEFAULT_DURATION_SECONDS));
       setDurationTouched(false);
+      setInputReference(null);
       enhanceMutation.reset();
     }
   }, [open, enhanceMutation, defaultModel]);
@@ -176,6 +179,7 @@ export const CreateVideoModal = ({
       brandName: selectedBrand?.name,
       brandSlug: selectedBrand?.slug,
       durationSeconds: parsedDuration,
+      inputReference,
     });
   };
 
@@ -226,6 +230,28 @@ export const CreateVideoModal = ({
   const estimatedCost = isDurationValid
     ? (parsedDuration * COST_PER_SECOND_USD).toFixed(3)
     : undefined;
+
+  const handleInputReferenceChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null;
+    if (!file) {
+      setInputReference(null);
+      return;
+    }
+
+    const allowedTypes = new Set(["image/jpeg", "image/png", "image/webp", "video/mp4"]);
+    if (file.type && !allowedTypes.has(file.type)) {
+      toast({
+        title: "Unsupported file type",
+        description: "Upload a JPEG, PNG, WEBP image or an MP4 video.",
+        variant: "destructive",
+      });
+      event.target.value = "";
+      setInputReference(null);
+      return;
+    }
+
+    setInputReference(file);
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -304,6 +330,24 @@ export const CreateVideoModal = ({
             />
             {touchedPrompt && !prompt.trim() ? (
               <p className="text-sm text-rose-500">Provide a detailed prompt to generate the video.</p>
+            ) : null}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="video-input-reference">Upload Theme Image or Video</Label>
+            <input
+              id="video-input-reference"
+              type="file"
+              accept="image/jpeg,image/png,image/webp,video/mp4"
+              onChange={handleInputReferenceChange}
+              className="w-full rounded-lg border border-input bg-background p-2 text-sm file:mr-4 file:rounded-md file:border-0 file:bg-primary/10 file:px-4 file:py-2 file:text-sm file:font-medium file:text-primary"
+              disabled={isLoading}
+            />
+            <p className="text-sm text-muted-foreground">
+              Accepted formats: JPEG, PNG, WEBP or MP4 up to 20 seconds for reference visuals.
+            </p>
+            {inputReference ? (
+              <p className="text-xs text-muted-foreground">Selected: {inputReference.name}</p>
             ) : null}
           </div>
 

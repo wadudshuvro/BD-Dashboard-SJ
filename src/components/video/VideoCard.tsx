@@ -1,6 +1,17 @@
 import { memo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Play, Trash2, Loader2, DollarSign, Clock3, UserCircle2, Sparkles, Download, Wand2 } from "lucide-react";
+import {
+  Play,
+  Trash2,
+  Loader2,
+  DollarSign,
+  Clock3,
+  UserCircle2,
+  Sparkles,
+  Download,
+  Wand2,
+  Palette,
+} from "lucide-react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -117,16 +128,20 @@ const VideoCardComponent = ({
           <CardDescription className="text-xs text-muted-foreground">Model: {video.model}</CardDescription>
         ) : null}
         <p className="text-xs text-muted-foreground">
-          ⏱ Duration:
+          ⏱
           {typeof video.durationSeconds === "number" && !Number.isNaN(video.durationSeconds)
             ? ` ${video.durationSeconds.toFixed(1)}s`
             : " --"}
+          {video.inputReferenceName ? ` | 🎨 Reference: ${video.inputReferenceName}` : ""}
         </p>
       </CardHeader>
       <CardContent className="flex-1 space-y-4">
         <AspectRatio ratio={16 / 9} className="overflow-hidden rounded-lg border border-border/60 bg-muted">
           {thumbnailContent}
         </AspectRatio>
+        {video.prompt ? (
+          <p className="line-clamp-3 text-sm text-muted-foreground">🎞 {video.prompt}</p>
+        ) : null}
         <div className="space-y-2 text-sm text-muted-foreground">
           <div className="flex items-center justify-between">
             <span className="flex items-center gap-2">
@@ -156,6 +171,19 @@ const VideoCardComponent = ({
               {video.model ?? "Unknown"}
             </span>
           </div>
+          {video.inputReferenceName ? (
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-2">
+                <Palette className="h-4 w-4" /> Reference
+              </span>
+              <span
+                className="max-w-[160px] truncate text-right font-medium text-foreground"
+                title={video.inputReferenceName}
+              >
+                {video.inputReferenceName}
+              </span>
+            </div>
+          ) : null}
         </div>
       </CardContent>
       <CardFooter className="flex flex-wrap items-center justify-between gap-2 border-t border-border/60 bg-muted/40">
