@@ -120,6 +120,19 @@ Deno.serve(async (req) => {
       case 'POST':
         const createData = await req.json();
         
+        // Validate required fields
+        if (!createData.name || !createData.description || !createData.owner_id) {
+          return new Response(
+            JSON.stringify({ 
+              error: 'Missing required fields: name, description, and owner_id are required' 
+            }), 
+            {
+              status: 400,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            }
+          );
+        }
+        
         // Create new brand
         const { data: newBrand, error: createError } = await supabase
           .from('brands')
@@ -170,6 +183,19 @@ Deno.serve(async (req) => {
         }
 
         const updateData = await req.json();
+        
+        // Validate required fields for update
+        if (!updateData.name || !updateData.description || !updateData.owner_id) {
+          return new Response(
+            JSON.stringify({ 
+              error: 'Missing required fields: name, description, and owner_id are required' 
+            }), 
+            {
+              status: 400,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            }
+          );
+        }
         
         const { data: updatedBrand, error: updateError } = await supabase
           .from('brands')
