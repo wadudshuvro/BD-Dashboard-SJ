@@ -6,7 +6,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { CreateVideoModal } from "@/components/video/CreateVideoModal";
 import { VideoCard } from "@/components/video/VideoCard";
-import { SoraVideo, createVideo, deleteVideo, getVideos } from "@/Api/videoApi";
+import {
+  SoraVideo,
+  createVideo,
+  deleteVideo,
+  getVideoById,
+  getVideos,
+} from "@/Api/videoApi";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -58,20 +64,78 @@ const VideoPage = () => {
     queryFn: getVideos,
   });
 
+  const updateVideoInCache = (video: SoraVideo) => {
+    queryClient.setQueryData<SoraVideo[]>(["sora-videos"], (existing = []) => {
+      const index = existing.findIndex((item) => item.id === video.id);
+      if (index === -1) {
+        return [video, ...existing];
+      }
+      const updated = [...existing];
+      updated[index] = { ...updated[index], ...video };
+      return updated;
+    });
+  };
+
+  const pollVideoStatus = async (videoId: string) => {
+    const maxAttempts = 60;
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 5000));
+      try {
+        const updatedVideo = await getVideoById(videoId);
+        updateVideoInCache(updatedVideo);
+
+        if (["ready", "succeeded"].includes(updatedVideo.status)) {
+          toast({
+            title: "Video ready",
+            description: `"${updatedVideo.title}" has finished rendering.`,
+          });
+          queryClient.invalidateQueries({ queryKey: ["sora-videos"] });
+          return;
+        }
+
+        if (["failed", "canceled"].includes(updatedVideo.status)) {
+          toast({
+            title: "Video generation failed",
+            description: `Sora was unable to render "${updatedVideo.title}". Try adjusting your prompt and generate again.`,
+            variant: "destructive",
+          });
+          queryClient.invalidateQueries({ queryKey: ["sora-videos"] });
+          return;
+        }
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : "We will keep trying in the background.";
+        toast({
+          title: "Unable to check video status",
+          description: message,
+        });
+        return;
+      }
+    }
+
+    toast({
+      title: "Still processing",
+      description: "Your video is taking longer than expected. Check back in a few minutes.",
+    });
+    queryClient.invalidateQueries({ queryKey: ["sora-videos"] });
+  };
+
   const createMutation = useMutation({
     mutationFn: createVideo,
     onSuccess: (video) => {
       toast({
         title: "Video generation started",
-        description: `"${video.title}" is now processing. Refresh to see updates shortly.`,
+        description: `"${video.title}" is now processing. We'll notify you when it's ready.`,
       });
       setIsCreateOpen(false);
+      updateVideoInCache(video);
       queryClient.invalidateQueries({ queryKey: ["sora-videos"] });
+      void pollVideoStatus(video.id);
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
+      const message = error instanceof Error ? error.message : "Please try again.";
       toast({
         title: "Unable to create video",
-        description: error?.message || "Please try again.",
+        description: message,
         variant: "destructive",
       });
     },
@@ -89,10 +153,11 @@ const VideoPage = () => {
       });
       queryClient.invalidateQueries({ queryKey: ["sora-videos"] });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
+      const message = error instanceof Error ? error.message : "Please try again.";
       toast({
         title: "Unable to delete video",
-        description: error?.message || "Please try again.",
+        description: message,
         variant: "destructive",
       });
     },
@@ -124,9 +189,9 @@ const VideoPage = () => {
     <div className="space-y-8">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="space-y-1">
-          <h1 className="text-3xl font-bold tracking-tight">AI Video Studio (Sora 2)</h1>
+          <h1 className="text-3xl font-bold tracking-tight">AI Video Assistant (Sora 2)</h1>
           <p className="text-muted-foreground">
-            Generate, monitor, and manage your AI-produced videos with OpenAI Sora 2.
+            Transform quick ideas into cinematic prompts and generate professional marketing videos with OpenAI Sora 2.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -190,7 +255,7 @@ const VideoPage = () => {
       <CreateVideoModal
         open={isCreateOpen}
         onOpenChange={setIsCreateOpen}
-        onCreate={(data) => createMutation.mutate(data)}
+        onCreate={(data) => createMutation.mutate({ prompt: data.prompt })}
         isLoading={createMutation.isPending}
       />
 
