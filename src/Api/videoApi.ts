@@ -16,6 +16,9 @@ export interface SoraVideo {
   prompt?: string;
   createdAt?: string;
   durationSeconds?: number;
+  costUsd?: number;
+  userId?: string;
+  userName?: string;
   url?: string;
   thumbnailUrl?: string;
   raw?: unknown;
@@ -23,6 +26,8 @@ export interface SoraVideo {
 
 export interface CreateVideoInput {
   prompt: string;
+  aspectRatio?: string;
+  metadata?: Record<string, unknown>;
 }
 
 type UnknownRecord = Record<string, unknown>;
@@ -178,6 +183,7 @@ const normalizeVideo = (raw: unknown): SoraVideo => {
 
   const metadata = getRecord(record["metadata"]);
   const meta = getRecord(record["meta"]);
+  const usage = getRecord(record["usage"]);
   const promptValue = record["prompt"];
   const metadataPrompt = metadata?.["prompt"];
 
@@ -196,7 +202,48 @@ const normalizeVideo = (raw: unknown): SoraVideo => {
     meta?.["duration"],
     record["length"],
     record["length_seconds"],
+    usage?.["duration"],
+    usage?.["duration_seconds"],
   );
+
+  const costRecord = getRecord(record["cost"]);
+  const usageCost = getRecord(usage?.["cost"]);
+  const costUsd = asNumber(
+    record["cost"],
+    record["cost_usd"],
+    record["total_cost"],
+    record["price"],
+    metadata?.["cost"],
+    metadata?.["cost_usd"],
+    meta?.["cost"],
+    meta?.["cost_usd"],
+    usage?.["cost"],
+    usage?.["cost_usd"],
+    costRecord?.["amount"],
+    costRecord?.["value"],
+    costRecord?.["total"],
+    costRecord?.["usd"],
+    usageCost?.["amount"],
+    usageCost?.["value"],
+    usageCost?.["total"],
+    usageCost?.["usd"],
+  );
+
+  const userIdCandidate =
+    metadata?.["user_id"] ??
+    metadata?.["userId"] ??
+    meta?.["user_id"] ??
+    meta?.["userId"] ??
+    record["user_id"] ??
+    record["userId"];
+
+  const userNameCandidate =
+    metadata?.["user_name"] ??
+    metadata?.["userName"] ??
+    meta?.["user_name"] ??
+    meta?.["userName"] ??
+    record["user_name"] ??
+    record["userName"];
 
   return {
     id,
@@ -213,6 +260,9 @@ const normalizeVideo = (raw: unknown): SoraVideo => {
       (record["created"] as string | undefined) ??
       (record["timestamp"] as string | undefined),
     durationSeconds,
+    costUsd,
+    userId: typeof userIdCandidate === "string" ? userIdCandidate : undefined,
+    userName: typeof userNameCandidate === "string" ? userNameCandidate : undefined,
     url: extractUrl(raw),
     thumbnailUrl: extractThumbnail(raw),
     raw,
@@ -329,7 +379,7 @@ export const getVideoById = async (id: string): Promise<SoraVideo> => {
   return normalizeVideo(data);
 };
 
-export const createVideo = async ({ prompt }: CreateVideoInput): Promise<SoraVideo> => {
+export const createVideo = async ({ prompt, aspectRatio = "16:9", metadata }: CreateVideoInput): Promise<SoraVideo> => {
   if (!prompt || !prompt.trim()) {
     throw new Error("Prompt is required to generate a video.");
   }
@@ -337,7 +387,8 @@ export const createVideo = async ({ prompt }: CreateVideoInput): Promise<SoraVid
   const payload = {
     model: "gpt-4o-mini-tts",
     prompt: prompt.trim(),
-    aspect_ratio: "16:9",
+    aspect_ratio: aspectRatio,
+    ...(metadata ? { metadata } : {}),
   };
 
   const { data } = await axiosPrivate.post<unknown>("/v1/videos", payload);
