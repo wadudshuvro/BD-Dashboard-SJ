@@ -118,7 +118,7 @@ export const useAdminBrands = () => {
         throw new Error('No valid session');
       }
 
-      const response = await supabase.functions.invoke('admin-brands', {
+      const response = await supabase.functions.invoke(`admin-brands?id=${brandId}`, {
         method: 'PUT',
         headers: {
           Authorization: `Bearer ${session.session.access_token}`,
