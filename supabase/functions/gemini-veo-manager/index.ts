@@ -96,7 +96,7 @@ async function createVideo(
       instances: [
         {
           prompt: prompt,
-          ...(duration && { duration: `${duration}s` }),
+          // Note: duration parameter is not supported by veo-3.0-generate-001
         },
       ],
     }),
