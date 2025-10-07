@@ -1,4 +1,4 @@
-import { axiosPrivate } from "@/lib/axios";
+import { supabase } from "@/integrations/supabase/client";
 
 export type VideoStatus =
   | "queued"
@@ -53,6 +53,24 @@ export interface CreateVideoInput {
   };
 }
 
+type SoraVideoManagerOperation =
+  | { operation: "enhance"; idea: string }
+  | { operation: "list" }
+  | { operation: "create"; prompt: string; model?: string; metadata?: CreateVideoInput["metadata"] }
+  | { operation: "delete"; videoId: string };
+
+const invokeSoraVideoManager = async <T>(payload: SoraVideoManagerOperation): Promise<T> => {
+  const { data, error } = await supabase.functions.invoke<T>("sora-video-manager", {
+    body: payload,
+  });
+
+  if (error) {
+    throw new Error(error.message || "Failed to communicate with the Sora video manager");
+  }
+
+  return data as T;
+};
+
 const asNumber = (...values: Array<unknown>): number | undefined => {
   for (const value of values) {
     if (typeof value === "number" && !Number.isNaN(value)) {
@@ -68,30 +86,28 @@ const asNumber = (...values: Array<unknown>): number | undefined => {
   return undefined;
 };
 
-const VIDEO_ENHANCER_SYSTEM_PROMPT =
-  "You are an expert video prompt engineer helping marketers craft cinematic prompts for OpenAI Sora. " +
-  "Take the provided idea and expand it into a vivid, production-ready scene description that emphasizes mood, visuals, and camera direction.";
-
 export const enhanceVideoIdea = async (idea: string): Promise<string> => {
-  const response = await axiosPrivate.post<any>("/v1/chat/completions", {
-    model: "gpt-4o-mini",
-    messages: [
-      { role: "system", content: VIDEO_ENHANCER_SYSTEM_PROMPT },
-      {
-        role: "user",
-        content: `Enhance this marketing idea into a cinematic Sora prompt: ${idea.trim()}`,
-      },
-    ],
+  const data = await invokeSoraVideoManager<{ enhancedPrompt?: string }>({
+    operation: "enhance",
+    idea: idea.trim(),
   });
 
-  const enhancedPrompt = response.data?.choices?.[0]?.message?.content;
+  const enhancedPrompt = data?.enhancedPrompt;
 
   return typeof enhancedPrompt === "string" ? enhancedPrompt.trim() : "";
 };
 
 export const getVideoById = async (id: string): Promise<SoraVideo> => {
-  const response = await axiosPrivate.get<any>(`/v1/videos/${id}`);
-  return normalizeVideo(response.data);
+  const payload = await invokeSoraVideoManager<any>({ operation: "list" });
+  const items = extractVideoItems(payload);
+  const match = items.find((item) => {
+    if (!item || typeof item !== "object") return false;
+    const rawId = (item as any).id ?? (item as any).video_id;
+    if (!rawId) return false;
+    return String(rawId) === id;
+  });
+
+  return normalizeVideo(match ?? { id });
 };
 
 const pickFromNestedArray = (raw: any, key: string): any | undefined => {
@@ -282,12 +298,13 @@ const extractVideoItems = (payload: any): any[] => {
 };
 
 export const getVideos = async (model?: string): Promise<SoraVideo[]> => {
-  const response = await axiosPrivate.get<any>(
-    "/v1/videos",
-    model ? { params: { model } } : undefined,
-  );
-  const items = extractVideoItems(response.data);
-  return items.map((item) => normalizeVideo(item));
+  const payload = await invokeSoraVideoManager<any>({ operation: "list" });
+  const items = extractVideoItems(payload);
+  const videos = items.map((item) => normalizeVideo(item));
+  if (model && model.trim()) {
+    return videos.filter((video) => video.model === model);
+  }
+  return videos;
 };
 
 export const createVideo = async ({ prompt, model = "sora-2", file, metadata }: CreateVideoInput): Promise<SoraVideo> => {
@@ -297,28 +314,16 @@ export const createVideo = async ({ prompt, model = "sora-2", file, metadata }: 
 
   const resolvedModel = typeof model === "string" && model.trim().length > 0 ? model.trim() : "sora-2";
 
-  let response;
   if (file) {
-    const formData = new FormData();
-    formData.append("prompt", prompt.trim());
-    formData.append("model", resolvedModel);
-    formData.append("file", file);
-    if (metadata?.user_id) {
-      formData.append("user_id", metadata.user_id);
-    }
-    if (metadata?.user_name) {
-      formData.append("user_name", metadata.user_name);
-    }
-    response = await axiosPrivate.post<any>("/v1/videos", formData);
-  } else {
-    const requestData: any = { prompt: prompt.trim(), model: resolvedModel };
-    if (metadata) {
-      requestData.metadata = metadata;
-    }
-    response = await axiosPrivate.post<any>("/v1/videos", requestData);
+    throw new Error("Uploading reference files is not supported via the Supabase proxy.");
   }
 
-  const payload = response.data;
+  const payload = await invokeSoraVideoManager<any>({
+    operation: "create",
+    prompt: prompt.trim(),
+    model: resolvedModel,
+    metadata,
+  });
   if (Array.isArray(payload?.data) && payload.data.length > 0) {
     return normalizeVideo(payload.data[0]);
   }
@@ -332,5 +337,6 @@ export const deleteVideo = async (id: string): Promise<void> => {
   if (!id) {
     throw new Error("Video ID is required to delete a video.");
   }
-  await axiosPrivate.delete(`/v1/videos/${id}`);
+  await invokeSoraVideoManager({ operation: "delete", videoId: id });
 };
+
