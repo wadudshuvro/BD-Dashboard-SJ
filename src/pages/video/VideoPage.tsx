@@ -6,6 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { CreateVideoModal } from "@/components/video/CreateVideoModal";
 import { VideoCard } from "@/components/video/VideoCard";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   SoraVideo,
   createVideo,
@@ -33,6 +34,7 @@ import {
 } from "@/components/ui/dialog";
 
 const skeletonArray = Array.from({ length: 6 });
+const DEFAULT_VIDEO_MODELS = ["sora-2"];
 
 const formatDuration = (seconds?: number) => {
   if (seconds === undefined || seconds === null || Number.isNaN(seconds)) return "--";
@@ -55,6 +57,10 @@ const formatCurrency = (value?: number) => {
 
 const formatStatusSubtitle = (video: SoraVideo) => {
   const segments: string[] = [];
+
+  if (video.model) {
+    segments.push(`Model ${video.model}`);
+  }
 
   if (video.createdAt) {
     try {
@@ -87,6 +93,8 @@ const VideoPage = () => {
   const [selectedVideo, setSelectedVideo] = useState<SoraVideo | null>(null);
   const [videoToDelete, setVideoToDelete] = useState<SoraVideo | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [selectedModel, setSelectedModel] = useState("sora-2");
+  const [modelFilter, setModelFilter] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { user } = useAuth();
@@ -97,19 +105,43 @@ const VideoPage = () => {
     isRefetching,
     refetch,
   } = useQuery({
-    queryKey: ["sora-videos"],
-    queryFn: getVideos,
+    queryKey: ["sora-videos", { model: modelFilter ?? "all" }],
+    queryFn: () => getVideos(modelFilter ?? undefined),
   });
 
-  const updateVideoInCache = (video: SoraVideo) => {
-    queryClient.setQueryData<SoraVideo[]>(["sora-videos"], (existing = []) => {
-      const index = existing.findIndex((item) => item.id === video.id);
-      if (index === -1) {
-        return [video, ...existing];
+  const availableModels = useMemo(() => {
+    const models = new Set<string>(DEFAULT_VIDEO_MODELS);
+    videos.forEach((video) => {
+      if (video.model) {
+        models.add(video.model);
       }
-      const updated = [...existing];
-      updated[index] = { ...updated[index], ...video };
-      return updated;
+    });
+    if (selectedModel) {
+      models.add(selectedModel);
+    }
+    if (modelFilter) {
+      models.add(modelFilter);
+    }
+    return Array.from(models).sort();
+  }, [modelFilter, selectedModel, videos]);
+
+  const updateVideoInCache = (video: SoraVideo) => {
+    const modelKeys = new Set<string>(["all"]);
+    if (video.model) {
+      modelKeys.add(video.model);
+    }
+    modelKeys.add(modelFilter ?? "all");
+
+    modelKeys.forEach((modelKey) => {
+      queryClient.setQueryData<SoraVideo[]>(["sora-videos", { model: modelKey }], (existing = []) => {
+        const index = existing.findIndex((item) => item.id === video.id);
+        if (index === -1) {
+          return [video, ...existing];
+        }
+        const updated = [...existing];
+        updated[index] = { ...updated[index], ...video };
+        return updated;
+      });
     });
   };
 
@@ -266,12 +298,29 @@ const VideoPage = () => {
     <div className="space-y-8">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="space-y-1">
-          <h1 className="text-3xl font-bold tracking-tight">AI Video Assistant (Sora 2)</h1>
+          <h1 className="text-3xl font-bold tracking-tight">AI Video Assistant</h1>
           <p className="text-muted-foreground">
-            Transform quick ideas into cinematic prompts and generate professional marketing videos with OpenAI Sora 2.
+            Transform quick ideas into cinematic prompts and generate professional marketing videos with OpenAI Sora models.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Select
+            value={modelFilter ?? "all"}
+            onValueChange={(value) => setModelFilter(value === "all" ? null : value)}
+            disabled={isLoading && !videos.length}
+          >
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="All models" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All models</SelectItem>
+              {availableModels.map((model) => (
+                <SelectItem key={model} value={model}>
+                  {model}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Button
             variant="outline"
             onClick={handleRefresh}
@@ -346,15 +395,19 @@ const VideoPage = () => {
       <CreateVideoModal
         open={isCreateOpen}
         onOpenChange={setIsCreateOpen}
-        onCreate={(data) =>
+        defaultModel={selectedModel}
+        models={availableModels}
+        onCreate={(data) => {
+          setSelectedModel(data.model);
           createMutation.mutate({
             prompt: data.prompt,
+            model: data.model,
             metadata: {
               user_id: user?.id,
               user_name: user?.name,
             },
-          })
-        }
+          });
+        }}
         isLoading={createMutation.isPending}
       />
 
@@ -387,6 +440,9 @@ const VideoPage = () => {
                 </div>
                 <div>
                   <span className="font-medium text-foreground">Duration:</span> {formatDuration(selectedVideo.durationSeconds)}
+                </div>
+                <div>
+                  <span className="font-medium text-foreground">Model:</span> {selectedVideo.model ?? "Unknown"}
                 </div>
                 <div>
                   <span className="font-medium text-foreground">Status:</span> {selectedVideo.status}

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Loader2, Sparkles, Wand2 } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import {
@@ -12,20 +12,33 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { enhanceVideoIdea } from "@/Api/videoApi";
 import { useToast } from "@/hooks/use-toast";
 
 interface CreateVideoModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCreate: (data: { idea: string; prompt: string }) => void;
+  onCreate: (data: { idea: string; prompt: string; model: string }) => void;
   isLoading?: boolean;
+  defaultModel?: string;
+  models?: string[];
 }
 
-export const CreateVideoModal = ({ open, onOpenChange, onCreate, isLoading }: CreateVideoModalProps) => {
+const DEFAULT_MODEL = "sora-2";
+
+export const CreateVideoModal = ({
+  open,
+  onOpenChange,
+  onCreate,
+  isLoading,
+  defaultModel = DEFAULT_MODEL,
+  models,
+}: CreateVideoModalProps) => {
   const [idea, setIdea] = useState("");
   const [prompt, setPrompt] = useState("");
   const [touchedPrompt, setTouchedPrompt] = useState(false);
+  const [model, setModel] = useState(defaultModel);
   const { toast } = useToast();
 
   const enhanceMutation = useMutation({
@@ -57,9 +70,16 @@ export const CreateVideoModal = ({ open, onOpenChange, onCreate, isLoading }: Cr
       setIdea("");
       setPrompt("");
       setTouchedPrompt(false);
+      setModel(defaultModel);
       enhanceMutation.reset();
     }
-  }, [open, enhanceMutation]);
+  }, [open, enhanceMutation, defaultModel]);
+
+  useEffect(() => {
+    if (open) {
+      setModel(defaultModel);
+    }
+  }, [defaultModel, open]);
 
   const handleEnhance = async () => {
     if (!idea.trim()) {
@@ -84,10 +104,34 @@ export const CreateVideoModal = ({ open, onOpenChange, onCreate, isLoading }: Cr
       });
       return;
     }
-    onCreate({ idea: idea.trim(), prompt: prompt.trim() });
+    onCreate({ idea: idea.trim(), prompt: prompt.trim(), model });
   };
 
   const isEnhancing = enhanceMutation.isPending;
+  const availableModels = useMemo(() => {
+    const unique = new Set<string>([DEFAULT_MODEL, defaultModel]);
+    (models ?? []).forEach((entry) => {
+      if (typeof entry === "string" && entry.trim()) {
+        unique.add(entry.trim());
+      }
+    });
+    return Array.from(unique).sort();
+  }, [defaultModel, models]);
+
+  useEffect(() => {
+    if (!availableModels.includes(model)) {
+      setModel(defaultModel);
+    }
+  }, [availableModels, defaultModel, model]);
+
+  const formatModelLabel = useCallback((value: string) => {
+    if (!value) return "Unknown";
+    return value
+      .split("-")
+      .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+      .join(" ");
+  }, []);
+
   const enhanceHelper = useMemo(() => {
     if (!idea.trim()) {
       return "Describe the marketing moment you want to capture.";
@@ -100,9 +144,9 @@ export const CreateVideoModal = ({ open, onOpenChange, onCreate, isLoading }: Cr
       <DialogContent className="max-w-2xl">
         <form onSubmit={handleSubmit} className="space-y-6">
           <DialogHeader>
-            <DialogTitle className="text-2xl font-semibold">AI Video Assistant (Sora 2)</DialogTitle>
+            <DialogTitle className="text-2xl font-semibold">AI Video Assistant</DialogTitle>
             <DialogDescription>
-              Share your campaign idea, enhance it with AI, and generate a cinematic video with Sora 2.
+              Share your campaign idea, enhance it with AI, and generate a cinematic video with your selected Sora model.
             </DialogDescription>
           </DialogHeader>
 
@@ -146,6 +190,25 @@ export const CreateVideoModal = ({ open, onOpenChange, onCreate, isLoading }: Cr
             {touchedPrompt && !prompt.trim() ? (
               <p className="text-sm text-rose-500">Provide a detailed prompt to generate the video.</p>
             ) : null}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="video-model">Model</Label>
+            <Select value={model} onValueChange={setModel} disabled={isLoading}>
+              <SelectTrigger id="video-model">
+                <SelectValue placeholder="Select a model" />
+              </SelectTrigger>
+              <SelectContent>
+                {availableModels.map((option) => (
+                  <SelectItem key={option} value={option}>
+                    {formatModelLabel(option)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-sm text-muted-foreground">
+              Choose which version of Sora should generate this video.
+            </p>
           </div>
 
           <DialogFooter className="flex-col gap-3 sm:flex-row sm:justify-end">
