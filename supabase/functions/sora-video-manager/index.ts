@@ -22,10 +22,13 @@ serve(async (req) => {
     console.log('Sora video operation:', operation);
 
     let response;
-    const openAIHeaders = {
+    const baseHeaders = {
       'Authorization': `Bearer ${openAIApiKey}`,
-      'Content-Type': 'application/json',
       'OpenAI-Beta': 'video-generation=2024-12-17',
+    };
+    const jsonHeaders = {
+      ...baseHeaders,
+      'Content-Type': 'application/json',
     };
 
     switch (operation) {
@@ -37,7 +40,7 @@ serve(async (req) => {
         
         response = await fetch('https://api.openai.com/v1/chat/completions', {
           method: 'POST',
-          headers: openAIHeaders,
+          headers: jsonHeaders,
           body: JSON.stringify({
             model: 'gpt-4o-mini',
             messages: [
@@ -54,7 +57,7 @@ serve(async (req) => {
         console.log('Fetching video list from OpenAI');
         response = await fetch('https://api.openai.com/v1/videos', {
           method: 'GET',
-          headers: openAIHeaders,
+          headers: jsonHeaders,
         });
         break;
 
@@ -72,16 +75,13 @@ serve(async (req) => {
           
           response = await fetch('https://api.openai.com/v1/videos', {
             method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${openAIApiKey}`,
-              'OpenAI-Beta': 'video-generation=2024-12-17',
-            },
+            headers: baseHeaders,
             body: formData,
           });
         } else {
           response = await fetch('https://api.openai.com/v1/videos', {
             method: 'POST',
-            headers: openAIHeaders,
+            headers: jsonHeaders,
             body: JSON.stringify({ prompt: prompt.trim() }),
           });
         }
@@ -94,7 +94,55 @@ serve(async (req) => {
         }
         response = await fetch(`https://api.openai.com/v1/videos/${videoId}`, {
           method: 'DELETE',
-          headers: openAIHeaders,
+          headers: jsonHeaders,
+        });
+        break;
+
+      case 'retrieve':
+        console.log('Retrieving video:', videoId);
+        if (!videoId) {
+          throw new Error('Video ID is required to retrieve a video');
+        }
+        response = await fetch(`https://api.openai.com/v1/videos/${videoId}`, {
+          method: 'GET',
+          headers: jsonHeaders,
+        });
+        break;
+
+      case 'thumbnail':
+        console.log('Fetching thumbnail for video:', videoId);
+        if (!videoId) {
+          throw new Error('Video ID is required to fetch a thumbnail');
+        }
+        response = await fetch(`https://api.openai.com/v1/videos/${videoId}/content?variant=thumbnail`, {
+          method: 'GET',
+          headers: baseHeaders,
+        });
+        break;
+
+      case 'content':
+        console.log('Downloading content for video:', videoId);
+        if (!videoId) {
+          throw new Error('Video ID is required to download video content');
+        }
+        response = await fetch(`https://api.openai.com/v1/videos/${videoId}/content`, {
+          method: 'GET',
+          headers: baseHeaders,
+        });
+        break;
+
+      case 'remix':
+        console.log('Remixing video:', videoId);
+        if (!videoId) {
+          throw new Error('Video ID is required to remix a video');
+        }
+        if (!prompt || !prompt.trim()) {
+          throw new Error('Prompt is required to remix a video');
+        }
+        response = await fetch(`https://api.openai.com/v1/videos/${videoId}/remix`, {
+          method: 'POST',
+          headers: jsonHeaders,
+          body: JSON.stringify({ prompt: prompt.trim() }),
         });
         break;
 
@@ -115,6 +163,18 @@ serve(async (req) => {
       const rawData = await response.json();
       const content = rawData?.choices?.[0]?.message?.content || '';
       data = { enhancedPrompt: content.trim() };
+    } else if (operation === 'thumbnail' || operation === 'content') {
+      const arrayBuffer = await response.arrayBuffer();
+      const uint8Array = new Uint8Array(arrayBuffer);
+      let binary = '';
+      for (let i = 0; i < uint8Array.length; i++) {
+        binary += String.fromCharCode(uint8Array[i]);
+      }
+      const base64Data = btoa(binary);
+      data = {
+        base64Data,
+        contentType: response.headers.get('content-type') ?? undefined,
+      };
     } else {
       data = await response.json();
     }

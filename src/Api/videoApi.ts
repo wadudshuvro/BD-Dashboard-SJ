@@ -53,11 +53,21 @@ export interface CreateVideoInput {
   };
 }
 
+export interface VideoBinaryContent {
+  base64Data: string;
+  contentType?: string;
+  url?: string;
+}
+
 type SoraVideoManagerOperation =
   | { operation: "enhance"; idea: string }
   | { operation: "list" }
   | { operation: "create"; prompt: string; model?: string; metadata?: CreateVideoInput["metadata"] }
-  | { operation: "delete"; videoId: string };
+  | { operation: "delete"; videoId: string }
+  | { operation: "retrieve"; videoId: string }
+  | { operation: "thumbnail"; videoId: string }
+  | { operation: "content"; videoId: string }
+  | { operation: "remix"; videoId: string; prompt: string };
 
 const invokeSoraVideoManager = async <T>(payload: SoraVideoManagerOperation): Promise<T> => {
   const { data, error } = await supabase.functions.invoke<T>("sora-video-manager", {
@@ -97,17 +107,34 @@ export const enhanceVideoIdea = async (idea: string): Promise<string> => {
   return typeof enhancedPrompt === "string" ? enhancedPrompt.trim() : "";
 };
 
-export const getVideoById = async (id: string): Promise<SoraVideo> => {
-  const payload = await invokeSoraVideoManager<any>({ operation: "list" });
-  const items = extractVideoItems(payload);
-  const match = items.find((item) => {
-    if (!item || typeof item !== "object") return false;
-    const rawId = (item as any).id ?? (item as any).video_id;
-    if (!rawId) return false;
-    return String(rawId) === id;
-  });
+export const retrieveVideo = async (id: string): Promise<SoraVideo> => {
+  if (!id) {
+    throw new Error("Video ID is required to retrieve a video.");
+  }
 
-  return normalizeVideo(match ?? { id });
+  const payload = await invokeSoraVideoManager<any>({ operation: "retrieve", videoId: id });
+  return normalizeVideo(payload);
+};
+
+export const getVideoById = async (id: string): Promise<SoraVideo> => {
+  try {
+    return await retrieveVideo(id);
+  } catch (error) {
+    const payload = await invokeSoraVideoManager<any>({ operation: "list" });
+    const items = extractVideoItems(payload);
+    const match = items.find((item) => {
+      if (!item || typeof item !== "object") return false;
+      const rawId = (item as any).id ?? (item as any).video_id;
+      if (!rawId) return false;
+      return String(rawId) === id;
+    });
+
+    if (!match) {
+      throw error instanceof Error ? error : new Error("Unable to locate video");
+    }
+
+    return normalizeVideo(match);
+  }
 };
 
 const pickFromNestedArray = (raw: any, key: string): any | undefined => {
@@ -338,5 +365,43 @@ export const deleteVideo = async (id: string): Promise<void> => {
     throw new Error("Video ID is required to delete a video.");
   }
   await invokeSoraVideoManager({ operation: "delete", videoId: id });
+};
+
+export const getVideoThumbnail = async (id: string): Promise<VideoBinaryContent> => {
+  if (!id) {
+    throw new Error("Video ID is required to fetch a thumbnail.");
+  }
+
+  const payload = await invokeSoraVideoManager<VideoBinaryContent>({ operation: "thumbnail", videoId: id });
+  if (!payload?.base64Data) {
+    throw new Error("Thumbnail data was not returned.");
+  }
+
+  return payload;
+};
+
+export const downloadVideoContent = async (id: string): Promise<VideoBinaryContent> => {
+  if (!id) {
+    throw new Error("Video ID is required to download content.");
+  }
+
+  const payload = await invokeSoraVideoManager<VideoBinaryContent>({ operation: "content", videoId: id });
+  if (!payload?.base64Data) {
+    throw new Error("Video content was not returned.");
+  }
+
+  return payload;
+};
+
+export const remixVideo = async (id: string, prompt: string): Promise<SoraVideo> => {
+  if (!id) {
+    throw new Error("Video ID is required to remix a video.");
+  }
+  if (!prompt || !prompt.trim()) {
+    throw new Error("A remix prompt is required.");
+  }
+
+  const payload = await invokeSoraVideoManager<any>({ operation: "remix", videoId: id, prompt: prompt.trim() });
+  return normalizeVideo(payload);
 };
 
