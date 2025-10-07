@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { RefreshCcw, Video as VideoIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import {
   getVideoById,
   getVideos,
 } from "@/Api/videoApi";
+import { useAuth } from "@/hooks/useAuth";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,17 +34,52 @@ import {
 
 const skeletonArray = Array.from({ length: 6 });
 
-const formatStatusSubtitle = (video: SoraVideo) => {
-  if (!video.createdAt) return "";
-  try {
-    const date = new Date(video.createdAt);
-    if (!Number.isNaN(date.getTime())) {
-      return `Generated ${date.toLocaleString()}`;
-    }
-  } catch (error) {
-    return "";
+const formatDuration = (seconds?: number) => {
+  if (seconds === undefined || seconds === null || Number.isNaN(seconds)) return "--";
+  if (seconds < 60) {
+    return `${seconds.toFixed(1)}s`;
   }
-  return "";
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.round(seconds % 60);
+  return `${mins}m ${secs.toString().padStart(2, "0")}s`;
+};
+
+const formatCurrency = (value?: number) => {
+  if (value === undefined || value === null || Number.isNaN(value)) return "--";
+  return new Intl.NumberFormat(undefined, {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 3,
+  }).format(value);
+};
+
+const formatStatusSubtitle = (video: SoraVideo) => {
+  const segments: string[] = [];
+
+  if (video.createdAt) {
+    try {
+      const date = new Date(video.createdAt);
+      if (!Number.isNaN(date.getTime())) {
+        segments.push(`Generated ${date.toLocaleString()}`);
+      }
+    } catch (error) {
+      // ignore invalid dates
+    }
+  }
+
+  if (video.userName) {
+    segments.push(`Created by ${video.userName}`);
+  }
+
+  if (video.costUsd !== undefined) {
+    segments.push(`Cost ${formatCurrency(video.costUsd)}`);
+  }
+
+  if (video.durationSeconds !== undefined) {
+    segments.push(`Duration ${formatDuration(video.durationSeconds)}`);
+  }
+
+  return segments.join(" • ");
 };
 
 const VideoPage = () => {
@@ -53,6 +89,7 @@ const VideoPage = () => {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const {
     data: videos = [],
@@ -76,13 +113,22 @@ const VideoPage = () => {
     });
   };
 
+  const enrichWithUser = useCallback(
+    (video: SoraVideo): SoraVideo => ({
+      ...video,
+      userId: video.userId ?? user?.id ?? undefined,
+      userName: video.userName ?? user?.name ?? undefined,
+    }),
+    [user?.id, user?.name],
+  );
+
   const pollVideoStatus = async (videoId: string) => {
     const maxAttempts = 60;
     for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
       await new Promise((resolve) => setTimeout(resolve, 5000));
       try {
         const updatedVideo = await getVideoById(videoId);
-        updateVideoInCache(updatedVideo);
+        updateVideoInCache(enrichWithUser(updatedVideo));
 
         if (["ready", "succeeded"].includes(updatedVideo.status)) {
           toast({
@@ -127,7 +173,7 @@ const VideoPage = () => {
         description: `"${video.title}" is now processing. We'll notify you when it's ready.`,
       });
       setIsCreateOpen(false);
-      updateVideoInCache(video);
+      updateVideoInCache(enrichWithUser(video));
       queryClient.invalidateQueries({ queryKey: ["sora-videos"] });
       void pollVideoStatus(video.id);
     },
@@ -172,7 +218,7 @@ const VideoPage = () => {
   };
 
   const handlePlay = (video: SoraVideo) => {
-    setSelectedVideo(video);
+    setSelectedVideo(enrichWithUser(video));
   };
 
   const statusSubtitle = useMemo(() => {
@@ -184,6 +230,38 @@ const VideoPage = () => {
     if (!videoToDelete?.id) return;
     deleteMutation.mutate(videoToDelete.id);
   };
+
+  const displayedVideos = useMemo(() => {
+    if (!user?.id) {
+      return videos;
+    }
+    return videos.filter((video) => !video.userId || video.userId === user.id);
+  }, [videos, user?.id]);
+
+  const totalCost = useMemo(
+    () => displayedVideos.reduce((sum, video) => sum + (video.costUsd ?? 0), 0),
+    [displayedVideos],
+  );
+
+  const totalDurationSeconds = useMemo(
+    () => displayedVideos.reduce((sum, video) => sum + (video.durationSeconds ?? 0), 0),
+    [displayedVideos],
+  );
+
+  const formatTotalDuration = useCallback((seconds: number) => {
+    if (!seconds) return "0s";
+    if (seconds < 60) {
+      return `${seconds.toFixed(1)}s`;
+    }
+    const mins = Math.floor(seconds / 60);
+    const hrs = Math.floor(mins / 60);
+    const remainingMins = mins % 60;
+    const remainingSecs = Math.round(seconds % 60);
+    if (hrs > 0) {
+      return `${hrs}h ${remainingMins}m ${remainingSecs.toString().padStart(2, "0")}s`;
+    }
+    return `${mins}m ${remainingSecs.toString().padStart(2, "0")}s`;
+  }, []);
 
   return (
     <div className="space-y-8">
@@ -211,6 +289,21 @@ const VideoPage = () => {
         </div>
       </div>
 
+      <div className="flex flex-col gap-1 rounded-lg border border-border/60 bg-muted/30 p-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          You’ve created <span className="font-semibold text-foreground">{displayedVideos.length}</span> videos
+          {user?.name ? ` as ${user.name}` : ""}.
+        </div>
+        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-4">
+          <span>
+            Total cost: <span className="font-semibold text-foreground">{formatCurrency(totalCost)}</span>
+          </span>
+          <span>
+            Total duration: <span className="font-semibold text-foreground">{formatTotalDuration(totalDurationSeconds)}</span>
+          </span>
+        </div>
+      </div>
+
       {isLoading ? (
         <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           {skeletonArray.map((_, index) => (
@@ -225,9 +318,9 @@ const VideoPage = () => {
             </div>
           ))}
         </div>
-      ) : videos.length > 0 ? (
+      ) : displayedVideos.length > 0 ? (
         <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-          {videos.map((video) => (
+          {displayedVideos.map((video) => (
             <VideoCard
               key={video.id}
               video={video}
@@ -255,7 +348,15 @@ const VideoPage = () => {
       <CreateVideoModal
         open={isCreateOpen}
         onOpenChange={setIsCreateOpen}
-        onCreate={(data) => createMutation.mutate({ prompt: data.prompt })}
+        onCreate={(data) =>
+          createMutation.mutate({
+            prompt: data.prompt,
+            metadata: {
+              user_id: user?.id,
+              user_name: user?.name,
+            },
+          })
+        }
         isLoading={createMutation.isPending}
       />
 
@@ -279,6 +380,20 @@ const VideoPage = () => {
                   A playable video URL is not yet available. Please try again later.
                 </div>
               )}
+              <div className="grid gap-3 rounded-lg border border-border/60 bg-muted/20 p-4 text-sm text-muted-foreground sm:grid-cols-2">
+                <div>
+                  <span className="font-medium text-foreground">Creator:</span> {selectedVideo.userName ?? "Unknown"}
+                </div>
+                <div>
+                  <span className="font-medium text-foreground">Cost:</span> {formatCurrency(selectedVideo.costUsd)}
+                </div>
+                <div>
+                  <span className="font-medium text-foreground">Duration:</span> {formatDuration(selectedVideo.durationSeconds)}
+                </div>
+                <div>
+                  <span className="font-medium text-foreground">Status:</span> {selectedVideo.status}
+                </div>
+              </div>
             </div>
           ) : null}
         </DialogContent>
