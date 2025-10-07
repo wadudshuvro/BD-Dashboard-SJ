@@ -1,99 +1,351 @@
-import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ArrowLeft, Check, Edit3, Loader2, X } from "lucide-react";
+import { toast } from "sonner";
+
+import axiosPrivate from "@/lib/axiosPrivate";
+import { useAuth } from "@/hooks/useAuth";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Progress } from "@/components/ui/progress";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
-  ArrowLeft,
-  Building2,
-  Users,
-  DollarSign,
-  TrendingUp,
-  Target,
-  Calendar,
-  Plug,
-  Settings,
-  BarChart3,
-  Loader2,
-  Edit
-} from "lucide-react";
-import { useAdminBrands, Brand } from "@/hooks/useAdminBrands";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+interface ApiBrand {
+  id: string;
+  name?: string | null;
+  description?: string | null;
+  type?: string | null;
+  status?: string | null;
+  ownerId?: string | null;
+  owner_id?: string | null;
+  ownerName?: string | null;
+  owner_name?: string | null;
+  ownerInitials?: string | null;
+  owner_initials?: string | null;
+  createdAt?: string | null;
+  created_at?: string | null;
+  updatedAt?: string | null;
+  updated_at?: string | null;
+  last_updated_at?: string | null;
+}
+
+interface ApiBrandOwner {
+  id: string;
+  name?: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
+  initials?: string | null;
+  email?: string | null;
+}
+
+interface BrandFormState {
+  name: string;
+  description: string;
+  type: string;
+  status: string;
+  ownerId: string;
+}
+
+interface NormalizedBrand {
+  id: string;
+  name: string;
+  description: string;
+  type: string;
+  status: string;
+  ownerId: string;
+  ownerName: string;
+  ownerInitials: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+interface NormalizedOwner {
+  id: string;
+  name: string;
+  initials: string;
+}
+
+interface UpdateBrandPayload {
+  name: string;
+  description: string;
+  type: string;
+  status: string;
+  ownerId: string;
+}
+
+const STATUS_OPTIONS = ["active", "inactive", "pending", "archived"];
+const TYPE_OPTIONS = ["internal", "external", "client"];
+const DESCRIPTION_LIMIT = 300;
+
+const formatDate = (value?: string) => {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+
+  return new Intl.DateTimeFormat("en-US", {
+    month: "2-digit",
+    day: "2-digit",
+    year: "numeric",
+  }).format(date);
+};
+
+const formatDateTime = (value?: string) => {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+
+  const datePart = new Intl.DateTimeFormat("en-US", {
+    month: "2-digit",
+    day: "2-digit",
+    year: "numeric",
+  }).format(date);
+  const timePart = new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(date);
+
+  return `${datePart} at ${timePart}`;
+};
+
+const toTitleCase = (value?: string) => {
+  if (!value) return "";
+  return value
+    .replace(/_/g, " ")
+    .split(" ")
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+};
+
+const buildInitials = (value?: string | null) => {
+  if (!value) return "";
+  const matches = value
+    .split(" ")
+    .filter(Boolean)
+    .map((segment) => segment[0]?.toUpperCase())
+    .filter(Boolean);
+
+  return matches.slice(0, 2).join("");
+};
 
 const BrandDetail = () => {
   const { brandId } = useParams<{ brandId: string }>();
   const navigate = useNavigate();
-  const [brand, setBrand] = useState<Brand | null>(null);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  const canEdit = useMemo(() => {
+    if (!user) return false;
+    const role = user.role as string;
+    return role === "super_admin" || role === "manager" || role === "brand_manager";
+  }, [user]);
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [formState, setFormState] = useState<BrandFormState | null>(null);
+
+  const {
+    data: brand,
+    isLoading: brandLoading,
+    isError: brandError,
+    error,
+  } = useQuery<ApiBrand>({
+    queryKey: ["brand", brandId],
+    enabled: Boolean(brandId),
+    queryFn: async () => {
+      const response = await axiosPrivate.get<ApiBrand>(`/api/admin/brands/${brandId}`);
+      return response.data;
+    },
+  });
+
+  const { data: owners, isLoading: ownersLoading } = useQuery<ApiBrandOwner[]>({
+    queryKey: ["brand-owners"],
+    queryFn: async () => {
+      const response = await axiosPrivate.get<ApiBrandOwner[]>("/api/admin/users", {
+        params: { role: "brand_owner" },
+      });
+      return response.data;
+    },
+  });
+
+  const normalizedBrand = useMemo<NormalizedBrand | null>(() => {
+    if (!brand) return null;
+
+    const ownerId = brand.ownerId ?? brand.owner_id ?? "";
+    const ownerName = brand.ownerName ?? brand.owner_name ?? "";
+    const ownerInitials =
+      brand.ownerInitials ?? brand.owner_initials ?? buildInitials(ownerName);
+
+    return {
+      id: brand.id,
+      name: brand.name?.trim() ?? "",
+      description: brand.description?.trim() ?? "",
+      type: brand.type?.toLowerCase() ?? "internal",
+      status: brand.status?.toLowerCase() ?? "active",
+      ownerId,
+      ownerName: ownerName.trim(),
+      ownerInitials,
+      createdAt: brand.createdAt ?? brand.created_at ?? undefined,
+      updatedAt: brand.updatedAt ?? brand.updated_at ?? brand.last_updated_at ?? undefined,
+    };
+  }, [brand]);
 
   useEffect(() => {
-    const fetchBrandDetail = async () => {
-      if (!brandId) return;
-      
-      try {
-        setLoading(true);
-        const { data: session } = await supabase.auth.getSession();
-        if (!session?.session?.access_token) {
-          throw new Error('No valid session');
-        }
+    if (normalizedBrand) {
+      setFormState({
+        name: normalizedBrand.name,
+        description: normalizedBrand.description,
+        type: normalizedBrand.type,
+        status: normalizedBrand.status,
+        ownerId: normalizedBrand.ownerId,
+      });
+    }
+  }, [normalizedBrand]);
 
-        const response = await supabase.functions.invoke('admin-brands', {
-          method: 'GET',
-          headers: {
-            Authorization: `Bearer ${session.session.access_token}`,
-          },
+  const normalizedOwners = useMemo<NormalizedOwner[]>(() => {
+    const mapped = (owners ?? []).map<NormalizedOwner>((owner) => {
+      const fullName = owner.name?.trim()
+        || `${owner.first_name ?? ""} ${owner.last_name ?? ""}`.trim()
+        || owner.email?.trim()
+        || "Unnamed Owner";
+      const initials = owner.initials?.trim() || buildInitials(fullName);
+
+      return {
+        id: owner.id,
+        name: fullName,
+        initials,
+      };
+    });
+
+    if (normalizedBrand?.ownerId) {
+      const exists = mapped.some((owner) => owner.id === normalizedBrand.ownerId);
+      if (!exists) {
+        const fallbackName =
+          normalizedBrand.ownerName || "Current Owner";
+        mapped.push({
+          id: normalizedBrand.ownerId,
+          name: fallbackName,
+          initials: normalizedBrand.ownerInitials || buildInitials(fallbackName),
         });
-
-        if (response.error) {
-          throw new Error(response.error.message || 'Failed to fetch brand');
-        }
-
-        const brands = response.data || [];
-        const foundBrand = brands.find((b: Brand) => b.id === brandId);
-        
-        if (!foundBrand) {
-          toast.error('Brand not found');
-          navigate('/adminpanel/brands');
-          return;
-        }
-
-        setBrand(foundBrand);
-      } catch (err) {
-        console.error('Error fetching brand:', err);
-        toast.error('Failed to load brand details');
-        navigate('/adminpanel/brands');
-      } finally {
-        setLoading(false);
       }
+    }
+
+    return mapped.sort((a, b) => a.name.localeCompare(b.name));
+  }, [owners, normalizedBrand]);
+
+  const updateBrandMutation = useMutation({
+    mutationFn: async (payload: UpdateBrandPayload) => {
+      const response = await axiosPrivate.put<ApiBrand>(
+        `/api/admin/brands/${brandId}`,
+        payload
+      );
+      return response.data;
+    },
+    onSuccess: (updatedBrand) => {
+      queryClient.setQueryData(["brand", brandId], updatedBrand);
+      setIsEditing(false);
+      toast.success("Brand updated successfully");
+    },
+    onError: (mutationError: unknown) => {
+      const message =
+        mutationError instanceof Error
+          ? mutationError.message
+          : "Failed to update brand";
+      toast.error(message);
+    },
+  });
+
+  const handleFieldChange = <Key extends keyof BrandFormState>(
+    key: Key,
+    value: BrandFormState[Key]
+  ) => {
+    setFormState((prev) => (prev ? { ...prev, [key]: value } : prev));
+  };
+
+  const handleCancel = () => {
+    if (normalizedBrand) {
+      setFormState({
+        name: normalizedBrand.name,
+        description: normalizedBrand.description,
+        type: normalizedBrand.type,
+        status: normalizedBrand.status,
+        ownerId: normalizedBrand.ownerId,
+      });
+    }
+    setIsEditing(false);
+  };
+
+  const handleSave = () => {
+    if (!formState || !normalizedBrand) {
+      return;
+    }
+
+    const trimmedName = formState.name.trim();
+    const trimmedDescription = formState.description.trim();
+
+    if (!trimmedName) {
+      toast.error("Brand name is required");
+      return;
+    }
+
+    if (!formState.ownerId) {
+      toast.error("Brand owner is required");
+      return;
+    }
+
+    if (trimmedDescription.length > DESCRIPTION_LIMIT) {
+      toast.error(`Description must be ${DESCRIPTION_LIMIT} characters or less`);
+      return;
+    }
+
+    const payload: UpdateBrandPayload = {
+      name: trimmedName,
+      description: trimmedDescription,
+      type: formState.type,
+      status: formState.status,
+      ownerId: formState.ownerId,
     };
 
-    fetchBrandDetail();
-  }, [brandId, navigate]);
+    const hasChanges =
+      trimmedName !== normalizedBrand.name ||
+      trimmedDescription !== normalizedBrand.description ||
+      formState.type !== normalizedBrand.type ||
+      formState.status !== normalizedBrand.status ||
+      formState.ownerId !== normalizedBrand.ownerId;
 
-  const getBrandStats = (brand: Brand) => {
-    const totalKPIs = brand.kpis?.length || 0;
-    const achievedKPIs = brand.kpis?.filter(kpi => 
-      kpi.current_value >= (kpi.target_value || kpi.current_value)
-    ).length || 0;
-    const achievementRate = totalKPIs > 0 ? Math.round((achievedKPIs / totalKPIs) * 100) : 0;
-    
-    return { totalKPIs, achievedKPIs, achievementRate };
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case 'active': return 'bg-success';
-      case 'inactive': return 'bg-destructive';
-      case 'pending': return 'bg-warning';
-      default: return 'bg-muted';
+    if (!hasChanges) {
+      toast.info("No changes to save");
+      setIsEditing(false);
+      return;
     }
+
+    updateBrandMutation.mutate(payload);
   };
 
-  if (loading) {
+  useEffect(() => {
+    if (!canEdit && isEditing) {
+      setIsEditing(false);
+    }
+  }, [canEdit, isEditing]);
+
+  if (brandLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -101,329 +353,242 @@ const BrandDetail = () => {
     );
   }
 
-  if (!brand) {
+  if (brandError) {
+    const errorMessage =
+      error instanceof Error ? error.message : "Unable to load brand details";
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <Building2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-foreground mb-2">Brand not found</h3>
-          <Button onClick={() => navigate('/adminpanel/brands')}>
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Brands
-          </Button>
-        </div>
+        <Card className="max-w-md">
+          <CardHeader>
+            <CardTitle>Brand not available</CardTitle>
+            <CardDescription>{errorMessage}</CardDescription>
+          </CardHeader>
+          <CardFooter>
+            <Button onClick={() => navigate("/adminpanel/brands")}>Back to Brands</Button>
+          </CardFooter>
+        </Card>
       </div>
     );
   }
 
-  const stats = getBrandStats(brand);
+  if (!normalizedBrand) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Card className="max-w-md">
+          <CardHeader>
+            <CardTitle>Brand not found</CardTitle>
+            <CardDescription>
+              We couldn't locate the requested brand. It may have been removed.
+            </CardDescription>
+          </CardHeader>
+          <CardFooter>
+            <Button onClick={() => navigate("/adminpanel/brands")}>Back to Brands</Button>
+          </CardFooter>
+        </Card>
+      </div>
+    );
+  }
+
+  const statusVariant =
+    normalizedBrand.status === "active"
+      ? "default"
+      : normalizedBrand.status === "inactive"
+        ? "destructive"
+        : "secondary";
+
+  const descriptionLength = formState?.description.length ?? 0;
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => navigate('/adminpanel/brands')}
-          >
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="flex items-center gap-3">
+          <Button variant="outline" size="icon" onClick={() => navigate(-1)}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
-            <h1 className="text-3xl font-bold tracking-tight text-foreground">{brand.name}</h1>
-            <p className="text-muted-foreground">{brand.description}</p>
-          </div>
-        </div>
-        
-        <div className="flex items-center gap-2">
-          <Badge variant={brand.type === 'internal' ? 'default' : 'secondary'}>
-            {brand.type}
-          </Badge>
-          <Badge variant={brand.is_active ? 'default' : 'destructive'}>
-            {brand.is_active ? 'Active' : 'Inactive'}
-          </Badge>
-          <Button size="sm">
-            <Edit className="mr-2 h-4 w-4" />
-            Edit Brand
-          </Button>
-        </div>
-      </div>
-
-      {/* Overview Stats */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">KPI Performance</CardTitle>
-            <Target className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.achievementRate}%</div>
-            <p className="text-xs text-muted-foreground">
-              {stats.achievedKPIs} of {stats.totalKPIs} KPIs achieved
+            <h1 className="text-3xl font-bold tracking-tight text-foreground">
+              {normalizedBrand.name || "Brand details"}
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              View and manage core brand information.
             </p>
-            <Progress value={stats.achievementRate} className="mt-2" />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Team Members</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{brand.team_members?.length || 0}</div>
-            <p className="text-xs text-muted-foreground">Active team members</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Monthly Budget</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              ${brand.monthly_budget?.toLocaleString() || '0'}
-            </div>
-            <p className="text-xs text-muted-foreground">Allocated budget</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Integrations</CardTitle>
-            <Plug className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{brand.active_integrations?.length || 0}</div>
-            <p className="text-xs text-muted-foreground">Active integrations</p>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant="outline" className="capitalize">
+            {toTitleCase(normalizedBrand.type)}
+          </Badge>
+          <Badge variant={statusVariant} className="capitalize">
+            {toTitleCase(normalizedBrand.status)}
+          </Badge>
+        </div>
       </div>
 
-      {/* Main Content Tabs */}
-      <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="kpis">KPIs & Metrics</TabsTrigger>
-          <TabsTrigger value="team">Team</TabsTrigger>
-          <TabsTrigger value="integrations">Integrations</TabsTrigger>
-          <TabsTrigger value="settings">Settings</TabsTrigger>
-        </TabsList>
+      <Card>
+        <CardHeader>
+          <CardTitle>Brand information</CardTitle>
+          <CardDescription>
+            Keep the brand profile up to date for your team.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="grid gap-6 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="brand-name">Brand Name</Label>
+              <Input
+                id="brand-name"
+                value={formState?.name ?? ""}
+                onChange={(event) => handleFieldChange("name", event.target.value)}
+                disabled={!isEditing || !canEdit || updateBrandMutation.isPending}
+                placeholder="Enter brand name"
+              />
+            </div>
 
-        <TabsContent value="overview" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            {/* Brand Information */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Building2 className="h-5 w-5" />
-                  Brand Information
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Brand Name</label>
-                  <p className="text-sm font-medium">{brand.name}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Description</label>
-                  <p className="text-sm">{brand.description}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Type</label>
-                  <p className="text-sm capitalize">{brand.type}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Status</label>
-                  <p className="text-sm capitalize">{brand.status}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Created</label>
-                  <p className="text-sm">{new Date(brand.created_at).toLocaleDateString()}</p>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Owner Information */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="h-5 w-5" />
-                  Brand Owner
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-3">
-                  <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                    <span className="text-lg font-medium text-primary">
-                      {(brand.owner_name || 'U').split(' ').map(n => n[0]).join('').slice(0, 2)}
-                    </span>
-                  </div>
-                  <div>
-                    <p className="font-medium">{brand.owner_name || 'Unknown'}</p>
-                    <p className="text-sm text-muted-foreground">Brand Owner</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="kpis" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <BarChart3 className="h-5 w-5" />
-                Key Performance Indicators
-              </CardTitle>
-              <CardDescription>
-                Track and monitor your brand's performance metrics
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {brand.kpis && brand.kpis.length > 0 ? (
-                <div className="space-y-4">
-                  {brand.kpis.map((kpi) => {
-                    const progress = kpi.target_value 
-                      ? Math.min((kpi.current_value / kpi.target_value) * 100, 100)
-                      : 100;
-                    
-                    return (
-                      <div key={kpi.id} className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <h4 className="text-sm font-medium">{kpi.name}</h4>
-                            <p className="text-xs text-muted-foreground">{kpi.description}</p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-sm font-bold">
-                              {kpi.type === 'currency' ? '$' : ''}
-                              {kpi.current_value.toLocaleString()}
-                              {kpi.type === 'percentage' ? '%' : ''}
-                            </p>
-                            {kpi.target_value && (
-                              <p className="text-xs text-muted-foreground">
-                                Target: {kpi.type === 'currency' ? '$' : ''}
-                                {kpi.target_value.toLocaleString()}
-                                {kpi.type === 'percentage' ? '%' : ''}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                        {kpi.target_value && (
-                          <Progress value={progress} className="h-2" />
-                        )}
-                        <Separator />
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <BarChart3 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-foreground mb-2">No KPIs configured</h3>
-                  <p className="text-muted-foreground mb-4">
-                    Set up key performance indicators to track your brand's success
-                  </p>
-                  <Button>Add KPI</Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="team" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5" />
-                Team Members
-              </CardTitle>
-              <CardDescription>
-                Manage team members and their access to this brand
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-8">
-                <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-foreground mb-2">Team management</h3>
-                <p className="text-muted-foreground mb-4">
-                  Team member management will be available soon
-                </p>
-                <Button variant="outline">Manage Team</Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="integrations" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Plug className="h-5 w-5" />
-                Active Integrations
-              </CardTitle>
-              <CardDescription>
-                Connected services and data sources for this brand
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {brand.active_integrations && brand.active_integrations.length > 0 ? (
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {brand.active_integrations.map((integration, index) => (
-                    <div key={index} className="p-4 border rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                          <Plug className="h-5 w-5 text-primary" />
-                        </div>
-                        <div>
-                          <p className="font-medium capitalize">{integration.replace('_', ' ')}</p>
-                          <p className="text-xs text-muted-foreground">Connected</p>
-                        </div>
-                      </div>
-                    </div>
+            <div className="space-y-2">
+              <Label htmlFor="brand-type">Type</Label>
+              <Select
+                value={formState?.type || undefined}
+                onValueChange={(value) => handleFieldChange("type", value)}
+                disabled={!isEditing || !canEdit || updateBrandMutation.isPending}
+              >
+                <SelectTrigger id="brand-type">
+                  <SelectValue placeholder="Select brand type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {TYPE_OPTIONS.map((option) => (
+                    <SelectItem key={option} value={option}>
+                      {toTitleCase(option)}
+                    </SelectItem>
                   ))}
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <Plug className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-foreground mb-2">No integrations</h3>
-                  <p className="text-muted-foreground mb-4">
-                    Connect services to automatically track your brand's performance
-                  </p>
-                  <Button>Add Integration</Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+                </SelectContent>
+              </Select>
+            </div>
 
-        <TabsContent value="settings" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Settings className="h-5 w-5" />
-                Brand Settings
-              </CardTitle>
-              <CardDescription>
-                Configure brand settings and preferences
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-8">
-                <Settings className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-foreground mb-2">Settings panel</h3>
-                <p className="text-muted-foreground mb-4">
-                  Brand settings configuration will be available soon
+            <div className="space-y-2">
+              <Label htmlFor="brand-status">Status</Label>
+              <Select
+                value={formState?.status || undefined}
+                onValueChange={(value) => handleFieldChange("status", value)}
+                disabled={!isEditing || !canEdit || updateBrandMutation.isPending}
+              >
+                <SelectTrigger id="brand-status">
+                  <SelectValue placeholder="Select brand status" />
+                </SelectTrigger>
+                <SelectContent>
+                  {STATUS_OPTIONS.map((option) => (
+                    <SelectItem key={option} value={option}>
+                      {toTitleCase(option)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="brand-owner">Brand Owner</Label>
+              <Select
+                value={formState?.ownerId || undefined}
+                onValueChange={(value) => handleFieldChange("ownerId", value)}
+                disabled={
+                  !isEditing ||
+                  !canEdit ||
+                  ownersLoading ||
+                  updateBrandMutation.isPending
+                }
+              >
+                <SelectTrigger id="brand-owner">
+                  <SelectValue placeholder="Select brand owner" />
+                </SelectTrigger>
+                <SelectContent>
+                  {normalizedOwners.map((owner) => (
+                    <SelectItem key={owner.id} value={owner.id}>
+                      {owner.initials ? `${owner.initials} · ${owner.name}` : owner.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {!canEdit && (
+                <p className="text-xs text-muted-foreground">
+                  Editing requires admin or brand manager access.
                 </p>
-                <Button variant="outline">Configure Settings</Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+              )}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="brand-description">Description</Label>
+            <Textarea
+              id="brand-description"
+              value={formState?.description ?? ""}
+              onChange={(event) => handleFieldChange("description", event.target.value)}
+              disabled={!isEditing || !canEdit || updateBrandMutation.isPending}
+              placeholder="Provide a concise brand overview"
+              maxLength={DESCRIPTION_LIMIT}
+              rows={5}
+            />
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>Maximum {DESCRIPTION_LIMIT} characters.</span>
+              <span>{descriptionLength}/{DESCRIPTION_LIMIT}</span>
+            </div>
+          </div>
+
+          <Separator />
+
+          <div className="grid gap-6 md:grid-cols-2">
+            <div className="space-y-1">
+              <Label>Created</Label>
+              <p className="text-sm text-muted-foreground">
+                {formatDate(normalizedBrand.createdAt)}
+              </p>
+            </div>
+            <div className="space-y-1">
+              <Label>Owner</Label>
+              <p className="text-sm text-muted-foreground">
+                {normalizedBrand.ownerInitials
+                  ? `${normalizedBrand.ownerInitials} · ${normalizedBrand.ownerName || "Unassigned"}`
+                  : normalizedBrand.ownerName || "Unassigned"}
+              </p>
+            </div>
+          </div>
+        </CardContent>
+        <CardFooter className="flex flex-col gap-4 border-t border-border bg-muted/30 py-6 md:flex-row md:items-center md:justify-between">
+          <div className="text-sm text-muted-foreground">
+            Last updated {formatDateTime(normalizedBrand.updatedAt)}
+          </div>
+          {canEdit && (
+            <div className="flex items-center gap-2">
+              {isEditing ? (
+                <>
+                  <Button
+                    onClick={handleSave}
+                    disabled={updateBrandMutation.isPending}
+                  >
+                    {updateBrandMutation.isPending ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Check className="mr-2 h-4 w-4" />
+                    )}
+                    Save
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={handleCancel}
+                    disabled={updateBrandMutation.isPending}
+                  >
+                    <X className="mr-2 h-4 w-4" />
+                    Cancel
+                  </Button>
+                </>
+              ) : (
+                <Button onClick={() => setIsEditing(true)}>
+                  <Edit3 className="mr-2 h-4 w-4" />
+                  Edit brand
+                </Button>
+              )}
+            </div>
+          )}
+        </CardFooter>
+      </Card>
     </div>
   );
 };

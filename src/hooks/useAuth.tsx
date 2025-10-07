@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { supabase } from '@/integrations/supabase/client';
 import type { User as SupabaseUser, Session } from '@supabase/supabase-js';
 
-type UserRole = 'super_admin' | 'manager' | 'pm' | 'user';
+type UserRole = 'super_admin' | 'manager' | 'brand_manager' | 'pm' | 'user';
 
 interface User {
   id: string;
@@ -34,8 +34,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const roleHierarchy: Record<UserRole, number> = {
     'user': 1,
     'pm': 2,
-    'manager': 3,
-    'super_admin': 4
+    'brand_manager': 3,
+    'manager': 4,
+    'super_admin': 5
   };
 
   // Fetch user profile from custom users table
