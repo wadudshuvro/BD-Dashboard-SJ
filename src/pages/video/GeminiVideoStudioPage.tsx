@@ -88,8 +88,8 @@ const GeminiVideoStudioPage = () => {
   } = useQuery({
     queryKey: ["gemini-veo-videos"],
     queryFn: listGeminiVideos,
-    refetchInterval: (data) =>
-      data?.some((video) => isGeminiVideoProcessing(video.status)) ? 15000 : false,
+    refetchInterval: (query) =>
+      query.state.data?.some((video) => isGeminiVideoProcessing(video.status)) ? 15000 : false,
   });
 
   const sortedVideos = useMemo(() => sortVideos(videos), [videos]);
