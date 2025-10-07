@@ -37,6 +37,7 @@ import AIAgentsPage from "./pages/ai-agents";
 import MyAgentsPage from "./pages/my-agents";
 import GoHighLevelPage from "./pages/gohighlevel";
 import AIDashboard from "./pages/ai-dashboard";
+import VideoPage from "./pages/video/VideoPage";
 
 const queryClient = new QueryClient();
 
@@ -114,6 +115,7 @@ const App = () => (
             }>
               <Route index element={<ManagerDashboard />} />
               <Route path="workspace" element={<AIWorkspace />} />
+              <Route path="workspace/video" element={<VideoPage />} />
               <Route path="clients-projects" element={<ClientsProjects />} />
               <Route path="clients" element={<ClientManagement />} />
               <Route path="clients/:clientId" element={<ClientDetail />} />

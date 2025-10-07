@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { Bot, FileText, Search, Calendar, Sparkles, Send, Copy, Check, Wrench, Plus, Settings, Download, Upload, Play, Code, Database, Zap, TrendingUp, Activity, Pause } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -269,6 +270,7 @@ interface AITool {
   lastUsed: string;
   isCustom: boolean;
   config?: Record<string, any>;
+  href?: string;
 }
 
 const mockTools: AITool[] = [
@@ -301,6 +303,17 @@ const mockTools: AITool[] = [
     usageCount: 12,
     lastUsed: '2024-01-12T09:45:00Z',
     isCustom: true
+  },
+  {
+    id: 'video-ai',
+    name: 'AI Video Studio (Sora 2)',
+    description: 'Generate, manage, and review OpenAI Sora videos within the marketing workspace',
+    category: 'content',
+    status: 'active',
+    usageCount: 64,
+    lastUsed: new Date().toISOString(),
+    isCustom: false,
+    href: '/dashboard/workspace/video'
   }
 ];
 
@@ -1022,9 +1035,18 @@ export default function AIWorkspace() {
                           </Button>
                         </>
                       )}
-                      <Button variant="outline" size="sm">
-                        <Play className="h-4 w-4" />
-                      </Button>
+                      {tool.href ? (
+                        <Button variant="outline" size="sm" asChild>
+                          <Link to={tool.href} className="flex items-center gap-1">
+                            <Play className="h-4 w-4" />
+                            <span>Launch</span>
+                          </Link>
+                        </Button>
+                      ) : (
+                        <Button variant="outline" size="sm">
+                          <Play className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </CardContent>
