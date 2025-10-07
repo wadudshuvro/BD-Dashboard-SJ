@@ -13,6 +13,7 @@ interface RemixModalProps {
   defaultPrompt?: string;
   isLoading?: boolean;
   onSubmit: (prompt: string) => Promise<void> | void;
+  providerName?: string;
 }
 
 export const RemixModal = ({
@@ -22,6 +23,7 @@ export const RemixModal = ({
   defaultPrompt,
   isLoading,
   onSubmit,
+  providerName = "OpenAI's Sora",
 }: RemixModalProps) => {
   const [prompt, setPrompt] = useState(defaultPrompt ?? "");
   const [touched, setTouched] = useState(false);
@@ -60,8 +62,8 @@ export const RemixModal = ({
             </DialogTitle>
             <DialogDescription>
               {videoTitle
-                ? `Provide a new prompt to enhance "${videoTitle}". We'll remix it with OpenAI's Sora model.`
-                : "Provide a new prompt to enhance this video. We'll remix it with OpenAI's Sora model."}
+                ? `Provide a new prompt to enhance "${videoTitle}". We'll remix it with ${providerName}.`
+                : `Provide a new prompt to enhance this video. We'll remix it with ${providerName}.`}
             </DialogDescription>
           </DialogHeader>
 
