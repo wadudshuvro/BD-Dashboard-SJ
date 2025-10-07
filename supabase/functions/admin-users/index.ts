@@ -150,7 +150,7 @@ const transformUser = (userData: RawUserRecord): UserWithDetails => ({
 });
 
 const syncUserBrands = async (
-  client: SupabaseServiceClient,
+  client: any,
   userId: string,
   brandAssignments: BrandAssignmentInput[] = [],
 ) => {
@@ -202,7 +202,7 @@ const syncUserBrands = async (
   if (normalizedAssignments.length > 0) {
     const { error: upsertError } = await client
       .from('user_brands')
-      .upsert(normalizedAssignments, { onConflict: 'user_id,brand_id' });
+      .upsert(normalizedAssignments as any, { onConflict: 'user_id,brand_id' });
 
     if (upsertError) {
       throw upsertError;
@@ -211,7 +211,7 @@ const syncUserBrands = async (
 };
 
 const fetchUserWithDetails = async (
-  client: SupabaseServiceClient,
+  client: any,
   userId: string,
 ): Promise<UserWithDetails | null> => {
   const { data: userData, error: userError } = await client
@@ -358,7 +358,7 @@ serve(async (req) => {
 
         // Transform the data
         const usersWithDetails: UserWithDetails[] = (users || []).map((user) =>
-          transformUser(user as RawUserRecord)
+          transformUser(user as any as RawUserRecord)
         )
 
         return new Response(

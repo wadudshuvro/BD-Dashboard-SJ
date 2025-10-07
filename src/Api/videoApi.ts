@@ -40,17 +40,30 @@ export interface SoraVideo {
   userId?: string;
   userName?: string;
   costUsd?: number;
+  brandId?: string;
+  brandName?: string;
+  brandSlug?: string;
   raw?: Record<string, unknown>;
+}
+
+export interface VideoMetadata {
+  user_id?: string;
+  user_name?: string;
+  brand_id?: string;
+  brand_name?: string;
+  brand_slug?: string;
+  title?: string;
 }
 
 export interface CreateVideoInput {
   prompt: string;
   model?: string;
+  title?: string;
+  brandId?: string;
+  brandName?: string;
+  brandSlug?: string;
   file?: File | null;
-  metadata?: {
-    user_id?: string;
-    user_name?: string;
-  };
+  metadata?: VideoMetadata;
 }
 
 export interface VideoBinaryContent {
@@ -62,12 +75,7 @@ export interface VideoBinaryContent {
 type SoraVideoManagerOperation =
   | { operation: "enhance"; idea: string }
   | { operation: "list" }
-  | { operation: "create"; prompt: string; model?: string; metadata?: CreateVideoInput["metadata"] }
-  | { operation: "delete"; videoId: string }
-  | { operation: "retrieve"; videoId: string }
-  | { operation: "thumbnail"; videoId: string }
-  | { operation: "content"; videoId: string }
-  | { operation: "remix"; videoId: string; prompt: string };
+
 
 const invokeSoraVideoManager = async <T>(payload: SoraVideoManagerOperation): Promise<T> => {
   const { data, error } = await supabase.functions.invoke<T>("sora-video-manager", {
@@ -94,6 +102,14 @@ const asNumber = (...values: Array<unknown>): number | undefined => {
     }
   }
   return undefined;
+};
+
+const asNonEmptyString = (value: unknown): string | undefined => {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
 };
 
 export const enhanceVideoIdea = async (idea: string): Promise<string> => {
@@ -264,12 +280,16 @@ const normalizeVideo = (raw: any): SoraVideo => {
   }
 
   const id = String((raw as any).id ?? (raw as any).video_id ?? crypto.randomUUID());
+  const metadata = (raw as any).metadata ?? {};
+  const metadataTitle = asNonEmptyString((metadata as any).title);
+  const fallbackPromptTitle =
+    typeof raw.prompt === "string" && raw.prompt.length > 0 ? raw.prompt.slice(0, 60) : undefined;
   const titleCandidate =
-    raw.title ||
-    raw.name ||
-    raw.display_name ||
-    raw.metadata?.title ||
-    raw.prompt?.slice?.(0, 60) ||
+    metadataTitle ||
+    asNonEmptyString(raw.title) ||
+    asNonEmptyString(raw.name) ||
+    asNonEmptyString(raw.display_name) ||
+    asNonEmptyString(fallbackPromptTitle) ||
     `Video ${id.slice(0, 8)}`;
 
   const durationSeconds = asNumber(
@@ -294,7 +314,10 @@ const normalizeVideo = (raw: any): SoraVideo => {
     id,
     status: normalizeStatus(raw),
     title: String(titleCandidate),
-    prompt: typeof raw.prompt === "string" ? raw.prompt : raw.metadata?.prompt,
+    prompt:
+      asNonEmptyString(raw.prompt) ||
+      asNonEmptyString((metadata as any).prompt) ||
+      (typeof raw.prompt === "string" ? raw.prompt : raw.metadata?.prompt),
     model: extractModel(raw),
     createdAt: raw.created_at || raw.created || raw.timestamp,
     durationSeconds: durationSeconds,
@@ -303,6 +326,18 @@ const normalizeVideo = (raw: any): SoraVideo => {
     userId: raw.user_id || raw.metadata?.user_id,
     userName: raw.user_name || raw.metadata?.user_name,
     costUsd: costUsd,
+    brandId:
+      asNonEmptyString(raw.brand_id) ||
+      asNonEmptyString((metadata as any).brand_id) ||
+      asNonEmptyString((metadata as any).brand?.id),
+    brandName:
+      asNonEmptyString(raw.brand_name) ||
+      asNonEmptyString((metadata as any).brand_name) ||
+      asNonEmptyString((metadata as any).brand?.name),
+    brandSlug:
+      asNonEmptyString(raw.brand_slug) ||
+      asNonEmptyString((metadata as any).brand_slug) ||
+      asNonEmptyString((metadata as any).brand?.slug),
     raw: raw ?? undefined,
   };
 };
@@ -334,12 +369,48 @@ export const getVideos = async (model?: string): Promise<SoraVideo[]> => {
   return videos;
 };
 
-export const createVideo = async ({ prompt, model = "sora-2", file, metadata }: CreateVideoInput): Promise<SoraVideo> => {
+export const createVideo = async ({
+  prompt,
+  model = "sora-2",
+  title,
+  brandId,
+  brandName,
+  brandSlug,
+  file,
+  metadata,
+}: CreateVideoInput): Promise<SoraVideo> => {
   if (!prompt || !prompt.trim()) {
     throw new Error("Prompt is required to generate a video.");
   }
 
   const resolvedModel = typeof model === "string" && model.trim().length > 0 ? model.trim() : "sora-2";
+
+  const metadataPayload: VideoMetadata = {
+    ...(metadata ?? {}),
+  };
+
+  const trimmedTitle = asNonEmptyString(title);
+  if (trimmedTitle && !metadataPayload.title) {
+    metadataPayload.title = trimmedTitle;
+  }
+
+  if (brandId && !metadataPayload.brand_id) {
+    metadataPayload.brand_id = brandId;
+  }
+
+  if (brandName && !metadataPayload.brand_name) {
+    metadataPayload.brand_name = brandName;
+  }
+
+  if (brandSlug && !metadataPayload.brand_slug) {
+    metadataPayload.brand_slug = brandSlug;
+  }
+
+  const sanitizedMetadata = Object.fromEntries(
+    Object.entries(metadataPayload).filter(([, value]) =>
+      typeof value === "string" ? value.trim().length > 0 : value !== undefined && value !== null,
+    ),
+  ) as VideoMetadata;
 
   if (file) {
     throw new Error("Uploading reference files is not supported via the Supabase proxy.");
@@ -349,7 +420,8 @@ export const createVideo = async ({ prompt, model = "sora-2", file, metadata }: 
     operation: "create",
     prompt: prompt.trim(),
     model: resolvedModel,
-    metadata,
+    title: trimmedTitle,
+    metadata: Object.keys(sanitizedMetadata).length > 0 ? sanitizedMetadata : undefined,
   });
   if (Array.isArray(payload?.data) && payload.data.length > 0) {
     return normalizeVideo(payload.data[0]);

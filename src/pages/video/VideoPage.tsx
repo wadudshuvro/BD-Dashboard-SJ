@@ -9,6 +9,7 @@ import { VideoCard } from "@/components/video/VideoCard";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   SoraVideo,
+  CreateVideoInput,
   createVideo,
   deleteVideo,
   getVideoById,
@@ -35,10 +36,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { RemixModal } from "@/components/video/RemixModal";
+
 
 const skeletonArray = Array.from({ length: 6 });
 const DEFAULT_VIDEO_MODELS = ["sora-2"];
+
+type BrandOption = {
+  id: string;
+  name: string;
+  slug?: string;
+};
 
 const formatDuration = (seconds?: number) => {
   if (seconds === undefined || seconds === null || Number.isNaN(seconds)) return "--";
@@ -92,6 +99,18 @@ const formatStatusSubtitle = (video: SoraVideo) => {
   return segments.join(" • ");
 };
 
+const pickFirstString = (...values: Array<string | undefined | null>) => {
+  for (const value of values) {
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      if (trimmed.length > 0) {
+        return trimmed;
+      }
+    }
+  }
+  return undefined;
+};
+
 const VideoPage = () => {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [selectedVideo, setSelectedVideo] = useState<SoraVideo | null>(null);
@@ -105,6 +124,66 @@ const VideoPage = () => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { user } = useAuth();
+
+  const { data: brandOptions = [], isLoading: isBrandLoading } = useQuery<BrandOption[]>({
+    queryKey: ["admin-brands", "options"],
+    enabled: Boolean(user?.id),
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+    queryFn: async () => {
+      const { data: session } = await supabase.auth.getSession();
+      const accessToken = session?.session?.access_token;
+      if (!accessToken) {
+        return [];
+      }
+
+      const response = await supabase.functions.invoke("admin-brands", {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+
+      if (response.error || !response.data) {
+        console.error("Failed to load brands:", response.error);
+        toast({
+          title: "Unable to load brands",
+          description: response.error?.message || "Please try again later",
+          variant: "destructive",
+        });
+        return [];
+      }
+
+      type BrandRecord = {
+        id?: string;
+        name?: string | null;
+        slug?: string | null;
+      };
+
+      const records = response.data as BrandRecord[];
+
+      const parseBrandOption = (record: BrandRecord): BrandOption | null => {
+        const id = record?.id?.trim();
+        const name = record?.name?.trim();
+        const slug = record?.slug?.trim();
+
+        if (!id || !name) {
+          return null;
+        }
+
+        return {
+          id,
+          name,
+          slug,
+        };
+      };
+
+      return records
+        .map((record) => parseBrandOption(record))
+        .filter((brand): brand is BrandOption => Boolean(brand))
+        .sort((a, b) => a.name.localeCompare(b.name));
+    },
+  });
 
   const {
     data: videos = [],
@@ -211,15 +290,31 @@ const VideoPage = () => {
     });
     queryClient.invalidateQueries({ queryKey: ["sora-videos"] });
   };
-  const createMutation = useMutation({
+  const createMutation = useMutation<SoraVideo, unknown, CreateVideoInput>({
     mutationFn: createVideo,
-    onSuccess: (video) => {
+    onSuccess: (video, variables) => {
+      const resolvedTitle =
+        pickFirstString(video.title, variables.title, variables.metadata?.title, variables.prompt) ??
+        `Video ${video.id.slice(0, 8)}`;
+      const resolvedBrandId = pickFirstString(video.brandId, variables.brandId, variables.metadata?.brand_id);
+      const resolvedBrandName = pickFirstString(video.brandName, variables.brandName, variables.metadata?.brand_name);
+      const resolvedBrandSlug = pickFirstString(video.brandSlug, variables.brandSlug, variables.metadata?.brand_slug);
+
+      const enrichedVideo = enrichWithUser({
+        ...video,
+        title: resolvedTitle,
+        brandId: resolvedBrandId,
+        brandName: resolvedBrandName,
+        brandSlug: resolvedBrandSlug,
+        model: video.model ?? variables.model,
+      });
+
       toast({
         title: "Video generation started",
-        description: `"${video.title}" is now processing. We'll notify you when it's ready.`,
+        description: `"${resolvedTitle}" is now processing. We'll notify you when it's ready.`,
       });
       setIsCreateOpen(false);
-      updateVideoInCache(enrichWithUser(video));
+      updateVideoInCache(enrichedVideo);
       queryClient.invalidateQueries({ queryKey: ["sora-videos"] });
       void pollVideoStatus(video.id);
     },
@@ -486,14 +581,24 @@ const VideoPage = () => {
         onOpenChange={setIsCreateOpen}
         defaultModel={selectedModel}
         models={availableModels}
+        brandOptions={brandOptions ?? []}
+        isBrandLoading={isBrandLoading}
         onCreate={(data) => {
           setSelectedModel(data.model);
           createMutation.mutate({
             prompt: data.prompt,
             model: data.model,
+            title: data.keyword,
+            brandId: data.brandId,
+            brandName: data.brandName,
+            brandSlug: data.brandSlug,
             metadata: {
               user_id: user?.id,
               user_name: user?.name,
+              brand_id: data.brandId,
+              brand_name: data.brandName,
+              brand_slug: data.brandSlug,
+              title: data.keyword,
             },
           });
         }}

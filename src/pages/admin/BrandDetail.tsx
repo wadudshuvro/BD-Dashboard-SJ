@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Check, Edit3, Loader2, X } from "lucide-react";
 import { toast } from "sonner";
 
-import axiosPrivate from "@/lib/axiosPrivate";
+import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import {
   Card,
@@ -170,18 +170,55 @@ const BrandDetail = () => {
     queryKey: ["brand", brandId],
     enabled: Boolean(brandId),
     queryFn: async () => {
-      const response = await axiosPrivate.get<ApiBrand>(`/api/admin/brands/${brandId}`);
-      return response.data;
+      const { data: session } = await supabase.auth.getSession();
+      if (!session?.session?.access_token) {
+        throw new Error('No valid session');
+      }
+
+      const response = await supabase.functions.invoke('admin-brands', {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${session.session.access_token}`,
+        },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message || 'Failed to fetch brand');
+      }
+
+      // The edge function returns a single brand when id param is passed
+      // Check if brandId is in the URL params
+      const url = new URL(`https://temp.com/admin-brands`);
+      url.searchParams.set('id', brandId || '');
+      
+      const responseWithId = await supabase.functions.invoke(`admin-brands?id=${brandId}`, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${session.session.access_token}`,
+        },
+      });
+
+      if (responseWithId.error) {
+        throw new Error(responseWithId.error.message || 'Failed to fetch brand');
+      }
+
+      return responseWithId.data as ApiBrand;
     },
   });
 
   const { data: owners, isLoading: ownersLoading } = useQuery<ApiBrandOwner[]>({
     queryKey: ["brand-owners"],
     queryFn: async () => {
-      const response = await axiosPrivate.get<ApiBrandOwner[]>("/api/admin/users", {
-        params: { role: "brand_owner" },
-      });
-      return response.data;
+      const { data, error } = await supabase
+        .from('users')
+        .select('id, email, first_name, last_name')
+        .in('role', ['super_admin', 'manager']);
+
+      if (error) {
+        throw new Error(error.message || 'Failed to fetch users');
+      }
+
+      return data as ApiBrandOwner[];
     },
   });
 
@@ -252,11 +289,31 @@ const BrandDetail = () => {
 
   const updateBrandMutation = useMutation({
     mutationFn: async (payload: UpdateBrandPayload) => {
-      const response = await axiosPrivate.put<ApiBrand>(
-        `/api/admin/brands/${brandId}`,
-        payload
-      );
-      return response.data;
+      const { data: session } = await supabase.auth.getSession();
+      if (!session?.session?.access_token) {
+        throw new Error('No valid session');
+      }
+
+      const response = await supabase.functions.invoke(`admin-brands?id=${brandId}`, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${session.session.access_token}`,
+        },
+        body: {
+          name: payload.name,
+          description: payload.description,
+          type: payload.type,
+          owner_id: payload.ownerId,
+          is_active: payload.status === 'active',
+          status: payload.status,
+        },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message || 'Failed to update brand');
+      }
+
+      return response.data as ApiBrand;
     },
     onSuccess: (updatedBrand) => {
       queryClient.setQueryData(["brand", brandId], updatedBrand);
