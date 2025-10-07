@@ -34,16 +34,25 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useAdminBrands, Brand, CreateBrandData } from "@/hooks/useAdminBrands";
+import {
+  useAdminBrands,
+  Brand,
+  CreateBrandData,
+  UpdateBrandData
+} from "@/hooks/useAdminBrands";
 import { useAdminUsers } from "@/hooks/useAdminUsers";
 
 const BrandManagement = () => {
-  const { brands, loading, createBrand } = useAdminBrands();
+  const { brands, loading, createBrand, updateBrand, refetch } = useAdminBrands();
   const { users } = useAdminUsers();
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState<"all" | "internal" | "client">("all");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [selectedBrand, setSelectedBrand] = useState<Brand | null>(null);
+  const [editBrandData, setEditBrandData] = useState<UpdateBrandData | null>(null);
   
   // Form state for new brand
   const [newBrandData, setNewBrandData] = useState<CreateBrandData>({
@@ -90,6 +99,46 @@ const BrandManagement = () => {
     const achievementRate = totalKPIs > 0 ? Math.round((achievedKPIs / totalKPIs) * 100) : 0;
     
     return { totalKPIs, achievedKPIs, achievementRate };
+  };
+
+  const handleOpenEditDialog = (brand: Brand) => {
+    setSelectedBrand(brand);
+    setEditBrandData({
+      name: brand.name,
+      description: brand.description,
+      type: brand.type,
+      owner_id: brand.owner_id,
+      monthly_budget: brand.monthly_budget,
+      is_active: brand.is_active,
+      status: brand.status
+    });
+    setIsEditDialogOpen(true);
+  };
+
+  const resetEditState = () => {
+    setIsEditDialogOpen(false);
+    setSelectedBrand(null);
+    setEditBrandData(null);
+    setIsUpdating(false);
+  };
+
+  const handleUpdateBrand = async () => {
+    if (!selectedBrand || !editBrandData) {
+      return;
+    }
+
+    if (!editBrandData.name || !editBrandData.description || !editBrandData.owner_id) {
+      return;
+    }
+
+    setIsUpdating(true);
+    const updated = await updateBrand(selectedBrand.id, editBrandData);
+    setIsUpdating(false);
+
+    if (updated) {
+      resetEditState();
+      refetch();
+    }
   };
 
   return (
@@ -208,6 +257,130 @@ const BrandManagement = () => {
             </div>
           </DialogContent>
         </Dialog>
+
+        <Dialog
+          open={isEditDialogOpen}
+          onOpenChange={(open) => {
+            if (!open) {
+              resetEditState();
+            } else {
+              setIsEditDialogOpen(true);
+            }
+          }}
+        >
+          <DialogContent className="sm:max-w-[600px]">
+            <DialogHeader>
+              <DialogTitle>Edit Brand</DialogTitle>
+              <DialogDescription>
+                Update brand details to keep information accurate across the team.
+              </DialogDescription>
+            </DialogHeader>
+            {editBrandData && (
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-brand-name">Brand Name</Label>
+                    <Input
+                      id="edit-brand-name"
+                      placeholder="Enter brand name"
+                      value={editBrandData.name}
+                      onChange={(e) =>
+                        setEditBrandData(prev => prev ? { ...prev, name: e.target.value } : prev)
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-brand-type">Brand Type</Label>
+                    <Select
+                      value={editBrandData.type}
+                      onValueChange={(value: "internal" | "client") =>
+                        setEditBrandData(prev => prev ? { ...prev, type: value } : prev)
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="internal">Internal Brand</SelectItem>
+                        <SelectItem value="client">Client Brand</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-brand-description">Description</Label>
+                  <Textarea
+                    id="edit-brand-description"
+                    placeholder="Brief description of the brand"
+                    value={editBrandData.description}
+                    onChange={(e) =>
+                      setEditBrandData(prev => prev ? { ...prev, description: e.target.value } : prev)
+                    }
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-brand-owner">Brand Owner</Label>
+                    <Select
+                      value={editBrandData.owner_id}
+                      onValueChange={(value) =>
+                        setEditBrandData(prev => prev ? { ...prev, owner_id: value } : prev)
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select owner" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {users
+                          .filter(user => user.role === "manager" || user.role === "super_admin")
+                          .map(user => (
+                            <SelectItem key={user.id} value={user.id}>
+                              {user.first_name && user.last_name
+                                ? `${user.first_name} ${user.last_name}`
+                                : user.email
+                              }
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-monthly-budget">Monthly Budget ($)</Label>
+                    <Input
+                      id="edit-monthly-budget"
+                      type="number"
+                      placeholder="0"
+                      value={editBrandData.monthly_budget ?? ""}
+                      onChange={(e) =>
+                        setEditBrandData(prev => prev ? {
+                          ...prev,
+                          monthly_budget: e.target.value ? Number(e.target.value) : undefined
+                        } : prev)
+                      }
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={resetEditState}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleUpdateBrand}
+                disabled={
+                  isUpdating ||
+                  !editBrandData?.name ||
+                  !editBrandData?.description ||
+                  !editBrandData?.owner_id
+                }
+              >
+                {isUpdating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Save Changes
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Filters and Search */}
@@ -270,7 +443,7 @@ const BrandManagement = () => {
                         <Eye className="mr-2 h-4 w-4" />
                         View Details
                       </DropdownMenuItem>
-                      <DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleOpenEditDialog(brand)}>
                         <Edit className="mr-2 h-4 w-4" />
                         Edit Brand
                       </DropdownMenuItem>
