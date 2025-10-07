@@ -138,35 +138,37 @@ const VideoPage = () => {
         },
       });
 
-      if (response.error) {
-        throw new Error(response.error.message || "Failed to load brands");
+      if (response.error || !response.data) {
+        console.error("Failed to load brands:", response.error);
+        toast({
+          title: "Unable to load brands",
+          description: response.error?.message || "Please try again later",
+          variant: "destructive",
+        });
+        return [];
       }
 
-      const records: unknown[] = Array.isArray(response.data) ? response.data : [];
+      type BrandRecord = {
+        id?: string;
+        name?: string | null;
+        slug?: string | null;
+      };
 
-      const parseBrandOption = (record: unknown): BrandOption | null => {
-        if (!record || typeof record !== "object") {
+      const records = response.data as BrandRecord[];
+
+      const parseBrandOption = (record: BrandRecord): BrandOption | null => {
+        const id = record?.id?.trim();
+        const name = record?.name?.trim();
+        const slug = record?.slug?.trim();
+
+        if (!id || !name) {
           return null;
         }
-        const candidate = record as Record<string, unknown>;
-        const id = typeof candidate.id === "string" ? candidate.id : undefined;
-        if (!id) {
-          return null;
-        }
-
-        const nameValue =
-          typeof candidate.name === "string" && candidate.name.trim().length > 0
-            ? candidate.name.trim()
-            : "Untitled brand";
-        const slugValue =
-          typeof candidate.slug === "string" && candidate.slug.trim().length > 0
-            ? candidate.slug.trim()
-            : undefined;
 
         return {
           id,
-          name: nameValue,
-          slug: slugValue,
+          name,
+          slug,
         };
       };
 
@@ -174,14 +176,6 @@ const VideoPage = () => {
         .map((record) => parseBrandOption(record))
         .filter((brand): brand is BrandOption => Boolean(brand))
         .sort((a, b) => a.name.localeCompare(b.name));
-    },
-    onError: (error: unknown) => {
-      const message = error instanceof Error ? error.message : "Unable to load brands.";
-      toast({
-        title: "Unable to load brands",
-        description: message,
-        variant: "destructive",
-      });
     },
   });
 
@@ -499,7 +493,7 @@ const VideoPage = () => {
         onOpenChange={setIsCreateOpen}
         defaultModel={selectedModel}
         models={availableModels}
-        brandOptions={brandOptions}
+        brandOptions={brandOptions ?? []}
         isBrandLoading={isBrandLoading}
         onCreate={(data) => {
           setSelectedModel(data.model);

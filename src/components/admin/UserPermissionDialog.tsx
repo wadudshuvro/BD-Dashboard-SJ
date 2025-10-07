@@ -22,7 +22,7 @@ import { AdminUser, BrandAssignment } from "@/hooks/useAdminUsers";
 import { useAdminBrands } from "@/hooks/useAdminBrands";
 
 interface UserPermissionDialogProps {
-  user: (AdminUser & { name?: string }) | null;
+  user: any;
   isOpen: boolean;
   onClose: () => void;
   onSave: (
