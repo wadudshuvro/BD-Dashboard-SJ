@@ -75,6 +75,12 @@ export interface VideoBinaryContent {
 type SoraVideoManagerOperation =
   | { operation: "enhance"; idea: string }
   | { operation: "list" }
+  | { operation: "retrieve"; videoId: string }
+  | { operation: "create"; prompt: string; model?: string; title?: string; metadata?: VideoMetadata }
+  | { operation: "delete"; videoId: string }
+  | { operation: "thumbnail"; videoId: string }
+  | { operation: "content"; videoId: string }
+  | { operation: "remix"; videoId: string; prompt: string }
 
 
 const invokeSoraVideoManager = async <T>(payload: SoraVideoManagerOperation): Promise<T> => {
