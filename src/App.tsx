@@ -82,6 +82,7 @@ const App = () => (
             }>
               <Route path="dashboard" element={<UserDashboard />} />
               <Route path="workspace" element={<AIWorkspace />} />
+              <Route path="workspace/video" element={<VideoPage />} />
               <Route path="reports" element={<Reports />} />
               <Route path="people" element={<People />} />
               <Route path="brands" element={<UserBrands />} />
@@ -98,6 +99,7 @@ const App = () => (
             }>
               <Route path="dashboard" element={<PMDashboard />} />
               <Route path="workspace" element={<AIWorkspace />} />
+              <Route path="workspace/video" element={<VideoPage />} />
               <Route path="reports" element={<Reports />} />
               <Route path="clients" element={<ClientManagement />} />
               <Route path="clients/:clientId" element={<ClientDetail />} />
@@ -136,6 +138,7 @@ const App = () => (
             }>
               <Route path="dashboard" element={<ManagerDashboard />} />
               <Route path="workspace" element={<AIWorkspace />} />
+              <Route path="workspace/video" element={<VideoPage />} />
               <Route path="clients-projects" element={<ClientsProjects />} />
               <Route path="clients" element={<ClientManagement />} />
               <Route path="clients/:clientId" element={<ClientDetail />} />
