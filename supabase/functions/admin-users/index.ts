@@ -285,7 +285,10 @@ serve(async (req) => {
     const { method } = req
     const url = new URL(req.url)
     const pathSegments = url.pathname.split('/').filter(Boolean)
-    const userId = pathSegments[pathSegments.length - 1]
+    // Get userId from query params for PUT/DELETE, from path for GET single user
+    const userIdFromQuery = url.searchParams.get('userId')
+    const userIdFromPath = pathSegments[pathSegments.length - 1]
+    const userId = userIdFromQuery || (userIdFromPath !== 'admin-users' ? userIdFromPath : null)
 
     if (method === 'GET') {
       if (userId && userId !== 'admin-users') {
