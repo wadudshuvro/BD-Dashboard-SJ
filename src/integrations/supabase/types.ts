@@ -213,6 +213,7 @@ export type Database = {
       brands: {
         Row: {
           active_integrations: string[] | null
+          co_owner_id: string | null
           created_at: string
           description: string | null
           id: string
@@ -230,6 +231,7 @@ export type Database = {
         }
         Insert: {
           active_integrations?: string[] | null
+          co_owner_id?: string | null
           created_at?: string
           description?: string | null
           id?: string
@@ -247,6 +249,7 @@ export type Database = {
         }
         Update: {
           active_integrations?: string[] | null
+          co_owner_id?: string | null
           created_at?: string
           description?: string | null
           id?: string
@@ -263,6 +266,13 @@ export type Database = {
           website_url?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "brands_co_owner_id_fkey"
+            columns: ["co_owner_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "brands_owner_id_fkey"
             columns: ["owner_id"]

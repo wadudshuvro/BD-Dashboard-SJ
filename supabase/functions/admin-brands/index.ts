@@ -59,6 +59,7 @@ Deno.serve(async (req) => {
             .select(`
               *,
               owner:users!brands_owner_id_fkey(first_name, last_name, email),
+              co_owner:users!brands_co_owner_id_fkey(first_name, last_name, email),
               brand_kpis(*)
             `)
             .eq('id', brandId)
@@ -76,6 +77,7 @@ Deno.serve(async (req) => {
           const formattedBrand = {
             ...brand,
             owner_name: brand.owner ? `${brand.owner.first_name || ''} ${brand.owner.last_name || ''}`.trim() : 'Unknown',
+            co_owner_name: brand.co_owner ? `${brand.co_owner.first_name || ''} ${brand.co_owner.last_name || ''}`.trim() : null,
             kpis: brand.brand_kpis || []
           };
 
@@ -89,6 +91,7 @@ Deno.serve(async (req) => {
             .select(`
               *,
               owner:users!brands_owner_id_fkey(first_name, last_name, email),
+              co_owner:users!brands_co_owner_id_fkey(first_name, last_name, email),
               brand_kpis(*)
             `)
             .order('created_at', { ascending: false });
@@ -105,6 +108,7 @@ Deno.serve(async (req) => {
           const formattedBrands = brands.map(brand => ({
             ...brand,
             owner_name: brand.owner ? `${brand.owner.first_name || ''} ${brand.owner.last_name || ''}`.trim() : 'Unknown',
+            co_owner_name: brand.co_owner ? `${brand.co_owner.first_name || ''} ${brand.co_owner.last_name || ''}`.trim() : null,
             kpis: brand.brand_kpis || []
           }));
 
@@ -125,13 +129,15 @@ Deno.serve(async (req) => {
             description: createData.description,
             type: createData.type || 'internal',
             owner_id: createData.owner_id,
+            co_owner_id: createData.co_owner_id || null,
             monthly_budget: createData.monthly_budget,
             status: 'active',
             is_active: true
           })
           .select(`
             *,
-            owner:users!brands_owner_id_fkey(first_name, last_name, email)
+            owner:users!brands_owner_id_fkey(first_name, last_name, email),
+            co_owner:users!brands_co_owner_id_fkey(first_name, last_name, email)
           `)
           .single();
 
@@ -147,6 +153,7 @@ Deno.serve(async (req) => {
         const formattedNewBrand = {
           ...newBrand,
           owner_name: newBrand.owner ? `${newBrand.owner.first_name || ''} ${newBrand.owner.last_name || ''}`.trim() : 'Unknown',
+          co_owner_name: newBrand.co_owner ? `${newBrand.co_owner.first_name || ''} ${newBrand.co_owner.last_name || ''}`.trim() : null,
           kpis: []
         };
 
@@ -171,6 +178,7 @@ Deno.serve(async (req) => {
             description: updateData.description,
             type: updateData.type,
             owner_id: updateData.owner_id,
+            co_owner_id: updateData.co_owner_id !== undefined ? updateData.co_owner_id : undefined,
             monthly_budget: updateData.monthly_budget,
             is_active: updateData.is_active,
             status: updateData.status,
@@ -180,6 +188,7 @@ Deno.serve(async (req) => {
           .select(`
             *,
             owner:users!brands_owner_id_fkey(first_name, last_name, email),
+            co_owner:users!brands_co_owner_id_fkey(first_name, last_name, email),
             brand_kpis(*)
           `)
           .single();
@@ -196,6 +205,7 @@ Deno.serve(async (req) => {
         const formattedUpdatedBrand = {
           ...updatedBrand,
           owner_name: updatedBrand.owner ? `${updatedBrand.owner.first_name || ''} ${updatedBrand.owner.last_name || ''}`.trim() : 'Unknown',
+          co_owner_name: updatedBrand.co_owner ? `${updatedBrand.co_owner.first_name || ''} ${updatedBrand.co_owner.last_name || ''}`.trim() : null,
           kpis: updatedBrand.brand_kpis || []
         };
 
