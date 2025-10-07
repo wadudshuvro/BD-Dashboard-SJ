@@ -314,6 +314,17 @@ const mockTools: AITool[] = [
     lastUsed: new Date().toISOString(),
     isCustom: false,
     href: '/dashboard/workspace/video'
+  },
+  {
+    id: 'video-gemini',
+    name: 'Gemini Video Studio (Veo 3)',
+    description: 'Create, remix, and download Gemini Veo 3 videos tailored for your campaigns',
+    category: 'content',
+    status: 'active',
+    usageCount: 12,
+    lastUsed: new Date().toISOString(),
+    isCustom: false,
+    href: '/dashboard/workspace/video-veo'
   }
 ];
 

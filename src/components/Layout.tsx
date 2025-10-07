@@ -15,7 +15,8 @@ import {
   Zap,
   Target,
   Shield,
-  Video
+  Video,
+  Sparkles
 } from "lucide-react";
 import { useState } from "react";
 import ProfileDropdown from "./ProfileDropdown";
@@ -69,6 +70,7 @@ const Layout = ({ userRole }: LayoutProps) => {
           { name: "AI Workspace", href: `${basePath}/workspace`, icon: Bot, current: false },
           { name: "My Agents", href: `${basePath}/my-agents`, icon: Zap, current: false },
           { name: "Video Studio", href: `${basePath}/workspace/video`, icon: Video, current: false },
+          { name: "Gemini Video Studio", href: `${basePath}/workspace/video-veo`, icon: Sparkles, current: false },
           { name: "Brands", href: `${basePath}/brands`, icon: Building2, current: false },
           { name: "Actions & Tasks", href: `${basePath}/actions-tasks`, icon: CheckSquare, current: false },
           { name: "People", href: `${basePath}/people`, icon: Users, current: false },
@@ -82,6 +84,7 @@ const Layout = ({ userRole }: LayoutProps) => {
           { name: "AI Workspace", href: `${basePath}/workspace`, icon: Bot, current: false },
           { name: "My Agents", href: `${basePath}/my-agents`, icon: Zap, current: false },
           { name: "Video Studio", href: `${basePath}/workspace/video`, icon: Video, current: false },
+          { name: "Gemini Video Studio", href: `${basePath}/workspace/video-veo`, icon: Sparkles, current: false },
           { name: "Clients", href: `${basePath}/clients`, icon: Users, current: false },
           { name: "Projects", href: `${basePath}/projects`, icon: FolderOpen, current: false },
           { name: "Brands", href: `${basePath}/brands`, icon: Building2, current: false },
@@ -95,6 +98,7 @@ const Layout = ({ userRole }: LayoutProps) => {
           { name: "AI Workspace", href: `${basePath}/workspace`, icon: Bot, current: false },
           { name: "My Agents", href: `${basePath}/my-agents`, icon: Zap, current: false },
           { name: "Video Studio", href: `${basePath}/workspace/video`, icon: Video, current: false },
+          { name: "Gemini Video Studio", href: `${basePath}/workspace/video-veo`, icon: Sparkles, current: false },
           { name: "Clients", href: `${basePath}/clients`, icon: Users, current: false },
           { name: "Projects", href: `${basePath}/projects`, icon: FolderOpen, current: false },
           { name: "Tasks", href: `${basePath}/tasks`, icon: Target, current: false },
@@ -108,6 +112,7 @@ const Layout = ({ userRole }: LayoutProps) => {
           { name: "AI Workspace", href: `${basePath}/workspace`, icon: Bot, current: false },
           { name: "My Agents", href: `${basePath}/my-agents`, icon: Zap, current: false },
           { name: "Video Studio", href: `${basePath}/workspace/video`, icon: Video, current: false },
+          { name: "Gemini Video Studio", href: `${basePath}/workspace/video-veo`, icon: Sparkles, current: false },
           { name: "Reports", href: `${basePath}/reports`, icon: BarChart3, current: false },
           { name: "People", href: `${basePath}/people`, icon: Users, current: false },
           { name: "Brands", href: `${basePath}/brands`, icon: Building2, current: false },
