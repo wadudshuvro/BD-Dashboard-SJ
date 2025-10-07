@@ -82,34 +82,75 @@ export function useDashboardData() {
     error: null
   });
 
+  const resolveOwnerName = (brand: any) => {
+    if (brand?.owner_name && brand.owner_name !== 'Unknown') {
+      return brand.owner_name;
+    }
+
+    const owner = brand?.owner;
+    if (owner) {
+      const fullName = `${owner.first_name ?? ''} ${owner.last_name ?? ''}`.trim();
+      if (fullName) {
+        return fullName;
+      }
+
+      if (owner.email) {
+        return owner.email;
+      }
+    }
+
+    if (brand?.owner_email) {
+      return brand.owner_email;
+    }
+
+    return 'Unknown';
+  };
+
   const fetchUserBrands = async () => {
     if (!user?.id) return [];
-    
+
     // Get user's assigned brands based on role
     if (user.role === 'super_admin' || user.role === 'manager') {
       const { data: brands, error } = await supabase
         .from('brands')
-        .select('*')
+        .select('*, owner:users!brands_owner_id_fkey(first_name, last_name, email)')
         .eq('is_active', true);
-      
+
       if (error) throw error;
-      return brands || [];
+      return (brands || []).map(brand => ({
+        ...brand,
+        owner_name: resolveOwnerName(brand)
+      }));
     } else {
       // Regular users only see their assigned brands
       const { data: userBrands, error } = await supabase
         .from('user_brands')
-        .select('brands(*)')
+        .select('brands(*, owner:users!brands_owner_id_fkey(first_name, last_name, email))')
         .eq('user_id', user.id);
-      
+
       if (error) throw error;
-      return userBrands?.map(ub => ub.brands).filter(Boolean) || [];
+      return (
+        userBrands?.map(ub => {
+          if (!ub.brands) return null;
+          const brandWithOwner = {
+            ...ub.brands,
+            owner_name: resolveOwnerName(ub.brands)
+          };
+          return brandWithOwner;
+        }).filter(Boolean) || []
+      );
     }
   };
 
   const calculateKPIsFromBrands = (brands: any[]) => {
     const totalBrands = brands.length;
     const totalBudget = brands.reduce((sum, brand) => sum + (brand.monthly_budget || 0), 0);
-    const activeBrands = brands.filter(brand => brand.status === 'active').length;
+    const activeBrands = brands.filter(brand => {
+      if (typeof brand.is_active === 'boolean') {
+        return brand.is_active;
+      }
+      return brand.status === 'active';
+    }).length;
     
     // Calculate growth based on active vs total brands
     const growthRate = totalBrands > 0 ? ((activeBrands / totalBrands) * 100) - 85 : 0;
@@ -239,33 +280,33 @@ export function useDashboardData() {
   };
 
   const fetchBrandKPIs = async (brands: any[]) => {
-    const brandPerformanceData: BrandPerformance[] = [];
-
-    for (const brand of brands) {
-      // Fetch brand KPIs
-      const { data: kpis } = await supabase
+    const brandPerformanceData = await Promise.all(brands.map(async (brand) => {
+      const { data: kpis, error } = await supabase
         .from('brand_kpis')
         .select('*')
         .eq('brand_id', brand.id);
 
-      // Calculate performance metrics
+      if (error) {
+        throw new Error(`Failed to fetch KPIs for ${brand.name ?? brand.id}: ${error.message}`);
+      }
+
       const revenue = (brand.monthly_budget || 50000) * (0.8 + Math.random() * 0.4);
       const growth = -10 + Math.random() * 30; // Random growth between -10% and 20%
-      
+
       let status: 'growing' | 'stable' | 'declining';
       if (growth > 5) status = 'growing';
       else if (growth > -5) status = 'stable';
       else status = 'declining';
 
-      brandPerformanceData.push({
+      return {
         id: brand.id,
         name: brand.name,
         slug: brand.slug || '',
         type: brand.type || 'internal',
         description: brand.description || '',
         owner_id: brand.owner_id || '',
-        owner_name: brand.owner_name || 'Unknown',
-        is_active: brand.is_active || false,
+        owner_name: resolveOwnerName(brand),
+        is_active: Boolean(brand.is_active),
         team_members: brand.team_members || [],
         active_integrations: brand.active_integrations || [],
         monthly_budget: brand.monthly_budget,
@@ -279,8 +320,8 @@ export function useDashboardData() {
           current_value: kpi.current_value,
           target_value: kpi.target_value
         }))
-      });
-    }
+      } as BrandPerformance;
+    }));
 
     return brandPerformanceData;
   };
@@ -295,7 +336,7 @@ export function useDashboardData() {
       // Super admin sees all users
     } else if (user.role === 'manager') {
       // Managers see manager level and below
-      teamQuery = teamQuery.in('role', ['manager', 'pm', 'user']);
+      teamQuery = teamQuery.in('role', ['manager', 'brand_manager', 'pm', 'user']);
     } else {
       // Other users see limited data
       teamQuery = teamQuery.eq('id', user.id);
@@ -324,12 +365,21 @@ export function useDashboardData() {
         supabase.from('users').select('*').limit(100)
       ]);
 
+      if (allUsers.error) {
+        throw allUsers.error;
+      }
+
       const kpis = calculateKPIsFromBrands(brands);
       const brandPerformance = await fetchBrandKPIs(brands);
       const teamMembers = await fetchTeamMembers();
 
       const totalRevenue = brandPerformance.reduce((sum, brand) => sum + brand.revenue, 0);
-      const activeBrands = brands.filter(b => b.is_active).length;
+      const activeBrands = brands.filter(brand => {
+        if (typeof brand.is_active === 'boolean') {
+          return brand.is_active;
+        }
+        return brand.status === 'active';
+      }).length;
 
       setData({
         teamEffortKPIs: kpis.teamEffort,

@@ -58,8 +58,9 @@ const Layout = ({ userRole }: LayoutProps) => {
 
   // Get navigation based on role
   const getNavigation = (role: string): NavigationItem[] => {
+    const dashboardHref = role === 'super_admin' ? basePath : `${basePath}/dashboard`;
     const baseNavigation = [
-      { name: "Dashboard", href: `${basePath}/dashboard`, icon: LayoutDashboard, current: false },
+      { name: "Dashboard", href: dashboardHref, icon: LayoutDashboard, current: false },
     ];
 
     switch (role) {
@@ -231,7 +232,7 @@ const Layout = ({ userRole }: LayoutProps) => {
 
           <div className="flex flex-1 items-center">
             <h2 className="text-lg font-semibold text-foreground">
-              {navigation.find(item => window.location.pathname.includes(item.href))?.name || 'Dashboard'}
+              {navigation.find(item => location.pathname.startsWith(item.href))?.name || 'Dashboard'}
             </h2>
           </div>
         </div>
