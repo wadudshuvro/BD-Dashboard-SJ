@@ -13,19 +13,33 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { enhanceVideoIdea } from "@/Api/videoApi";
 import { useToast } from "@/hooks/use-toast";
 
 interface CreateVideoModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCreate: (data: { idea: string; prompt: string; model: string }) => void;
+  onCreate: (data: {
+    idea: string;
+    prompt: string;
+    model: string;
+    keyword: string;
+    brandId?: string;
+    brandName?: string;
+    brandSlug?: string;
+  }) => void;
   isLoading?: boolean;
   defaultModel?: string;
   models?: string[];
+  brandOptions?: Array<{ id: string; name: string; slug?: string }>;
+  isBrandLoading?: boolean;
 }
 
 const DEFAULT_MODEL = "sora-2";
+const MAX_KEYWORD_LENGTH = 60;
+const KEYWORD_PLACEHOLDER = "Holiday campaign teaser";
+const NO_BRAND_VALUE = "__no_brand__";
 
 export const CreateVideoModal = ({
   open,
@@ -34,11 +48,16 @@ export const CreateVideoModal = ({
   isLoading,
   defaultModel = DEFAULT_MODEL,
   models,
+  brandOptions,
+  isBrandLoading,
 }: CreateVideoModalProps) => {
   const [idea, setIdea] = useState("");
   const [prompt, setPrompt] = useState("");
   const [touchedPrompt, setTouchedPrompt] = useState(false);
   const [model, setModel] = useState(defaultModel);
+  const [keyword, setKeyword] = useState("");
+  const [keywordTouched, setKeywordTouched] = useState(false);
+  const [brandId, setBrandId] = useState<string | undefined>(undefined);
   const { toast } = useToast();
 
   const enhanceMutation = useMutation({
@@ -71,6 +90,9 @@ export const CreateVideoModal = ({
       setPrompt("");
       setTouchedPrompt(false);
       setModel(defaultModel);
+      setKeyword("");
+      setKeywordTouched(false);
+      setBrandId(undefined);
       enhanceMutation.reset();
     }
   }, [open, enhanceMutation, defaultModel]);
@@ -96,6 +118,7 @@ export const CreateVideoModal = ({
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setTouchedPrompt(true);
+    setKeywordTouched(true);
     if (!prompt.trim()) {
       toast({
         title: "Prompt required",
@@ -104,7 +127,36 @@ export const CreateVideoModal = ({
       });
       return;
     }
-    onCreate({ idea: idea.trim(), prompt: prompt.trim(), model });
+    const trimmedKeyword = keyword.trim();
+    if (!trimmedKeyword) {
+      toast({
+        title: "Keyword required",
+        description: "Add a short keyword before generating your video.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (trimmedKeyword.length > MAX_KEYWORD_LENGTH) {
+      toast({
+        title: "Keyword too long",
+        description: `Keep the keyword under ${MAX_KEYWORD_LENGTH} characters.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const selectedBrand = brandOptions?.find((option) => option.id === brandId);
+
+    onCreate({
+      idea: idea.trim(),
+      prompt: prompt.trim(),
+      model,
+      keyword: trimmedKeyword,
+      brandId: selectedBrand?.id,
+      brandName: selectedBrand?.name,
+      brandSlug: selectedBrand?.slug,
+    });
   };
 
   const isEnhancing = enhanceMutation.isPending;
@@ -138,6 +190,13 @@ export const CreateVideoModal = ({
     }
     return "Click Enhance to transform this idea into a cinematic Sora prompt.";
   }, [idea]);
+
+  const trimmedKeyword = keyword.trim();
+  const isKeywordValid = trimmedKeyword.length > 0 && trimmedKeyword.length <= MAX_KEYWORD_LENGTH;
+  const keywordError = keywordTouched && !isKeywordValid;
+  const brandSelectValue = brandId ?? NO_BRAND_VALUE;
+  const disableBrandSelect = Boolean(isLoading || isBrandLoading);
+  const availableBrandOptions = brandOptions ?? [];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -175,6 +234,33 @@ export const CreateVideoModal = ({
           </div>
 
           <div className="space-y-2">
+            <Label htmlFor="video-keyword">Keyword / Video name</Label>
+            <Input
+              id="video-keyword"
+              placeholder={KEYWORD_PLACEHOLDER}
+              value={keyword}
+              onChange={(event) => {
+                setKeyword(event.target.value);
+                if (!keywordTouched) {
+                  setKeywordTouched(true);
+                }
+              }}
+              onBlur={() => setKeywordTouched(true)}
+              maxLength={MAX_KEYWORD_LENGTH}
+              disabled={isLoading}
+            />
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>Keep it short and memorable for quick identification.</span>
+              <span>
+                {keyword.length}/{MAX_KEYWORD_LENGTH}
+              </span>
+            </div>
+            {keywordError ? (
+              <p className="text-sm text-rose-500">Add a short keyword under {MAX_KEYWORD_LENGTH} characters.</p>
+            ) : null}
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="video-prompt">Enhanced Prompt</Label>
             <Textarea
               id="video-prompt"
@@ -190,6 +276,30 @@ export const CreateVideoModal = ({
             {touchedPrompt && !prompt.trim() ? (
               <p className="text-sm text-rose-500">Provide a detailed prompt to generate the video.</p>
             ) : null}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="video-brand">Brand</Label>
+            <Select
+              value={brandSelectValue}
+              onValueChange={(value) => setBrandId(value === NO_BRAND_VALUE ? undefined : value)}
+              disabled={disableBrandSelect}
+            >
+              <SelectTrigger id="video-brand">
+                <SelectValue placeholder={disableBrandSelect ? "Loading brands..." : "Select a brand"} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NO_BRAND_VALUE}>No brand</SelectItem>
+                {availableBrandOptions.map((option) => (
+                  <SelectItem key={option.id} value={option.id}>
+                    {option.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-sm text-muted-foreground">
+              Associate this video with a brand to keep your library organized.
+            </p>
           </div>
 
           <div className="space-y-2">
@@ -215,7 +325,11 @@ export const CreateVideoModal = ({
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading || isEnhancing}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isLoading || isEnhancing || !prompt.trim()} className="gap-2">
+            <Button
+              type="submit"
+              disabled={isLoading || isEnhancing || !prompt.trim() || !isKeywordValid}
+              className="gap-2"
+            >
               {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
               {isLoading ? "Generating..." : "Generate Video"}
             </Button>
