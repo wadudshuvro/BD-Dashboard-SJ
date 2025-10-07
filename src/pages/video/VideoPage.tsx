@@ -14,6 +14,9 @@ import {
   deleteVideo,
   getVideoById,
   getVideos,
+  downloadVideoContent,
+  remixVideo,
+  retrieveVideo,
 } from "@/Api/videoApi";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -33,7 +36,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { supabase } from "@/integrations/supabase/client";
+
 
 const skeletonArray = Array.from({ length: 6 });
 const DEFAULT_VIDEO_MODELS = ["sora-2"];
@@ -113,6 +116,9 @@ const VideoPage = () => {
   const [selectedVideo, setSelectedVideo] = useState<SoraVideo | null>(null);
   const [videoToDelete, setVideoToDelete] = useState<SoraVideo | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [remixTarget, setRemixTarget] = useState<SoraVideo | null>(null);
+  const [remixingId, setRemixingId] = useState<string | null>(null);
   const [selectedModel, setSelectedModel] = useState("sora-2");
   const [modelFilter, setModelFilter] = useState<string | null>(null);
   const queryClient = useQueryClient();
@@ -234,17 +240,25 @@ const VideoPage = () => {
     [user?.id, user?.name],
   );
 
-  const pollVideoStatus = async (videoId: string) => {
+  const pollVideoStatus = async (videoId: string, options?: { intervalMs?: number; action?: "create" | "remix" }) => {
+    const intervalMs = options?.intervalMs ?? 5000;
+    const action = options?.action ?? "create";
+    const actionLabel = action === "remix" ? "Remix" : "Video";
     const maxAttempts = 60;
     for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-      await new Promise((resolve) => setTimeout(resolve, 5000));
+      await new Promise((resolve) => setTimeout(resolve, intervalMs));
       try {
-        const updatedVideo = await getVideoById(videoId);
+        let updatedVideo: SoraVideo;
+        try {
+          updatedVideo = await retrieveVideo(videoId);
+        } catch (error) {
+          updatedVideo = await getVideoById(videoId);
+        }
         updateVideoInCache(enrichWithUser(updatedVideo));
 
         if (["ready", "succeeded"].includes(updatedVideo.status)) {
           toast({
-            title: "Video ready",
+            title: `${actionLabel} ready`,
             description: `"${updatedVideo.title}" has finished rendering.`,
           });
           queryClient.invalidateQueries({ queryKey: ["sora-videos"] });
@@ -253,8 +267,8 @@ const VideoPage = () => {
 
         if (["failed", "canceled"].includes(updatedVideo.status)) {
           toast({
-            title: "Video generation failed",
-            description: `Sora was unable to render "${updatedVideo.title}". Try adjusting your prompt and generate again.`,
+            title: `${actionLabel} failed`,
+            description: `Sora was unable to render "${updatedVideo.title}". Try adjusting your prompt and try again.`,
             variant: "destructive",
           });
           queryClient.invalidateQueries({ queryKey: ["sora-videos"] });
@@ -271,7 +285,7 @@ const VideoPage = () => {
     }
 
     toast({
-      title: "Still processing",
+      title: `${actionLabel} still processing`,
       description: "Your video is taking longer than expected. Check back in a few minutes.",
     });
     queryClient.invalidateQueries({ queryKey: ["sora-videos"] });
@@ -348,6 +362,46 @@ const VideoPage = () => {
     setSelectedVideo(enrichWithUser(video));
   };
 
+  const handleDownload = async (video: SoraVideo) => {
+    setDownloadingId(video.id);
+    try {
+      const content = await downloadVideoContent(video.id);
+      const mimeType = content.contentType && content.contentType.trim() ? content.contentType : "video/mp4";
+      const byteCharacters = atob(content.base64Data);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let index = 0; index < byteCharacters.length; index += 1) {
+        byteNumbers[index] = byteCharacters.charCodeAt(index);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `${video.id}.mp4`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+      toast({
+        title: "Download started",
+        description: `Downloading "${video.title || video.id}".`,
+      });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Please try again.";
+      toast({
+        title: "Unable to download video",
+        description: message,
+        variant: "destructive",
+      });
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
+  const handleRemix = (video: SoraVideo) => {
+    setRemixTarget(video);
+  };
+
   const statusSubtitle = useMemo(() => {
     if (!selectedVideo) return "";
     return formatStatusSubtitle(selectedVideo);
@@ -357,6 +411,36 @@ const VideoPage = () => {
   const handleConfirmDelete = () => {
     if (!videoToDelete?.id) return;
     deleteMutation.mutate(videoToDelete.id);
+  };
+
+  const remixMutation = useMutation({
+    mutationFn: ({ videoId, prompt }: { videoId: string; prompt: string }) => remixVideo(videoId, prompt),
+  });
+
+  const handleRemixSubmit = async (prompt: string) => {
+    if (!remixTarget) return;
+    setRemixingId(remixTarget.id);
+    try {
+      const remixedVideo = await remixMutation.mutateAsync({ videoId: remixTarget.id, prompt });
+      const enrichedVideo = enrichWithUser(remixedVideo);
+      toast({
+        title: "Remix started",
+        description: `"${enrichedVideo.title}" is being remixed. We'll notify you when it's ready.`,
+      });
+      setRemixTarget(null);
+      updateVideoInCache(enrichedVideo);
+      queryClient.invalidateQueries({ queryKey: ["sora-videos"] });
+      await pollVideoStatus(enrichedVideo.id, { intervalMs: 2000, action: "remix" });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Please try again.";
+      toast({
+        title: "Unable to remix video",
+        description: message,
+        variant: "destructive",
+      });
+    } finally {
+      setRemixingId(null);
+    }
   };
 
   const displayedVideos = useMemo(() => {
@@ -470,6 +554,10 @@ const VideoPage = () => {
               onPlay={handlePlay}
               onDelete={(item) => setVideoToDelete(item)}
               isDeleting={deletingId === video.id && deleteMutation.isPending}
+              onDownload={handleDownload}
+              onRemix={handleRemix}
+              isDownloading={downloadingId === video.id}
+              isRemixing={remixingId === video.id && remixMutation.isPending}
             />
           ))}
         </div>
@@ -575,6 +663,19 @@ const VideoPage = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <RemixModal
+        open={Boolean(remixTarget)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setRemixTarget(null);
+          }
+        }}
+        videoTitle={remixTarget?.title}
+        defaultPrompt={remixTarget?.prompt}
+        isLoading={remixMutation.isPending}
+        onSubmit={handleRemixSubmit}
+      />
     </div>
   );
 };
