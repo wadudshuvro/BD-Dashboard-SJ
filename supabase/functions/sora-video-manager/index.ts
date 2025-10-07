@@ -25,6 +25,7 @@ serve(async (req) => {
     const openAIHeaders = {
       'Authorization': `Bearer ${openAIApiKey}`,
       'Content-Type': 'application/json',
+      'OpenAI-Beta': 'video-generation=2024-12-17',
     };
 
     switch (operation) {
@@ -73,6 +74,7 @@ serve(async (req) => {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${openAIApiKey}`,
+              'OpenAI-Beta': 'video-generation=2024-12-17',
             },
             body: formData,
           });
