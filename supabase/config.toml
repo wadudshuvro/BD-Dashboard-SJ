@@ -17,3 +17,6 @@ verify_jwt = true
 
 [functions.sora-video-manager]
 verify_jwt = true
+
+[functions.gemini-veo-manager]
+verify_jwt = false

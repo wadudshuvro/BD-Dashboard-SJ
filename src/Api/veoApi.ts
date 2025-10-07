@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { supabase } from "@/integrations/supabase/client";
 
 export type GeminiVideoStatus = "queued" | "in_progress" | "ready" | "failed";
 
@@ -23,7 +24,22 @@ export interface CreateGeminiVideoInput {
   metadata?: Record<string, unknown>;
 }
 
-const API_BASE_PATH = "/api/video-veo";
+// Helper function to invoke the Gemini Veo edge function
+async function invokeVeoFunction(operation: string, params: Record<string, unknown> = {}) {
+  const { data, error } = await supabase.functions.invoke("gemini-veo-manager", {
+    body: {
+      operation,
+      ...params,
+    },
+  });
+
+  if (error) {
+    console.error("Error invoking gemini-veo-manager:", error);
+    throw new Error(error.message || "Failed to invoke edge function");
+  }
+
+  return data;
+}
 
 const numberSchema = z
   .preprocess((value) => {
@@ -171,17 +187,8 @@ const unwrapVideoPayload = (payload: unknown): unknown => {
 };
 
 export const listGeminiVideos = async (): Promise<GeminiVideo[]> => {
-  const response = await fetch(`${API_BASE_PATH}/list`, {
-    method: "GET",
-    credentials: "include",
-  });
-
-  if (!response.ok) {
-    throw new Error("Unable to load Gemini Veo videos");
-  }
-
-  const payload = await response.json().catch(() => []);
-  return extractVideos(payload);
+  const data = await invokeVeoFunction("list");
+  return extractVideos(data);
 };
 
 export const getGeminiVideo = async (id: string): Promise<GeminiVideo> => {
@@ -189,17 +196,8 @@ export const getGeminiVideo = async (id: string): Promise<GeminiVideo> => {
     throw new Error("Video ID is required");
   }
 
-  const response = await fetch(`${API_BASE_PATH}/${encodeURIComponent(id)}`, {
-    method: "GET",
-    credentials: "include",
-  });
-
-  if (!response.ok) {
-    throw new Error("Unable to retrieve Gemini Veo video");
-  }
-
-  const payload = await response.json().catch(() => ({}));
-  return extractVideo(payload);
+  const data = await invokeVeoFunction("retrieve", { id });
+  return extractVideo(data);
 };
 
 export const createGeminiVideo = async ({
@@ -216,69 +214,29 @@ export const createGeminiVideo = async ({
     throw new Error("Duration must be between 1 and 20 seconds");
   }
 
-  const formData = new FormData();
-  formData.append("prompt", prompt.trim());
-  formData.append("duration", duration.toString());
-  formData.append("size", "1280x720");
-
-  if (inputReference) {
-    formData.append("input_reference", inputReference);
-  }
-
-  if (metadata) {
-    formData.append("metadata", JSON.stringify(metadata));
-  }
-
-  const response = await fetch(`${API_BASE_PATH}/create`, {
-    method: "POST",
-    body: formData,
-    credentials: "include",
+  const data = await invokeVeoFunction("create", {
+    prompt: prompt.trim(),
+    duration,
+    metadata,
   });
 
-  if (!response.ok) {
-    const message = await response.text().catch(() => "Unable to create Gemini Veo video");
-    throw new Error(message || "Unable to create Gemini Veo video");
-  }
-
-  const payload = await response.json().catch(() => ({}));
-  return extractVideo(unwrapVideoPayload(payload));
+  return extractVideo(unwrapVideoPayload(data));
 };
 
 export const deleteGeminiVideo = async (id: string): Promise<void> => {
-  const response = await fetch(`${API_BASE_PATH}/${encodeURIComponent(id)}`, {
-    method: "DELETE",
-    credentials: "include",
-  });
-
-  if (!response.ok) {
-    throw new Error("Unable to delete Gemini Veo video");
-  }
+  await invokeVeoFunction("delete", { id });
 };
 
 export const downloadGeminiVideo = async (
   id: string,
 ): Promise<{ blob: Blob; filename: string; contentType: string }> => {
-  const response = await fetch(`${API_BASE_PATH}/${encodeURIComponent(id)}/download`, {
-    method: "GET",
-    credentials: "include",
-  });
+  const data = await invokeVeoFunction("content", { id });
 
-  if (!response.ok) {
-    throw new Error("Unable to download Gemini Veo video");
-  }
+  // The edge function returns the blob directly
+  const blob = new Blob([data], { type: "video/mp4" });
+  const filename = `video-${id}.mp4`;
+  const contentType = "video/mp4";
 
-  const contentType = response.headers.get("content-type") ?? "video/mp4";
-  const disposition = response.headers.get("content-disposition");
-  let filename = `${id}.mp4`;
-
-  if (disposition) {
-    const match = disposition.match(/filename\*?=([^;]+)/i);
-    if (match?.[1]) {
-      filename = decodeURIComponent(match[1].replace(/"/g, "").trim());
-    }
-  }
-
-  const blob = await response.blob();
   return { blob, filename, contentType };
 };
 
@@ -287,22 +245,8 @@ export const remixGeminiVideo = async (id: string, prompt: string): Promise<Gemi
     throw new Error("Prompt is required for remixing");
   }
 
-  const response = await fetch(`${API_BASE_PATH}/${encodeURIComponent(id)}/remix`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ prompt: prompt.trim() }),
-    credentials: "include",
-  });
-
-  if (!response.ok) {
-    const message = await response.text().catch(() => "Unable to remix Gemini Veo video");
-    throw new Error(message || "Unable to remix Gemini Veo video");
-  }
-
-  const payload = await response.json().catch(() => ({}));
-  return extractVideo(unwrapVideoPayload(payload));
+  const data = await invokeVeoFunction("remix", { id, prompt: prompt.trim() });
+  return extractVideo(unwrapVideoPayload(data));
 };
 
 export const getGeminiStatusLabel = (status: GeminiVideoStatus): string => {
