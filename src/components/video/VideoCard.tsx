@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { Play, Trash2, Loader2, DollarSign, Clock3, UserCircle2 } from "lucide-react";
+import { Play, Trash2, Loader2, DollarSign, Clock3, UserCircle2, Sparkles } from "lucide-react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -72,7 +72,9 @@ const VideoCardComponent = ({ video, onPlay, onDelete, isDeleting }: VideoCardPr
         <CardDescription className="text-xs text-muted-foreground">
           Created by {video.userName ?? "Unknown"}
         </CardDescription>
-        </CardDescription>
+        {video.model ? (
+          <CardDescription className="text-xs text-muted-foreground">Model: {video.model}</CardDescription>
+        ) : null}
       </CardHeader>
       <CardContent className="flex-1 space-y-4">
         <AspectRatio ratio={16 / 9} className="overflow-hidden rounded-lg border border-border/60 bg-muted">
@@ -99,7 +101,14 @@ const VideoCardComponent = ({ video, onPlay, onDelete, isDeleting }: VideoCardPr
               {video.id}
             </span>
           </div>
-        </div>
+          <div className="flex items-center justify-between">
+            <span className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4" /> Model
+            </span>
+            <span className="max-w-[160px] truncate text-right font-medium text-foreground" title={video.model ?? "Unknown"}>
+              {video.model ?? "Unknown"}
+            </span>
+          </div>
         </div>
       </CardContent>
       <CardFooter className="flex items-center justify-between gap-2 border-t border-border/60 bg-muted/40">

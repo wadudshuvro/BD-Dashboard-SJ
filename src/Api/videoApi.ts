@@ -32,6 +32,7 @@ export interface SoraVideo {
   status: VideoStatus;
   title: string;
   prompt?: string;
+  model?: string;
   createdAt?: string;
   durationSeconds?: number;
   url?: string;
@@ -44,6 +45,7 @@ export interface SoraVideo {
 
 export interface CreateVideoInput {
   prompt: string;
+  model?: string;
   file?: File | null;
   metadata?: {
     user_id?: string;
@@ -150,6 +152,25 @@ const extractThumbnail = (raw: any): string | undefined => {
   return undefined;
 };
 
+const extractModel = (raw: any): string | undefined => {
+  const candidates = [
+    raw?.model,
+    raw?.metadata?.model,
+    raw?.meta?.model,
+    raw?.request?.model,
+    raw?.configuration?.model,
+    raw?.params?.model,
+  ];
+
+  for (const candidate of candidates) {
+    if (typeof candidate === "string" && candidate.trim().length > 0) {
+      return candidate.trim();
+    }
+  }
+
+  return undefined;
+};
+
 const normalizeStatus = (raw: any): VideoStatus => {
   const status =
     raw?.status || raw?.state || raw?.phase || raw?.lifecycle || raw?.processing_state || raw?.task_state;
@@ -215,6 +236,7 @@ const normalizeVideo = (raw: any): SoraVideo => {
     status: normalizeStatus(raw),
     title: String(titleCandidate),
     prompt: typeof raw.prompt === "string" ? raw.prompt : raw.metadata?.prompt,
+    model: extractModel(raw),
     createdAt: raw.created_at || raw.created || raw.timestamp,
     durationSeconds: durationSeconds,
     url: extractUrl(raw),
@@ -243,21 +265,27 @@ const extractVideoItems = (payload: any): any[] => {
   return [];
 };
 
-export const getVideos = async (): Promise<SoraVideo[]> => {
-  const response = await axiosPrivate.get<any>("/v1/videos");
+export const getVideos = async (model?: string): Promise<SoraVideo[]> => {
+  const response = await axiosPrivate.get<any>(
+    "/v1/videos",
+    model ? { params: { model } } : undefined,
+  );
   const items = extractVideoItems(response.data);
   return items.map((item) => normalizeVideo(item));
 };
 
-export const createVideo = async ({ prompt, file, metadata }: CreateVideoInput): Promise<SoraVideo> => {
+export const createVideo = async ({ prompt, model = "sora-2", file, metadata }: CreateVideoInput): Promise<SoraVideo> => {
   if (!prompt || !prompt.trim()) {
     throw new Error("Prompt is required to generate a video.");
   }
+
+  const resolvedModel = typeof model === "string" && model.trim().length > 0 ? model.trim() : "sora-2";
 
   let response;
   if (file) {
     const formData = new FormData();
     formData.append("prompt", prompt.trim());
+    formData.append("model", resolvedModel);
     formData.append("file", file);
     if (metadata?.user_id) {
       formData.append("user_id", metadata.user_id);
@@ -267,7 +295,7 @@ export const createVideo = async ({ prompt, file, metadata }: CreateVideoInput):
     }
     response = await axiosPrivate.post<any>("/v1/videos", formData);
   } else {
-    const requestData: any = { prompt: prompt.trim() };
+    const requestData: any = { prompt: prompt.trim(), model: resolvedModel };
     if (metadata) {
       requestData.metadata = metadata;
     }
