@@ -1,4 +1,4 @@
-import { axiosPrivate } from "@/lib/axios";
+import { supabase } from "@/integrations/supabase/client";
 
 export type VideoStatus =
   | "queued"
@@ -197,8 +197,13 @@ const extractVideoItems = (payload: any): any[] => {
 };
 
 export const getVideos = async (): Promise<SoraVideo[]> => {
-  const response = await axiosPrivate.get<any>("/v1/videos");
-  const items = extractVideoItems(response.data);
+  const { data, error } = await supabase.functions.invoke('sora-video-manager', {
+    body: { operation: 'list' }
+  });
+
+  if (error) throw error;
+  
+  const items = extractVideoItems(data);
   return items.map((item) => normalizeVideo(item));
 };
 
@@ -207,17 +212,17 @@ export const createVideo = async ({ prompt, file }: CreateVideoInput): Promise<S
     throw new Error("Prompt is required to generate a video.");
   }
 
-  let response;
-  if (file) {
-    const formData = new FormData();
-    formData.append("prompt", prompt.trim());
-    formData.append("file", file);
-    response = await axiosPrivate.post<any>("/v1/videos", formData);
-  } else {
-    response = await axiosPrivate.post<any>("/v1/videos", { prompt: prompt.trim() });
-  }
+  const { data, error } = await supabase.functions.invoke('sora-video-manager', {
+    body: { 
+      operation: 'create',
+      prompt: prompt.trim(),
+      file: file || null
+    }
+  });
 
-  const payload = response.data;
+  if (error) throw error;
+
+  const payload = data;
   if (Array.isArray(payload?.data) && payload.data.length > 0) {
     return normalizeVideo(payload.data[0]);
   }
@@ -231,5 +236,13 @@ export const deleteVideo = async (id: string): Promise<void> => {
   if (!id) {
     throw new Error("Video ID is required to delete a video.");
   }
-  await axiosPrivate.delete(`/v1/videos/${id}`);
+  
+  const { error } = await supabase.functions.invoke('sora-video-manager', {
+    body: { 
+      operation: 'delete',
+      videoId: id
+    }
+  });
+
+  if (error) throw error;
 };
