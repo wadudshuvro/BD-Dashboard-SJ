@@ -1,5 +1,4 @@
 import { axiosPrivate } from "@/lib/axios";
-import { supabase } from "@/integrations/supabase/client";
 
 export type VideoStatus =
   | "queued"
@@ -10,6 +9,24 @@ export type VideoStatus =
   | "canceled"
   | "unknown";
 
+const VIDEO_STATUS_LABELS: Record<VideoStatus, string> = {
+  queued: "Queued",
+  processing: "Processing",
+  succeeded: "Ready",
+  ready: "Ready",
+  failed: "Failed",
+  canceled: "Canceled",
+  unknown: "Pending",
+};
+
+export const getVideoStatusLabel = (status: VideoStatus): string => {
+  return VIDEO_STATUS_LABELS[status] ?? "Pending";
+};
+
+export const isVideoProcessingStatus = (status: VideoStatus): boolean => {
+  return status === "queued" || status === "processing" || status === "unknown";
+};
+
 export interface SoraVideo {
   id: string;
   status: VideoStatus;
@@ -17,28 +34,22 @@ export interface SoraVideo {
   prompt?: string;
   createdAt?: string;
   durationSeconds?: number;
-  costUsd?: number;
-  userId?: string;
-  userName?: string;
   url?: string;
   thumbnailUrl?: string;
-  raw?: unknown;
+  userId?: string;
+  userName?: string;
+  costUsd?: number;
+  raw?: Record<string, unknown>;
 }
 
 export interface CreateVideoInput {
   prompt: string;
-  aspectRatio?: string;
-  metadata?: Record<string, unknown>;
+  file?: File | null;
+  metadata?: {
+    user_id?: string;
+    user_name?: string;
+  };
 }
-
-type UnknownRecord = Record<string, unknown>;
-
-const isRecord = (value: unknown): value is UnknownRecord =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
-
-const getRecord = (value: unknown): UnknownRecord | null => (isRecord(value) ? value : null);
-
-const getArray = (value: unknown): unknown[] | null => (Array.isArray(value) ? value : null);
 
 const asNumber = (...values: Array<unknown>): number | undefined => {
   for (const value of values) {
@@ -55,30 +66,35 @@ const asNumber = (...values: Array<unknown>): number | undefined => {
   return undefined;
 };
 
-const pickFromNestedArray = (raw: unknown, key: string): unknown => {
-  const record = getRecord(raw);
-  if (!record) return undefined;
-  const container = record[key];
+export const enhanceVideoIdea = async (idea: string): Promise<string> => {
+  const response = await axiosPrivate.post<any>("/v1/videos/enhance", { idea: idea.trim() });
+  return response.data?.enhanced_prompt || response.data?.prompt || "";
+};
+
+export const getVideoById = async (id: string): Promise<SoraVideo> => {
+  const response = await axiosPrivate.get<any>(`/v1/videos/${id}`);
+  return normalizeVideo(response.data);
+};
+
+const pickFromNestedArray = (raw: any, key: string): any | undefined => {
+  const container = raw?.[key];
   if (Array.isArray(container)) {
     return container.find((item) => item);
   }
   return undefined;
 };
 
-const extractUrl = (raw: unknown): string | undefined => {
-  const record = getRecord(raw);
-  const candidates = record
-    ? [
-        record["url"],
-        record["video_url"],
-        record["playback_url"],
-        record["public_url"],
-        record["download_url"],
-        record["file_url"],
-        record["media_url"],
-        record["preview_url"],
-      ]
-    : [];
+const extractUrl = (raw: any): string | undefined => {
+  const candidates = [
+    raw?.url,
+    raw?.video_url,
+    raw?.playback_url,
+    raw?.public_url,
+    raw?.download_url,
+    raw?.file_url,
+    raw?.media_url,
+    raw?.preview_url,
+  ];
 
   for (const candidate of candidates) {
     if (typeof candidate === "string" && candidate.length > 0) {
@@ -94,9 +110,8 @@ const extractUrl = (raw: unknown): string | undefined => {
     if (candidate) return candidate;
   }
 
-  const rawArray = getArray(raw);
-  if (rawArray) {
-    for (const item of rawArray) {
+  if (Array.isArray(raw)) {
+    for (const item of raw) {
       const candidate = extractUrl(item);
       if (candidate) return candidate;
     }
@@ -105,21 +120,18 @@ const extractUrl = (raw: unknown): string | undefined => {
   return undefined;
 };
 
-const extractThumbnail = (raw: unknown): string | undefined => {
-  const record = getRecord(raw);
-  const candidates = record
-    ? [
-        record["thumbnail"],
-        record["thumbnail_url"],
-        record["cover_image"],
-        record["cover_image_url"],
-        record["preview_image"],
-        record["preview_image_url"],
-        record["image_url"],
-        record["poster"],
-        record["poster_url"],
-      ]
-    : [];
+const extractThumbnail = (raw: any): string | undefined => {
+  const candidates = [
+    raw?.thumbnail,
+    raw?.thumbnail_url,
+    raw?.cover_image,
+    raw?.cover_image_url,
+    raw?.preview_image,
+    raw?.preview_image_url,
+    raw?.image_url,
+    raw?.poster,
+    raw?.poster_url,
+  ];
 
   for (const candidate of candidates) {
     if (typeof candidate === "string" && candidate.length > 0) {
@@ -138,21 +150,14 @@ const extractThumbnail = (raw: unknown): string | undefined => {
   return undefined;
 };
 
-const normalizeStatus = (raw: unknown): VideoStatus => {
-  const record = getRecord(raw);
-  const statusCandidate =
-    (record?.["status"] ??
-      record?.["state"] ??
-      record?.["phase"] ??
-      record?.["lifecycle"] ??
-      record?.["processing_state"] ??
-      record?.["task_state"]) ?? null;
-
-  if (typeof statusCandidate !== "string") {
+const normalizeStatus = (raw: any): VideoStatus => {
+  const status =
+    raw?.status || raw?.state || raw?.phase || raw?.lifecycle || raw?.processing_state || raw?.task_state;
+  if (!status || typeof status !== "string") {
     return "unknown";
   }
 
-  const normalized = statusCandidate.toLowerCase();
+  const normalized = status.toLowerCase();
   if (["queued", "processing", "succeeded", "ready", "failed", "canceled"].includes(normalized)) {
     return normalized as VideoStatus;
   }
@@ -168,261 +173,120 @@ const normalizeStatus = (raw: unknown): VideoStatus => {
   return "unknown";
 };
 
-const normalizeVideo = (raw: unknown): SoraVideo => {
-  const record = getRecord(raw);
-  if (!record) {
+const normalizeVideo = (raw: any): SoraVideo => {
+  if (!raw || typeof raw !== "object") {
     return {
       id: "unknown",
       status: "unknown",
       title: "Unknown Video",
-      raw,
+      raw: raw ?? undefined,
     };
   }
 
-  const idCandidate = record["id"] ?? record["video_id"] ?? crypto.randomUUID();
-  const id = String(idCandidate);
-
-  const metadata = getRecord(record["metadata"]);
-  const meta = getRecord(record["meta"]);
-  const usage = getRecord(record["usage"]);
-  const promptValue = record["prompt"];
-  const metadataPrompt = metadata?.["prompt"];
-
+  const id = String((raw as any).id ?? (raw as any).video_id ?? crypto.randomUUID());
   const titleCandidate =
-    (record["title"] as string | undefined) ??
-    (record["name"] as string | undefined) ??
-    (record["display_name"] as string | undefined) ??
-    (metadata?.["title"] as string | undefined) ??
-    (typeof promptValue === "string" ? promptValue.slice(0, 60) : undefined) ??
+    raw.title ||
+    raw.name ||
+    raw.display_name ||
+    raw.metadata?.title ||
+    raw.prompt?.slice?.(0, 60) ||
     `Video ${id.slice(0, 8)}`;
 
   const durationSeconds = asNumber(
-    record["duration"],
-    record["duration_seconds"],
-    metadata?.["duration"],
-    meta?.["duration"],
-    record["length"],
-    record["length_seconds"],
-    usage?.["duration"],
-    usage?.["duration_seconds"],
+    raw.duration,
+    raw.duration_seconds,
+    raw.metadata?.duration,
+    raw.meta?.duration,
+    raw.length,
+    raw.length_seconds,
   );
 
-  const costRecord = getRecord(record["cost"]);
-  const usageCost = getRecord(usage?.["cost"]);
   const costUsd = asNumber(
-    record["cost"],
-    record["cost_usd"],
-    record["total_cost"],
-    record["price"],
-    metadata?.["cost"],
-    metadata?.["cost_usd"],
-    meta?.["cost"],
-    meta?.["cost_usd"],
-    usage?.["cost"],
-    usage?.["cost_usd"],
-    costRecord?.["amount"],
-    costRecord?.["value"],
-    costRecord?.["total"],
-    costRecord?.["usd"],
-    usageCost?.["amount"],
-    usageCost?.["value"],
-    usageCost?.["total"],
-    usageCost?.["usd"],
+    raw.cost,
+    raw.cost_usd,
+    raw.metadata?.cost,
+    raw.meta?.cost,
+    raw.price,
+    raw.price_usd,
   );
-
-  const userIdCandidate =
-    metadata?.["user_id"] ??
-    metadata?.["userId"] ??
-    meta?.["user_id"] ??
-    meta?.["userId"] ??
-    record["user_id"] ??
-    record["userId"];
-
-  const userNameCandidate =
-    metadata?.["user_name"] ??
-    metadata?.["userName"] ??
-    meta?.["user_name"] ??
-    meta?.["userName"] ??
-    record["user_name"] ??
-    record["userName"];
 
   return {
     id,
     status: normalizeStatus(raw),
     title: String(titleCandidate),
-    prompt:
-      typeof promptValue === "string"
-        ? promptValue
-        : typeof metadataPrompt === "string"
-          ? metadataPrompt
-          : undefined,
-    createdAt:
-      (record["created_at"] as string | undefined) ??
-      (record["created"] as string | undefined) ??
-      (record["timestamp"] as string | undefined),
-    durationSeconds,
-    costUsd,
-    userId: typeof userIdCandidate === "string" ? userIdCandidate : undefined,
-    userName: typeof userNameCandidate === "string" ? userNameCandidate : undefined,
+    prompt: typeof raw.prompt === "string" ? raw.prompt : raw.metadata?.prompt,
+    createdAt: raw.created_at || raw.created || raw.timestamp,
+    durationSeconds: durationSeconds,
     url: extractUrl(raw),
     thumbnailUrl: extractThumbnail(raw),
-    raw,
+    userId: raw.user_id || raw.metadata?.user_id,
+    userName: raw.user_name || raw.metadata?.user_name,
+    costUsd: costUsd,
+    raw: raw ?? undefined,
   };
 };
 
-const extractVideoItems = (payload: unknown): unknown[] => {
+const extractVideoItems = (payload: any): any[] => {
   if (!payload) return [];
   if (Array.isArray(payload)) return payload;
-
-  const record = getRecord(payload);
-  if (!record) return [];
-
-  const directCandidates = [
-    record["data"],
-    record["items"],
-    record["videos"],
-    record["results"],
-    record["records"],
-  ];
-
-  for (const candidate of directCandidates) {
-    const array = getArray(candidate);
-    if (array) return array;
-  }
-
-  const dataRecord = getRecord(record["data"]);
-  if (dataRecord) {
-    const nestedArray = Object.values(dataRecord).find((value) => Array.isArray(value));
-    if (Array.isArray(nestedArray)) {
-      return nestedArray;
+  if (Array.isArray(payload?.data)) return payload.data;
+  if (Array.isArray(payload?.items)) return payload.items;
+  if (Array.isArray(payload?.videos)) return payload.videos;
+  if (Array.isArray(payload?.results)) return payload.results;
+  if (Array.isArray(payload?.records)) return payload.records;
+  if (payload?.data && typeof payload.data === "object") {
+    const nested = Object.values(payload.data).find((value) => Array.isArray(value));
+    if (Array.isArray(nested)) {
+      return nested;
     }
   }
-
   return [];
 };
 
-const extractResponseText = (payload: unknown): string => {
-  if (!payload) return "";
-
-  if (typeof payload === "string") {
-    return payload;
-  }
-
-  const record = getRecord(payload);
-  const outputText = record?.["output_text"];
-  if (typeof outputText === "string") {
-    return outputText;
-  }
-  if (Array.isArray(outputText)) {
-    return outputText.join("\n");
-  }
-
-  const choices = getArray(record?.["choices"]);
-  if (choices && choices.length > 0) {
-    const choice = getRecord(choices[0]);
-    const message = getRecord(choice?.["message"]);
-    if (message) {
-      const content = message["content"];
-      if (typeof content === "string") {
-        return content;
-      }
-      const contentArray = getArray(content);
-      if (contentArray) {
-        return contentArray
-          .map((part) => {
-            if (typeof part === "string") return part;
-            const partRecord = getRecord(part);
-            if (!partRecord) return "";
-            if (typeof partRecord["text"] === "string") return partRecord["text"] as string;
-            if (typeof partRecord["value"] === "string") return partRecord["value"] as string;
-            return "";
-          })
-          .filter(Boolean)
-          .join("\n");
-      }
-    }
-  }
-
-  const outputArray = getArray(record?.["output"]);
-  if (outputArray) {
-    return outputArray
-      .map((item) => {
-        if (typeof item === "string") return item;
-        const itemRecord = getRecord(item);
-        if (!itemRecord) return "";
-        if (typeof itemRecord["content"] === "string") return itemRecord["content"] as string;
-        if (typeof itemRecord["text"] === "string") return itemRecord["text"] as string;
-        return "";
-      })
-      .filter(Boolean)
-      .join("\n");
-  }
-
-  return "";
-};
-
 export const getVideos = async (): Promise<SoraVideo[]> => {
-  const { data } = await axiosPrivate.get<unknown>("/v1/videos");
-  const items = extractVideoItems(data);
+  const response = await axiosPrivate.get<any>("/v1/videos");
+  const items = extractVideoItems(response.data);
   return items.map((item) => normalizeVideo(item));
 };
 
-export const getVideoById = async (id: string): Promise<SoraVideo> => {
-  if (!id) {
-    throw new Error("Video ID is required to check status.");
-  }
-
-  const { data } = await axiosPrivate.get<unknown>(`/v1/videos/${id}`);
-  const record = getRecord(data);
-  if (record?.["data"]) {
-    return normalizeVideo(record["data"]);
-  }
-  return normalizeVideo(data);
-};
-
-export const createVideo = async ({ prompt, aspectRatio = "16:9", metadata }: CreateVideoInput): Promise<SoraVideo> => {
+export const createVideo = async ({ prompt, file, metadata }: CreateVideoInput): Promise<SoraVideo> => {
   if (!prompt || !prompt.trim()) {
     throw new Error("Prompt is required to generate a video.");
   }
 
-  const payload = {
-    model: "gpt-4o-mini-tts",
-    prompt: prompt.trim(),
-    aspect_ratio: aspectRatio,
-    ...(metadata ? { metadata } : {}),
-  };
-
-  const { data } = await axiosPrivate.post<unknown>("/v1/videos", payload);
-  const record = getRecord(data);
-
-  const arrayData = getArray(record?.["data"]);
-  if (arrayData && arrayData.length > 0) {
-    return normalizeVideo(arrayData[0]);
+  let response;
+  if (file) {
+    const formData = new FormData();
+    formData.append("prompt", prompt.trim());
+    formData.append("file", file);
+    if (metadata?.user_id) {
+      formData.append("user_id", metadata.user_id);
+    }
+    if (metadata?.user_name) {
+      formData.append("user_name", metadata.user_name);
+    }
+    response = await axiosPrivate.post<any>("/v1/videos", formData);
+  } else {
+    const requestData: any = { prompt: prompt.trim() };
+    if (metadata) {
+      requestData.metadata = metadata;
+    }
+    response = await axiosPrivate.post<any>("/v1/videos", requestData);
   }
 
-  if (record?.["data"]) {
-    return normalizeVideo(record["data"]);
+  const payload = response.data;
+  if (Array.isArray(payload?.data) && payload.data.length > 0) {
+    return normalizeVideo(payload.data[0]);
   }
-  return normalizeVideo(data);
+  if (payload?.data && typeof payload.data === "object") {
+    return normalizeVideo(payload.data);
+  }
+  return normalizeVideo(payload);
 };
 
 export const deleteVideo = async (id: string): Promise<void> => {
   if (!id) {
     throw new Error("Video ID is required to delete a video.");
   }
-
   await axiosPrivate.delete(`/v1/videos/${id}`);
-};
-
-export const enhanceVideoIdea = async (idea: string): Promise<string> => {
-  if (!idea || !idea.trim()) {
-    throw new Error("An idea is required to enhance the prompt.");
-  }
-
-  const { data, error } = await supabase.functions.invoke('sora-video-manager', {
-    body: { operation: 'enhance', idea: idea.trim() }
-  });
-
-  if (error) throw error;
-  return data?.enhancedPrompt || '';
 };

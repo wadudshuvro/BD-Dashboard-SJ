@@ -164,7 +164,6 @@ const VideoPage = () => {
     });
     queryClient.invalidateQueries({ queryKey: ["sora-videos"] });
   };
-
   const createMutation = useMutation({
     mutationFn: createVideo,
     onSuccess: (video) => {
@@ -226,6 +225,7 @@ const VideoPage = () => {
     return formatStatusSubtitle(selectedVideo);
   }, [selectedVideo]);
 
+
   const handleConfirmDelete = () => {
     if (!videoToDelete?.id) return;
     deleteMutation.mutate(videoToDelete.id);
@@ -262,7 +262,6 @@ const VideoPage = () => {
     }
     return `${mins}m ${remainingSecs.toString().padStart(2, "0")}s`;
   }, []);
-
   return (
     <div className="space-y-8">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -291,7 +290,7 @@ const VideoPage = () => {
 
       <div className="flex flex-col gap-1 rounded-lg border border-border/60 bg-muted/30 p-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
         <div>
-          You’ve created <span className="font-semibold text-foreground">{displayedVideos.length}</span> videos
+          You've created <span className="font-semibold text-foreground">{displayedVideos.length}</span> videos
           {user?.name ? ` as ${user.name}` : ""}.
         </div>
         <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-4">
@@ -303,7 +302,6 @@ const VideoPage = () => {
           </span>
         </div>
       </div>
-
       {isLoading ? (
         <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           {skeletonArray.map((_, index) => (

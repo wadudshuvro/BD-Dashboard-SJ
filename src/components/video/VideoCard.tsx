@@ -72,6 +72,7 @@ const VideoCardComponent = ({ video, onPlay, onDelete, isDeleting }: VideoCardPr
         <CardDescription className="text-xs text-muted-foreground">
           Created by {video.userName ?? "Unknown"}
         </CardDescription>
+        </CardDescription>
       </CardHeader>
       <CardContent className="flex-1 space-y-4">
         <AspectRatio ratio={16 / 9} className="overflow-hidden rounded-lg border border-border/60 bg-muted">
@@ -98,6 +99,7 @@ const VideoCardComponent = ({ video, onPlay, onDelete, isDeleting }: VideoCardPr
               {video.id}
             </span>
           </div>
+        </div>
         </div>
       </CardContent>
       <CardFooter className="flex items-center justify-between gap-2 border-t border-border/60 bg-muted/40">
