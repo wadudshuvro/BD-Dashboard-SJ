@@ -309,6 +309,10 @@ const VideoPage = () => {
         brandName: resolvedBrandName,
         brandSlug: resolvedBrandSlug,
         model: video.model ?? variables.model,
+        inputReferenceName:
+          video.inputReferenceName ??
+          variables.metadata?.input_reference_name ??
+          variables.inputReference?.name,
       });
 
       toast({
@@ -595,6 +599,7 @@ const VideoPage = () => {
             brandName: data.brandName,
             brandSlug: data.brandSlug,
             seconds: data.durationSeconds,
+            inputReference: data.inputReference ?? undefined,
             metadata: {
               user_id: user?.id,
               user_name: user?.name,
@@ -603,6 +608,7 @@ const VideoPage = () => {
               brand_slug: data.brandSlug,
               title: data.keyword,
               duration: data.durationSeconds,
+              input_reference_name: data.inputReference?.name,
             },
           });
         }}

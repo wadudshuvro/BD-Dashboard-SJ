@@ -6,6 +6,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const MIN_DURATION_SECONDS = 1;
+const MAX_DURATION_SECONDS = 20;
+
 const sanitizeMetadata = (value: unknown): Record<string, unknown> | undefined => {
   if (!value || typeof value !== 'object') {
     return undefined;
@@ -97,6 +100,37 @@ const propagateMetadata = (
   return attachSupplementalMetadata(payload, metadata, fallbackTitle, fallbackModel);
 };
 
+const base64ToUint8Array = (value: string): Uint8Array => {
+  const binaryString = atob(value);
+  const length = binaryString.length;
+  const bytes = new Uint8Array(length);
+  for (let i = 0; i < length; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes;
+};
+
+const normalizeInputReference = (value: unknown): File | undefined => {
+  if (!value || typeof value !== 'object') {
+    return undefined;
+  }
+
+  const candidate = value as { data?: string; name?: string; type?: string };
+  if (typeof candidate.data !== 'string' || candidate.data.length === 0) {
+    return undefined;
+  }
+
+  const fileName = typeof candidate.name === 'string' && candidate.name.trim().length > 0
+    ? candidate.name.trim()
+    : 'input-reference';
+  const mimeType = typeof candidate.type === 'string' && candidate.type.trim().length > 0
+    ? candidate.type.trim()
+    : 'application/octet-stream';
+
+  const bytes = base64ToUint8Array(candidate.data);
+  return new File([bytes], fileName, { type: mimeType });
+};
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -108,7 +142,7 @@ serve(async (req) => {
       throw new Error('OPENAI_KEY not configured');
     }
 
-    const { operation, prompt, file, videoId, idea, model, metadata, title } = await req.json();
+    const { operation, prompt, file, videoId, idea, model, metadata, title, seconds, inputReference } = await req.json();
     console.log('Sora video operation:', operation);
 
     let response;
@@ -124,6 +158,10 @@ serve(async (req) => {
     const trimmedModel = typeof model === 'string' && model.trim().length > 0 ? model.trim() : undefined;
     const sanitizedMetadata = sanitizeMetadata(metadata);
     const trimmedTitle = typeof title === 'string' && title.trim().length > 0 ? title.trim() : undefined;
+    const resolvedSeconds = typeof seconds === 'number' && Number.isFinite(seconds)
+      ? Math.max(MIN_DURATION_SECONDS, Math.min(MAX_DURATION_SECONDS, Math.round(seconds)))
+      : undefined;
+    const referenceFile = normalizeInputReference(inputReference) || normalizeInputReference(file);
 
     switch (operation) {
       case 'enhance':
@@ -161,7 +199,7 @@ serve(async (req) => {
           throw new Error('Prompt is required to generate a video');
         }
 
-        if (file) {
+        if (referenceFile) {
           // If file is provided, we need to handle multipart/form-data
           const formData = new FormData();
           formData.append('prompt', prompt.trim());
@@ -174,7 +212,10 @@ serve(async (req) => {
           if (sanitizedMetadata) {
             formData.append('metadata', JSON.stringify(sanitizedMetadata));
           }
-          formData.append('file', file);
+          if (resolvedSeconds !== undefined) {
+            formData.append('seconds', String(resolvedSeconds));
+          }
+          formData.append('input_reference', referenceFile);
 
           response = await fetch('https://api.openai.com/v1/videos', {
             method: 'POST',
@@ -198,9 +239,14 @@ serve(async (req) => {
             requestBody.metadata = sanitizedMetadata;
           }
 
+          if (resolvedSeconds !== undefined) {
+            requestBody.seconds = resolvedSeconds;
+          }
+
           response = await fetch('https://api.openai.com/v1/videos', {
             method: 'POST',
-
+            headers: jsonHeaders,
+            body: JSON.stringify(requestBody),
           });
         }
         break;
