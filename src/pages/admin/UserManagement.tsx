@@ -150,6 +150,16 @@ const UserManagement = () => {
       return;
     }
 
+    // Validate email domain
+    if (!newUser.email.toLowerCase().endsWith('@sjinnovation.com')) {
+      toast({
+        title: "Error",
+        description: "Only @sjinnovation.com email addresses are allowed",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       const brandAssignments: BrandAssignment[] = newUser.brandIds.map((brandId) => ({
         brand_id: brandId,
@@ -299,10 +309,13 @@ const UserManagement = () => {
                   <Input
                     id="user-email"
                     type="email"
-                    placeholder="user@company.com"
+                    placeholder="user@sjinnovation.com"
                     value={newUser.email}
                     onChange={(e) => setNewUser(prev => ({ ...prev, email: e.target.value }))}
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Only @sjinnovation.com email addresses are allowed
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="user-password">Password</Label>

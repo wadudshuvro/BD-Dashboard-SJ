@@ -898,41 +898,50 @@ export type Database = {
       users: {
         Row: {
           created_at: string
+          department: string | null
           email: string
           first_name: string | null
           id: string
+          is_marketing: boolean | null
           last_name: string | null
           password_hash: string | null
           refresh_token: string | null
           refresh_token_expires_at: string | null
           role: Database["public"]["Enums"]["app_role"]
           status: string
+          title: string | null
           updated_at: string
         }
         Insert: {
           created_at?: string
+          department?: string | null
           email: string
           first_name?: string | null
           id?: string
+          is_marketing?: boolean | null
           last_name?: string | null
           password_hash?: string | null
           refresh_token?: string | null
           refresh_token_expires_at?: string | null
           role: Database["public"]["Enums"]["app_role"]
           status?: string
+          title?: string | null
           updated_at?: string
         }
         Update: {
           created_at?: string
+          department?: string | null
           email?: string
           first_name?: string | null
           id?: string
+          is_marketing?: boolean | null
           last_name?: string | null
           password_hash?: string | null
           refresh_token?: string | null
           refresh_token_expires_at?: string | null
           role?: Database["public"]["Enums"]["app_role"]
           status?: string
+          title?: string | null
           updated_at?: string
         }
         Relationships: []
