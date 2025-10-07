@@ -1,6 +1,8 @@
+// Gemini Veo Manager v2.0 - Force redeployment to pick up secrets
 import { corsHeaders } from "../_shared/cors.ts";
 
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+console.log("GEMINI_API_KEY loaded:", GEMINI_API_KEY ? "✓ Present" : "✗ Missing");
 const BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
 const MODEL = "veo-3.0-generate-001";
 
