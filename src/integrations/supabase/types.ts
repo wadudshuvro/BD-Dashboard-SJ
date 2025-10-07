@@ -592,6 +592,51 @@ export type Database = {
           },
         ]
       }
+      gemini_videos: {
+        Row: {
+          completed_at: string | null
+          created_at: string | null
+          duration: number | null
+          error: Json | null
+          id: string
+          metadata: Json | null
+          operation_name: string
+          prompt: string
+          status: string
+          thumbnail_url: string | null
+          user_id: string | null
+          video_url: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string | null
+          duration?: number | null
+          error?: Json | null
+          id: string
+          metadata?: Json | null
+          operation_name: string
+          prompt: string
+          status?: string
+          thumbnail_url?: string | null
+          user_id?: string | null
+          video_url?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string | null
+          duration?: number | null
+          error?: Json | null
+          id?: string
+          metadata?: Json | null
+          operation_name?: string
+          prompt?: string
+          status?: string
+          thumbnail_url?: string | null
+          user_id?: string | null
+          video_url?: string | null
+        }
+        Relationships: []
+      }
       gohighlevel_contacts: {
         Row: {
           contact_id: string

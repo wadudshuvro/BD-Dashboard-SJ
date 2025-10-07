@@ -1,10 +1,17 @@
-// Gemini Veo Manager v2.0 - Force redeployment to pick up secrets
+// Gemini Veo Manager v3.0 - Database persistence
 import { corsHeaders } from "../_shared/cors.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
 console.log("GEMINI_API_KEY loaded:", GEMINI_API_KEY ? "✓ Present" : "✗ Missing");
 const BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
 const MODEL = "veo-3.0-generate-001";
+
+// Initialize Supabase client
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
 interface CreateVideoRequest {
   operation: "create";
@@ -46,9 +53,6 @@ type RequestBody =
   | DownloadVideoRequest
   | RemixVideoRequest;
 
-// In-memory storage for video operations (in production, use a database)
-const videoOperations = new Map<string, any>();
-
 async function pollOperation(operationName: string): Promise<any> {
   const maxAttempts = 60; // 10 minutes max (60 * 10 seconds)
   let attempts = 0;
@@ -81,6 +85,7 @@ async function pollOperation(operationName: string): Promise<any> {
 
 async function createVideo(
   prompt: string,
+  userId: string,
   duration?: number,
   metadata?: Record<string, unknown>
 ): Promise<any> {
@@ -111,17 +116,25 @@ async function createVideo(
   const result = await response.json();
   const operationName = result.name;
   
-  // Store operation with metadata
+  // Store operation in database
   const videoId = operationName.split("/").pop() || operationName;
-  videoOperations.set(videoId, {
-    id: videoId,
-    operationName,
-    prompt,
-    duration,
-    status: "processing",
-    createdAt: new Date().toISOString(),
-    metadata: metadata || {},
-  });
+  
+  const { error: dbError } = await supabase
+    .from("gemini_videos")
+    .insert({
+      id: videoId,
+      operation_name: operationName,
+      prompt,
+      duration,
+      status: "processing",
+      metadata: metadata || {},
+      user_id: userId,
+    });
+
+  if (dbError) {
+    console.error("Error storing video in database:", dbError);
+    throw new Error(`Failed to store video: ${dbError.message}`);
+  }
 
   console.log("Video creation started, operation name:", operationName);
 
@@ -137,15 +150,20 @@ async function createVideo(
 }
 
 async function getVideo(id: string): Promise<any> {
-  const videoData = videoOperations.get(id);
+  // Get video from database
+  const { data: videoData, error: dbError } = await supabase
+    .from("gemini_videos")
+    .select("*")
+    .eq("id", id)
+    .single();
   
-  if (!videoData) {
+  if (dbError || !videoData) {
     throw new Error("Video not found");
   }
 
   // Check if video is still processing
   if (videoData.status === "processing") {
-    const response = await fetch(`${BASE_URL}/${videoData.operationName}`, {
+    const response = await fetch(`${BASE_URL}/${videoData.operation_name}`, {
       headers: {
         "x-goog-api-key": GEMINI_API_KEY!,
       },
@@ -161,42 +179,79 @@ async function getVideo(id: string): Promise<any> {
     
     if (operation.done) {
       const videoUri = operation.response?.generateVideoResponse?.generatedSamples?.[0]?.video?.uri;
+      
+      // Update database
+      await supabase
+        .from("gemini_videos")
+        .update({
+          status: "completed",
+          video_url: videoUri,
+          completed_at: new Date().toISOString(),
+        })
+        .eq("id", id);
+      
       videoData.status = "completed";
-      videoData.videoUrl = videoUri;
-      videoData.completedAt = new Date().toISOString();
-      videoOperations.set(id, videoData);
+      videoData.video_url = videoUri;
+      videoData.completed_at = new Date().toISOString();
     } else if (operation.error) {
+      // Update database
+      await supabase
+        .from("gemini_videos")
+        .update({
+          status: "failed",
+          error: operation.error,
+        })
+        .eq("id", id);
+      
       videoData.status = "failed";
       videoData.error = operation.error;
-      videoOperations.set(id, videoData);
     }
   }
 
   return videoData;
 }
 
-async function listVideos(): Promise<any[]> {
-  const videos = Array.from(videoOperations.values());
+async function listVideos(userId: string): Promise<any[]> {
+  // Get all videos for user from database
+  const { data: videos, error: dbError } = await supabase
+    .from("gemini_videos")
+    .select("*")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+  
+  if (dbError) {
+    console.error("Error listing videos:", dbError);
+    throw new Error(`Failed to list videos: ${dbError.message}`);
+  }
   
   // Update status for all processing videos
-  const updatePromises = videos
+  const updatePromises = (videos || [])
     .filter((v) => v.status === "processing")
     .map((v) => getVideo(v.id).catch(() => v));
   
   await Promise.all(updatePromises);
   
-  return Array.from(videoOperations.values());
+  // Fetch updated videos
+  const { data: updatedVideos } = await supabase
+    .from("gemini_videos")
+    .select("*")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+  
+  return updatedVideos || [];
 }
 
 async function deleteVideo(id: string): Promise<void> {
-  const videoData = videoOperations.get(id);
+  // Delete from database
+  const { error: dbError } = await supabase
+    .from("gemini_videos")
+    .delete()
+    .eq("id", id);
   
-  if (!videoData) {
-    throw new Error("Video not found");
+  if (dbError) {
+    console.error("Error deleting video:", dbError);
+    throw new Error(`Failed to delete video: ${dbError.message}`);
   }
-
-  // Remove from storage
-  videoOperations.delete(id);
   
   console.log("Video deleted:", id);
 }
@@ -204,11 +259,11 @@ async function deleteVideo(id: string): Promise<void> {
 async function downloadVideo(id: string): Promise<Response> {
   const videoData = await getVideo(id);
   
-  if (videoData.status !== "completed" || !videoData.videoUrl) {
+  if (videoData.status !== "completed" || !videoData.video_url) {
     throw new Error("Video is not ready for download");
   }
 
-  const response = await fetch(videoData.videoUrl, {
+  const response = await fetch(videoData.video_url, {
     headers: {
       "x-goog-api-key": GEMINI_API_KEY!,
     },
@@ -221,7 +276,7 @@ async function downloadVideo(id: string): Promise<Response> {
   return response;
 }
 
-async function remixVideo(id: string, newPrompt: string): Promise<any> {
+async function remixVideo(id: string, newPrompt: string, userId: string): Promise<any> {
   const originalVideo = await getVideo(id);
   
   if (!originalVideo) {
@@ -229,7 +284,7 @@ async function remixVideo(id: string, newPrompt: string): Promise<any> {
   }
 
   // Create a new video with the new prompt, using the original duration
-  return createVideo(newPrompt, originalVideo.duration, {
+  return createVideo(newPrompt, userId, originalVideo.duration, {
     ...originalVideo.metadata,
     remixedFrom: id,
   });
@@ -245,6 +300,26 @@ Deno.serve(async (req) => {
       throw new Error("GEMINI_API_KEY is not set");
     }
 
+    // Get user ID from authorization header
+    const authHeader = req.headers.get("Authorization");
+    let userId: string | null = null;
+    
+    if (authHeader) {
+      const token = authHeader.replace("Bearer ", "");
+      const { data: { user } } = await supabase.auth.getUser(token);
+      userId = user?.id || null;
+    }
+
+    if (!userId) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
     const body: RequestBody = await req.json();
     const { operation } = body;
 
@@ -253,14 +328,14 @@ Deno.serve(async (req) => {
     switch (operation) {
       case "create": {
         const { prompt, duration, metadata } = body as CreateVideoRequest;
-        const result = await createVideo(prompt, duration, metadata);
+        const result = await createVideo(prompt, userId, duration, metadata);
         return new Response(JSON.stringify({ video: result }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
       case "list": {
-        const videos = await listVideos();
+        const videos = await listVideos(userId);
         return new Response(JSON.stringify({ videos }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -298,7 +373,7 @@ Deno.serve(async (req) => {
 
       case "remix": {
         const { id, prompt } = body as RemixVideoRequest;
-        const result = await remixVideo(id, prompt);
+        const result = await remixVideo(id, prompt, userId);
         return new Response(JSON.stringify({ video: result }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
