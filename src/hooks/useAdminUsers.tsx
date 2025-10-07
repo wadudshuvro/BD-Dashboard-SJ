@@ -1,20 +1,27 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
 export interface AdminUser {
   id: string;
   email: string;
-  first_name: string;
-  last_name: string;
+  first_name: string | null;
+  last_name: string | null;
   role: 'super_admin' | 'manager' | 'pm' | 'user';
   status: 'active' | 'inactive' | 'pending';
+  title: string | null;
+  department: string | null;
+  is_marketing: boolean;
   created_at: string;
   updated_at: string;
   user_brands?: Array<{
     brand_id: string;
     brand_name: string;
     access_level: string;
+    can_view_analytics: boolean;
+    can_manage_content: boolean;
+    can_manage_team: boolean;
+    can_manage_settings: boolean;
   }>;
   permissions?: Array<{
     module_name: string;
@@ -25,6 +32,11 @@ export interface AdminUser {
   }>;
 }
 
+export interface BrandAssignment {
+  brand_id: string;
+  access_level: 'owner' | 'member' | 'viewer';
+}
+
 export interface CreateUserData {
   email: string;
   password: string;
@@ -32,13 +44,21 @@ export interface CreateUserData {
   lastName: string;
   role: 'super_admin' | 'manager' | 'pm' | 'user';
   status?: 'active' | 'inactive' | 'pending';
+  title?: string | null;
+  department?: string | null;
+  isMarketing?: boolean;
+  brandAssignments?: BrandAssignment[];
 }
 
 export interface UpdateUserData {
-  firstName: string;
-  lastName: string;
-  role: 'super_admin' | 'manager' | 'pm' | 'user';
-  status: 'active' | 'inactive' | 'pending';
+  firstName?: string;
+  lastName?: string;
+  role?: 'super_admin' | 'manager' | 'pm' | 'user';
+  status?: 'active' | 'inactive' | 'pending';
+  title?: string | null;
+  department?: string | null;
+  isMarketing?: boolean;
+  brandAssignments?: BrandAssignment[];
 }
 
 export interface UsersResponse {
@@ -54,17 +74,18 @@ export function useAdminUsers() {
   const [total, setTotal] = useState(0);
   const { toast } = useToast();
 
-  const getAuthToken = async () => {
+  const getAuthToken = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession();
     return session?.access_token;
-  };
+  }, []);
 
-  const fetchUsers = async (params: {
+  const fetchUsers = useCallback(async (params: {
     page?: number;
     limit?: number;
     search?: string;
     role?: string;
     status?: string;
+    isMarketing?: boolean;
   } = {}) => {
     setLoading(true);
     try {
@@ -79,8 +100,15 @@ export function useAdminUsers() {
       if (params.search) searchParams.set('search', params.search);
       if (params.role) searchParams.set('role', params.role);
       if (params.status) searchParams.set('status', params.status);
+      if (typeof params.isMarketing === 'boolean') {
+        searchParams.set('is_marketing', params.isMarketing ? 'true' : 'false');
+      }
 
-      const { data, error } = await supabase.functions.invoke('admin-users', {
+      const functionPath = searchParams.toString()
+        ? `admin-users?${searchParams.toString()}`
+        : 'admin-users';
+
+      const { data, error } = await supabase.functions.invoke(functionPath, {
         method: 'GET',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -105,9 +133,9 @@ export function useAdminUsers() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [getAuthToken, toast]);
 
-  const createUser = async (userData: CreateUserData): Promise<AdminUser> => {
+  const createUser = useCallback(async (userData: CreateUserData): Promise<AdminUser> => {
     try {
       const token = await getAuthToken();
       if (!token) {
@@ -143,9 +171,9 @@ export function useAdminUsers() {
       });
       throw error;
     }
-  };
+  }, [getAuthToken, toast]);
 
-  const updateUser = async (userId: string, userData: UpdateUserData): Promise<AdminUser> => {
+  const updateUser = useCallback(async (userId: string, userData: UpdateUserData): Promise<AdminUser> => {
     try {
       const token = await getAuthToken();
       if (!token) {
@@ -182,9 +210,9 @@ export function useAdminUsers() {
       });
       throw error;
     }
-  };
+  }, [getAuthToken, toast]);
 
-  const deleteUser = async (userId: string): Promise<void> => {
+  const deleteUser = useCallback(async (userId: string): Promise<void> => {
     try {
       const token = await getAuthToken();
       if (!token) {
@@ -216,9 +244,9 @@ export function useAdminUsers() {
       });
       throw error;
     }
-  };
+  }, [getAuthToken, toast]);
 
-  const getUserById = async (userId: string): Promise<AdminUser> => {
+  const getUserById = useCallback(async (userId: string): Promise<AdminUser> => {
     try {
       const token = await getAuthToken();
       if (!token) {
@@ -244,7 +272,7 @@ export function useAdminUsers() {
       });
       throw error;
     }
-  };
+  }, [getAuthToken, toast]);
 
   return {
     users,

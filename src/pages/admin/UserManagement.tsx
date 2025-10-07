@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Search, Plus, Filter, Eye, MoreHorizontal, Mail, Trash2, Shield, Grid, List, Edit, UserCheck, UserX, Calendar } from 'lucide-react';
+import { Search, Plus, Filter, MoreHorizontal, Trash2, Shield, UserCheck, UserX, Calendar } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -10,8 +10,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { UserPermissionDialog } from '@/components/admin/UserPermissionDialog';
-import { useAdminUsers, type AdminUser, type CreateUserData } from '@/hooks/useAdminUsers';
+import { useAdminUsers, type AdminUser, type BrandAssignment, type CreateUserData } from '@/hooks/useAdminUsers';
 import { useToast } from '@/hooks/use-toast';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { useAdminBrands } from '@/hooks/useAdminBrands';
 
 // Extended interface for UI purposes
 interface User extends AdminUser {
@@ -19,8 +22,21 @@ interface User extends AdminUser {
   brandAccess?: string[]; // Computed field for easier access
 }
 
+interface NewUserForm {
+  firstName: string;
+  lastName: string;
+  email: string;
+  password: string;
+  role: 'super_admin' | 'manager' | 'pm' | 'user';
+  title: string;
+  department: string;
+  isMarketing: boolean;
+  brandIds: string[];
+}
+
 const UserManagement = () => {
   const { users: rawUsers, loading, total, fetchUsers, createUser, updateUser, deleteUser } = useAdminUsers();
+  const { brands, loading: brandsLoading } = useAdminBrands();
   const [searchTerm, setSearchTerm] = useState("");
   const [filterRole, setFilterRole] = useState<string>("all");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -31,27 +47,36 @@ const UserManagement = () => {
   const { toast } = useToast();
 
   // Form state for creating users
-  const [newUser, setNewUser] = useState({
+  const [newUser, setNewUser] = useState<NewUserForm>({
     firstName: '',
     lastName: '',
     email: '',
     password: '',
-    role: 'user' as const,
+    role: 'user',
+    title: '',
+    department: '',
+    isMarketing: false,
+    brandIds: [],
   });
 
   // Convert raw users to UI-friendly format
   const users: User[] = useMemo(() => {
     return rawUsers.map(user => ({
       ...user,
-      name: `${user.first_name} ${user.last_name}`.trim(),
-      brandAccess: user.user_brands?.map(ub => ub.brand_name) || []
+      name: [user.first_name, user.last_name].filter(Boolean).join(' ') || user.email,
+      brandAccess: user.user_brands?.map(ub => ub.brand_name).filter(Boolean) || []
     }));
   }, [rawUsers]);
+
+  const marketingTeamCount = useMemo(
+    () => rawUsers.filter(user => user.is_marketing).length,
+    [rawUsers]
+  );
 
   // Load users on component mount
   useEffect(() => {
     fetchUsers({ page: currentPage, limit: 50 });
-  }, [currentPage]);
+  }, [currentPage, fetchUsers]);
 
   const filteredUsers = useMemo(() => {
     return users.filter(user => {
@@ -85,13 +110,34 @@ const UserManagement = () => {
     setIsPermissionDialogOpen(true);
   };
 
-  const handleSavePermissions = async (userId: string, permissions: any) => {
-    // This would update permissions via API
-    toast({
-      title: "Success",
-      description: "User permissions updated successfully",
-    });
-    setIsPermissionDialogOpen(false);
+  const handleSavePermissions = async (
+    userId: string,
+    updates: {
+      firstName: string;
+      lastName: string;
+      role: 'super_admin' | 'manager' | 'pm' | 'user';
+      status: 'active' | 'inactive' | 'pending';
+      title: string | null;
+      department: string | null;
+      isMarketing: boolean;
+      brandAssignments: BrandAssignment[];
+    }
+  ) => {
+    try {
+      await updateUser(userId, {
+        firstName: updates.firstName,
+        lastName: updates.lastName,
+        role: updates.role,
+        status: updates.status,
+        title: updates.title,
+        department: updates.department,
+        isMarketing: updates.isMarketing,
+        brandAssignments: updates.brandAssignments,
+      });
+      setIsPermissionDialogOpen(false);
+    } catch (error) {
+      // Error is surfaced via the updateUser hook toast handler
+    }
   };
 
   const handleCreateUser = async () => {
@@ -105,12 +151,21 @@ const UserManagement = () => {
     }
 
     try {
+      const brandAssignments: BrandAssignment[] = newUser.brandIds.map((brandId) => ({
+        brand_id: brandId,
+        access_level: 'member',
+      }));
+
       const userData: CreateUserData = {
         firstName: newUser.firstName,
         lastName: newUser.lastName,
         email: newUser.email,
         password: newUser.password,
         role: newUser.role,
+        title: newUser.title.trim() || null,
+        department: newUser.department.trim() || null,
+        isMarketing: newUser.isMarketing,
+        brandAssignments,
       };
 
       await createUser(userData);
@@ -121,6 +176,10 @@ const UserManagement = () => {
         email: '',
         password: '',
         role: 'user',
+        title: '',
+        department: '',
+        isMarketing: false,
+        brandIds: [],
       });
     } catch (error) {
       // Error is handled by the hook
@@ -141,9 +200,6 @@ const UserManagement = () => {
     try {
       const newStatus = user.status === 'active' ? 'inactive' : 'active';
       await updateUser(user.id, {
-        firstName: user.first_name,
-        lastName: user.last_name,
-        role: user.role,
         status: newStatus,
       });
     } catch (error) {
@@ -201,46 +257,66 @@ const UserManagement = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="first-name">First Name</Label>
-                    <Input 
-                      id="first-name" 
+                    <Input
+                      id="first-name"
                       placeholder="Enter first name"
                       value={newUser.firstName}
-                      onChange={(e) => setNewUser({...newUser, firstName: e.target.value})}
+                      onChange={(e) => setNewUser(prev => ({ ...prev, firstName: e.target.value }))}
                     />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="last-name">Last Name</Label>
-                    <Input 
-                      id="last-name" 
+                    <Input
+                      id="last-name"
                       placeholder="Enter last name"
                       value={newUser.lastName}
-                      onChange={(e) => setNewUser({...newUser, lastName: e.target.value})}
+                      onChange={(e) => setNewUser(prev => ({ ...prev, lastName: e.target.value }))}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="user-title">Title</Label>
+                    <Input
+                      id="user-title"
+                      placeholder="e.g. Marketing Manager"
+                      value={newUser.title}
+                      onChange={(e) => setNewUser(prev => ({ ...prev, title: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="user-department">Department</Label>
+                    <Input
+                      id="user-department"
+                      placeholder="e.g. Marketing"
+                      value={newUser.department}
+                      onChange={(e) => setNewUser(prev => ({ ...prev, department: e.target.value }))}
                     />
                   </div>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="user-email">Email Address</Label>
-                  <Input 
-                    id="user-email" 
-                    type="email" 
+                  <Input
+                    id="user-email"
+                    type="email"
                     placeholder="user@company.com"
                     value={newUser.email}
-                    onChange={(e) => setNewUser({...newUser, email: e.target.value})}
+                    onChange={(e) => setNewUser(prev => ({ ...prev, email: e.target.value }))}
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="user-password">Password</Label>
-                  <Input 
-                    id="user-password" 
-                    type="password" 
+                  <Input
+                    id="user-password"
+                    type="password"
                     placeholder="Enter password"
                     value={newUser.password}
-                    onChange={(e) => setNewUser({...newUser, password: e.target.value})}
+                    onChange={(e) => setNewUser(prev => ({ ...prev, password: e.target.value }))}
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="user-role">Role</Label>
-                  <Select value={newUser.role} onValueChange={(value: any) => setNewUser({...newUser, role: value})}>
+                  <Select value={newUser.role} onValueChange={(value: NewUserForm['role']) => setNewUser(prev => ({ ...prev, role: value }))}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select role" />
                     </SelectTrigger>
@@ -251,6 +327,61 @@ const UserManagement = () => {
                       <SelectItem value="user">User</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Marketing Team</Label>
+                  <div className="flex items-center gap-2 rounded-md border p-3">
+                    <Checkbox
+                      id="user-marketing"
+                      checked={newUser.isMarketing}
+                      onCheckedChange={(checked) =>
+                        setNewUser(prev => ({ ...prev, isMarketing: checked === true }))
+                      }
+                    />
+                    <Label htmlFor="user-marketing" className="text-sm font-normal">
+                      Add to marketing team
+                    </Label>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Assign Brands</Label>
+                  <ScrollArea className="max-h-40 rounded-md border p-3">
+                    <div className="space-y-2">
+                      {brandsLoading && (
+                        <p className="text-sm text-muted-foreground">Loading brands…</p>
+                      )}
+                      {!brandsLoading && brands.length === 0 && (
+                        <p className="text-sm text-muted-foreground">
+                          No brands available yet. Create a brand to assign access.
+                        </p>
+                      )}
+                      {!brandsLoading && brands.map((brand) => {
+                        const isSelected = newUser.brandIds.includes(brand.id);
+                        return (
+                          <div key={brand.id} className="flex items-center gap-2">
+                            <Checkbox
+                              id={`brand-${brand.id}`}
+                              checked={isSelected}
+                              onCheckedChange={(checked) =>
+                                setNewUser(prev => ({
+                                  ...prev,
+                                  brandIds: checked === true
+                                    ? Array.from(new Set([...prev.brandIds, brand.id]))
+                                    : prev.brandIds.filter(id => id !== brand.id),
+                                }))
+                              }
+                            />
+                            <Label htmlFor={`brand-${brand.id}`} className="text-sm font-medium">
+                              {brand.name}
+                            </Label>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </ScrollArea>
+                  <p className="text-xs text-muted-foreground">
+                    New users receive member-level access to selected brands.
+                  </p>
                 </div>
               </div>
               <div className="flex justify-end gap-2">
@@ -321,10 +452,11 @@ const UserManagement = () => {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Regular Users</CardTitle>
+            <CardTitle className="text-sm font-medium">Marketing Team</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{users.filter(u => u.role === 'user').length}</div>
+            <div className="text-2xl font-bold">{marketingTeamCount}</div>
+            <p className="text-xs text-muted-foreground">Marketing team members</p>
           </CardContent>
         </Card>
       </div>
@@ -336,6 +468,9 @@ const UserManagement = () => {
             <TableHeader>
               <TableRow>
                 <TableHead>User</TableHead>
+                <TableHead>Title</TableHead>
+                <TableHead>Department</TableHead>
+                <TableHead>Marketing</TableHead>
                 <TableHead>Role</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Brands</TableHead>
@@ -345,8 +480,8 @@ const UserManagement = () => {
             </TableHeader>
             <TableBody>
               {filteredUsers.map((user) => (
-                <TableRow 
-                  key={user.id} 
+                <TableRow
+                  key={user.id}
                   className="cursor-pointer hover:bg-muted/50"
                   onClick={() => handleEditPermissions(user)}
                 >
@@ -362,6 +497,19 @@ const UserManagement = () => {
                         <div className="text-sm text-muted-foreground">{user.email}</div>
                       </div>
                     </div>
+                  </TableCell>
+                  <TableCell className="text-sm">
+                    {user.title ? user.title : <span className="text-muted-foreground">—</span>}
+                  </TableCell>
+                  <TableCell className="text-sm">
+                    {user.department ? user.department : <span className="text-muted-foreground">—</span>}
+                  </TableCell>
+                  <TableCell>
+                    {user.is_marketing ? (
+                      <Badge variant="outline" className="text-xs">Marketing</Badge>
+                    ) : (
+                      <span className="text-sm text-muted-foreground">—</span>
+                    )}
                   </TableCell>
                   <TableCell>
                     <Badge className={getRoleColor(user.role)}>
@@ -452,11 +600,23 @@ const UserManagement = () => {
                       </span>
                     </div>
                     <div>
-                      <CardTitle className="text-base">{user.name}</CardTitle>
+                      <div className="flex items-center gap-2">
+                        <CardTitle className="text-base">{user.name}</CardTitle>
+                        {user.is_marketing && (
+                          <Badge variant="outline" className="text-xs">Marketing</Badge>
+                        )}
+                      </div>
                       <CardDescription className="text-sm">{user.email}</CardDescription>
+                      {(user.title || user.department) && (
+                        <p className="text-xs text-muted-foreground">
+                          {user.title}
+                          {user.title && user.department ? ' • ' : ''}
+                          {user.department}
+                        </p>
+                      )}
                     </div>
                   </div>
-                  
+
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" size="icon">
@@ -566,35 +726,7 @@ const UserManagement = () => {
       {/* Permission Dialog */}
       {selectedUser && (
         <UserPermissionDialog
-          user={{
-            ...selectedUser,
-            name: selectedUser.name || `${selectedUser.first_name} ${selectedUser.last_name}`,
-            assigned_brands: selectedUser.user_brands?.map(ub => ub.brand_id) || [],
-            is_active: selectedUser.status === 'active',
-            created_at: selectedUser.created_at,
-            permissions: {
-              modules: {
-                dashboard: true,
-                taskHub: true,
-                reports: selectedUser.role !== 'user',
-                settings: selectedUser.role !== 'user',
-                adminPanel: selectedUser.role === 'super_admin'
-              },
-              brands: selectedUser.user_brands?.reduce((acc, ub) => {
-                acc[ub.brand_id] = {
-                  access: true,
-                  level: ub.access_level as 'owner' | 'member' | 'viewer',
-                  permissions: {
-                    viewKPIs: true,
-                    editKPIs: ub.access_level === 'owner',
-                    manageTeam: ub.access_level === 'owner',
-                    editSettings: ub.access_level === 'owner'
-                  }
-                };
-                return acc;
-              }, {} as any) || {}
-            }
-          }}
+          user={selectedUser}
           isOpen={isPermissionDialogOpen}
           onClose={() => setIsPermissionDialogOpen(false)}
           onSave={handleSavePermissions}
