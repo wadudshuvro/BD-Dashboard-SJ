@@ -594,6 +594,7 @@ const VideoPage = () => {
             brandId: data.brandId,
             brandName: data.brandName,
             brandSlug: data.brandSlug,
+            seconds: data.durationSeconds,
             metadata: {
               user_id: user?.id,
               user_name: user?.name,
@@ -601,6 +602,7 @@ const VideoPage = () => {
               brand_name: data.brandName,
               brand_slug: data.brandSlug,
               title: data.keyword,
+              duration: data.durationSeconds,
             },
           });
         }}

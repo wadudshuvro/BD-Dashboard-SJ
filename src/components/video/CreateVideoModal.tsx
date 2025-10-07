@@ -28,6 +28,7 @@ interface CreateVideoModalProps {
     brandId?: string;
     brandName?: string;
     brandSlug?: string;
+    durationSeconds: number;
   }) => void;
   isLoading?: boolean;
   defaultModel?: string;
@@ -40,6 +41,10 @@ const DEFAULT_MODEL = "sora-2";
 const MAX_KEYWORD_LENGTH = 60;
 const KEYWORD_PLACEHOLDER = "Holiday campaign teaser";
 const NO_BRAND_VALUE = "__no_brand__";
+const DEFAULT_DURATION_SECONDS = 8;
+const MIN_DURATION_SECONDS = 1;
+const MAX_DURATION_SECONDS = 20;
+const COST_PER_SECOND_USD = 0.01;
 
 export const CreateVideoModal = ({
   open,
@@ -58,6 +63,8 @@ export const CreateVideoModal = ({
   const [keyword, setKeyword] = useState("");
   const [keywordTouched, setKeywordTouched] = useState(false);
   const [brandId, setBrandId] = useState<string | undefined>(undefined);
+  const [duration, setDuration] = useState<string>(String(DEFAULT_DURATION_SECONDS));
+  const [durationTouched, setDurationTouched] = useState(false);
   const { toast } = useToast();
 
   const enhanceMutation = useMutation({
@@ -93,6 +100,8 @@ export const CreateVideoModal = ({
       setKeyword("");
       setKeywordTouched(false);
       setBrandId(undefined);
+      setDuration(String(DEFAULT_DURATION_SECONDS));
+      setDurationTouched(false);
       enhanceMutation.reset();
     }
   }, [open, enhanceMutation, defaultModel]);
@@ -119,6 +128,7 @@ export const CreateVideoModal = ({
     event.preventDefault();
     setTouchedPrompt(true);
     setKeywordTouched(true);
+    setDurationTouched(true);
     if (!prompt.trim()) {
       toast({
         title: "Prompt required",
@@ -146,6 +156,15 @@ export const CreateVideoModal = ({
       return;
     }
 
+    if (!isDurationValid) {
+      toast({
+        title: "Adjust the duration",
+        description: `Pick a duration between ${MIN_DURATION_SECONDS} and ${MAX_DURATION_SECONDS} seconds.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     const selectedBrand = brandOptions?.find((option) => option.id === brandId);
 
     onCreate({
@@ -156,6 +175,7 @@ export const CreateVideoModal = ({
       brandId: selectedBrand?.id,
       brandName: selectedBrand?.name,
       brandSlug: selectedBrand?.slug,
+      durationSeconds: parsedDuration,
     });
   };
 
@@ -197,6 +217,15 @@ export const CreateVideoModal = ({
   const brandSelectValue = brandId ?? NO_BRAND_VALUE;
   const disableBrandSelect = Boolean(isLoading || isBrandLoading);
   const availableBrandOptions = brandOptions ?? [];
+  const parsedDuration = Number(duration);
+  const isDurationValid =
+    Number.isFinite(parsedDuration) &&
+    parsedDuration >= MIN_DURATION_SECONDS &&
+    parsedDuration <= MAX_DURATION_SECONDS;
+  const durationError = durationTouched && !isDurationValid;
+  const estimatedCost = isDurationValid
+    ? (parsedDuration * COST_PER_SECOND_USD).toFixed(3)
+    : undefined;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -279,6 +308,37 @@ export const CreateVideoModal = ({
           </div>
 
           <div className="space-y-2">
+            <Label htmlFor="video-duration">Duration (seconds)</Label>
+            <Input
+              id="video-duration"
+              type="number"
+              min={MIN_DURATION_SECONDS}
+              max={MAX_DURATION_SECONDS}
+              value={duration}
+              onChange={(event) => {
+                setDuration(event.target.value);
+                if (!durationTouched) {
+                  setDurationTouched(true);
+                }
+              }}
+              onBlur={() => setDurationTouched(true)}
+              disabled={isLoading}
+              className="w-full"
+            />
+            <p className="text-sm text-muted-foreground">
+              Sora supports clips up to {MAX_DURATION_SECONDS} seconds. Keep marketing snippets punchy and concise.
+            </p>
+            {estimatedCost ? (
+              <p className="text-sm text-muted-foreground">Estimated Cost: ${estimatedCost}</p>
+            ) : null}
+            {durationError ? (
+              <p className="text-sm text-rose-500">
+                Choose a duration between {MIN_DURATION_SECONDS} and {MAX_DURATION_SECONDS} seconds.
+              </p>
+            ) : null}
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="video-brand">Brand</Label>
             <Select
               value={brandSelectValue}
@@ -327,7 +387,7 @@ export const CreateVideoModal = ({
             </Button>
             <Button
               type="submit"
-              disabled={isLoading || isEnhancing || !prompt.trim() || !isKeywordValid}
+              disabled={isLoading || isEnhancing || !prompt.trim() || !isKeywordValid || !isDurationValid}
               className="gap-2"
             >
               {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}

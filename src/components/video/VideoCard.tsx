@@ -116,6 +116,12 @@ const VideoCardComponent = ({
         {video.model ? (
           <CardDescription className="text-xs text-muted-foreground">Model: {video.model}</CardDescription>
         ) : null}
+        <p className="text-xs text-muted-foreground">
+          ⏱ Duration:
+          {typeof video.durationSeconds === "number" && !Number.isNaN(video.durationSeconds)
+            ? ` ${video.durationSeconds.toFixed(1)}s`
+            : " --"}
+        </p>
       </CardHeader>
       <CardContent className="flex-1 space-y-4">
         <AspectRatio ratio={16 / 9} className="overflow-hidden rounded-lg border border-border/60 bg-muted">

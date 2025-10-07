@@ -19,6 +19,9 @@ const VIDEO_STATUS_LABELS: Record<VideoStatus, string> = {
   unknown: "Pending",
 };
 
+const MIN_DURATION_SECONDS = 1;
+const MAX_DURATION_SECONDS = 20;
+
 export const getVideoStatusLabel = (status: VideoStatus): string => {
   return VIDEO_STATUS_LABELS[status] ?? "Pending";
 };
@@ -53,6 +56,8 @@ export interface VideoMetadata {
   brand_name?: string;
   brand_slug?: string;
   title?: string;
+  duration?: number;
+  cost?: number;
 }
 
 export interface CreateVideoInput {
@@ -64,6 +69,7 @@ export interface CreateVideoInput {
   brandSlug?: string;
   file?: File | null;
   metadata?: VideoMetadata;
+  seconds?: number;
 }
 
 export interface VideoBinaryContent {
@@ -76,7 +82,7 @@ type SoraVideoManagerOperation =
   | { operation: "enhance"; idea: string }
   | { operation: "list" }
   | { operation: "retrieve"; videoId: string }
-  | { operation: "create"; prompt: string; model?: string; title?: string; metadata?: VideoMetadata }
+  | { operation: "create"; prompt: string; model?: string; title?: string; metadata?: VideoMetadata; seconds?: number }
   | { operation: "delete"; videoId: string }
   | { operation: "thumbnail"; videoId: string }
   | { operation: "content"; videoId: string }
@@ -301,8 +307,11 @@ const normalizeVideo = (raw: any): SoraVideo => {
   const durationSeconds = asNumber(
     raw.duration,
     raw.duration_seconds,
+    raw.seconds,
     raw.metadata?.duration,
+    raw.metadata?.seconds,
     raw.meta?.duration,
+    raw.meta?.seconds,
     raw.length,
     raw.length_seconds,
   );
@@ -384,12 +393,17 @@ export const createVideo = async ({
   brandSlug,
   file,
   metadata,
+  seconds,
 }: CreateVideoInput): Promise<SoraVideo> => {
   if (!prompt || !prompt.trim()) {
     throw new Error("Prompt is required to generate a video.");
   }
 
   const resolvedModel = typeof model === "string" && model.trim().length > 0 ? model.trim() : "sora-2";
+  const resolvedSeconds =
+    typeof seconds === "number" && Number.isFinite(seconds)
+      ? Math.max(MIN_DURATION_SECONDS, Math.min(MAX_DURATION_SECONDS, Math.round(seconds)))
+      : undefined;
 
   const metadataPayload: VideoMetadata = {
     ...(metadata ?? {}),
@@ -412,6 +426,10 @@ export const createVideo = async ({
     metadataPayload.brand_slug = brandSlug;
   }
 
+  if (resolvedSeconds !== undefined) {
+    metadataPayload.duration = resolvedSeconds;
+  }
+
   const sanitizedMetadata = Object.fromEntries(
     Object.entries(metadataPayload).filter(([, value]) =>
       typeof value === "string" ? value.trim().length > 0 : value !== undefined && value !== null,
@@ -428,6 +446,7 @@ export const createVideo = async ({
     model: resolvedModel,
     title: trimmedTitle,
     metadata: Object.keys(sanitizedMetadata).length > 0 ? sanitizedMetadata : undefined,
+    seconds: resolvedSeconds,
   });
   if (Array.isArray(payload?.data) && payload.data.length > 0) {
     return normalizeVideo(payload.data[0]);
