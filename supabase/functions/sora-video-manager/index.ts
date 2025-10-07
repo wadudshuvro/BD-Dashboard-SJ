@@ -13,9 +13,9 @@ serve(async (req) => {
   }
 
   try {
-    const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
+    const openAIApiKey = Deno.env.get('OPENAI_KEY');
     if (!openAIApiKey) {
-      throw new Error('OPENAI_API_KEY not configured');
+      throw new Error('OPENAI_KEY not configured');
     }
 
     const { operation, prompt, file, videoId } = await req.json();
