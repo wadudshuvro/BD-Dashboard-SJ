@@ -58,6 +58,10 @@ const request = async <T>(
 ): Promise<AxiosLikeResponse<T>> => {
   const headers = new Headers(config.headers ?? {});
 
+  if (!headers.has("OpenAI-Beta")) {
+    headers.set("OpenAI-Beta", "video-generation=2024-12-17");
+  }
+
   if (!OPENAI_API_KEY) {
     console.warn("OpenAI API key is not configured. Set VITE_OPENAI_API_KEY in your environment.");
   } else {
