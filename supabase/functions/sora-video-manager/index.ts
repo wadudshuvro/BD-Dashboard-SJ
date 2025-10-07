@@ -18,7 +18,7 @@ serve(async (req) => {
       throw new Error('OPENAI_KEY not configured');
     }
 
-    const { operation, prompt, file, videoId } = await req.json();
+    const { operation, prompt, file, videoId, idea } = await req.json();
     console.log('Sora video operation:', operation);
 
     let response;
@@ -28,6 +28,27 @@ serve(async (req) => {
     };
 
     switch (operation) {
+      case 'enhance':
+        console.log('Enhancing video idea:', idea);
+        if (!idea || !idea.trim()) {
+          throw new Error('Idea is required to enhance the prompt');
+        }
+        
+        response = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: openAIHeaders,
+          body: JSON.stringify({
+            model: 'gpt-4o-mini',
+            messages: [
+              {
+                role: 'system',
+                content: 'You are a marketing video prompt generator for OpenAI Sora 2. Transform short marketing ideas into detailed cinematic prompts that describe visuals, camera style, lighting, and tone in 1-2 sentences.',
+              },
+              { role: 'user', content: idea.trim() },
+            ],
+          }),
+        });
+        break;
       case 'list':
         console.log('Fetching video list from OpenAI');
         response = await fetch('https://api.openai.com/v1/videos', {
@@ -85,7 +106,16 @@ serve(async (req) => {
       throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
     }
 
-    const data = operation === 'delete' ? {} : await response.json();
+    let data;
+    if (operation === 'delete') {
+      data = {};
+    } else if (operation === 'enhance') {
+      const rawData = await response.json();
+      const content = rawData?.choices?.[0]?.message?.content || '';
+      data = { enhancedPrompt: content.trim() };
+    } else {
+      data = await response.json();
+    }
     console.log('OpenAI response received successfully');
 
     return new Response(JSON.stringify(data), {

@@ -1,4 +1,5 @@
 import { axiosPrivate } from "@/lib/axios";
+import { supabase } from "@/integrations/supabase/client";
 
 export type VideoStatus =
   | "queued"
@@ -418,18 +419,10 @@ export const enhanceVideoIdea = async (idea: string): Promise<string> => {
     throw new Error("An idea is required to enhance the prompt.");
   }
 
-  const payload = {
-    model: "gpt-4o-mini",
-    messages: [
-      {
-        role: "system",
-        content:
-          "You are a marketing video prompt generator for OpenAI Sora 2. Transform short marketing ideas into detailed cinematic prompts that describe visuals, camera style, lighting, and tone in 1-2 sentences.",
-      },
-      { role: "user", content: idea.trim() },
-    ],
-  };
+  const { data, error } = await supabase.functions.invoke('sora-video-manager', {
+    body: { operation: 'enhance', idea: idea.trim() }
+  });
 
-  const { data } = await axiosPrivate.post<unknown>("/v1/chat/completions", payload);
-  return extractResponseText(data).trim();
+  if (error) throw error;
+  return data?.enhancedPrompt || '';
 };
