@@ -31,7 +31,6 @@ import KPIConfigurator from "./pages/admin/KPIConfigurator";
 import AdminSettings from "./pages/admin/AdminSettings";
 import UserDetail from "./pages/admin/UserDetail";
 import AdminPanel from "./pages/admin/AdminPanel";
-import BulkUserSetup from "./pages/admin/BulkUserSetup";
 import UserBrands from "./pages/UserBrands";
 import AIAgentsPage from "./pages/ai-agents";
 import MyAgentsPage from "./pages/my-agents";
@@ -185,7 +184,6 @@ const App = () => (
               <Route path="settings" element={<AdminSettings />} />
               <Route path="ai-agents" element={<AIAgentsPage />} />
               <Route path="ai-dashboard" element={<AIDashboard />} />
-              <Route path="bulk-user-setup" element={<BulkUserSetup />} />
             </Route>
             
             {/* Legacy/Fallback Routes */}

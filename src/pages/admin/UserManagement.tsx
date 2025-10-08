@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Search, Plus, Filter, MoreHorizontal, Trash2, Shield, UserCheck, UserX, Calendar, AlertCircle, RefreshCw } from 'lucide-react';
+import { Search, Plus, Filter, MoreHorizontal, Trash2, Shield, UserCheck, UserX, Calendar, AlertCircle, RefreshCw, Users, CheckCircle, XCircle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -8,6 +8,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Label } from '@/components/ui/label';
 import { UserPermissionDialog } from '@/components/admin/UserPermissionDialog';
 import { useAdminUsers, type AdminUser, type BrandAssignment, type CreateUserData } from '@/hooks/useAdminUsers';
@@ -43,6 +44,8 @@ const UserManagement = () => {
   const [viewMode, setViewMode] = useState<"cards" | "table">("table");
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isPermissionDialogOpen, setIsPermissionDialogOpen] = useState(false);
+  const [isBulkSetupRunning, setIsBulkSetupRunning] = useState(false);
+  const [bulkSetupResults, setBulkSetupResults] = useState<Array<{ name: string; success: boolean; error?: string }>>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const { toast } = useToast();
 
@@ -138,6 +141,54 @@ const UserManagement = () => {
     } catch (error) {
       // Error is surfaced via the updateUser hook toast handler
     }
+  };
+
+  const executeBulkSetup = async () => {
+    setIsBulkSetupRunning(true);
+    setBulkSetupResults([]);
+    const results: Array<{ name: string; success: boolean; error?: string }> = [];
+
+    const newUsers = [
+      { firstName: 'Mehedi', email: 'mehedi@sjinnovation.com', title: 'Module Lead (UI/UX)' },
+      { firstName: 'Evelyn', email: 'evelyn@sjinnovation.com', title: 'Content Writer' },
+      { firstName: 'Tuly', email: 'tuly@sjinnovation.com', title: 'Jr. Marketing Executive' },
+      { firstName: 'Biplob', email: 'biplob@sjinnovation.com', title: 'Jr. Marketing Executive' },
+      { firstName: 'Debanjan', email: 'debanjan@sjinnovation.com', title: 'Jr. Marketing Executive' },
+    ];
+
+    // Create new users
+    for (const user of newUsers) {
+      try {
+        await createUser({
+          email: user.email,
+          password: 'Welcome@2025',
+          firstName: user.firstName,
+          lastName: '',
+          role: 'user',
+          status: 'active',
+          title: user.title,
+          department: 'Marketing',
+          isMarketing: true,
+        });
+        results.push({ name: `${user.firstName} (${user.email})`, success: true });
+      } catch (error: any) {
+        results.push({ name: `${user.firstName} (${user.email})`, success: false, error: error.message });
+      }
+    }
+
+    // Update Anik's title
+    try {
+      await updateUser('c1579d9d-f7d9-4f60-b83a-c61f6209f64e', {
+        title: 'Project Coordinator',
+      });
+      results.push({ name: 'Anik (title update)', success: true });
+    } catch (error: any) {
+      results.push({ name: 'Anik (title update)', success: false, error: error.message });
+    }
+
+    setBulkSetupResults(results);
+    setIsBulkSetupRunning(false);
+    await fetchUsers();
   };
 
   const handleCreateUser = async () => {
@@ -435,6 +486,60 @@ const UserManagement = () => {
               </div>
             </DialogContent>
           </Dialog>
+
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="outline">
+                <Users className="mr-2 h-4 w-4" />
+                Bulk Setup
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent className="max-w-2xl">
+              <AlertDialogHeader>
+                <AlertDialogTitle>Bulk User Setup</AlertDialogTitle>
+                <AlertDialogDescription className="space-y-4">
+                  <div>
+                    <p className="font-semibold mb-2">This will:</p>
+                    <ul className="list-disc list-inside space-y-1 text-sm">
+                      <li>Create 5 new marketing team members (Mehedi, Evelyn, Tuly, Biplob, Debanjan)</li>
+                      <li>Update Anik's title to "Project Coordinator"</li>
+                      <li>All new users will have password: Welcome@2025</li>
+                    </ul>
+                  </div>
+                  {bulkSetupResults.length > 0 && (
+                    <div className="space-y-2 mt-4">
+                      <p className="font-semibold">Results:</p>
+                      {bulkSetupResults.map((result, idx) => (
+                        <div key={idx} className="flex items-start gap-2 text-sm">
+                          {result.success ? (
+                            <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
+                          ) : (
+                            <XCircle className="h-4 w-4 text-red-600 flex-shrink-0 mt-0.5" />
+                          )}
+                          <div>
+                            <span>{result.name}</span>
+                            {result.error && <span className="text-red-600 ml-2">- {result.error}</span>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={isBulkSetupRunning}>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={(e) => {
+                    e.preventDefault();
+                    executeBulkSetup();
+                  }}
+                  disabled={isBulkSetupRunning || bulkSetupResults.length > 0}
+                >
+                  {isBulkSetupRunning ? 'Processing...' : bulkSetupResults.length > 0 ? 'Completed' : 'Execute Setup'}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </div>
 
