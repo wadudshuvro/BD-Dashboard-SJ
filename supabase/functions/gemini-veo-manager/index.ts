@@ -17,6 +17,9 @@ interface CreateVideoRequest {
   operation: "create";
   prompt: string;
   duration?: number;
+  aspectRatio?: "16:9" | "9:16";
+  resolution?: "720p" | "1080p";
+  negativePrompt?: string;
   metadata?: Record<string, unknown>;
 }
 
@@ -54,8 +57,9 @@ type RequestBody =
   | RemixVideoRequest;
 
 async function pollOperation(operationName: string): Promise<any> {
-  const maxAttempts = 60; // 10 minutes max (60 * 10 seconds)
+  const maxAttempts = 40; // Up to 10 minutes with exponential backoff
   let attempts = 0;
+  let delay = 5000; // Start with 5 seconds
 
   while (attempts < maxAttempts) {
     const response = await fetch(`${BASE_URL}/${operationName}`, {
@@ -77,34 +81,58 @@ async function pollOperation(operationName: string): Promise<any> {
     }
 
     attempts++;
-    await new Promise((resolve) => setTimeout(resolve, 10000)); // Wait 10 seconds
+    console.log(`Polling attempt ${attempts}/${maxAttempts}, waiting ${delay}ms...`);
+    await new Promise((resolve) => setTimeout(resolve, delay));
+    
+    // Exponential backoff: 5s -> 10s -> 20s -> 30s (max)
+    delay = Math.min(delay * 2, 30000);
   }
 
-  throw new Error("Video generation timeout");
+  throw new Error("Video generation timeout - exceeded 10 minutes");
 }
 
 async function createVideo(
   prompt: string,
   userId: string,
   duration?: number,
+  aspectRatio?: "16:9" | "9:16",
+  resolution?: "720p" | "1080p",
+  negativePrompt?: string,
   metadata?: Record<string, unknown>
 ): Promise<any> {
   console.log("Creating video with prompt:", prompt);
+  console.log("Parameters:", { duration, aspectRatio, resolution, negativePrompt });
 
-  const response = await fetch(`${BASE_URL}/models/${MODEL}:predictLongRunning`, {
+  // Build request body according to Veo 3 API spec
+  const requestBody: any = {
+    prompt: prompt,
+    personGeneration: "allow_adult", // Required for EU compliance
+  };
+
+  // Add optional parameters
+  if (duration && duration >= 5 && duration <= 8) {
+    requestBody.duration = duration;
+  }
+  
+  if (aspectRatio) {
+    requestBody.aspectRatio = aspectRatio;
+  }
+  
+  if (resolution) {
+    requestBody.resolution = resolution;
+  }
+  
+  if (negativePrompt) {
+    requestBody.negativePrompt = negativePrompt;
+  }
+
+  const response = await fetch(`${BASE_URL}/models/${MODEL}:generateVideos`, {
     method: "POST",
     headers: {
       "x-goog-api-key": GEMINI_API_KEY!,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      instances: [
-        {
-          prompt: prompt,
-          // Note: duration parameter is not supported by veo-3.0-generate-001
-        },
-      ],
-    }),
+    body: JSON.stringify(requestBody),
   });
 
   if (!response.ok) {
@@ -125,7 +153,10 @@ async function createVideo(
       id: videoId,
       operation_name: operationName,
       prompt,
-      duration,
+      duration: duration || 8,
+      aspect_ratio: aspectRatio || "16:9",
+      resolution: resolution || "720p",
+      negative_prompt: negativePrompt,
       status: "processing",
       metadata: metadata || {},
       user_id: userId,
@@ -178,7 +209,8 @@ async function getVideo(id: string): Promise<any> {
     const operation = await response.json();
     
     if (operation.done) {
-      const videoUri = operation.response?.generateVideoResponse?.generatedSamples?.[0]?.video?.uri;
+      // Extract video URI from correct Veo 3 response path
+      const videoUri = operation.response?.generated_videos?.[0]?.video?.uri;
       
       // Update database
       await supabase
@@ -327,8 +359,16 @@ Deno.serve(async (req) => {
 
     switch (operation) {
       case "create": {
-        const { prompt, duration, metadata } = body as CreateVideoRequest;
-        const result = await createVideo(prompt, userId, duration, metadata);
+        const { prompt, duration, aspectRatio, resolution, negativePrompt, metadata } = body as CreateVideoRequest;
+        const result = await createVideo(
+          prompt, 
+          userId, 
+          duration, 
+          aspectRatio, 
+          resolution, 
+          negativePrompt, 
+          metadata
+        );
         return new Response(JSON.stringify({ video: result }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });

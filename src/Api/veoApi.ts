@@ -20,6 +20,9 @@ export interface GeminiVideo {
 export interface CreateGeminiVideoInput {
   prompt: string;
   duration: number;
+  aspectRatio?: "16:9" | "9:16";
+  resolution?: "720p" | "1080p";
+  negativePrompt?: string;
   inputReference?: File | null;
   metadata?: Record<string, unknown>;
 }
@@ -208,6 +211,9 @@ export const getGeminiVideo = async (id: string): Promise<GeminiVideo> => {
 export const createGeminiVideo = async ({
   prompt,
   duration,
+  aspectRatio,
+  resolution,
+  negativePrompt,
   inputReference,
   metadata,
 }: CreateGeminiVideoInput): Promise<GeminiVideo> => {
@@ -215,13 +221,21 @@ export const createGeminiVideo = async ({
     throw new Error("Prompt is required to create a video");
   }
 
-  if (!Number.isFinite(duration) || duration < 1 || duration > 20) {
-    throw new Error("Duration must be between 1 and 20 seconds");
+  if (!Number.isFinite(duration) || duration < 5 || duration > 8) {
+    throw new Error("Duration must be between 5 and 8 seconds for Veo 3");
+  }
+
+  // Validate resolution for aspect ratio
+  if (resolution === "1080p" && aspectRatio === "9:16") {
+    throw new Error("1080p resolution is only available for 16:9 aspect ratio");
   }
 
   const data = await invokeVeoFunction("create", {
     prompt: prompt.trim(),
     duration,
+    aspectRatio,
+    resolution,
+    negativePrompt: negativePrompt?.trim(),
     metadata,
   });
 

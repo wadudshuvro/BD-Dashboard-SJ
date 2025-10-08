@@ -997,42 +997,54 @@ export type Database = {
       }
       gemini_videos: {
         Row: {
+          aspect_ratio: string | null
           completed_at: string | null
           created_at: string | null
           duration: number | null
           error: Json | null
+          has_audio: boolean | null
           id: string
           metadata: Json | null
+          negative_prompt: string | null
           operation_name: string
           prompt: string
+          resolution: string | null
           status: string
           thumbnail_url: string | null
           user_id: string | null
           video_url: string | null
         }
         Insert: {
+          aspect_ratio?: string | null
           completed_at?: string | null
           created_at?: string | null
           duration?: number | null
           error?: Json | null
+          has_audio?: boolean | null
           id: string
           metadata?: Json | null
+          negative_prompt?: string | null
           operation_name: string
           prompt: string
+          resolution?: string | null
           status?: string
           thumbnail_url?: string | null
           user_id?: string | null
           video_url?: string | null
         }
         Update: {
+          aspect_ratio?: string | null
           completed_at?: string | null
           created_at?: string | null
           duration?: number | null
           error?: Json | null
+          has_audio?: boolean | null
           id?: string
           metadata?: Json | null
+          negative_prompt?: string | null
           operation_name?: string
           prompt?: string
+          resolution?: string | null
           status?: string
           thumbnail_url?: string | null
           user_id?: string | null
