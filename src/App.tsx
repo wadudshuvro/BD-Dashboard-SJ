@@ -19,6 +19,7 @@ import Unauthorized from "./pages/Unauthorized";
 import ClientManagement from "./pages/ClientManagement";
 import ProjectManagement from "./pages/ProjectManagement";
 import ClientDetail from "./pages/ClientDetail";
+import ProjectDetail from "./pages/ProjectDetail";
 import ClientsProjects from "./pages/ClientsProjects";
 import People from "./pages/People";
 import ActionsTasks from "./pages/ActionsTasks";
@@ -111,6 +112,7 @@ const App = () => (
               <Route path="clients" element={<ClientManagement />} />
               <Route path="clients/:clientId" element={<ClientDetail />} />
               <Route path="projects" element={<ProjectManagement />} />
+              <Route path="projects/:projectId" element={<ProjectDetail />} />
               <Route path="tasks" element={<ActionsTasks />} />
               <Route path="my-agents" element={<MyAgentsPage />} />
             </Route>
@@ -129,6 +131,7 @@ const App = () => (
               <Route path="clients" element={<ClientManagement />} />
               <Route path="clients/:clientId" element={<ClientDetail />} />
               <Route path="projects" element={<ProjectManagement />} />
+              <Route path="projects/:projectId" element={<ProjectDetail />} />
               <Route path="brands" element={<BrandManagement />} />
               <Route path="brands/:brandId" element={<BrandDetail />} />
               <Route path="actions-tasks" element={<ActionsTasks />} />
@@ -151,6 +154,7 @@ const App = () => (
               <Route path="clients" element={<ClientManagement />} />
               <Route path="clients/:clientId" element={<ClientDetail />} />
               <Route path="projects" element={<ProjectManagement />} />
+              <Route path="projects/:projectId" element={<ProjectDetail />} />
               <Route path="brands" element={<BrandManagement />} />
               <Route path="brands/:brandId" element={<BrandDetail />} />
               <Route path="actions-tasks" element={<ActionsTasks />} />
@@ -177,7 +181,9 @@ const App = () => (
               <Route path="users" element={<UserManagement />} />
               <Route path="users/:userId" element={<UserDetail />} />
               <Route path="clients" element={<ClientManagement />} />
+              <Route path="clients/:clientId" element={<ClientDetail />} />
               <Route path="projects" element={<ProjectManagement />} />
+              <Route path="projects/:projectId" element={<ProjectDetail />} />
               <Route path="integrations" element={<IntegrationManager />} />
               <Route path="kpis" element={<KPIConfigurator />} />
               <Route path="documentation" element={<React.Suspense fallback={<div>Loading...</div>}><Documentation /></React.Suspense>} />

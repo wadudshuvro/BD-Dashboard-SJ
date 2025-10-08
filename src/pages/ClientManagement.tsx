@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Search, Plus, Filter, MoreVertical, Building2, Users, Calendar, TrendingUp } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Search, Plus, Filter, MoreVertical, Building2, Users, Calendar, TrendingUp, Eye, Edit, Trash2, FolderOpen } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +17,7 @@ import { ClientDialog } from "@/components/clients/ClientDialog";
 import { toast } from "sonner";
 
 export default function ClientManagement() {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -214,7 +216,8 @@ export default function ClientManagement() {
               {filteredClients.map((client) => (
                 <div
                   key={client.id}
-                  className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-secondary/50 transition-colors"
+                  className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-secondary/50 transition-colors cursor-pointer"
+                  onClick={() => navigate(`/dashboard/clients/${client.id}`)}
                 >
                   <div className="flex items-center gap-4">
                     <Avatar>
@@ -241,20 +244,41 @@ export default function ClientManagement() {
                     </Badge>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm">
+                        <Button variant="ghost" size="sm" onClick={(e) => e.stopPropagation()}>
                           <MoreVertical className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent>
-                        <DropdownMenuItem onClick={() => handleEditClient(client)}>
+                        <DropdownMenuItem onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/dashboard/clients/${client.id}`);
+                        }}>
+                          <Eye className="mr-2 h-4 w-4" />
+                          View Details
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={(e) => {
+                          e.stopPropagation();
+                          handleEditClient(client);
+                        }}>
+                          <Edit className="mr-2 h-4 w-4" />
                           Edit Client
                         </DropdownMenuItem>
-                        <DropdownMenuItem>View Projects</DropdownMenuItem>
+                        <DropdownMenuItem onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/dashboard/projects?client=${client.id}`);
+                        }}>
+                          <FolderOpen className="mr-2 h-4 w-4" />
+                          View Projects
+                        </DropdownMenuItem>
                         <DropdownMenuItem 
-                          className="text-destructive"
-                          onClick={() => handleDeleteClient(client.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteClient(client.id);
+                          }}
+                          className="text-red-600"
                         >
-                          Delete Client
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>

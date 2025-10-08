@@ -490,7 +490,11 @@ export default function ProjectManagement() {
             </TableHeader>
             <TableBody>
               {projects.map((project) => (
-                <TableRow key={project.id}>
+                <TableRow 
+                  key={project.id}
+                  className="cursor-pointer hover:bg-muted/50"
+                  onClick={() => navigate(`/dashboard/projects/${project.id}`)}
+                >
                   <TableCell>
                     <div className="space-y-1">
                       <div className="font-medium">{project.name}</div>
