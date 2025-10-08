@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import axiosPrivate from '@/lib/axiosPrivate';
 
 export interface AdminUser {
   id: string;
@@ -89,68 +90,30 @@ export function useAdminUsers() {
   } = {}) => {
     setLoading(true);
     try {
-      const token = await getAuthToken();
-      if (!token) {
-        throw new Error('No authentication token found');
-      }
-
-      const searchParams = new URLSearchParams();
-      if (params.page) searchParams.set('page', params.page.toString());
-      if (params.limit) searchParams.set('limit', params.limit.toString());
-      if (params.search) searchParams.set('search', params.search);
-      if (params.role) searchParams.set('role', params.role);
-      if (params.status) searchParams.set('status', params.status);
-      if (typeof params.isMarketing === 'boolean') {
-        searchParams.set('is_marketing', params.isMarketing ? 'true' : 'false');
-      }
-
-      const functionPath = searchParams.toString()
-        ? `admin-users?${searchParams.toString()}`
-        : 'admin-users';
-
-      const { data, error } = await supabase.functions.invoke(functionPath, {
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+      const { data } = await axiosPrivate.get<UsersResponse>('/admin-users', {
+        params,
       });
 
-      if (error) throw error;
+      setUsers(data.users);
+      setTotal(data.total);
 
-      const response: UsersResponse = data;
-      setUsers(response.users);
-      setTotal(response.total);
-
-      return response;
+      return data;
     } catch (error: any) {
       console.error('Error fetching users:', error);
       toast({
         title: "Error",
-        description: error.message || "Failed to fetch users",
+        description: error.response?.data?.error || error.message || "Failed to fetch users",
         variant: "destructive",
       });
       throw error;
     } finally {
       setLoading(false);
     }
-  }, [getAuthToken, toast]);
+  }, [toast]);
 
   const createUser = useCallback(async (userData: CreateUserData): Promise<AdminUser> => {
     try {
-      const token = await getAuthToken();
-      if (!token) {
-        throw new Error('No authentication token found');
-      }
-
-      const { data, error } = await supabase.functions.invoke('admin-users', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: userData,
-      });
-
-      if (error) throw error;
+      const { data } = await axiosPrivate.post<{ user: AdminUser }>('/admin-users', userData);
 
       const newUser: AdminUser = data.user;
       setUsers(prev => [newUser, ...prev]);
@@ -166,29 +129,16 @@ export function useAdminUsers() {
       console.error('Error creating user:', error);
       toast({
         title: "Error",
-        description: error.message || "Failed to create user",
+        description: error.response?.data?.error || error.message || "Failed to create user",
         variant: "destructive",
       });
       throw error;
     }
-  }, [getAuthToken, toast]);
+  }, [toast]);
 
   const updateUser = useCallback(async (userId: string, userData: UpdateUserData): Promise<AdminUser> => {
     try {
-      const token = await getAuthToken();
-      if (!token) {
-        throw new Error('No authentication token found');
-      }
-
-      const { data, error } = await supabase.functions.invoke(`admin-users/${userId}`, {
-        method: 'PUT',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: userData,
-      });
-
-      if (error) throw error;
+      const { data } = await axiosPrivate.put<{ user: AdminUser }>(`/admin-users/${userId}`, userData);
 
       const updatedUser: AdminUser = data.user;
       setUsers(prev => prev.map(user => 
@@ -205,28 +155,16 @@ export function useAdminUsers() {
       console.error('Error updating user:', error);
       toast({
         title: "Error",
-        description: error.message || "Failed to update user",
+        description: error.response?.data?.error || error.message || "Failed to update user",
         variant: "destructive",
       });
       throw error;
     }
-  }, [getAuthToken, toast]);
+  }, [toast]);
 
   const deleteUser = useCallback(async (userId: string): Promise<void> => {
     try {
-      const token = await getAuthToken();
-      if (!token) {
-        throw new Error('No authentication token found');
-      }
-
-      const { error } = await supabase.functions.invoke(`admin-users/${userId}`, {
-        method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (error) throw error;
+      await axiosPrivate.delete(`/admin-users/${userId}`);
 
       setUsers(prev => prev.filter(user => user.id !== userId));
       setTotal(prev => prev - 1);
@@ -239,40 +177,28 @@ export function useAdminUsers() {
       console.error('Error deleting user:', error);
       toast({
         title: "Error",
-        description: error.message || "Failed to delete user",
+        description: error.response?.data?.error || error.message || "Failed to delete user",
         variant: "destructive",
       });
       throw error;
     }
-  }, [getAuthToken, toast]);
+  }, [toast]);
 
   const getUserById = useCallback(async (userId: string): Promise<AdminUser> => {
     try {
-      const token = await getAuthToken();
-      if (!token) {
-        throw new Error('No authentication token found');
-      }
-
-      const { data, error } = await supabase.functions.invoke(`admin-users/${userId}`, {
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (error) throw error;
+      const { data } = await axiosPrivate.get<{ user: AdminUser }>(`/admin-users/${userId}`);
 
       return data.user;
     } catch (error: any) {
       console.error('Error fetching user:', error);
       toast({
         title: "Error",
-        description: error.message || "Failed to fetch user",
+        description: error.response?.data?.error || error.message || "Failed to fetch user",
         variant: "destructive",
       });
       throw error;
     }
-  }, [getAuthToken, toast]);
+  }, [toast]);
 
   return {
     users,
