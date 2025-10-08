@@ -13,6 +13,7 @@ export interface Client {
   contact_person?: string;
   address?: string;
   city?: string;
+  state?: string;
   country?: string;
   industry?: string;
   status: 'active' | 'inactive' | 'prospect' | 'archived';
@@ -20,6 +21,16 @@ export interface Client {
   total_revenue?: number;
   assigned_manager?: string;
   notes?: string;
+  hubspot_id?: string;
+  hubspot_sync_status?: string;
+  hubspot_last_sync?: string;
+  hubspot_sync_metadata?: any;
+  source?: string;
+  data_completeness_score?: number;
+  company_revenue?: number;
+  monthly_billing?: number;
+  team_size?: number;
+  founded_year?: number;
   created_at: string;
   updated_at: string;
 }
@@ -181,6 +192,52 @@ export function useClients(params: UseClientsParams = {}) {
     }
   }, [user?.id, page, limit, status, search]);
 
+  const searchHubSpotCompanies = async (searchTerm: string) => {
+    const { data, error } = await supabase.functions.invoke('hubspot-sync', {
+      body: { action: 'search_companies', searchTerm }
+    });
+    if (error) throw error;
+    return data;
+  };
+
+  const fetchHubSpotCompanyById = async (companyId: string) => {
+    const { data, error } = await supabase.functions.invoke('hubspot-sync', {
+      body: { action: 'fetch_company_by_id', companyId }
+    });
+    if (error) throw error;
+    return data;
+  };
+
+  const importHubSpotCompany = async (company: any, contacts: any[]) => {
+    const { data, error } = await supabase.functions.invoke('hubspot-sync', {
+      body: { action: 'import_company', company, contacts }
+    });
+    if (error) throw error;
+    toast.success("Company imported successfully");
+    await loadClients();
+    return data;
+  };
+
+  const syncClientFromHubSpot = async (clientId: string) => {
+    const { data, error } = await supabase.functions.invoke('hubspot-sync', {
+      body: { action: 'sync_client', clientId }
+    });
+    if (error) throw error;
+    toast.success("Client synced successfully");
+    await loadClients();
+    return data;
+  };
+
+  const linkClientToHubSpot = async (clientId: string, hubspotId: string) => {
+    const { data, error } = await supabase.functions.invoke('hubspot-sync', {
+      body: { action: 'link_client', clientId, hubspotId }
+    });
+    if (error) throw error;
+    toast.success("Client linked to HubSpot");
+    await loadClients();
+    return data;
+  };
+
   return {
     clients,
     loading,
@@ -190,6 +247,11 @@ export function useClients(params: UseClientsParams = {}) {
     updateClient,
     deleteClient,
     getClientById,
+    searchHubSpotCompanies,
+    fetchHubSpotCompanyById,
+    importHubSpotCompany,
+    syncClientFromHubSpot,
+    linkClientToHubSpot,
     refetch: loadClients
   };
 }

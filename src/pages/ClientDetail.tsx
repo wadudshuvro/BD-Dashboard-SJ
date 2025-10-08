@@ -1,5 +1,5 @@
-import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Mail, Phone, Calendar, TrendingUp, Plus, Loader2, MapPin, Building2, Globe } from 'lucide-react';
+import { useParams, useNavigate } from "react-router-dom";
+import { ArrowLeft, Mail, Phone, Calendar, TrendingUp, Loader2, MapPin, Building2, Globe, RefreshCw, Users, Handshake, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -7,17 +7,39 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
 import { useClients } from "@/hooks/useClients";
 import { useProjects } from "@/hooks/useProjects";
+import { useContacts } from "@/hooks/useContacts";
+import { useDeals } from "@/hooks/useDeals";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Separator } from "@/components/ui/separator";
+import { format } from "date-fns";
+import { toast } from "sonner";
+import { useState } from "react";
 
 export default function ClientDetail() {
   const { clientId } = useParams();
   const navigate = useNavigate();
-  const { clients, loading: clientLoading } = useClients({});
+  const { clients, loading: clientLoading, syncClientFromHubSpot } = useClients({});
   const { projects, loading: projectsLoading } = useProjects({ client_id: clientId });
+  const { contacts, loading: contactsLoading } = useContacts(clientId);
+  const { deals, loading: dealsLoading } = useDeals(clientId);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const client = clients.find(c => c.id === clientId);
 
-  if (clientLoading || projectsLoading) {
+  const handleSync = async () => {
+    if (!client?.hubspot_id || !clientId) return;
+    
+    setIsSyncing(true);
+    try {
+      await syncClientFromHubSpot(clientId);
+    } catch (error: any) {
+      toast.error(`Sync failed: ${error.message}`);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  if (clientLoading || projectsLoading || contactsLoading || dealsLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="h-8 w-8 animate-spin" />
@@ -63,9 +85,9 @@ export default function ClientDetail() {
         </Button>
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-6">
+      <div className="grid lg:grid-cols-3 gap-6">
         {/* Client Info */}
-        <div className="lg:w-1/3">
+        <div className="space-y-6">
           <Card>
             <CardHeader className="text-center">
               <Avatar className="mx-auto h-24 w-24">
@@ -83,6 +105,36 @@ export default function ClientDetail() {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
+              {client.hubspot_id && (
+                <div className="p-3 bg-muted/50 rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm font-medium">HubSpot Integration</p>
+                    <Badge variant={client.hubspot_sync_status === 'synced' ? 'default' : 'secondary'}>
+                      {client.hubspot_sync_status || 'unknown'}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground">ID: {client.hubspot_id}</p>
+                  {client.hubspot_last_sync && (
+                    <p className="text-xs text-muted-foreground">
+                      Last sync: {format(new Date(client.hubspot_last_sync), 'PPp')}
+                    </p>
+                  )}
+                  <Button variant="outline" size="sm" className="w-full mt-2" onClick={handleSync} disabled={isSyncing}>
+                    {isSyncing ? (
+                      <>
+                        <Loader2 className="h-3 w-3 animate-spin mr-2" />
+                        Syncing...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="h-3 w-3 mr-2" />
+                        Sync from HubSpot
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
+
               {client.email && (
                 <div className="flex items-center gap-3">
                   <Mail className="h-4 w-4 text-muted-foreground" />
@@ -107,7 +159,7 @@ export default function ClientDetail() {
                 <div className="flex items-center gap-3">
                   <MapPin className="h-4 w-4 text-muted-foreground" />
                   <span className="text-sm">
-                    {[client.city, client.country].filter(Boolean).join(', ')}
+                    {[client.city, client.state, client.country].filter(Boolean).join(', ')}
                   </span>
                 </div>
               )}
@@ -125,11 +177,26 @@ export default function ClientDetail() {
                 <TrendingUp className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm">${(client.total_revenue || 0).toLocaleString()} total revenue</span>
               </div>
+              {client.company_revenue && (
+                <div className="flex items-center gap-3">
+                  <DollarSign className="h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <p className="text-xs text-muted-foreground">Company Revenue</p>
+                    <p className="text-sm font-medium">${client.company_revenue.toLocaleString()}</p>
+                  </div>
+                </div>
+              )}
+              {client.team_size && (
+                <div className="flex items-center gap-3">
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm">{client.team_size} employees</span>
+                </div>
+              )}
             </CardContent>
           </Card>
 
           {/* Quick Stats */}
-          <Card className="mt-6">
+          <Card>
             <CardHeader>
               <CardTitle className="text-lg">Quick Stats</CardTitle>
             </CardHeader>
@@ -148,10 +215,103 @@ export default function ClientDetail() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Contacts Section */}
+          {contacts.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Users className="h-5 w-5" />
+                  Contacts ({contacts.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {contacts.map((contact) => (
+                    <div key={contact.id} className="p-3 border rounded-lg">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="font-medium text-sm">
+                            {contact.first_name} {contact.last_name}
+                            {contact.is_primary && (
+                              <Badge variant="secondary" className="ml-2 text-xs">Primary</Badge>
+                            )}
+                          </p>
+                          {contact.job_title && (
+                            <p className="text-xs text-muted-foreground">{contact.job_title}</p>
+                          )}
+                          {contact.email && (
+                            <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                              <Mail className="h-3 w-3" />
+                              {contact.email}
+                            </p>
+                          )}
+                          {contact.phone && (
+                            <p className="text-xs text-muted-foreground flex items-center gap-1">
+                              <Phone className="h-3 w-3" />
+                              {contact.phone}
+                            </p>
+                          )}
+                        </div>
+                        {contact.lifecycle_stage && (
+                          <Badge variant="outline" className="text-xs">{contact.lifecycle_stage}</Badge>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Deals Section */}
+          {deals.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Handshake className="h-5 w-5" />
+                  Deals ({deals.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {deals.map((deal) => (
+                    <div key={deal.id} className="p-3 border rounded-lg">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="font-medium text-sm">{deal.name}</p>
+                          {deal.amount && (
+                            <p className="text-sm text-muted-foreground">
+                              ${deal.amount.toLocaleString()}
+                            </p>
+                          )}
+                          {deal.close_date && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Close: {format(new Date(deal.close_date), 'PP')}
+                            </p>
+                          )}
+                        </div>
+                        <div className="text-right">
+                          {deal.stage && (
+                            <Badge variant="outline" className="text-xs">{deal.stage}</Badge>
+                          )}
+                          {deal.probability && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {deal.probability}%
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Projects */}
-        <div className="lg:w-2/3">
+        <div className="lg:col-span-2">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <div>

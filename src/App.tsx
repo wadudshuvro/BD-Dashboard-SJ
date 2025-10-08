@@ -16,10 +16,11 @@ import Reports from "./pages/Reports";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 import Unauthorized from "./pages/Unauthorized";
-import ClientManagement from "./pages/ClientManagement";
-import ProjectManagement from "./pages/ProjectManagement";
-import ClientDetail from "./pages/ClientDetail";
-import ProjectDetail from "./pages/ProjectDetail";
+import ClientManagement from "@/pages/ClientManagement";
+import ClientDetail from "@/pages/ClientDetail";
+import HubSpotImport from "@/pages/HubSpotImport";
+import ProjectManagement from "@/pages/ProjectManagement";
+import ProjectDetail from "@/pages/ProjectDetail";
 import ClientsProjects from "./pages/ClientsProjects";
 import People from "./pages/People";
 import ActionsTasks from "./pages/ActionsTasks";
@@ -96,6 +97,7 @@ const App = () => (
               <Route path="brands" element={<UserBrands />} />
               <Route path="brands/:brandId" element={<BrandDetail />} />
               <Route path="my-agents" element={<MyAgentsPage />} />
+              <Route path="hubspot-import" element={<HubSpotImport />} />
             </Route>
             
             {/* PM Role Routes */}
@@ -111,6 +113,7 @@ const App = () => (
               <Route path="reports" element={<Reports />} />
               <Route path="clients" element={<ClientManagement />} />
               <Route path="clients/:clientId" element={<ClientDetail />} />
+              <Route path="hubspot-import" element={<HubSpotImport />} />
               <Route path="projects" element={<ProjectManagement />} />
               <Route path="projects/:projectId" element={<ProjectDetail />} />
               <Route path="tasks" element={<ActionsTasks />} />
@@ -130,6 +133,7 @@ const App = () => (
               <Route path="clients-projects" element={<ClientsProjects />} />
               <Route path="clients" element={<ClientManagement />} />
               <Route path="clients/:clientId" element={<ClientDetail />} />
+              <Route path="hubspot-import" element={<HubSpotImport />} />
               <Route path="projects" element={<ProjectManagement />} />
               <Route path="projects/:projectId" element={<ProjectDetail />} />
               <Route path="brands" element={<BrandManagement />} />
@@ -153,6 +157,7 @@ const App = () => (
               <Route path="clients-projects" element={<ClientsProjects />} />
               <Route path="clients" element={<ClientManagement />} />
               <Route path="clients/:clientId" element={<ClientDetail />} />
+              <Route path="hubspot-import" element={<HubSpotImport />} />
               <Route path="projects" element={<ProjectManagement />} />
               <Route path="projects/:projectId" element={<ProjectDetail />} />
               <Route path="brands" element={<BrandManagement />} />
@@ -182,6 +187,7 @@ const App = () => (
               <Route path="users/:userId" element={<UserDetail />} />
               <Route path="clients" element={<ClientManagement />} />
               <Route path="clients/:clientId" element={<ClientDetail />} />
+              <Route path="hubspot-import" element={<HubSpotImport />} />
               <Route path="projects" element={<ProjectManagement />} />
               <Route path="projects/:projectId" element={<ProjectDetail />} />
               <Route path="integrations" element={<IntegrationManager />} />

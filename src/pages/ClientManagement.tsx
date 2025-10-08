@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Plus, Filter, MoreVertical, Building2, Users, Calendar, TrendingUp, Eye, Edit, Trash2, FolderOpen } from 'lucide-react';
+import { Search, Plus, Filter, MoreVertical, Building2, Users, Calendar, TrendingUp, Eye, Edit, Trash2, FolderOpen, Download } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -103,6 +103,10 @@ export default function ClientManagement() {
           <h1 className="text-2xl font-bold text-foreground">Client Management</h1>
           <p className="text-muted-foreground">Manage your clients and track their projects</p>
         </div>
+        <Button variant="outline" onClick={() => navigate('/dashboard/hubspot-import')}>
+          <Download className="mr-2 h-4 w-4" />
+          Import from HubSpot
+        </Button>
         <Button onClick={handleAddClient} className="bg-gradient-primary text-white hover:opacity-90">
           <Plus className="mr-2 h-4 w-4" />
           Add Client
