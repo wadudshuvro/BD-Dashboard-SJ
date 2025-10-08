@@ -373,7 +373,6 @@ export default function HubSpotImport() {
             </CardContent>
           </Card>
         )}
-      </div>
     </div>
   );
 }
