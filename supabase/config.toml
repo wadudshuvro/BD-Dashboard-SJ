@@ -9,6 +9,9 @@ verify_jwt = false
 [functions.seed-sample-eod-data]
 verify_jwt = true
 
+[functions.generate-eod-summary]
+verify_jwt = true
+
 [functions.admin-users]
 verify_jwt = true
 

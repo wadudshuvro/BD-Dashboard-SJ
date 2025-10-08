@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, Users, CheckCircle, Clock, TrendingUp } from 'lucide-react';
+import { CalendarIcon, Users, CheckCircle, Clock, TrendingUp, Database, Sparkles } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import {
@@ -17,13 +17,68 @@ import {
 } from '@/components/ui/dialog';
 import { TeamDailySummary } from '@/hooks/useTeamSummaries';
 import { Badge } from '@/components/ui/badge';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 export default function PeopleReviewDashboard() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedSummary, setSelectedSummary] = useState<TeamDailySummary | null>(null);
+  const [isSeeding, setIsSeeding] = useState(false);
+  const [isGeneratingSummaries, setIsGeneratingSummaries] = useState(false);
   
-  const { data: summaries, isLoading } = useTeamSummaries(selectedDate);
+  const { data: summaries, isLoading, refetch } = useTeamSummaries(selectedDate);
   const { data: submissionStatus } = useEODSubmissionStatus(selectedDate);
+  const { toast } = useToast();
+
+  const handleSeedData = async () => {
+    setIsSeeding(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('seed-sample-eod-data');
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Sample data seeded successfully",
+        description: `Created ${data.data.tasks} tasks, ${data.data.eod_submissions} EOD submissions, and ${data.data.summaries} summaries`,
+      });
+      
+      refetch();
+    } catch (error: any) {
+      toast({
+        title: "Error seeding data",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsSeeding(false);
+    }
+  };
+
+  const handleGenerateSummaries = async () => {
+    setIsGeneratingSummaries(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-eod-summary', {
+        body: { date: selectedDate.toISOString().split('T')[0] }
+      });
+      
+      if (error) throw error;
+      
+      toast({
+        title: "AI summaries generated",
+        description: `Generated ${data.summaries_generated} summaries`,
+      });
+      
+      refetch();
+    } catch (error: any) {
+      toast({
+        title: "Error generating summaries",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingSummaries(false);
+    }
+  };
 
   const averageProductivity = summaries?.length
     ? summaries.reduce((acc, s) => acc + (s.productivity_score || 0), 0) / summaries.length
@@ -42,23 +97,43 @@ export default function PeopleReviewDashboard() {
           </p>
         </div>
 
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="outline" className="w-[240px] justify-start text-left font-normal">
-              <CalendarIcon className="mr-2 h-4 w-4" />
-              {format(selectedDate, 'PPP')}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="end">
-            <Calendar
-              mode="single"
-              selected={selectedDate}
-              onSelect={(date) => date && setSelectedDate(date)}
-              disabled={(date) => date > new Date()}
-              initialFocus
-            />
-          </PopoverContent>
-        </Popover>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={handleSeedData}
+            disabled={isSeeding}
+          >
+            <Database className="mr-2 h-4 w-4" />
+            {isSeeding ? 'Seeding...' : 'Seed Sample Data'}
+          </Button>
+          
+          <Button
+            variant="outline"
+            onClick={handleGenerateSummaries}
+            disabled={isGeneratingSummaries}
+          >
+            <Sparkles className="mr-2 h-4 w-4" />
+            {isGeneratingSummaries ? 'Generating...' : 'Generate AI Summaries'}
+          </Button>
+
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className="w-[240px] justify-start text-left font-normal">
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {format(selectedDate, 'PPP')}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="end">
+              <Calendar
+                mode="single"
+                selected={selectedDate}
+                onSelect={(date) => date && setSelectedDate(date)}
+                disabled={(date) => date > new Date()}
+                initialFocus
+              />
+            </PopoverContent>
+          </Popover>
+        </div>
       </div>
 
       {/* Overview Stats */}
