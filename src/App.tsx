@@ -42,6 +42,9 @@ import UnifiedVideoStudioPage from "./pages/video/UnifiedVideoStudioPage";
 
 const queryClient = new QueryClient();
 
+// Lazy load Documentation
+const Documentation = lazy(() => import("./pages/admin/Documentation"));
+
 // Smart redirect component based on user role
 function DashboardRedirect() {
   const { user } = useAuth();
@@ -177,6 +180,7 @@ const App = () => (
               <Route path="projects" element={<ProjectManagement />} />
               <Route path="integrations" element={<IntegrationManager />} />
               <Route path="kpis" element={<KPIConfigurator />} />
+              <Route path="documentation" element={<React.Suspense fallback={<div>Loading...</div>}><Documentation /></React.Suspense>} />
               <Route path="settings" element={<AdminSettings />} />
               <Route path="ai-agents" element={<AIAgentsPage />} />
               <Route path="ai-dashboard" element={<AIDashboard />} />

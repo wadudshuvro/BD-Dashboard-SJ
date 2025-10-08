@@ -38,6 +38,7 @@ const navigation = [
       { name: 'User Management', href: '/adminpanel/users', icon: Users },
       { name: 'Brand Management', href: '/adminpanel/brands', icon: Building2 },
       { name: 'KPI Configuration', href: '/adminpanel/kpis', icon: TrendingUp },
+      { name: 'Documentation', href: '/adminpanel/documentation', icon: FileText },
       { name: 'System Settings', href: '/adminpanel/settings', icon: Settings },
     ]
   },
