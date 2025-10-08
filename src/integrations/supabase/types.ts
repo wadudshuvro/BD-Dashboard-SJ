@@ -160,6 +160,129 @@ export type Database = {
         }
         Relationships: []
       }
+      brand_analytics_data: {
+        Row: {
+          brand_id: string
+          created_at: string | null
+          data_type: string
+          date_range_end: string
+          date_range_start: string
+          dimensions: Json | null
+          id: string
+          integration_id: string | null
+          metrics: Json
+          raw_data: Json | null
+          received_at: string | null
+        }
+        Insert: {
+          brand_id: string
+          created_at?: string | null
+          data_type: string
+          date_range_end: string
+          date_range_start: string
+          dimensions?: Json | null
+          id?: string
+          integration_id?: string | null
+          metrics: Json
+          raw_data?: Json | null
+          received_at?: string | null
+        }
+        Update: {
+          brand_id?: string
+          created_at?: string | null
+          data_type?: string
+          date_range_end?: string
+          date_range_start?: string
+          dimensions?: Json | null
+          id?: string
+          integration_id?: string | null
+          metrics?: Json
+          raw_data?: Json | null
+          received_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brand_analytics_data_brand_id_fkey",
+            columns: ["brand_id"],
+            isOneToOne: false,
+            referencedRelation: "brands",
+            referencedColumns: ["id"],
+          },
+          {
+            foreignKeyName: "brand_analytics_data_integration_id_fkey",
+            columns: ["integration_id"],
+            isOneToOne: false,
+            referencedRelation: "brand_analytics_integrations",
+            referencedColumns: ["id"],
+          },
+        ]
+      }
+      brand_analytics_integrations: {
+        Row: {
+          brand_id: string
+          created_at: string | null
+          created_by: string | null
+          data_sources: Json | null
+          id: string
+          integration_type: string
+          is_active: boolean | null
+          last_sync_at: string | null
+          metadata: Json | null
+          n8n_workflow_id: string | null
+          sync_frequency: string | null
+          updated_at: string | null
+          webhook_secret: string
+          webhook_url: string
+        }
+        Insert: {
+          brand_id: string
+          created_at?: string | null
+          created_by?: string | null
+          data_sources?: Json | null
+          id?: string
+          integration_type?: string
+          is_active?: boolean | null
+          last_sync_at?: string | null
+          metadata?: Json | null
+          n8n_workflow_id?: string | null
+          sync_frequency?: string | null
+          updated_at?: string | null
+          webhook_secret: string
+          webhook_url: string
+        }
+        Update: {
+          brand_id?: string
+          created_at?: string | null
+          created_by?: string | null
+          data_sources?: Json | null
+          id?: string
+          integration_type?: string
+          is_active?: boolean | null
+          last_sync_at?: string | null
+          metadata?: Json | null
+          n8n_workflow_id?: string | null
+          sync_frequency?: string | null
+          updated_at?: string | null
+          webhook_secret?: string
+          webhook_url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brand_analytics_integrations_brand_id_fkey",
+            columns: ["brand_id"],
+            isOneToOne: false,
+            referencedRelation: "brands",
+            referencedColumns: ["id"],
+          },
+          {
+            foreignKeyName: "brand_analytics_integrations_created_by_fkey",
+            columns: ["created_by"],
+            isOneToOne: false,
+            referencedRelation: "users",
+            referencedColumns: ["id"],
+          },
+        ]
+      }
       brand_kpis: {
         Row: {
           brand_id: string
