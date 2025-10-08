@@ -36,8 +36,7 @@ import AIAgentsPage from "./pages/ai-agents";
 import MyAgentsPage from "./pages/my-agents";
 
 import AIDashboard from "./pages/ai-dashboard";
-import VideoPage from "./pages/video/VideoPage";
-import GeminiVideoStudioPage from "./pages/video/GeminiVideoStudioPage";
+import UnifiedVideoStudioPage from "./pages/video/UnifiedVideoStudioPage";
 
 const queryClient = new QueryClient();
 
@@ -83,8 +82,8 @@ const App = () => (
             }>
               <Route path="dashboard" element={<UserDashboard />} />
               <Route path="workspace" element={<AIWorkspace />} />
-              <Route path="workspace/video" element={<VideoPage />} />
-              <Route path="workspace/video-veo" element={<GeminiVideoStudioPage />} />
+              <Route path="workspace/video" element={<UnifiedVideoStudioPage />} />
+              <Route path="workspace/video-veo" element={<UnifiedVideoStudioPage />} />
               <Route path="reports" element={<Reports />} />
               <Route path="people" element={<People />} />
               <Route path="brands" element={<UserBrands />} />
@@ -100,8 +99,8 @@ const App = () => (
             }>
               <Route path="dashboard" element={<PMDashboard />} />
               <Route path="workspace" element={<AIWorkspace />} />
-              <Route path="workspace/video" element={<VideoPage />} />
-              <Route path="workspace/video-veo" element={<GeminiVideoStudioPage />} />
+              <Route path="workspace/video" element={<UnifiedVideoStudioPage />} />
+              <Route path="workspace/video-veo" element={<UnifiedVideoStudioPage />} />
               <Route path="reports" element={<Reports />} />
               <Route path="clients" element={<ClientManagement />} />
               <Route path="clients/:clientId" element={<ClientDetail />} />
@@ -118,8 +117,8 @@ const App = () => (
             }>
               <Route index element={<ManagerDashboard />} />
               <Route path="workspace" element={<AIWorkspace />} />
-              <Route path="workspace/video" element={<VideoPage />} />
-              <Route path="workspace/video-veo" element={<GeminiVideoStudioPage />} />
+              <Route path="workspace/video" element={<UnifiedVideoStudioPage />} />
+              <Route path="workspace/video-veo" element={<UnifiedVideoStudioPage />} />
               <Route path="clients-projects" element={<ClientsProjects />} />
               <Route path="clients" element={<ClientManagement />} />
               <Route path="clients/:clientId" element={<ClientDetail />} />
@@ -139,8 +138,8 @@ const App = () => (
             }>
               <Route path="dashboard" element={<ManagerDashboard />} />
               <Route path="workspace" element={<AIWorkspace />} />
-              <Route path="workspace/video" element={<VideoPage />} />
-              <Route path="workspace/video-veo" element={<GeminiVideoStudioPage />} />
+              <Route path="workspace/video" element={<UnifiedVideoStudioPage />} />
+              <Route path="workspace/video-veo" element={<UnifiedVideoStudioPage />} />
               <Route path="clients-projects" element={<ClientsProjects />} />
               <Route path="clients" element={<ClientManagement />} />
               <Route path="clients/:clientId" element={<ClientDetail />} />

@@ -305,26 +305,15 @@ const mockTools: AITool[] = [
     isCustom: true
   },
   {
-    id: 'video-ai',
-    name: 'AI Video Studio (Sora 2)',
-    description: 'Generate, manage, and review OpenAI Sora videos within the marketing workspace',
+    id: 'video-studio',
+    name: 'Video Studio',
+    description: 'Generate professional marketing videos with OpenAI Sora 2 or Google Gemini Veo 3',
     category: 'content',
     status: 'active',
-    usageCount: 64,
+    usageCount: 76,
     lastUsed: new Date().toISOString(),
     isCustom: false,
     href: '/dashboard/workspace/video'
-  },
-  {
-    id: 'video-gemini',
-    name: 'Gemini Video Studio (Veo 3)',
-    description: 'Create, remix, and download Gemini Veo 3 videos tailored for your campaigns',
-    category: 'content',
-    status: 'active',
-    usageCount: 12,
-    lastUsed: new Date().toISOString(),
-    isCustom: false,
-    href: '/dashboard/workspace/video-veo'
   }
 ];
 
