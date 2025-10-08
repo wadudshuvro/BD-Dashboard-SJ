@@ -77,6 +77,66 @@ export type Database = {
           },
         ]
       }
+      activities: {
+        Row: {
+          activity_date: string | null
+          activity_type: string
+          body: string | null
+          client_id: string
+          created_at: string
+          deal_id: string | null
+          duration_minutes: number | null
+          hubspot_id: string | null
+          id: string
+          outcome: string | null
+          subject: string | null
+          updated_at: string
+        }
+        Insert: {
+          activity_date?: string | null
+          activity_type: string
+          body?: string | null
+          client_id: string
+          created_at?: string
+          deal_id?: string | null
+          duration_minutes?: number | null
+          hubspot_id?: string | null
+          id?: string
+          outcome?: string | null
+          subject?: string | null
+          updated_at?: string
+        }
+        Update: {
+          activity_date?: string | null
+          activity_type?: string
+          body?: string | null
+          client_id?: string
+          created_at?: string
+          deal_id?: string | null
+          duration_minutes?: number | null
+          hubspot_id?: string | null
+          id?: string
+          outcome?: string | null
+          subject?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activities_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activities_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_agent_runs: {
         Row: {
           agent_id: string
@@ -510,17 +570,28 @@ export type Database = {
           assigned_manager: string | null
           city: string | null
           company: string | null
+          company_revenue: number | null
           contact_person: string | null
           country: string | null
           created_at: string
+          data_completeness_score: number | null
           email: string | null
+          founded_year: number | null
+          hubspot_id: string | null
+          hubspot_last_sync: string | null
+          hubspot_sync_metadata: Json | null
+          hubspot_sync_status: string | null
           id: string
           industry: string | null
+          monthly_billing: number | null
           name: string
           notes: string | null
           phone: string | null
           satisfaction_score: number | null
+          source: string | null
+          state: string | null
           status: string
+          team_size: number | null
           total_revenue: number | null
           updated_at: string
           website: string | null
@@ -530,17 +601,28 @@ export type Database = {
           assigned_manager?: string | null
           city?: string | null
           company?: string | null
+          company_revenue?: number | null
           contact_person?: string | null
           country?: string | null
           created_at?: string
+          data_completeness_score?: number | null
           email?: string | null
+          founded_year?: number | null
+          hubspot_id?: string | null
+          hubspot_last_sync?: string | null
+          hubspot_sync_metadata?: Json | null
+          hubspot_sync_status?: string | null
           id?: string
           industry?: string | null
+          monthly_billing?: number | null
           name: string
           notes?: string | null
           phone?: string | null
           satisfaction_score?: number | null
+          source?: string | null
+          state?: string | null
           status?: string
+          team_size?: number | null
           total_revenue?: number | null
           updated_at?: string
           website?: string | null
@@ -550,17 +632,28 @@ export type Database = {
           assigned_manager?: string | null
           city?: string | null
           company?: string | null
+          company_revenue?: number | null
           contact_person?: string | null
           country?: string | null
           created_at?: string
+          data_completeness_score?: number | null
           email?: string | null
+          founded_year?: number | null
+          hubspot_id?: string | null
+          hubspot_last_sync?: string | null
+          hubspot_sync_metadata?: Json | null
+          hubspot_sync_status?: string | null
           id?: string
           industry?: string | null
+          monthly_billing?: number | null
           name?: string
           notes?: string | null
           phone?: string | null
           satisfaction_score?: number | null
+          source?: string | null
+          state?: string | null
           status?: string
+          team_size?: number | null
           total_revenue?: number | null
           updated_at?: string
           website?: string | null
@@ -774,6 +867,130 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contacts: {
+        Row: {
+          client_id: string
+          created_at: string
+          email: string | null
+          first_name: string | null
+          hubspot_id: string | null
+          hubspot_last_sync: string | null
+          hubspot_sync_status: string | null
+          id: string
+          is_primary: boolean | null
+          job_title: string | null
+          last_name: string | null
+          lead_status: string | null
+          lifecycle_stage: string | null
+          phone: string | null
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          email?: string | null
+          first_name?: string | null
+          hubspot_id?: string | null
+          hubspot_last_sync?: string | null
+          hubspot_sync_status?: string | null
+          id?: string
+          is_primary?: boolean | null
+          job_title?: string | null
+          last_name?: string | null
+          lead_status?: string | null
+          lifecycle_stage?: string | null
+          phone?: string | null
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          email?: string | null
+          first_name?: string | null
+          hubspot_id?: string | null
+          hubspot_last_sync?: string | null
+          hubspot_sync_status?: string | null
+          id?: string
+          is_primary?: boolean | null
+          job_title?: string | null
+          last_name?: string | null
+          lead_status?: string | null
+          lifecycle_stage?: string | null
+          phone?: string | null
+          title?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contacts_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deals: {
+        Row: {
+          amount: number | null
+          client_id: string
+          close_date: string | null
+          created_at: string
+          deal_type: string | null
+          hubspot_created_at: string | null
+          hubspot_id: string | null
+          hubspot_updated_at: string | null
+          id: string
+          name: string
+          pipeline: string | null
+          probability: number | null
+          stage: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount?: number | null
+          client_id: string
+          close_date?: string | null
+          created_at?: string
+          deal_type?: string | null
+          hubspot_created_at?: string | null
+          hubspot_id?: string | null
+          hubspot_updated_at?: string | null
+          id?: string
+          name: string
+          pipeline?: string | null
+          probability?: number | null
+          stage?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount?: number | null
+          client_id?: string
+          close_date?: string | null
+          created_at?: string
+          deal_type?: string | null
+          hubspot_created_at?: string | null
+          hubspot_id?: string | null
+          hubspot_updated_at?: string | null
+          id?: string
+          name?: string
+          pipeline?: string | null
+          probability?: number | null
+          stage?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deals_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
             referencedColumns: ["id"]
           },
         ]
