@@ -3,6 +3,12 @@ project_id = "fzknasqrludvoyxdzbxl"
 [functions.auth]
 verify_jwt = false
 
+[functions.eod-data-sync]
+verify_jwt = false
+
+[functions.seed-sample-eod-data]
+verify_jwt = true
+
 [functions.admin-users]
 verify_jwt = true
 
