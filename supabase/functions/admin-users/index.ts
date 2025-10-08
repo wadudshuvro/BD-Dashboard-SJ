@@ -422,10 +422,10 @@ serve(async (req) => {
         )
       }
 
-      // Create user record in users table
+      // Create or update user record in users table (trigger may have already created it)
       const { data: userData, error: userError } = await supabaseClient
         .from('users')
-        .insert({
+        .upsert({
           id: authData.user?.id,
           email,
           first_name: firstName,
@@ -436,6 +436,8 @@ serve(async (req) => {
           department,
           is_marketing: isMarketing,
           password_hash: 'managed_by_auth' // placeholder since auth manages passwords
+        }, {
+          onConflict: 'id'
         })
         .select()
         .single()
