@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { Play, Download, Wand2, Trash2, Loader2, Clock3, DollarSign, Sparkles } from "lucide-react";
+import { Play, Download, Wand2, Trash2, Loader2, Clock3, DollarSign, Sparkles, MonitorPlay, Volume2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -113,6 +113,26 @@ const GeminiVideoCardComponent = ({
         {video.prompt ? (
           <p className="line-clamp-3 text-sm text-muted-foreground">🎬 {video.prompt}</p>
         ) : null}
+        
+        <div className="flex flex-wrap gap-2">
+          {video.aspect_ratio && (
+            <Badge variant="outline" className="gap-1 text-xs">
+              <MonitorPlay className="h-3 w-3" />
+              {video.aspect_ratio}
+            </Badge>
+          )}
+          {video.resolution && (
+            <Badge variant="outline" className="gap-1 text-xs">
+              {video.resolution}
+            </Badge>
+          )}
+          {video.has_audio && (
+            <Badge variant="outline" className="gap-1 text-xs">
+              <Volume2 className="h-3 w-3" />
+              Audio
+            </Badge>
+          )}
+        </div>
       </CardHeader>
       <CardContent className="flex-1 space-y-4">
         <AspectRatio ratio={16 / 9} className="overflow-hidden rounded-lg border border-border/60 bg-muted">

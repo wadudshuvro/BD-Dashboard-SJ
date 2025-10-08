@@ -164,10 +164,20 @@ const GeminiVideoStudioPage = () => {
   }, [sortedVideos, pollVideo]);
 
   const handleCreateVideo = useCallback(
-    async ({ prompt, duration, inputReference }: { prompt: string; duration: number; inputReference?: File | null }) => {
+    async ({ prompt, duration, aspectRatio, resolution, negativePrompt, inputReference }: { 
+      prompt: string; 
+      duration: number;
+      aspectRatio?: "16:9" | "9:16";
+      resolution?: "720p" | "1080p";
+      negativePrompt?: string;
+      inputReference?: File | null;
+    }) => {
       await mutation.mutateAsync({
         prompt,
         duration,
+        aspectRatio,
+        resolution,
+        negativePrompt,
         inputReference: inputReference ?? undefined,
         metadata: {
           userId: user?.id,

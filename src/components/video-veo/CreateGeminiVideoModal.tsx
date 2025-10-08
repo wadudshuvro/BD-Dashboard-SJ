@@ -1,5 +1,5 @@
 import { ChangeEvent, useEffect, useState } from "react";
-import { Loader2, PlusCircle, X } from "lucide-react";
+import { Loader2, PlusCircle, X, ChevronDown } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -7,16 +7,25 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 interface CreateGeminiVideoModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCreate: (payload: { prompt: string; duration: number; inputReference?: File | null }) => Promise<void> | void;
+  onCreate: (payload: { 
+    prompt: string; 
+    duration: number; 
+    aspectRatio?: "16:9" | "9:16";
+    resolution?: "720p" | "1080p";
+    negativePrompt?: string;
+    inputReference?: File | null;
+  }) => Promise<void> | void;
   isLoading?: boolean;
 }
 
-const MIN_DURATION = 1;
-const MAX_DURATION = 20;
+const MIN_DURATION = 5;
+const MAX_DURATION = 8;
 
 export const CreateGeminiVideoModal = ({
   open,
@@ -31,6 +40,10 @@ export const CreateGeminiVideoModal = ({
   const [touchedDuration, setTouchedDuration] = useState(false);
   const [inputReference, setInputReference] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [aspectRatio, setAspectRatio] = useState<"16:9" | "9:16">("16:9");
+  const [resolution, setResolution] = useState<"720p" | "1080p">("720p");
+  const [negativePrompt, setNegativePrompt] = useState("");
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   useEffect(() => {
     if (!open) {
@@ -40,6 +53,10 @@ export const CreateGeminiVideoModal = ({
       setTouchedDuration(false);
       setInputReference(null);
       setImagePreview(null);
+      setAspectRatio("16:9");
+      setResolution("720p");
+      setNegativePrompt("");
+      setShowAdvanced(false);
     }
   }, [open]);
 
@@ -128,7 +145,14 @@ export const CreateGeminiVideoModal = ({
       return;
     }
 
-    await onCreate({ prompt: trimmedPrompt, duration: parsedDuration, inputReference });
+    await onCreate({ 
+      prompt: trimmedPrompt, 
+      duration: parsedDuration, 
+      aspectRatio,
+      resolution,
+      negativePrompt: negativePrompt.trim() || undefined,
+      inputReference 
+    });
   };
 
   const promptError = touchedPrompt && !prompt.trim();
@@ -145,16 +169,21 @@ export const CreateGeminiVideoModal = ({
               <PlusCircle className="h-6 w-6" /> Create Gemini Veo 3 Video
             </DialogTitle>
             <DialogDescription>
-              Provide a cinematic marketing prompt, choose a short duration, and optionally add a reference file. We'll send it to
+              Provide a cinematic marketing prompt (5-8 seconds for Veo 3), and optionally add a reference image. We&apos;ll send it to
               Google Gemini Veo 3 for generation.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-2">
-            <Label htmlFor="veo-prompt">Prompt</Label>
+            <Label htmlFor="veo-prompt">
+              Prompt
+              <span className="ml-2 text-xs text-muted-foreground">
+                💡 Tip: Use quotes for dialogue (&quot;Hello!&quot;), describe sounds for audio effects
+              </span>
+            </Label>
             <Textarea
               id="veo-prompt"
-              placeholder="Describe the marketing concept, visuals, and call to action you want to see..."
+              placeholder="A cinematic shot of a sunset over the ocean with birds flying, accompanied by gentle waves crashing (ambient ocean sounds)"
               value={prompt}
               onChange={(event) => setPrompt(event.target.value)}
               onBlur={() => setTouchedPrompt(true)}
@@ -180,6 +209,69 @@ export const CreateGeminiVideoModal = ({
               <p className="text-sm text-rose-500">Choose between {MIN_DURATION} and {MAX_DURATION} seconds.</p>
             ) : null}
           </div>
+
+          <Collapsible open={showAdvanced} onOpenChange={setShowAdvanced} className="space-y-2">
+            <CollapsibleTrigger asChild>
+              <Button type="button" variant="outline" className="w-full gap-2" disabled={isLoading}>
+                <ChevronDown className={`h-4 w-4 transition-transform ${showAdvanced ? "rotate-180" : ""}`} />
+                Advanced Options
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="space-y-4 pt-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="aspect-ratio">Aspect Ratio</Label>
+                  <Select value={aspectRatio} onValueChange={(value: "16:9" | "9:16") => {
+                    setAspectRatio(value);
+                    // Reset to 720p if selecting 9:16 (1080p not supported)
+                    if (value === "9:16" && resolution === "1080p") {
+                      setResolution("720p");
+                    }
+                  }} disabled={isLoading}>
+                    <SelectTrigger id="aspect-ratio">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="16:9">16:9 (Landscape)</SelectItem>
+                      <SelectItem value="9:16">9:16 (Portrait)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="resolution">Resolution</Label>
+                  <Select value={resolution} onValueChange={(value: "720p" | "1080p") => setResolution(value)} disabled={isLoading || aspectRatio === "9:16"}>
+                    <SelectTrigger id="resolution">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="720p">720p</SelectItem>
+                      <SelectItem value="1080p" disabled={aspectRatio === "9:16"}>
+                        1080p {aspectRatio === "9:16" ? "(16:9 only)" : ""}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="negative-prompt">
+                  Negative Prompt (Optional)
+                  <span className="ml-2 text-xs text-muted-foreground">
+                    Describe what you don&apos;t want to see
+                  </span>
+                </Label>
+                <Textarea
+                  id="negative-prompt"
+                  placeholder="blurry, distorted, low quality, text, watermarks"
+                  value={negativePrompt}
+                  onChange={(event) => setNegativePrompt(event.target.value)}
+                  rows={3}
+                  disabled={isLoading}
+                />
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
 
           <div className="space-y-2">
             <Label htmlFor="veo-reference">Reference Image (Optional)</Label>

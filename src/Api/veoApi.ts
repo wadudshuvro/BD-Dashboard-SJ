@@ -15,6 +15,10 @@ export interface GeminiVideo {
   updated_at?: string;
   title?: string;
   metadata?: Record<string, unknown>;
+  aspect_ratio?: string;
+  resolution?: string;
+  negative_prompt?: string;
+  has_audio?: boolean;
 }
 
 export interface CreateGeminiVideoInput {
@@ -85,7 +89,7 @@ const statusSchema = z
 
 const videoSchema = z
   .object({
-    id: z.union([z.string(), z.number()]),
+    id: z.union([z.string(), z.number()]).optional(),
     video_id: z.union([z.string(), z.number()]).optional(),
     operation_name: z.string().optional(),
     operationName: z.string().optional(),
@@ -113,10 +117,17 @@ const videoSchema = z
     updatedAt: z.string().optional(),
     title: z.string().optional(),
     metadata: z.record(z.any()).optional(),
+    aspect_ratio: z.string().optional(),
+    aspectRatio: z.string().optional(),
+    resolution: z.string().optional(),
+    negative_prompt: z.string().optional(),
+    negativePrompt: z.string().optional(),
+    has_audio: z.boolean().optional(),
+    hasAudio: z.boolean().optional(),
   })
   .transform((value) => {
-    const idSource = value.id ?? value.video_id;
-    const normalizedId = typeof idSource === "number" ? idSource.toString() : (idSource ?? "").toString();
+    const idSource = value.id ?? value.video_id ?? value.operation_name?.split("/").pop();
+    const normalizedId = typeof idSource === "number" ? idSource.toString() : (idSource ?? "unknown").toString();
 
     const parsedDuration =
       numberSchema.parse(value.duration) ??
@@ -138,6 +149,10 @@ const videoSchema = z
       updated_at: value.updated_at ?? value.completed_at ?? value.completedAt ?? value.updatedAt,
       title: value.title,
       metadata: value.metadata,
+      aspect_ratio: value.aspect_ratio ?? value.aspectRatio,
+      resolution: value.resolution,
+      negative_prompt: value.negative_prompt ?? value.negativePrompt,
+      has_audio: value.has_audio ?? value.hasAudio ?? true,
     } satisfies GeminiVideo;
   });
 

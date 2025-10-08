@@ -276,14 +276,18 @@ async function listVideos(userId: string): Promise<any[]> {
   
   await Promise.all(updatePromises);
   
-  // Fetch updated videos
+  // Fetch updated videos and ensure proper format
   const { data: updatedVideos } = await supabase
     .from("gemini_videos")
     .select("*")
     .eq("user_id", userId)
     .order("created_at", { ascending: false });
   
-  return updatedVideos || [];
+  // Map to ensure id field is always present
+  return (updatedVideos || []).map((video) => ({
+    ...video,
+    id: video.id || video.operation_name?.split("/").pop() || "",
+  }));
 }
 
 async function deleteVideo(id: string): Promise<void> {
