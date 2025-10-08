@@ -336,7 +336,7 @@ export function useDashboardData() {
       // Super admin sees all users
     } else if (user.role === 'manager') {
       // Managers see manager level and below
-      teamQuery = teamQuery.in('role', ['manager', 'brand_manager', 'pm', 'user']);
+      teamQuery = teamQuery.in('role', ['manager', 'pm', 'user']);
     } else {
       // Other users see limited data
       teamQuery = teamQuery.eq('id', user.id);

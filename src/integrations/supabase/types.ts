@@ -202,18 +202,18 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "brand_analytics_data_brand_id_fkey",
-            columns: ["brand_id"],
-            isOneToOne: false,
-            referencedRelation: "brands",
-            referencedColumns: ["id"],
+            foreignKeyName: "brand_analytics_data_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "brand_analytics_data_integration_id_fkey",
-            columns: ["integration_id"],
-            isOneToOne: false,
-            referencedRelation: "brand_analytics_integrations",
-            referencedColumns: ["id"],
+            foreignKeyName: "brand_analytics_data_integration_id_fkey"
+            columns: ["integration_id"]
+            isOneToOne: false
+            referencedRelation: "brand_analytics_integrations"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -268,18 +268,18 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "brand_analytics_integrations_brand_id_fkey",
-            columns: ["brand_id"],
-            isOneToOne: false,
-            referencedRelation: "brands",
-            referencedColumns: ["id"],
+            foreignKeyName: "brand_analytics_integrations_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "brand_analytics_integrations_created_by_fkey",
-            columns: ["created_by"],
-            isOneToOne: false,
-            referencedRelation: "users",
-            referencedColumns: ["id"],
+            foreignKeyName: "brand_analytics_integrations_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -1146,6 +1146,14 @@ export type Database = {
       get_current_user_role: {
         Args: Record<PropertyKey, never>
         Returns: string
+      }
+      user_has_brand_access: {
+        Args: { _brand_id: string; _user_id: string }
+        Returns: boolean
+      }
+      user_is_marketing_or_manager: {
+        Args: { _user_id: string }
+        Returns: boolean
       }
     }
     Enums: {
