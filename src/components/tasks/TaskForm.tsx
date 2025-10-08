@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useProjects } from "@/hooks/useProjects";
 import { ProjectTask, CreateProjectTaskData, UpdateProjectTaskData, useCreateProjectTask, useUpdateProjectTask } from "@/hooks/useProjectTasks";
+import { useUsers } from "@/hooks/useUsers";
 
 interface TaskFormProps {
   open: boolean;
@@ -28,6 +29,7 @@ export function TaskForm({ open, onOpenChange, task, projectId }: TaskFormProps)
   });
 
   const { projects = [] } = useProjects();
+  const { data: users = [] } = useUsers();
   const createTask = useCreateProjectTask();
   const updateTask = useUpdateProjectTask();
 
@@ -159,6 +161,26 @@ export function TaskForm({ open, onOpenChange, task, projectId }: TaskFormProps)
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="assigned_to">Assign To</Label>
+            <Select
+              value={formData.assigned_to}
+              onValueChange={(value) => handleChange('assigned_to', value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select team member" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Unassigned</SelectItem>
+                {users.map((user) => (
+                  <SelectItem key={user.id} value={user.id}>
+                    {user.first_name} {user.last_name} ({user.role})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="grid grid-cols-2 gap-4">

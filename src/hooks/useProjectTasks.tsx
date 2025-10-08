@@ -68,6 +68,11 @@ export const useProjectTasks = (projectId?: string) => {
             clients:client_id (
               name
             )
+          ),
+          assigned_user:assigned_to (
+            first_name,
+            last_name,
+            email
           )
         `)
         .order('created_at', { ascending: false });
@@ -102,6 +107,11 @@ export const useAllProjectTasks = () => {
             clients:client_id (
               name
             )
+          ),
+          assigned_user:assigned_to (
+            first_name,
+            last_name,
+            email
           )
         `)
         .order('created_at', { ascending: false });
