@@ -33,6 +33,7 @@ interface NavigationItem {
   current: boolean;
   isHeader?: boolean;
   isAdmin?: boolean;
+  subItems?: NavigationItem[];
 }
 
 const Layout = ({ userRole }: LayoutProps) => {
@@ -73,7 +74,16 @@ const Layout = ({ userRole }: LayoutProps) => {
           { name: "Video Studio", href: `${basePath}/workspace/video`, icon: Video, current: false },
           { name: "Brands", href: `${basePath}/brands`, icon: Building2, current: false },
           { name: "Actions & Tasks", href: `${basePath}/actions-tasks`, icon: CheckSquare, current: false },
-          { name: "People", href: `${basePath}/people`, icon: Users, current: false },
+          { 
+            name: "People", 
+            href: `${basePath}/people`, 
+            icon: Users, 
+            current: false,
+            subItems: [
+              { name: "Directory", href: `${basePath}/people`, icon: Users, current: false },
+              { name: "Review", href: `${basePath}/people/review`, icon: CheckSquare, current: false },
+            ]
+          },
           { name: "SEPARATOR", href: "", icon: null, current: false, isHeader: true },
           { name: "Admin Panel", href: "/adminpanel", icon: Shield, current: false, isAdmin: true },
         ];
@@ -88,7 +98,16 @@ const Layout = ({ userRole }: LayoutProps) => {
           { name: "Projects", href: `${basePath}/projects`, icon: FolderOpen, current: false },
           { name: "Brands", href: `${basePath}/brands`, icon: Building2, current: false },
           { name: "Actions & Tasks", href: `${basePath}/actions-tasks`, icon: CheckSquare, current: false },
-          { name: "People", href: `${basePath}/people`, icon: Users, current: false },
+          { 
+            name: "People", 
+            href: `${basePath}/people`, 
+            icon: Users, 
+            current: false,
+            subItems: [
+              { name: "Directory", href: `${basePath}/people`, icon: Users, current: false },
+              { name: "Review", href: `${basePath}/people/review`, icon: CheckSquare, current: false },
+            ]
+          },
         ];
       
       case 'pm':
@@ -111,7 +130,16 @@ const Layout = ({ userRole }: LayoutProps) => {
           { name: "My Agents", href: `${basePath}/my-agents`, icon: Zap, current: false },
           { name: "Video Studio", href: `${basePath}/workspace/video`, icon: Video, current: false },
           { name: "Reports", href: `${basePath}/reports`, icon: BarChart3, current: false },
-          { name: "People", href: `${basePath}/people`, icon: Users, current: false },
+          { 
+            name: "People", 
+            href: `${basePath}/people`, 
+            icon: Users, 
+            current: false,
+            subItems: [
+              { name: "Directory", href: `${basePath}/people`, icon: Users, current: false },
+              { name: "My Dashboard", href: `${basePath}/people/my-dashboard`, icon: LayoutDashboard, current: false },
+            ]
+          },
           { name: "Brands", href: `${basePath}/brands`, icon: Building2, current: false },
         ];
     }
@@ -169,6 +197,36 @@ const Layout = ({ userRole }: LayoutProps) => {
                   <div key={item.name} className="flex items-center px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                     <item.icon className="mr-3 h-4 w-4" />
                     {item.name}
+                  </div>
+                );
+              }
+              
+              // Handle items with sub-navigation
+              if (item.subItems && item.subItems.length > 0) {
+                return (
+                  <div key={item.name} className="space-y-1">
+                    <div className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      {item.name}
+                    </div>
+                    {item.subItems.map((subItem) => {
+                      const isSubActive = location.pathname === subItem.href;
+                      return (
+                        <NavLink
+                          key={subItem.name}
+                          to={subItem.href}
+                          className={`
+                            flex items-center px-6 py-2 text-sm font-medium rounded-lg transition-smooth
+                            ${isSubActive 
+                              ? 'bg-gradient-primary text-white shadow-md'
+                              : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'
+                            }
+                          `}
+                        >
+                          <subItem.icon className="mr-3 h-4 w-4" />
+                          {subItem.name}
+                        </NavLink>
+                      );
+                    })}
                   </div>
                 );
               }

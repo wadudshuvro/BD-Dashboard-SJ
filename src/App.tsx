@@ -1,4 +1,4 @@
-import React from "react";
+import React, { lazy } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -34,6 +34,8 @@ import AdminPanel from "./pages/admin/AdminPanel";
 import UserBrands from "./pages/UserBrands";
 import AIAgentsPage from "./pages/ai-agents";
 import MyAgentsPage from "./pages/my-agents";
+import PeopleReviewDashboard from "./pages/PeopleReviewDashboard";
+import MyDashboard from "./pages/MyDashboard";
 
 import AIDashboard from "./pages/ai-dashboard";
 import UnifiedVideoStudioPage from "./pages/video/UnifiedVideoStudioPage";
@@ -86,6 +88,7 @@ const App = () => (
               <Route path="workspace/video-veo" element={<UnifiedVideoStudioPage />} />
               <Route path="reports" element={<Reports />} />
               <Route path="people" element={<People />} />
+              <Route path="people/my-dashboard" element={<React.Suspense fallback={<div>Loading...</div>}><MyDashboard /></React.Suspense>} />
               <Route path="brands" element={<UserBrands />} />
               <Route path="brands/:brandId" element={<BrandDetail />} />
               <Route path="my-agents" element={<MyAgentsPage />} />
@@ -127,6 +130,7 @@ const App = () => (
               <Route path="brands/:brandId" element={<BrandDetail />} />
               <Route path="actions-tasks" element={<ActionsTasks />} />
               <Route path="people" element={<People />} />
+              <Route path="people/review" element={<React.Suspense fallback={<div>Loading...</div>}><PeopleReviewDashboard /></React.Suspense>} />
               <Route path="my-agents" element={<MyAgentsPage />} />
             </Route>
 
@@ -148,6 +152,7 @@ const App = () => (
               <Route path="brands/:brandId" element={<BrandDetail />} />
               <Route path="actions-tasks" element={<ActionsTasks />} />
               <Route path="people" element={<People />} />
+              <Route path="people/review" element={<React.Suspense fallback={<div>Loading...</div>}><PeopleReviewDashboard /></React.Suspense>} />
               <Route path="my-agents" element={<MyAgentsPage />} />
               {/* Admin-specific routes accessible from manager interface */}
               <Route path="admin/users" element={<UserManagement />} />

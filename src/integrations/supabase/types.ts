@@ -14,6 +14,69 @@ export type Database = {
   }
   public: {
     Tables: {
+      activecollab_task_data: {
+        Row: {
+          assignee_id: string | null
+          created_at: string | null
+          external_task_id: string
+          hours_logged: number | null
+          id: string
+          last_comment: string | null
+          last_comment_date: string | null
+          project_id: string | null
+          raw_data: Json | null
+          status: string | null
+          sync_date: string
+          task_name: string
+          updated_at: string | null
+        }
+        Insert: {
+          assignee_id?: string | null
+          created_at?: string | null
+          external_task_id: string
+          hours_logged?: number | null
+          id?: string
+          last_comment?: string | null
+          last_comment_date?: string | null
+          project_id?: string | null
+          raw_data?: Json | null
+          status?: string | null
+          sync_date: string
+          task_name: string
+          updated_at?: string | null
+        }
+        Update: {
+          assignee_id?: string | null
+          created_at?: string | null
+          external_task_id?: string
+          hours_logged?: number | null
+          id?: string
+          last_comment?: string | null
+          last_comment_date?: string | null
+          project_id?: string | null
+          raw_data?: Json | null
+          status?: string | null
+          sync_date?: string
+          task_name?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activecollab_task_data_assignee_id_fkey"
+            columns: ["assignee_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activecollab_task_data_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_agent_runs: {
         Row: {
           agent_id: string
@@ -964,6 +1027,114 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      team_daily_summaries: {
+        Row: {
+          agent_run_id: string | null
+          ai_summary: Json
+          concerns: string[] | null
+          created_at: string | null
+          eod_submission_id: string | null
+          hours_logged: number | null
+          id: string
+          key_accomplishments: string[] | null
+          productivity_score: number | null
+          summary_date: string
+          tasks_completed: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          agent_run_id?: string | null
+          ai_summary?: Json
+          concerns?: string[] | null
+          created_at?: string | null
+          eod_submission_id?: string | null
+          hours_logged?: number | null
+          id?: string
+          key_accomplishments?: string[] | null
+          productivity_score?: number | null
+          summary_date: string
+          tasks_completed?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          agent_run_id?: string | null
+          ai_summary?: Json
+          concerns?: string[] | null
+          created_at?: string | null
+          eod_submission_id?: string | null
+          hours_logged?: number | null
+          id?: string
+          key_accomplishments?: string[] | null
+          productivity_score?: number | null
+          summary_date?: string
+          tasks_completed?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_daily_summaries_agent_run_id_fkey"
+            columns: ["agent_run_id"]
+            isOneToOne: false
+            referencedRelation: "ai_agent_runs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "team_daily_summaries_eod_submission_id_fkey"
+            columns: ["eod_submission_id"]
+            isOneToOne: false
+            referencedRelation: "team_eod_submissions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "team_daily_summaries_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      team_eod_submissions: {
+        Row: {
+          created_at: string | null
+          id: string
+          notes: string | null
+          submission_date: string
+          task_links: string[] | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          submission_date: string
+          task_links?: string[] | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          submission_date?: string
+          task_links?: string[] | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_eod_submissions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_brands: {
         Row: {
