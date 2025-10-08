@@ -140,7 +140,12 @@ export default function PeopleReviewDashboard() {
         ) : (
           <Card>
             <CardContent className="py-12 text-center text-muted-foreground">
-              No summaries available for {format(selectedDate, 'PPP')}
+              <div className="space-y-4">
+                <p>No summaries available for {format(selectedDate, 'PPP')}</p>
+                <p className="text-sm">
+                  Team members need to submit their EOD reports, or you can seed sample data for testing.
+                </p>
+              </div>
             </CardContent>
           </Card>
         )}
@@ -154,7 +159,10 @@ export default function PeopleReviewDashboard() {
               {selectedSummary?.users?.first_name} {selectedSummary?.users?.last_name}
             </DialogTitle>
             <DialogDescription>
-              {format(new Date(selectedSummary?.summary_date || ''), 'PPPP')}
+              {selectedSummary?.summary_date 
+                ? format(new Date(selectedSummary.summary_date), 'PPPP')
+                : 'Date not available'
+              }
             </DialogDescription>
           </DialogHeader>
 
