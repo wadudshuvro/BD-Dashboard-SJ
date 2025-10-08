@@ -62,7 +62,6 @@ async function request<T>(
     method,
     headers: finalHeaders,
     body: data ? JSON.stringify(data) : undefined,
-    credentials: "include",
     signal,
   });
 
