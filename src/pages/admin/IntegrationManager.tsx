@@ -250,6 +250,12 @@ const IntegrationManager = () => {
       });
 
       if (error) {
+        console.error('Failed to fetch n8n analytics brands', error);
+        toast({
+          title: "Failed to load analytics integrations",
+          description: "Could not fetch n8n analytics data. Using cached data.",
+          variant: "destructive",
+        });
         throw error;
       }
 
@@ -272,6 +278,11 @@ const IntegrationManager = () => {
       }, {});
     } catch (error) {
       console.error('Failed to load analytics integrations', error);
+      toast({
+        title: "Error loading integrations",
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
+        variant: "destructive",
+      });
       if (fetchedBrands.length === 0) {
         fetchedBrands = fallbackBrandSummaries;
       }
@@ -621,23 +632,38 @@ const IntegrationManager = () => {
   };
 
   const handleExportAnalyticsData = () => {
-    if (analyticsData.length === 0) {
-      toast({ title: 'No data to export', description: 'Load analytics data before exporting.', variant: 'destructive' });
+    if (!analyticsData || analyticsData.length === 0) {
+      toast({
+        title: 'No data to export',
+        description: 'Load analytics data before exporting.',
+        variant: 'destructive'
+      });
       return;
     }
-
-    const blob = new Blob([JSON.stringify(analyticsData, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    const brandName = brandOptions.find((brand) => brand.id === analyticsDataBrandId)?.name ?? 'brand';
-    link.download = `${brandName}-analytics-data.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-
-    toast({ title: 'Export started', description: 'Analytics data exported as JSON.' });
+    
+    try {
+      const blob = new Blob([JSON.stringify(analyticsData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `n8n-analytics-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      toast({
+        title: "Export successful",
+        description: `Exported ${analyticsData.length} analytics records.`,
+      });
+    } catch (error) {
+      console.error('Export failed', error);
+      toast({
+        title: 'Export failed',
+        description: 'Could not export analytics data. Please try again.',
+        variant: 'destructive'
+      });
+    }
   };
 
   const handleAnalyticsBrandChange = (brandId: string) => {
@@ -1290,10 +1316,10 @@ const IntegrationManager = () => {
                 <Select
                   value={configBrandId || activeBrandForActions || ''}
                   onValueChange={handleAnalyticsBrandChange}
-                  disabled={availableBrandOptions.length === 0 || isAnalyticsConfigLoading}
+                  disabled={availableBrandOptions.length === 0 || isAnalyticsConfigLoading || isLoadingBrands}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select brand" />
+                    <SelectValue placeholder={isLoadingBrands ? "Loading brands..." : "Select brand"} />
                   </SelectTrigger>
                   <SelectContent>
                     {availableBrandOptions.map((brand) => (
@@ -1303,7 +1329,13 @@ const IntegrationManager = () => {
                     ))}
                   </SelectContent>
                 </Select>
-                {availableBrandOptions.length === 0 && (
+                {isLoadingBrands && (
+                  <p className="text-xs text-muted-foreground flex items-center gap-2">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    Loading available brands...
+                  </p>
+                )}
+                {!isLoadingBrands && availableBrandOptions.length === 0 && (
                   <p className="text-xs text-muted-foreground">No brands available for configuration.</p>
                 )}
               </div>
@@ -1542,10 +1574,10 @@ const IntegrationManager = () => {
                 <Select
                   value={analyticsDataBrandId || activeBrandForActions || ''}
                   onValueChange={(value) => handleFetchAnalyticsData(value)}
-                  disabled={availableBrandOptions.length === 0 || isAnalyticsDataLoading}
+                  disabled={availableBrandOptions.length === 0 || isAnalyticsDataLoading || isLoadingBrands}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select brand" />
+                    <SelectValue placeholder={isLoadingBrands ? "Loading brands..." : "Select brand"} />
                   </SelectTrigger>
                   <SelectContent>
                     {availableBrandOptions.map((brand) => (

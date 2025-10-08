@@ -129,7 +129,16 @@ function buildWebhookUrl(brandId: string): string {
   if (!supabaseUrl) {
     throw new Error('SUPABASE_URL is not configured');
   }
-  return `${supabaseUrl}/functions/v1/n8n-analytics-manage/webhook/${brandId}`;
+  
+  // Validate brandId is a valid UUID
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!uuidRegex.test(brandId)) {
+    throw new Error('Invalid brand ID format');
+  }
+  
+  // Ensure URL is properly formatted
+  const baseUrl = supabaseUrl.endsWith('/') ? supabaseUrl.slice(0, -1) : supabaseUrl;
+  return `${baseUrl}/functions/v1/n8n-analytics-manage/webhook/${brandId}`;
 }
 
 async function addIntegrationToBrand(client: SupabaseClient, brand: BrandRecord) {
@@ -225,6 +234,9 @@ async function fetchAnalyticsData(
   return data ?? [];
 }
 
+// Simple rate limiting using in-memory store
+const webhookAttempts = new Map<string, { count: number; resetAt: number }>();
+
 async function handleWebhook(req: Request) {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: { ...corsHeaders, 'Access-Control-Allow-Methods': 'POST,OPTIONS' } });
@@ -240,6 +252,23 @@ async function handleWebhook(req: Request) {
   const url = new URL(req.url);
   const segments = url.pathname.split('/').filter(Boolean);
   const brandId = segments[segments.length - 1];
+  
+  // Rate limiting: 100 requests per minute per brand
+  const now = Date.now();
+  const rateLimitKey = `webhook:${brandId}`;
+  const attempt = webhookAttempts.get(rateLimitKey);
+  
+  if (attempt && attempt.resetAt > now) {
+    if (attempt.count >= 100) {
+      return new Response(JSON.stringify({ error: 'Rate limit exceeded' }), {
+        status: 429,
+        headers: corsHeaders,
+      });
+    }
+    attempt.count++;
+  } else {
+    webhookAttempts.set(rateLimitKey, { count: 1, resetAt: now + 60000 });
+  }
 
   if (!brandId) {
     return new Response(JSON.stringify({ error: 'Brand ID missing in webhook URL' }), {
@@ -307,17 +336,20 @@ async function handleWebhook(req: Request) {
       throw insertResult.error;
     }
 
-    await client
-      .from('brand_analytics_integrations')
-      .update({
-        last_sync_at: new Date().toISOString(),
-        is_active: true,
-      })
-      .eq('id', integration.id);
+    // Update integration sync timestamp only if data was successfully stored
+    if (insertResult.data?.id) {
+      await client
+        .from('brand_analytics_integrations')
+        .update({
+          last_sync_at: new Date().toISOString(),
+          is_active: true,
+        })
+        .eq('id', integration.id);
 
-    const brand = await getBrand(client, brandId);
-    if (brand) {
-      await addIntegrationToBrand(client, brand);
+      const brand = await getBrand(client, brandId);
+      if (brand) {
+        await addIntegrationToBrand(client, brand);
+      }
     }
 
     return new Response(JSON.stringify({ ok: true }), {
@@ -435,7 +467,7 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({
         ok: true,
         brand: { id: brand.id, name: brand.name },
-        integration: sanitizeIntegrationResponse(integration, true),
+        integration: sanitizeIntegrationResponse(integration, false), // Don't expose secret in GET
         data,
       }), { headers: corsHeaders });
     }
