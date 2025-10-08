@@ -34,7 +34,7 @@ import AdminPanel from "./pages/admin/AdminPanel";
 import UserBrands from "./pages/UserBrands";
 import AIAgentsPage from "./pages/ai-agents";
 import MyAgentsPage from "./pages/my-agents";
-import GoHighLevelPage from "./pages/gohighlevel";
+
 import AIDashboard from "./pages/ai-dashboard";
 import VideoPage from "./pages/video/VideoPage";
 import GeminiVideoStudioPage from "./pages/video/GeminiVideoStudioPage";
@@ -90,7 +90,6 @@ const App = () => (
               <Route path="brands" element={<UserBrands />} />
               <Route path="brands/:brandId" element={<BrandDetail />} />
               <Route path="my-agents" element={<MyAgentsPage />} />
-              <Route path="gohighlevel" element={<GoHighLevelPage />} />
             </Route>
             
             {/* PM Role Routes */}
@@ -109,7 +108,6 @@ const App = () => (
               <Route path="projects" element={<ProjectManagement />} />
               <Route path="tasks" element={<ActionsTasks />} />
               <Route path="my-agents" element={<MyAgentsPage />} />
-              <Route path="gohighlevel" element={<GoHighLevelPage />} />
             </Route>
             
             {/* Super Admin Dashboard Routes */}
@@ -131,7 +129,6 @@ const App = () => (
               <Route path="actions-tasks" element={<ActionsTasks />} />
               <Route path="people" element={<People />} />
               <Route path="my-agents" element={<MyAgentsPage />} />
-              <Route path="gohighlevel" element={<GoHighLevelPage />} />
             </Route>
 
             {/* Manager Role Routes */}
@@ -153,7 +150,6 @@ const App = () => (
               <Route path="actions-tasks" element={<ActionsTasks />} />
               <Route path="people" element={<People />} />
               <Route path="my-agents" element={<MyAgentsPage />} />
-              <Route path="gohighlevel" element={<GoHighLevelPage />} />
               {/* Admin-specific routes accessible from manager interface */}
               <Route path="admin/users" element={<UserManagement />} />
               <Route path="admin/users/:userId" element={<UserDetail />} />
@@ -179,7 +175,6 @@ const App = () => (
               <Route path="kpis" element={<KPIConfigurator />} />
               <Route path="settings" element={<AdminSettings />} />
               <Route path="ai-agents" element={<AIAgentsPage />} />
-              <Route path="gohighlevel" element={<GoHighLevelPage />} />
               <Route path="ai-dashboard" element={<AIDashboard />} />
             </Route>
             

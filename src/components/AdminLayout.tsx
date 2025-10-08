@@ -47,7 +47,6 @@ const navigation = [
       { name: 'Integrations Hub', href: '/adminpanel/integrations', icon: Plug },
       { name: 'AI Dashboard', href: '/adminpanel/ai-dashboard', icon: Bot },
       { name: 'AI Agents', href: '/adminpanel/ai-agents', icon: Zap },
-      { name: 'GoHighLevel', href: '/adminpanel/gohighlevel', icon: Target },
     ]
   }
 ];
