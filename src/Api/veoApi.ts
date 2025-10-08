@@ -230,12 +230,37 @@ export const createGeminiVideo = async ({
     throw new Error("1080p resolution is only available for 16:9 aspect ratio");
   }
 
+  // Convert image to base64 if provided
+  let imageBase64: string | undefined;
+  let imageMimeType: string | undefined;
+
+  if (inputReference) {
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+    if (!allowedTypes.includes(inputReference.type)) {
+      throw new Error("Image must be JPG, PNG, or WEBP format");
+    }
+
+    const maxSize = 20 * 1024 * 1024; // 20MB
+    if (inputReference.size > maxSize) {
+      throw new Error("Image must be under 20MB");
+    }
+
+    // Convert to base64
+    const arrayBuffer = await inputReference.arrayBuffer();
+    const bytes = new Uint8Array(arrayBuffer);
+    const binaryString = bytes.reduce((acc, byte) => acc + String.fromCharCode(byte), "");
+    imageBase64 = btoa(binaryString);
+    imageMimeType = inputReference.type;
+  }
+
   const data = await invokeVeoFunction("create", {
     prompt: prompt.trim(),
     duration,
     aspectRatio,
     resolution,
     negativePrompt: negativePrompt?.trim(),
+    imageBase64,
+    imageMimeType,
     metadata,
   });
 

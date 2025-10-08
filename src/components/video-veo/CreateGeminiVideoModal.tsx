@@ -1,11 +1,12 @@
 import { ChangeEvent, useEffect, useState } from "react";
-import { Loader2, PlusCircle } from "lucide-react";
+import { Loader2, PlusCircle, X } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
+import { AspectRatio } from "@/components/ui/aspect-ratio";
 
 interface CreateGeminiVideoModalProps {
   open: boolean;
@@ -29,6 +30,7 @@ export const CreateGeminiVideoModal = ({
   const [touchedPrompt, setTouchedPrompt] = useState(false);
   const [touchedDuration, setTouchedDuration] = useState(false);
   const [inputReference, setInputReference] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) {
@@ -37,21 +39,42 @@ export const CreateGeminiVideoModal = ({
       setTouchedPrompt(false);
       setTouchedDuration(false);
       setInputReference(null);
+      setImagePreview(null);
     }
   }, [open]);
+
+  useEffect(() => {
+    return () => {
+      if (imagePreview) {
+        URL.revokeObjectURL(imagePreview);
+      }
+    };
+  }, [imagePreview]);
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] ?? null;
     if (!file) {
       setInputReference(null);
+      setImagePreview(null);
       return;
     }
 
-    const allowedTypes = ["image/jpeg", "image/png", "image/webp", "video/mp4"];
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
     if (!allowedTypes.includes(file.type)) {
       toast({
         title: "Unsupported file type",
-        description: "Upload a JPG, PNG, WEBP image or MP4 video as a reference.",
+        description: "Upload a JPG, PNG, or WEBP image for image-to-video generation.",
+        variant: "destructive",
+      });
+      event.target.value = "";
+      return;
+    }
+
+    const maxSize = 20 * 1024 * 1024; // 20MB
+    if (file.size > maxSize) {
+      toast({
+        title: "File too large",
+        description: "Image must be under 20MB. Please choose a smaller file.",
         variant: "destructive",
       });
       event.target.value = "";
@@ -59,6 +82,25 @@ export const CreateGeminiVideoModal = ({
     }
 
     setInputReference(file);
+    
+    // Create preview URL
+    if (imagePreview) {
+      URL.revokeObjectURL(imagePreview);
+    }
+    const previewUrl = URL.createObjectURL(file);
+    setImagePreview(previewUrl);
+  };
+
+  const handleRemoveImage = () => {
+    setInputReference(null);
+    if (imagePreview) {
+      URL.revokeObjectURL(imagePreview);
+      setImagePreview(null);
+    }
+    const fileInput = document.getElementById("veo-reference") as HTMLInputElement;
+    if (fileInput) {
+      fileInput.value = "";
+    }
   };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -122,37 +164,61 @@ export const CreateGeminiVideoModal = ({
             {promptError ? <p className="text-sm text-rose-500">Enter a prompt to continue.</p> : null}
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="veo-duration">Duration (seconds)</Label>
-              <Input
-                id="veo-duration"
-                type="number"
-                min={MIN_DURATION}
-                max={MAX_DURATION}
-                value={duration}
-                onChange={(event) => setDuration(event.target.value)}
-                onBlur={() => setTouchedDuration(true)}
-                disabled={isLoading}
-              />
-              {durationError ? (
-                <p className="text-sm text-rose-500">Choose between {MIN_DURATION} and {MAX_DURATION} seconds.</p>
-              ) : null}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="veo-reference">Upload Theme / Reference</Label>
+          <div className="space-y-2">
+            <Label htmlFor="veo-duration">Duration (seconds)</Label>
+            <Input
+              id="veo-duration"
+              type="number"
+              min={MIN_DURATION}
+              max={MAX_DURATION}
+              value={duration}
+              onChange={(event) => setDuration(event.target.value)}
+              onBlur={() => setTouchedDuration(true)}
+              disabled={isLoading}
+            />
+            {durationError ? (
+              <p className="text-sm text-rose-500">Choose between {MIN_DURATION} and {MAX_DURATION} seconds.</p>
+            ) : null}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="veo-reference">Reference Image (Optional)</Label>
+            <p className="text-xs text-muted-foreground">
+              Upload an image to generate a video based on it. Supports JPG, PNG, WEBP up to 20MB.
+            </p>
+            
+            {imagePreview ? (
+              <div className="relative">
+                <AspectRatio ratio={16 / 9} className="overflow-hidden rounded-lg border border-border">
+                  <img
+                    src={imagePreview}
+                    alt="Reference preview"
+                    className="h-full w-full object-cover"
+                  />
+                </AspectRatio>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="icon"
+                  className="absolute right-2 top-2 h-8 w-8"
+                  onClick={handleRemoveImage}
+                  disabled={isLoading}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  {inputReference?.name} ({(inputReference!.size / 1024 / 1024).toFixed(2)} MB)
+                </p>
+              </div>
+            ) : (
               <Input
                 id="veo-reference"
                 type="file"
-                accept=".jpg,.jpeg,.png,.webp,.mp4"
+                accept=".jpg,.jpeg,.png,.webp"
                 onChange={handleFileChange}
                 disabled={isLoading}
               />
-              <p className="text-xs text-muted-foreground">
-                Optional. Supported formats: JPG, PNG, WEBP, MP4.
-                {inputReference ? ` Selected: ${inputReference.name}` : ""}
-              </p>
-            </div>
+            )}
           </div>
 
           <DialogFooter className="flex flex-col gap-2 sm:flex-row sm:justify-end">

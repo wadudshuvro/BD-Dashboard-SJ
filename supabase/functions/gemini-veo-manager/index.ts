@@ -20,6 +20,8 @@ interface CreateVideoRequest {
   aspectRatio?: "16:9" | "9:16";
   resolution?: "720p" | "1080p";
   negativePrompt?: string;
+  imageBase64?: string;
+  imageMimeType?: string;
   metadata?: Record<string, unknown>;
 }
 
@@ -98,6 +100,8 @@ async function createVideo(
   aspectRatio?: "16:9" | "9:16",
   resolution?: "720p" | "1080p",
   negativePrompt?: string,
+  imageBase64?: string,
+  imageMimeType?: string,
   metadata?: Record<string, unknown>
 ): Promise<any> {
   console.log("Creating video with prompt:", prompt);
@@ -124,6 +128,15 @@ async function createVideo(
   
   if (negativePrompt) {
     requestBody.negativePrompt = negativePrompt;
+  }
+
+  // Add image for image-to-video generation
+  if (imageBase64 && imageMimeType) {
+    console.log("Adding image for image-to-video generation, mime type:", imageMimeType);
+    requestBody.image = {
+      bytesBase64Encoded: imageBase64,
+      mimeType: imageMimeType,
+    };
   }
 
   const response = await fetch(`${BASE_URL}/models/${MODEL}:generateVideos`, {
@@ -359,14 +372,16 @@ Deno.serve(async (req) => {
 
     switch (operation) {
       case "create": {
-        const { prompt, duration, aspectRatio, resolution, negativePrompt, metadata } = body as CreateVideoRequest;
+        const { prompt, duration, aspectRatio, resolution, negativePrompt, imageBase64, imageMimeType, metadata } = body as CreateVideoRequest;
         const result = await createVideo(
           prompt, 
           userId, 
           duration, 
           aspectRatio, 
           resolution, 
-          negativePrompt, 
+          negativePrompt,
+          imageBase64,
+          imageMimeType,
           metadata
         );
         return new Response(JSON.stringify({ video: result }), {
