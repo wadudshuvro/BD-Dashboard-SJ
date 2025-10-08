@@ -58,6 +58,19 @@ const formatCurrency = (value?: number) => {
   }).format(value);
 };
 
+const getRetentionWarning = (createdAt?: string): string | null => {
+  if (!createdAt) return null;
+  
+  const created = new Date(createdAt);
+  const expiresAt = new Date(created.getTime() + 2 * 24 * 60 * 60 * 1000); // 2 days
+  const now = new Date();
+  const hoursLeft = Math.max(0, (expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60));
+  
+  if (hoursLeft <= 0) return "Expired";
+  if (hoursLeft < 24) return `Expires in ${Math.round(hoursLeft)}h`;
+  return `Expires in ${Math.round(hoursLeft / 24)}d`;
+};
+
 const GeminiVideoCardComponent = ({
   video,
   onPlay,
@@ -80,6 +93,7 @@ const GeminiVideoCardComponent = ({
     getMetadataString(video.metadata, "userEmail");
 
   const showSpinner = isPolling || (video.status !== "ready" && video.status !== "failed");
+  const retentionWarning = getRetentionWarning(video.created_at);
 
   const thumbnailContent = video.thumbnail_url ? (
     <img src={video.thumbnail_url} alt={video.title ?? video.id} className="h-full w-full object-cover" loading="lazy" />
@@ -157,6 +171,13 @@ const GeminiVideoCardComponent = ({
             </span>
             <span className="font-medium text-foreground">{statusLabel}</span>
           </div>
+          {retentionWarning && video.status === "ready" && (
+            <div className="flex items-center justify-between rounded-md bg-amber-500/10 p-2 text-xs">
+              <span className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
+                ⚠️ {retentionWarning}
+              </span>
+            </div>
+          )}
         </div>
       </CardContent>
       <CardFooter className="flex flex-wrap items-center justify-between gap-2 border-t border-border/60 bg-muted/40">

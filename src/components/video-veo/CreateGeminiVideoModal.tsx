@@ -160,6 +160,14 @@ export const CreateGeminiVideoModal = ({
   const durationError =
     touchedDuration && (!Number.isFinite(durationValue) || durationValue < MIN_DURATION || durationValue > MAX_DURATION);
 
+  // Estimate cost based on duration and resolution
+  const estimatedCost = (() => {
+    if (!Number.isFinite(durationValue)) return 0;
+    // Veo 3 pricing: ~$0.10 per second for 720p, ~$0.15 per second for 1080p
+    const baseRate = resolution === "1080p" ? 0.15 : 0.10;
+    return durationValue * baseRate;
+  })();
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
@@ -171,6 +179,11 @@ export const CreateGeminiVideoModal = ({
             <DialogDescription>
               Provide a cinematic marketing prompt (5-8 seconds for Veo 3), and optionally add a reference image. We&apos;ll send it to
               Google Gemini Veo 3 for generation.
+              {estimatedCost > 0 && (
+                <span className="mt-2 block text-sm font-medium text-amber-600 dark:text-amber-400">
+                  Estimated cost: ${estimatedCost.toFixed(2)} • Videos expire after 2 days
+                </span>
+              )}
             </DialogDescription>
           </DialogHeader>
 

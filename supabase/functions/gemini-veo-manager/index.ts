@@ -149,9 +149,28 @@ async function createVideo(
   });
 
   if (!response.ok) {
-    const error = await response.text();
-    console.error("Error creating video:", error);
-    throw new Error(`Failed to create video: ${error}`);
+    const errorText = await response.text();
+    console.error("Error creating video:", errorText);
+    
+    // Parse error for better user messaging
+    let errorMessage = "Failed to create video";
+    try {
+      const errorJson = JSON.parse(errorText);
+      errorMessage = errorJson.error?.message || errorMessage;
+      
+      // Check for specific error types
+      if (errorMessage.includes("quota") || errorMessage.includes("QUOTA")) {
+        errorMessage = "API quota exceeded. Please try again later or check your Gemini API limits.";
+      } else if (errorMessage.includes("safety") || errorMessage.includes("blocked")) {
+        errorMessage = "Content blocked by safety filters. Please revise your prompt and try again.";
+      } else if (errorMessage.includes("audio") || errorMessage.includes("Audio")) {
+        errorMessage = "Audio content flagged. Veo 3 detected potentially unsafe audio. Please revise your prompt.";
+      }
+    } catch {
+      errorMessage = errorText.substring(0, 200);
+    }
+    
+    throw new Error(errorMessage);
   }
 
   const result = await response.json();
@@ -193,6 +212,31 @@ async function createVideo(
   };
 }
 
+// Convert gs:// URI to downloadable HTTP URL using Gemini Files API
+async function convertGsUriToDownloadUrl(gsUri: string): Promise<string> {
+  // Extract file name from gs:// URI (format: gs://bucket/path/filename)
+  const fileName = gsUri.split('/').pop();
+  if (!fileName) {
+    throw new Error("Invalid gs:// URI format");
+  }
+
+  // Use Gemini Files API to get download URL
+  const response = await fetch(`${BASE_URL}/files/${fileName}`, {
+    headers: {
+      "x-goog-api-key": GEMINI_API_KEY!,
+    },
+  });
+
+  if (!response.ok) {
+    console.error("Failed to convert gs:// URI:", await response.text());
+    // Fallback: return original URI with direct download query
+    return `${gsUri}?alt=media`;
+  }
+
+  const fileData = await response.json();
+  return fileData.uri || `${gsUri}?alt=media`;
+}
+
 async function getVideo(id: string): Promise<any> {
   // Get video from database
   const { data: videoData, error: dbError } = await supabase
@@ -216,7 +260,17 @@ async function getVideo(id: string): Promise<any> {
     if (!response.ok) {
       const error = await response.text();
       console.error("Error getting video status:", error);
-      throw new Error(`Failed to get video: ${error}`);
+      
+      // Parse error for better messaging
+      let errorMessage = "Failed to get video status";
+      try {
+        const errorJson = JSON.parse(error);
+        errorMessage = errorJson.error?.message || errorMessage;
+      } catch {
+        errorMessage = error.substring(0, 200);
+      }
+      
+      throw new Error(errorMessage);
     }
 
     const operation = await response.json();
@@ -225,31 +279,53 @@ async function getVideo(id: string): Promise<any> {
       // Extract video URI from correct Veo 3 response path
       const videoUri = operation.response?.generated_videos?.[0]?.video?.uri;
       
+      // Convert gs:// URI to downloadable URL if needed
+      let downloadUrl = videoUri;
+      if (videoUri?.startsWith('gs://')) {
+        try {
+          downloadUrl = await convertGsUriToDownloadUrl(videoUri);
+          console.log("Converted gs:// URI to download URL:", downloadUrl);
+        } catch (error) {
+          console.error("Failed to convert URI, using original:", error);
+        }
+      }
+      
       // Update database
       await supabase
         .from("gemini_videos")
         .update({
           status: "completed",
-          video_url: videoUri,
+          video_url: downloadUrl,
           completed_at: new Date().toISOString(),
         })
         .eq("id", id);
       
       videoData.status = "completed";
-      videoData.video_url = videoUri;
+      videoData.video_url = downloadUrl;
       videoData.completed_at = new Date().toISOString();
     } else if (operation.error) {
+      // Parse error for better messaging
+      const errorDetails = operation.error;
+      let errorMessage = errorDetails.message || "Video generation failed";
+      
+      // Check for specific error types
+      if (errorMessage.includes("audio") || errorMessage.includes("Audio")) {
+        errorMessage = "Audio content blocked - Veo 3 detected unsafe audio in your prompt. Please revise and try again.";
+      }
+      
+      console.error("Video generation error:", errorDetails);
+      
       // Update database
       await supabase
         .from("gemini_videos")
         .update({
           status: "failed",
-          error: operation.error,
+          error: { message: errorMessage, details: errorDetails },
         })
         .eq("id", id);
       
       videoData.status = "failed";
-      videoData.error = operation.error;
+      videoData.error = { message: errorMessage, details: errorDetails };
     }
   }
 
