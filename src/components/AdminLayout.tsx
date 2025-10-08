@@ -35,7 +35,6 @@ const navigation = [
     section: 'Administration',
     items: [
       { name: 'Admin Panel', href: '/adminpanel', icon: Home, exact: true },
-      { name: 'System Overview', href: '/adminpanel/overview', icon: BarChart3 },
       { name: 'User Management', href: '/adminpanel/users', icon: Users },
       { name: 'Brand Management', href: '/adminpanel/brands', icon: Building2 },
       { name: 'KPI Configuration', href: '/adminpanel/kpis', icon: TrendingUp },

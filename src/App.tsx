@@ -24,7 +24,6 @@ import People from "./pages/People";
 import ActionsTasks from "./pages/ActionsTasks";
 import AIWorkspace from "./pages/AIWorkspace";
 import UserManagement from "./pages/admin/UserManagement";
-import AdminOverview from "./pages/admin/AdminOverview";
 import BrandManagement from "./pages/admin/BrandManagement";
 import BrandDetail from "./pages/admin/BrandDetail";
 import IntegrationManager from "./pages/admin/IntegrationManager";
@@ -158,7 +157,6 @@ const App = () => (
               {/* Admin-specific routes accessible from manager interface */}
               <Route path="admin/users" element={<UserManagement />} />
               <Route path="admin/users/:userId" element={<UserDetail />} />
-              <Route path="admin/system" element={<AdminOverview />} />
               <Route path="admin/integrations" element={<IntegrationManager />} />
               <Route path="admin/kpis" element={<KPIConfigurator />} />
               <Route path="admin/settings" element={<AdminSettings />} />
@@ -171,7 +169,6 @@ const App = () => (
               </ProtectedRoute>
             }>
               <Route index element={<AdminPanel />} />
-              <Route path="overview" element={<AdminOverview />} />
               <Route path="brands" element={<BrandManagement />} />
               <Route path="brands/:brandId" element={<BrandDetail />} />
               <Route path="users" element={<UserManagement />} />
