@@ -48,6 +48,8 @@ import { useClients } from "@/hooks/useClients";
 import { useForm, Controller } from "react-hook-form";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useNavigate } from "react-router-dom";
+import { EmptyProjects } from "@/components/empty-states/EmptyProjects";
+import { ProjectCardSkeleton } from "@/components/skeleton/ProjectCardSkeleton";
 
 const statusColors = {
   planning: "bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-300",
@@ -166,9 +168,18 @@ export default function ProjectManagement() {
 
   if (loading && projects.length === 0) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin" />
-        <span className="ml-2">Loading projects...</span>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">Project Management</h1>
+            <p className="text-muted-foreground">Track and manage all your client projects</p>
+          </div>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {[...Array(3)].map((_, i) => (
+            <ProjectCardSkeleton key={i} />
+          ))}
+        </div>
       </div>
     );
   }
@@ -489,7 +500,14 @@ export default function ProjectManagement() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {projects.map((project) => (
+              {projects.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={8}>
+                    <EmptyProjects />
+                  </TableCell>
+                </TableRow>
+              ) : (
+                projects.map((project) => (
                 <TableRow 
                   key={project.id}
                   className="cursor-pointer hover:bg-muted/50"
@@ -598,15 +616,10 @@ export default function ProjectManagement() {
                     </div>
                   </TableCell>
                 </TableRow>
-              ))}
+              ))
+              )}
             </TableBody>
           </Table>
-          
-          {projects.length === 0 && (
-            <div className="text-center py-8 text-muted-foreground">
-              No projects found. Create your first project to get started.
-            </div>
-          )}
         </CardContent>
       </Card>
     </div>

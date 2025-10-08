@@ -22,6 +22,9 @@ import KPICard from "@/components/dashboard/KPICard";
 import EffortChart from "@/components/dashboard/EffortChart";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { useAuth } from "@/hooks/useAuth";
+import { EmptyBrands } from "@/components/empty-states/EmptyBrands";
+import { EmptyDashboard } from "@/components/empty-states/EmptyDashboard";
+import { BrandCardSkeleton } from "@/components/skeleton/BrandCardSkeleton";
 
 export default function Index() {
   const { user } = useAuth();
@@ -132,9 +135,12 @@ export default function Index() {
   const renderAllBrandsOverview = () => {
     if (dashboardData.loading) {
       return (
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-          <span className="ml-2 text-muted-foreground">Loading dashboard data...</span>
+        <div className="space-y-6">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {[...Array(3)].map((_, i) => (
+              <BrandCardSkeleton key={i} />
+            ))}
+          </div>
         </div>
       );
     }
@@ -156,6 +162,18 @@ export default function Index() {
             </Button>
           </div>
         </div>
+      );
+    }
+
+    // Show empty dashboard for new users
+    if (brands.length === 0) {
+      return (
+        <EmptyDashboard
+          userName={user?.email?.split('@')[0]}
+          brandsCount={brands.length}
+          kpisCount={dashboardData.teamEffortKPIs.length + dashboardData.socialMediaKPIs.length + dashboardData.websiteKPIs.length + dashboardData.paidCampaignKPIs.length}
+          projectsCount={0}
+        />
       );
     }
 

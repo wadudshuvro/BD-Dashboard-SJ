@@ -11,6 +11,7 @@ import { useEODSubmissions } from "@/hooks/useTeamSummaries";
 import { useAuth } from "@/hooks/useAuth";
 import { Plus, CheckCircle, Clock, AlertCircle, Calendar } from "lucide-react";
 import { format } from "date-fns";
+import { EmptyTasks } from "@/components/empty-states/EmptyTasks";
 
 export default function ActionsTasks() {
   const [showTaskForm, setShowTaskForm] = useState(false);
@@ -132,24 +133,17 @@ export default function ActionsTasks() {
         </TabsList>
         
         <TabsContent value="list" className="space-y-4">
-          <div className="grid gap-4">
-            {tasks.map((task) => (
-              <TaskCard key={task.id} task={task} onEdit={handleEditTask} />
-            ))}
-            {tasks.length === 0 && (
-              <Card>
-                <CardContent className="flex items-center justify-center py-8">
-                  <div className="text-center">
-                    <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-muted-foreground">No tasks found</p>
-                    <Button variant="outline" className="mt-2" onClick={() => setShowTaskForm(true)}>
-                      Create your first task
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </div>
+          {tasks.length === 0 ? (
+            <EmptyTasks 
+              onCreateTask={() => setShowTaskForm(true)}
+            />
+          ) : (
+            <div className="grid gap-4">
+              {tasks.map((task) => (
+                <TaskCard key={task.id} task={task} onEdit={handleEditTask} />
+              ))}
+            </div>
+          )}
         </TabsContent>
         
         <TabsContent value="kanban">

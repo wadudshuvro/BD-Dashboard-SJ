@@ -20,9 +20,10 @@ import {
   Loader2,
   Edit
 } from "lucide-react";
-import { Brand } from "@/data/mockData";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { EmptyKPIs } from "@/components/empty-states/EmptyKPIs";
+import { EmptyIntegrations } from "@/components/empty-states/EmptyIntegrations";
 
 interface BrandKPI {
   id: string;
@@ -35,9 +36,22 @@ interface BrandKPI {
   display_order: number;
 }
 
-interface BrandWithKPIs extends Omit<Brand, 'kpis'> {
-  kpis: BrandKPI[];
+interface Brand {
+  id: string;
+  name: string;
+  description?: string;
+  type: string;
+  is_active: boolean;
+  created_at: string;
+  owner_name?: string;
+  team_members?: string[];
+  monthly_budget?: number;
+  active_integrations?: string[];
   status: string;
+}
+
+interface BrandWithKPIs extends Brand {
+  kpis: BrandKPI[];
 }
 
 const BrandDetail = () => {
@@ -327,14 +341,7 @@ const BrandDetail = () => {
                   })}
                 </div>
               ) : (
-                <div className="text-center py-8">
-                  <BarChart3 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-foreground mb-2">No KPIs configured</h3>
-                  <p className="text-muted-foreground mb-4">
-                    Set up key performance indicators to track your brand's success
-                  </p>
-                  <Button>Add KPI</Button>
-                </div>
+                <EmptyKPIs onAddKPI={() => console.log("Add KPI")} />
               )}
             </CardContent>
           </Card>
@@ -393,14 +400,7 @@ const BrandDetail = () => {
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-8">
-                  <Plug className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-foreground mb-2">No integrations</h3>
-                  <p className="text-muted-foreground mb-4">
-                    Connect services to automatically track your brand's performance
-                  </p>
-                  <Button>Add Integration</Button>
-                </div>
+                <EmptyIntegrations />
               )}
             </CardContent>
           </Card>
