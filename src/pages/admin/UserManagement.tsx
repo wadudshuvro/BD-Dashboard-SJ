@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Search, Plus, Filter, MoreHorizontal, Trash2, Shield, UserCheck, UserX, Calendar } from 'lucide-react';
+import { Search, Plus, Filter, MoreHorizontal, Trash2, Shield, UserCheck, UserX, Calendar, AlertCircle, RefreshCw } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -35,7 +35,7 @@ interface NewUserForm {
 }
 
 const UserManagement = () => {
-  const { users: rawUsers, loading, total, fetchUsers, createUser, updateUser, deleteUser } = useAdminUsers();
+  const { users: rawUsers, loading, total, error, fetchUsers, createUser, updateUser, deleteUser } = useAdminUsers();
   const { brands, loading: brandsLoading } = useAdminBrands();
   const [searchTerm, setSearchTerm] = useState("");
   const [filterRole, setFilterRole] = useState<string>("all");
@@ -229,6 +229,34 @@ const UserManagement = () => {
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
         </div>
+      </div>
+    );
+  }
+
+  if (error && users.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight text-foreground">User Management</h1>
+            <p className="text-muted-foreground">Manage user accounts, roles, and brand assignments</p>
+          </div>
+        </div>
+        <Card className="border-destructive">
+          <CardContent className="pt-6">
+            <div className="flex flex-col items-center justify-center text-center space-y-4">
+              <AlertCircle className="h-12 w-12 text-destructive" />
+              <div>
+                <h3 className="text-lg font-semibold">Failed to Load Users</h3>
+                <p className="text-sm text-muted-foreground mt-2">{error}</p>
+              </div>
+              <Button onClick={() => fetchUsers({ page: currentPage, limit: 50 })}>
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Retry
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }

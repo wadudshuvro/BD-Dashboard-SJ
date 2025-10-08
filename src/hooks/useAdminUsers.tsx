@@ -73,6 +73,7 @@ export function useAdminUsers() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(false);
   const [total, setTotal] = useState(0);
+  const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
   const getAuthToken = useCallback(async () => {
@@ -89,6 +90,7 @@ export function useAdminUsers() {
     isMarketing?: boolean;
   } = {}) => {
     setLoading(true);
+    setError(null);
     try {
       const { data } = await axiosPrivate.get<UsersResponse>('/admin-users', {
         params,
@@ -100,9 +102,11 @@ export function useAdminUsers() {
       return data;
     } catch (error: any) {
       console.error('Error fetching users:', error);
+      const errorMsg = error.response?.data?.error || error.message || "Failed to fetch users";
+      setError(errorMsg);
       toast({
         title: "Error",
-        description: error.response?.data?.error || error.message || "Failed to fetch users",
+        description: errorMsg,
         variant: "destructive",
       });
       throw error;
@@ -204,6 +208,7 @@ export function useAdminUsers() {
     users,
     loading,
     total,
+    error,
     fetchUsers,
     createUser,
     updateUser,
