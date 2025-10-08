@@ -52,6 +52,7 @@ export interface CreateUserData {
 }
 
 export interface UpdateUserData {
+  email?: string;
   firstName?: string;
   lastName?: string;
   role?: 'super_admin' | 'manager' | 'pm' | 'user';

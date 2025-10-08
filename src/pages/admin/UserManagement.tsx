@@ -114,6 +114,7 @@ const UserManagement = () => {
   const handleSavePermissions = async (
     userId: string,
     updates: {
+      email: string;
       firstName: string;
       lastName: string;
       role: 'super_admin' | 'manager' | 'pm' | 'user';
@@ -126,6 +127,7 @@ const UserManagement = () => {
   ) => {
     try {
       await updateUser(userId, {
+        email: updates.email,
         firstName: updates.firstName,
         lastName: updates.lastName,
         role: updates.role,

@@ -28,6 +28,7 @@ interface UserPermissionDialogProps {
   onSave: (
     userId: string,
     updates: {
+      email: string;
       firstName: string;
       lastName: string;
       role: 'super_admin' | 'manager' | 'pm' | 'user';
@@ -43,6 +44,7 @@ interface UserPermissionDialogProps {
 type AccessLevel = BrandAssignment['access_level'];
 
 type FormState = {
+  email: string;
   firstName: string;
   lastName: string;
   role: 'super_admin' | 'manager' | 'pm' | 'user';
@@ -54,6 +56,7 @@ type FormState = {
 };
 
 const defaultState: FormState = {
+  email: '',
   firstName: '',
   lastName: '',
   role: 'user',
@@ -68,6 +71,7 @@ const getInitialState = (user: UserPermissionDialogProps['user']): FormState => 
   if (!user) return defaultState;
 
   return {
+    email: user.email ?? '',
     firstName: user.first_name ?? '',
     lastName: user.last_name ?? '',
     role: user.role,
@@ -153,6 +157,7 @@ export const UserPermissionDialog = ({
     setSaving(true);
     try {
       await onSave(user.id, {
+        email: formState.email.trim(),
         firstName: formState.firstName.trim(),
         lastName: formState.lastName.trim(),
         role: formState.role,
@@ -172,16 +177,21 @@ export const UserPermissionDialog = ({
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-3xl">
         <DialogHeader>
-          <DialogTitle className="flex flex-col gap-1">
-            <span>Manage User Details</span>
-            {user && (
-              <span className="text-sm text-muted-foreground">{user.email}</span>
-            )}
-          </DialogTitle>
+          <DialogTitle>Manage User Details</DialogTitle>
         </DialogHeader>
 
         <div className="grid gap-6 md:grid-cols-2">
           <div className="space-y-4">
+            <div>
+              <Label htmlFor="email">Email Address</Label>
+              <Input
+                id="email"
+                type="email"
+                value={formState.email}
+                onChange={(event) => updateField('email', event.target.value)}
+                placeholder="user@sjinnovation.com"
+              />
+            </div>
             <div>
               <Label htmlFor="first-name">First name</Label>
               <Input

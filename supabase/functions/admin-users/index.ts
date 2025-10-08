@@ -91,6 +91,7 @@ interface CreateUserRequest {
 }
 
 interface UpdateUserRequest {
+  email?: string;
   firstName?: string;
   lastName?: string;
   role?: string;
@@ -497,6 +498,9 @@ serve(async (req) => {
 
       const updatePayload: Record<string, unknown> = {}
 
+      if (typeof rawUpdates.email !== 'undefined') {
+        updatePayload.email = rawUpdates.email
+      }
       if (typeof rawUpdates.firstName !== 'undefined') {
         updatePayload.first_name = rawUpdates.firstName
       }
@@ -528,6 +532,23 @@ serve(async (req) => {
         if (userError) {
           return new Response(
             JSON.stringify({ error: userError.message }),
+            {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              status: 400
+            }
+          )
+        }
+      }
+
+      // Update email in auth.users if provided
+      if (typeof rawUpdates.email !== 'undefined') {
+        const { error: emailError } = await supabaseClient.auth.admin.updateUserById(userId, {
+          email: rawUpdates.email
+        })
+
+        if (emailError) {
+          return new Response(
+            JSON.stringify({ error: `Failed to update email: ${emailError.message}` }),
             {
               headers: { ...corsHeaders, 'Content-Type': 'application/json' },
               status: 400
