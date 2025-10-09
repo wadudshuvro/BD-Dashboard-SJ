@@ -11,7 +11,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useCollabAIIntegration, useCollabAIAgents } from "@/features/collabai/hooks";
 import { AgentGrid } from "@/features/collabai/AgentGrid";
 import { supabase } from "@/integrations/supabase/client";
-import { User, Bot, Settings, TestTube, Zap } from "lucide-react";
+import { User, Bot, Settings, TestTube, Zap, ClipboardList } from "lucide-react";
+import { AccountabilityChartEditor } from "@/components/AccountabilityChartEditor";
 
 export default function UserProfile() {
   const { user } = useAuth();
@@ -104,8 +105,9 @@ export default function UserProfile() {
       </div>
 
       <Tabs defaultValue="profile" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="profile">Personal Information</TabsTrigger>
+          <TabsTrigger value="accountability">Accountability Chart</TabsTrigger>
           <TabsTrigger value="integrations">AI Integrations</TabsTrigger>
         </TabsList>
 
@@ -176,6 +178,10 @@ export default function UserProfile() {
               </Button>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="accountability">
+          <AccountabilityChartEditor userId={user?.id || ''} isEditable={true} />
         </TabsContent>
 
         <TabsContent value="integrations">

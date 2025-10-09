@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { getUserById, getBrandById } from "@/data/mockData";
 import { UserPermissionDialog } from "@/components/admin/UserPermissionDialog";
+import { AccountabilityChartEditor } from "@/components/AccountabilityChartEditor";
 import { useState } from "react";
 
 const UserDetail = () => {
@@ -257,6 +258,9 @@ const UserDetail = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Accountability Chart */}
+      <AccountabilityChartEditor userId={user.id} isEditable={false} />
 
       {/* Permission Dialog */}
       <UserPermissionDialog
