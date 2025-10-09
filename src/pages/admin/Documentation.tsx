@@ -173,7 +173,7 @@ graph TD
 
 ### Vite & TypeScript Configuration
 
-Vite is tuned through `vite.config.ts` to apply the React SWC plugin for lightning-fast transforms:
+Vite is tuned through \`vite.config.ts\` to apply the React SWC plugin for lightning-fast transforms:
 
 \`\`\`ts
 // vite.config.ts
@@ -190,12 +190,12 @@ export default defineConfig({
 });
 \`\`\`
 
-TypeScript paths mirror Vite aliases via `tsconfig.*` files, ensuring editors and builds share the same module resolution.
+TypeScript paths mirror Vite aliases via \`tsconfig.*\` files, ensuring editors and builds share the same module resolution.
 
 ## Backend & Data Layer
 
 - **Supabase PostgreSQL** powers persistent storage with row level security and real-time subscriptions.
-- **Edge Functions** written in Deno encapsulate privileged operations, invoked from `supabase/functions/*`.
+- **Edge Functions** written in Deno encapsulate privileged operations, invoked from \`supabase/functions/*\`.
 - **Row Level Security (RLS)** policies enforce tenant isolation and role-based access.
 
 ### Supabase Interaction Flow
@@ -216,11 +216,11 @@ sequenceDiagram
 
 ## State Management Patterns
 
-TanStack Query is the canonical state layer. Hooks such as `useAdminUsers` and `useBrandKPIs` leverage query caching, background refetching, and mutation lifecycle callbacks. For local component state, React hooks (`useState`, `useReducer`) remain lightweight alternatives.
+TanStack Query is the canonical state layer. Hooks such as \`useAdminUsers\` and \`useBrandKPIs\` leverage query caching, background refetching, and mutation lifecycle callbacks. For local component state, React hooks (\`useState\`, \`useReducer\`) remain lightweight alternatives.
 
 ## Form Handling
 
-`react-hook-form` pairs with `zod` via `@hookform/resolvers` for schema-first validation. Example pattern:
+\`react-hook-form\` pairs with \`zod\` via \`@hookform/resolvers\` for schema-first validation. Example pattern:
 
 \`\`\`tsx
 import { useForm } from "react-hook-form";
@@ -234,9 +234,9 @@ const form = useForm({ resolver: zodResolver(schema) });
 
 ## Quality & Developer Experience
 
-- **ESLint** enforces repository conventions (`eslint.config.js`).
-- **TypeScript compiler** (`tsc --noEmit`) ensures type safety.
-- **Preconfigured scripts**: `npm run dev`, `npm run build`, `npm run lint`, `npm run preview`.
+- **ESLint** enforces repository conventions (\`eslint.config.js\`).
+- **TypeScript compiler** (\`tsc --noEmit\`) ensures type safety.
+- **Preconfigured scripts**: \`npm run dev\`, \`npm run build\`, \`npm run lint\`, \`npm run preview\`.
 
 ## Cross-References
 
@@ -2427,7 +2427,7 @@ sequenceDiagram
 const response = await supabase.functions.invoke('admin-brands', {
   method: 'GET',
   headers: {
-    Authorization: `Bearer ${session.session.access_token}`,
+    Authorization: \`Bearer \${session.session.access_token}\`,
   },
 });
 setBrands(response.data || []);
