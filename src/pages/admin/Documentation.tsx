@@ -829,6 +829,764 @@ function checkRateLimit(identifier: string, limit: number = 100): boolean {
 - [Deployment Guide](../../deployment/edge-functions)
 `,
 
+  "api/edge-functions/admin-users": `# admin-users Edge Function
+
+> **Last Updated**: 2025-01-09
+> **Tags**: edge-functions, users, admin, supabase
+
+## Summary
+
+The **admin-users** edge function exposes full CRUD capabilities for managing Supabase auth users and their brand assignments. It is mounted at \`/functions/v1/admin-users\` and is restricted to **super_admin** and **manager** roles.
+
+## Endpoint & Operations
+
+| Method | Path | Description | Auth Requirement |
+| ------ | ---- | ----------- | ---------------- |
+| GET | \`/functions/v1/admin-users\` | Paginated list of users with brand + permission metadata | Bearer token (super_admin or manager) |
+| GET | \`/functions/v1/admin-users/:id\` | Fetch a single user by UUID | Bearer token (super_admin or manager) |
+| POST | \`/functions/v1/admin-users\` | Create a new auth + profile record | Bearer token (super_admin or manager) |
+| PUT | \`/functions/v1/admin-users?userId=:id\` | Update an existing user and metadata | Bearer token (super_admin or manager) |
+| DELETE | \`/functions/v1/admin-users?userId=:id\` | Delete a user (cascades to profile) | Bearer token (super_admin or manager) |
+
+### Query Parameters
+
+- \`page\` / \`limit\`: pagination (defaults 1 / 10)
+- \`search\`: fuzzy match against first_name, last_name, email
+- \`role\`, \`status\`, \`is_marketing\`: optional filters
+
+## Authentication & Permission Model
+
+- Clients must send \`Authorization: Bearer <JWT>\` obtained from Supabase auth.
+- The function verifies the caller and ensures their role is **super_admin** or **manager** using a privileged service role client.
+- Row Level Security continues to enforce policies via \`get_current_user_role()\` for any direct table access outside the function (see [RLS reference](../../architecture/security-policies#get_current_user_role)).
+
+\`\`\`typescript
+const { data: adminUser, error: adminError } = await supabaseClient
+  .from('users')
+  .select('role')
+  .eq('id', user.id)
+  .single();
+
+if (adminError || !adminUser || !['super_admin', 'manager'].includes(adminUser.role)) {
+  return new Response(
+    JSON.stringify({ error: 'Insufficient privileges' }),
+    {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 403
+    }
+  );
+}
+\`\`\`
+
+## Request Payloads
+
+### Create User (POST)
+
+\`\`\`json
+{
+  "email": "teammate@example.com",
+  "password": "TempPass!2025",
+  "firstName": "Taylor",
+  "lastName": "Jones",
+  "role": "pm",
+  "status": "active",
+  "title": "Project Manager",
+  "department": "Campaigns",
+  "isMarketing": true,
+  "brandAssignments": [
+    { "brand_id": "0d5d5b12-3af3-4dd5-b2a2-8f82d5020b1f", "access_level": "owner" },
+    { "brand_id": "e45ad9b6-d788-44e2-9f20-3fa2126d2211", "access_level": "member" }
+  ]
+}
+\`\`\`
+
+### Update User (PUT)
+
+\`\`\`json
+{
+  "firstName": "Taylor",
+  "lastName": "Jones",
+  "role": "manager",
+  "status": "sabbatical",
+  "brandAssignments": [
+    { "brand_id": "0d5d5b12-3af3-4dd5-b2a2-8f82d5020b1f", "access_level": "owner" }
+  ]
+}
+\`\`\`
+
+## Response Examples
+
+### 200 OK — Paginated List
+
+\`\`\`json
+{
+  "users": [
+    {
+      "id": "9f2c4eb1-3f92-4f62-8e87-410a8f84137f",
+      "email": "teammate@example.com",
+      "first_name": "Taylor",
+      "last_name": "Jones",
+      "role": "manager",
+      "status": "active",
+      "is_marketing": true,
+      "user_brands": [
+        {
+          "brand_id": "0d5d5b12-3af3-4dd5-b2a2-8f82d5020b1f",
+          "brand_name": "Acme Fitness",
+          "access_level": "owner",
+          "can_manage_team": true
+        }
+      ],
+      "permissions": []
+    }
+  ],
+  "total": 24,
+  "page": 1,
+  "limit": 10
+}
+\`\`\`
+
+### 201 Created — Single User
+
+\`\`\`json
+{
+  "user": {
+    "id": "9f2c4eb1-3f92-4f62-8e87-410a8f84137f",
+    "email": "teammate@example.com",
+    "role": "pm",
+    "user_brands": [
+      {
+        "brand_id": "0d5d5b12-3af3-4dd5-b2a2-8f82d5020b1f",
+        "brand_name": "Acme Fitness",
+        "access_level": "owner",
+        "can_manage_team": true
+      }
+    ],
+    "permissions": []
+  }
+}
+\`\`\`
+
+## Operational Flow
+
+1. Validate CORS / preflight via shared headers (\`Access-Control-Allow-Origin: *\`, full CRUD verbs).
+2. Authenticate caller and enforce role guard.
+3. Execute CRUD branch:
+   - **GET** builds a dynamic query with pagination, filters, and includes \`user_brands\` + \`user_permissions\` joins.
+   - **POST** provisions the Supabase auth user, upserts the profile in \`users\`, and syncs brand assignments via \`syncUserBrands()\`.
+   - **PUT** maps camelCase request keys to DB columns, updates auth metadata, and resynchronizes brand assignments.
+   - **DELETE** removes the auth user; database triggers clean related tables.
+4. Transform raw rows through \`transformUser()\` before returning JSON.
+
+### Brand Assignment Sync
+
+\`\`\`typescript
+const normalizedAssignments = brandAssignments
+  .filter((assignment) => assignment?.brand_id)
+  .map((assignment) => ({
+    user_id: userId,
+    brand_id: assignment.brand_id,
+    access_level: assignment.access_level || 'member',
+    can_view_analytics: true,
+    can_manage_content: assignment.access_level !== 'viewer',
+    can_manage_team: assignment.access_level === 'owner',
+    can_manage_settings: assignment.access_level === 'owner'
+  }));
+\`\`\`
+
+## Error Handling
+
+| Status | Scenario | Body |
+| ------ | -------- | ---- |
+| 400 | Validation failures, Supabase insert/update errors | \`{ "error": "Failed to assign brands" }\` |
+| 401 | Missing/invalid bearer token | \`{ "error": "Invalid authentication" }\` |
+| 403 | Authenticated user lacks admin role | \`{ "error": "Insufficient privileges" }\` |
+| 404 | Requested user not found (GET by id) | \`{ "error": "User not found" }\` |
+| 405 | Unsupported method | \`{ "error": "Method not allowed" }\` |
+| 500 | Uncaught errors | \`{ "error": "Internal server error" }\` |
+
+## Related Tables
+
+- \`users\`: canonical profile data synced with Supabase auth
+- \`user_brands\`: ownership and team access levels per brand
+- \`user_permissions\`: granular module permissions
+
+> ℹ️ These tables enforce RLS with \`get_current_user_role()\`; the edge function bypasses RLS using the service role but still respects business rules described above.
+
+## Testing with curl
+
+\`\`\`bash
+curl -X GET \
+  "$SUPABASE_URL/functions/v1/admin-users?search=taylor&limit=5" \
+  -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_TOKEN"
+
+curl -X POST \
+  "$SUPABASE_URL/functions/v1/admin-users" \
+  -H "Authorization: Bearer $MANAGER_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+        "email": "teammate@example.com",
+        "password": "TempPass!2025",
+        "firstName": "Taylor",
+        "lastName": "Jones"
+      }'
+\`\`\`
+
+## CORS Configuration
+
+Inherits \`corsHeaders\` from \`supabase/functions/_shared/cors.ts\`, enabling \`GET,POST,PUT,PATCH,DELETE,OPTIONS\` with wildcard origin and support for auth + webhook headers.
+
+## See Also
+
+- [Brand Management API](./admin-brands)
+- [Role-Based Access Control](../../architecture/security-policies#get_current_user_role)
+- [User & Team Schema](../../architecture/database-schema#users)
+`,
+
+  "api/edge-functions/eod-data-sync": `# eod-data-sync Edge Function
+
+> **Last Updated**: 2025-01-09
+> **Tags**: edge-functions, eod, automation, n8n, activecollab
+
+## Purpose
+
+The **eod-data-sync** function acts as the webhook receiver for the N8n workflow that pulls End-of-Day (EOD) task activity from ActiveCollab. It normalizes task payloads, maps them to internal users/projects, and stores normalized data for downstream EOD summaries and timesheets.
+
+## Webhook Endpoint
+
+- **URL**: \`/functions/v1/eod-data-sync\`
+- **Method**: \`POST\`
+- **Headers**: \`Content-Type: application/json\`, \`x-webhook-secret\`
+- **Auth**: No bearer token — the shared secret in \`x-webhook-secret\` is required. Set \`EOD_WEBHOOK_SECRET\` in the function environment.
+
+### CORS
+
+\`\`\`typescript
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-webhook-secret',
+};
+\`\`\`
+
+## Request Schema
+
+The N8n workflow delivers a JSON document that matches \`SyncPayload\`:
+
+\`\`\`json
+{
+  "sync_date": "2025-01-08",
+  "webhook_secret": "${EOD_WEBHOOK_SECRET}",
+  "tasks": [
+    {
+      "external_task_id": "AC-12345",
+      "task_name": "Build Q1 campaign report",
+      "assignee_email": "teammate@example.com",
+      "project_id": "AC-PROJECT-1",
+      "status": "completed",
+      "hours_logged": 4.5,
+      "last_comment": "Uploaded final charts",
+      "last_comment_date": "2025-01-08T21:30:00Z",
+      "raw_data": { "activecollab": { "task": { "id": 12345 } } }
+    }
+  ]
+}
+\`\`\`
+
+## Processing Steps
+
+1. Validate the webhook secret header against \`EOD_WEBHOOK_SECRET\`.
+2. Instantiate a Supabase service client (full RLS bypass for data ingestion).
+3. Iterate through each task payload:
+   - Resolve \`user_id\` from \`assignee_email\` (fallback to null).
+   - Resolve \`project_id\` from \`external_project_id\`.
+   - Upsert the task into \`activecollab_task_data\` keyed by \`external_task_id\` + \`sync_date\`.
+   - When both project & user are present, update \`project_tasks.imported_hours\` for roll-up time tracking.
+   - Increment success/failure counters and capture per-task error messages.
+4. Return a JSON summary containing \`results.success\`, \`results.failed\`, and \`errors[]\` for observability.
+
+\`\`\`typescript
+const { error: upsertError } = await supabase
+  .from('activecollab_task_data')
+  .upsert({
+    external_task_id: task.external_task_id,
+    task_name: task.task_name,
+    assignee_id: userId,
+    project_id: projectId,
+    status: task.status,
+    last_comment: task.last_comment || null,
+    last_comment_date: task.last_comment_date || null,
+    hours_logged: task.hours_logged,
+    sync_date: payload.sync_date,
+    raw_data: task.raw_data || {},
+    updated_at: new Date().toISOString()
+  }, {
+    onConflict: 'external_task_id'
+  });
+\`\`\`
+
+## Response
+
+\`\`\`json
+{
+  "message": "Sync completed",
+  "sync_date": "2025-01-08",
+  "results": {
+    "success": 42,
+    "failed": 3,
+    "errors": [
+      "Task AC-99881: Task not linked to known project"
+    ]
+  }
+}
+\`\`\`
+
+## Error Handling
+
+- **403**: Missing or invalid \`x-webhook-secret\`
+- **500**: Unhandled exceptions (includes \`error\` + \`details\` fields)
+- Per-task failures are aggregated in the response while the function continues processing remaining items.
+
+## Related Tables
+
+- \`activecollab_task_data\`: canonical sync storage for raw task metrics
+- \`team_eod_submissions\` (a.k.a. \`eod_submissions\`): downstream nightly jobs read synced tasks to build user-facing submissions
+- \`time_logs\`: reporting layer referencing \`project_tasks.imported_hours\`
+- \`project_tasks\`: bridging table updated with imported hours
+
+> 📌 Follow-up workflows use the normalized task data to populate \`team_eod_submissions\` entries and roll up hours into \`time_logs\`, ensuring ActiveCollab, N8n, and Supabase remain in sync.
+
+## Integration Notes
+
+- Designed to be called from the "SJ Marketing • ActiveCollab → Supabase" N8n workflow.
+- Supports batching dozens of tasks per request; adjust N8n batch size if hitting Supabase rate limits.
+- Include ActiveCollab task URLs inside \`raw_data\` for richer AI summaries.
+
+## Testing Locally
+
+\`\`\`bash
+curl -X POST "http://localhost:54321/functions/v1/eod-data-sync" \
+  -H "Content-Type: application/json" \
+  -H "x-webhook-secret: $EOD_WEBHOOK_SECRET" \
+  -d @sample-eod-payload.json
+\`\`\`
+
+## Downstream Consumers
+
+- [generate-eod-summary](./generate-eod-summary) uses the synced tasks to build AI narratives.
+- Manager dashboards query \`team_daily_summaries\` which reference \`team_eod_submissions\` populated from this pipeline.
+`,
+
+  "api/edge-functions/admin-brands": `# admin-brands Edge Function
+
+> **Last Updated**: 2025-01-09
+> **Tags**: edge-functions, brands, admin, api
+
+## Summary
+
+The **admin-brands** function centralizes CRUD operations for brands, including ownership assignments, co-owner coordination, and KPI metadata. All requests are authenticated and limited to users with **super_admin** or **manager** roles.
+
+## Endpoint Matrix
+
+| Method | Path | Description |
+| ------ | ---- | ----------- |
+| GET | \`/functions/v1/admin-brands\` | List all brands with owner/co-owner and KPI arrays |
+| GET | \`/functions/v1/admin-brands?id=:uuid\` | Retrieve a single brand with expanded relations |
+| POST | \`/functions/v1/admin-brands\` | Create a brand and assign ownership |
+| PUT | \`/functions/v1/admin-brands?id=:uuid\` | Update brand profile, KPIs, and activation state |
+| DELETE | \`/functions/v1/admin-brands?id=:uuid\` | Soft-delete brand metadata |
+
+## Authentication & Role Check
+
+- Requires \`Authorization: Bearer <JWT>\` from Supabase auth.
+- Function queries the \`users\` table to confirm the caller's role is \`super_admin\` or \`manager\` before proceeding.
+- Inherits shared \`corsHeaders\` enabling full CRUD verbs and wildcard origin.
+
+\`\`\`typescript
+const { data: userData, error: userError } = await supabase
+  .from('users')
+  .select('role')
+  .eq('id', user.user.id)
+  .single();
+
+if (userError || !userData || !['super_admin', 'manager'].includes(userData.role)) {
+  return new Response(JSON.stringify({ error: 'Insufficient permissions' }), {
+    status: 403,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
+}
+\`\`\`
+
+## Request Examples
+
+### Create Brand
+
+\`\`\`json
+{
+  "name": "Acme Fitness",
+  "description": "Full-service fitness marketing client",
+  "type": "client",
+  "owner_id": "8b91c1c0-9f3a-4e62-8f3f-552f76da6cc9",
+  "co_owner_id": "b34502f4-8b96-42f3-9f81-138c2b792c02",
+  "monthly_budget": 12000,
+  "status": "active"
+}
+\`\`\`
+
+### Update Brand
+
+\`\`\`json
+{
+  "name": "Acme Fitness",
+  "description": "Enterprise fitness marketing",
+  "type": "client",
+  "owner_id": "8b91c1c0-9f3a-4e62-8f3f-552f76da6cc9",
+  "co_owner_id": null,
+  "monthly_budget": 15000,
+  "status": "active",
+  "is_active": true
+}
+\`\`\`
+
+## Response Payloads
+
+### List Brands (200 OK)
+
+\`\`\`json
+[
+  {
+    "id": "1d137de4-975b-4d9d-9f01-96e2a9b9bf38",
+    "name": "Acme Fitness",
+    "description": "Enterprise fitness marketing",
+    "owner_name": "Avery Quinn",
+    "co_owner_name": "Jordan Lee",
+    "status": "active",
+    "kpis": [
+      {
+        "id": "7f9e9418-44f5-4d25-b74f-d4f1eebc5e0e",
+        "metric": "MQLs",
+        "target_value": 120
+      }
+    ]
+  }
+]
+\`\`\`
+
+## Brand Team Management
+
+- Ownership metadata is enriched by joining \`users\` via foreign keys (\`brands_owner_id_fkey\`, \`brands_co_owner_id_fkey\`).
+- After brand creation, managers assign execution teams through the [admin-users](./admin-users) interface which syncs \`user_brands\` records.
+- KPI arrays (\`brand_kpis\`) are returned inline for dashboard rendering.
+
+## Error Conditions
+
+- **400**: Missing required fields (name, description, owner_id) or missing \`id\` on update/delete.
+- **401**: Missing/invalid bearer token.
+- **403**: Role is not \`super_admin\`/\`manager\`.
+- **404**: Requested brand not found (GET with \`id\`).
+- **500**: Database insert/update/delete failure.
+
+## Related Tables
+
+- \`brands\`: core brand metadata.
+- \`user_brands\`: team assignments + access levels (managed via admin-users).
+- \`brand_kpis\`: per-brand KPI configuration returned in GET responses.
+
+## Sample curl
+
+\`\`\`bash
+curl -X GET "$SUPABASE_URL/functions/v1/admin-brands" \
+  -H "Authorization: Bearer $MANAGER_TOKEN"
+
+curl -X POST "$SUPABASE_URL/functions/v1/admin-brands" \
+  -H "Authorization: Bearer $SUPER_ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+        "name": "Acme Fitness",
+        "description": "Enterprise fitness marketing",
+        "owner_id": "8b91c1c0-9f3a-4e62-8f3f-552f76da6cc9"
+      }'
+\`\`\`
+
+## Additional Notes
+
+- Slugs are auto-generated from the name (lowercase, hyphenated).
+- Deleting a brand only removes metadata; dependent tables should implement cascading cleanup where required.
+- Combine with [hubspot-sync](./hubspot-sync) to import CRM clients before assigning to brands.
+`,
+
+  "api/edge-functions/hubspot-sync": `# hubspot-sync Edge Function
+
+> **Last Updated**: 2025-01-09
+> **Tags**: edge-functions, hubspot, crm, integration
+
+## Overview
+
+The **hubspot-sync** function bridges HubSpot CRM data with Supabase, supporting lookup, import, and synchronization workflows for clients, contacts, and deals. It expects a JSON payload describing the \`action\` to perform.
+
+## Endpoint
+
+- **URL**: \`/functions/v1/hubspot-sync\`
+- **Methods**: \`POST\` (main), \`OPTIONS\` (CORS preflight)
+- **Headers**: \`Authorization: Bearer <JWT>\` (Supabase auth), \`Content-Type: application/json\`
+
+## Supported Actions
+
+| Action | Description | HubSpot Scope | Database Impact |
+| ------ | ----------- | ------------- | ---------------- |
+| \`search_companies\` | Fuzzy search companies by name | CRM v3 search API | None (read-only) |
+| \`fetch_company_by_id\` | Retrieve company + associated contacts (contact IDs auto-resolve) | CRM company + contacts APIs | None (read-only) |
+| \`import_company\` | Upsert a HubSpot company and contacts into Supabase | Companies + contacts | Upserts \`clients\` & \`contacts\` |
+| \`sync_client\` | Refresh an existing client record from HubSpot | Companies | Updates \`clients\` |
+| \`link_client\` | Associate an existing client with a HubSpot object ID | None | Updates \`clients.hubspot_id\` |
+
+## OAuth Token Management
+
+- Uses the HubSpot private app access token stored in \`Hubspot_Access_token\` (environment variable).
+- The function throws an error if the token is missing; automate token rotation via Supabase secrets or scheduled redeploys.
+- For public OAuth apps, exchange refresh tokens externally and update the secret before invoking the function.
+
+## Request Examples
+
+### Search Companies
+
+\`\`\`json
+{
+  "action": "search_companies",
+  "searchTerm": "Acme"
+}
+\`\`\`
+
+### Import Company + Contacts
+
+\`\`\`json
+{
+  "action": "import_company",
+  "company": {
+    "id": "123456",
+    "properties": {
+      "name": "Acme Fitness",
+      "domain": "acmefitness.com",
+      "industry": "Wellness",
+      "city": "Austin",
+      "state": "TX",
+      "phone": "+1-555-0100",
+      "annualrevenue": "1200000",
+      "numberofemployees": "48",
+      "description": "Multi-location fitness franchise"
+    }
+  },
+  "contacts": [
+    {
+      "id": "8801",
+      "properties": {
+        "firstname": "Avery",
+        "lastname": "Quinn",
+        "email": "avery@acmefitness.com",
+        "jobtitle": "VP Marketing"
+      }
+    }
+  ]
+}
+\`\`\`
+
+## Data Mapping
+
+| HubSpot Property | Supabase Column |
+| ---------------- | --------------- |
+| \`name\` | \`clients.name\`, \`clients.company\` |
+| \`domain\` / \`website\` | \`clients.website\` |
+| \`phone\` | \`clients.phone\` |
+| \`annualrevenue\` | \`clients.company_revenue\` |
+| \`numberofemployees\` | \`clients.team_size\` |
+| \`description\` | \`clients.notes\` |
+| Contact \`firstname/lastname\` | \`contacts.first_name\` / \`contacts.last_name\` |
+| Contact \`email\` | \`contacts.email\` |
+| Contact \`jobtitle\` | \`contacts.job_title\` |
+
+Deals support can be layered by extending the payload and writing to the \`deals\` table in future iterations.
+
+## Code Highlights
+
+### Company Search
+
+\`\`\`typescript
+const response = await fetch(
+  'https://api.hubapi.com/crm/v3/objects/companies/search',
+  {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${hubspotToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      filterGroups: [{
+        filters: [{
+          propertyName: 'name',
+          operator: 'CONTAINS_TOKEN',
+          value: searchTerm
+        }]
+      }],
+      properties: ['name', 'domain', 'industry', 'city', 'state', 'country'],
+      limit: 20
+    })
+  }
+);
+\`\`\`
+
+### Import Workflow
+
+\`\`\`typescript
+const { data: client, error: clientError } = await supabase
+  .from('clients')
+  .upsert(clientData, { onConflict: 'hubspot_id' })
+  .select()
+  .single();
+
+if (contacts && contacts.length > 0) {
+  const contactsData = contacts.map((contact: any) => ({
+    client_id: client.id,
+    hubspot_id: contact.id,
+    first_name: contact.properties.firstname || null,
+    last_name: contact.properties.lastname || null,
+    email: contact.properties.email || null,
+    job_title: contact.properties.jobtitle || null
+  }));
+
+  await supabase
+    .from('contacts')
+    .upsert(contactsData, { onConflict: 'hubspot_id' });
+}
+\`\`\`
+
+## Error Handling & Retries
+
+- HubSpot API errors bubble up with status and response body for easier debugging.
+- The function returns **400** with \`{ "error": string, "details": string }\` for invalid actions or downstream failures.
+- Wrap calls in an N8n retry strategy or queue worker to handle HubSpot rate limits (HTTP 429).
+
+## Related Tables
+
+- \`clients\`: CRM companies imported from HubSpot.
+- \`contacts\`: People associated with clients.
+- \`deals\`: Pipeline data (extend action handlers to populate).
+
+## Usage Tips
+
+- Execute \`search_companies\` to preview results before importing.
+- After importing, link the Supabase client to a brand via [admin-brands](./admin-brands) and assign team members through [admin-users](./admin-users).
+- Schedule periodic \`sync_client\` jobs for key accounts to refresh revenue and team size fields.
+`,
+
+  "api/edge-functions/generate-eod-summary": `# generate-eod-summary Edge Function
+
+> **Last Updated**: 2025-01-09
+> **Tags**: edge-functions, eod, ai, openai
+
+## Purpose
+
+The **generate-eod-summary** function produces manager-ready AI summaries of team activity by combining synced ActiveCollab tasks with EOD submissions. It leverages OpenAI's \`gpt-4o-mini\` model to output structured JSON summaries per user.
+
+## Endpoint
+
+- **URL**: \`/functions/v1/generate-eod-summary\`
+- **Method**: \`POST\`
+- **Headers**: \`Content-Type: application/json\`
+- **Auth**: Typically invoked with a service role token via scheduled jobs (no per-user token required in current implementation).
+
+## Request Body
+
+\`\`\`json
+{
+  "date": "2025-01-08"
+}
+\`\`\`
+
+If \`date\` is omitted, the function defaults to the current UTC date.
+
+## Processing Pipeline
+
+1. Fetch all \`team_eod_submissions\` for the target date and join \`users\` data (name, role, title).
+2. Extract ActiveCollab task IDs from \`task_links\` (pattern \`AC-<ID>\`) and pull matching entries from \`activecollab_task_data\` synced by [eod-data-sync](./eod-data-sync).
+3. Derive metrics: tasks completed, total hours logged, total task count.
+4. Build a structured prompt with user metadata, task details, notes, and metrics.
+5. Call OpenAI Chat Completions (\`gpt-4o-mini\`, \`temperature: 0.3\`, JSON response format) to generate the summary payload.
+6. Upsert the result into \`team_daily_summaries\` keyed by \`user_id\` + \`summary_date\`.
+
+\`\`\`typescript
+const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${openaiKey}`,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    model: 'gpt-4o-mini',
+    messages: [
+      {
+        role: 'system',
+        content: 'You are an assistant manager who analyzes team member work reports. Provide constructive feedback in JSON.'
+      },
+      { role: 'user', content: prompt }
+    ],
+    temperature: 0.3,
+    response_format: { type: 'json_object' }
+  }),
+});
+\`\`\`
+
+## Response Example
+
+\`\`\`json
+{
+  "message": "Summary generation completed",
+  "date": "2025-01-08",
+  "submissions_processed": 7,
+  "summaries_generated": 6
+}
+\`\`\`
+
+Individual summaries are stored in \`team_daily_summaries.ai_summary\` as JSON. Example structure:
+
+\`\`\`json
+{
+  "overall_summary": "Taylor delivered campaign assets and coordinated cross-team reviews.",
+  "key_accomplishments": [
+    "Finalized Q1 campaign report",
+    "Resolved analytics dashboard issues"
+  ],
+  "productivity_score": 86,
+  "productivity_justification": "High output with timely completion of critical tasks.",
+  "concerns": ["Pending client approval for revised assets"],
+  "recommendations": ["Confirm next sprint backlog with PM"],
+  "hours_analysis": "4.5 hours logged across 3 tracked tasks."
+}
+\`\`\`
+
+## Error Handling
+
+- Returns **200** with a "No submissions found" message when no EODs exist for the date.
+- OpenAI API failures propagate as **500** with \`error\` + \`details\` fields.
+- Per-user processing errors are logged but do not abort the entire run (loop continues).
+
+## Related Tables
+
+- \`team_eod_submissions\`: source EOD data entered by users.
+- \`activecollab_task_data\`: task metrics used to enrich AI prompts.
+- \`team_daily_summaries\`: destination for AI outputs and KPIs.
+
+## Scheduling Guidance
+
+- Trigger nightly after [eod-data-sync](./eod-data-sync) completes to ensure task data is available.
+- Store \`OPENAI_KEY\`, \`SUPABASE_URL\`, \`SUPABASE_SERVICE_ROLE_KEY\` as function environment variables.
+- Monitor Supabase function logs for OpenAI rate limit responses and consider batching by team.
+
+## Extensibility
+
+- Adjust the prompt template to include KPI targets or mood indicators.
+- Persist additional metadata (e.g., \`summary_version\`, \`qa_status\`) alongside \`ai_summary\` in \`team_daily_summaries\`.
+- Pipe summaries into Slack or email notifications once stored.
+`
+
   "architecture/database-schema": `# Database Schema
 
 > **Last Updated**: 2025-01-09
