@@ -69,9 +69,8 @@ const Layout = ({ userRole }: LayoutProps) => {
         // Super admin gets clean navigation
         return [
           ...baseNavigation,
-          { name: "AI Workspace", href: `${basePath}/workspace`, icon: Bot, current: false },
+          { name: "Video AI", href: `${basePath}/workspace`, icon: Video, current: false },
           { name: "My Agents", href: `${basePath}/my-agents`, icon: Zap, current: false },
-          { name: "Video Studio", href: `${basePath}/workspace/video`, icon: Video, current: false },
           { name: "Brands", href: `${basePath}/brands`, icon: Building2, current: false },
           { name: "Clients", href: `${basePath}/clients`, icon: Users, current: false },
           { name: "Projects", href: `${basePath}/projects`, icon: FolderOpen, current: false },
@@ -93,9 +92,8 @@ const Layout = ({ userRole }: LayoutProps) => {
       case 'manager':
         return [
           ...baseNavigation,
-          { name: "AI Workspace", href: `${basePath}/workspace`, icon: Bot, current: false },
+          { name: "Video AI", href: `${basePath}/workspace`, icon: Video, current: false },
           { name: "My Agents", href: `${basePath}/my-agents`, icon: Zap, current: false },
-          { name: "Video Studio", href: `${basePath}/workspace/video`, icon: Video, current: false },
           { name: "Clients", href: `${basePath}/clients`, icon: Users, current: false },
           { name: "Projects", href: `${basePath}/projects`, icon: FolderOpen, current: false },
           { name: "Brands", href: `${basePath}/brands`, icon: Building2, current: false },
@@ -115,9 +113,8 @@ const Layout = ({ userRole }: LayoutProps) => {
       case 'pm':
         return [
           ...baseNavigation,
-          { name: "AI Workspace", href: `${basePath}/workspace`, icon: Bot, current: false },
+          { name: "Video AI", href: `${basePath}/workspace`, icon: Video, current: false },
           { name: "My Agents", href: `${basePath}/my-agents`, icon: Zap, current: false },
-          { name: "Video Studio", href: `${basePath}/workspace/video`, icon: Video, current: false },
           { name: "Clients", href: `${basePath}/clients`, icon: Users, current: false },
           { name: "Projects", href: `${basePath}/projects`, icon: FolderOpen, current: false },
           { name: "Tasks", href: `${basePath}/tasks`, icon: Target, current: false },
@@ -128,9 +125,8 @@ const Layout = ({ userRole }: LayoutProps) => {
       default:
         return [
           ...baseNavigation,
-          { name: "AI Workspace", href: `${basePath}/workspace`, icon: Bot, current: false },
+          { name: "Video AI", href: `${basePath}/workspace`, icon: Video, current: false },
           { name: "My Agents", href: `${basePath}/my-agents`, icon: Zap, current: false },
-          { name: "Video Studio", href: `${basePath}/workspace/video`, icon: Video, current: false },
           { name: "Reports", href: `${basePath}/reports`, icon: BarChart3, current: false },
           { 
             name: "People", 
