@@ -42,6 +42,7 @@ import AIAgentsPage from "./pages/ai-agents";
 import MyAgentsPage from "./pages/my-agents";
 import PeopleReviewDashboard from "./pages/PeopleReviewDashboard";
 import MyDashboard from "./pages/MyDashboard";
+import UserProfile from "./pages/UserProfile";
 
 import AIDashboard from "./pages/ai-dashboard";
 import UnifiedVideoStudioPage from "./pages/video/UnifiedVideoStudioPage";
@@ -85,6 +86,15 @@ const App = () => (
             <Route path="/unauthorized" element={<Unauthorized />} />
             <Route path="/" element={<DashboardRedirect />} />
             <Route path="/dashboard" element={<DashboardRedirect />} />
+            
+            {/* Global User Profile Route */}
+            <Route path="/my-profile" element={
+              <ProtectedRoute requiredMinimumRole="user">
+                <Layout userRole="user" />
+              </ProtectedRoute>
+            }>
+              <Route index element={<UserProfile />} />
+            </Route>
             
             {/* User Role Routes */}
             <Route path="/user/*" element={

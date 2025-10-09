@@ -41,7 +41,7 @@ export default function Dashboard() {
               Keeping it current ensures clear communication and expectations across the team.
             </p>
             <Button 
-              onClick={() => navigate('/dashboard/profile')}
+              onClick={() => navigate('/my-profile')}
               className="w-full sm:w-auto"
             >
               Go to My Profile
