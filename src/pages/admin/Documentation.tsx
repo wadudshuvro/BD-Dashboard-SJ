@@ -704,6 +704,776 @@ function checkRateLimit(identifier: string, limit: number = 100): boolean {
 - [Authentication Flow](../../architecture/auth-flow)
 - [Deployment Guide](../../deployment/edge-functions)
 `,
+
+  "architecture/database-schema": `# Database Schema
+
+> **Last Updated**: 2025-01-09
+> **Tags**: database, schema, architecture, ERD
+
+## Overview
+
+The SJ Marketing AI Platform uses **PostgreSQL** (via Supabase) as its primary database. The schema is designed to support multi-tenant operations, role-based access control, and comprehensive project management workflows.
+
+### Key Statistics
+
+- **Total Tables**: 29
+- **Core Domains**: 7 (Users, Brands, Projects, Clients, AI, Integrations, Analytics)
+- **Security Model**: Row-Level Security (RLS) on all tables
+- **Foreign Keys**: Extensive referential integrity
+- **Indexes**: Optimized for common query patterns
+
+## Entity Relationship Diagram
+
+\`\`\`mermaid
+erDiagram
+    users ||--o{ user_brands : "has access to"
+    users ||--o{ user_permissions : "has"
+    users ||--o{ user_accountability_chart : "owns"
+    users ||--o{ projects : "manages"
+    users ||--o{ project_tasks : "assigned to"
+    users ||--o{ team_eod_submissions : "submits"
+    users ||--o{ team_daily_summaries : "has"
+    
+    brands ||--o{ user_brands : "assigned to users"
+    brands ||--o{ brand_kpis : "tracks"
+    brands ||--o{ brand_analytics_integrations : "integrates with"
+    brands ||--o{ brand_analytics_data : "collects"
+    
+    clients ||--o{ projects : "owns"
+    clients ||--o{ contacts : "has"
+    clients ||--o{ deals : "negotiates"
+    clients ||--o{ activities : "has"
+    clients ||--o{ client_communications : "exchanges"
+    
+    projects ||--o{ project_tasks : "contains"
+    
+    ai_agents ||--o{ ai_agent_runs : "executes"
+    ai_agent_runs ||--o{ team_daily_summaries : "generates"
+    ai_agent_runs ||--o{ code_analysis_results : "produces"
+    
+    collabai_integrations ||--o{ collabai_agents : "provides"
+    gohighlevel_integrations ||--o{ gohighlevel_contacts : "syncs"
+    
+    users ||--o{ gemini_videos : "creates"
+    users ||--o{ code_repositories : "owns"
+    users ||--o{ collabai_integrations : "configures"
+\`\`\`
+
+## Domain Breakdown
+
+### 1. User Management Domain
+
+Core tables for authentication, authorization, and user profiles.
+
+#### \`users\` (Primary)
+The central user table storing authentication and profile data.
+
+**Key Columns:**
+- \`id\` (uuid, PK): Matches auth.users for Supabase Auth
+- \`email\` (citext): Case-insensitive unique email
+- \`role\` (app_role): Enum of super_admin, manager, pm, user
+- \`status\` (text): active, inactive, pending
+- \`first_name\`, \`last_name\` (varchar)
+- \`title\`, \`department\` (varchar)
+- \`is_marketing\` (boolean): Special marketing team flag
+- \`password_hash\` (text): For custom auth
+- \`refresh_token\`, \`refresh_token_expires_at\`: JWT token management
+
+**RLS Policies:**
+- Users can view/update their own profile
+- Super admins can view/update all users
+- Managers can view manager-level and below
+
+#### \`user_permissions\` (Granular Access)
+Fine-grained module-level permissions for users.
+
+**Key Columns:**
+- \`user_id\` (uuid, FK → users)
+- \`module_name\` (text): e.g., "clients", "projects", "brands"
+- \`can_view\`, \`can_create\`, \`can_edit\`, \`can_delete\` (boolean)
+
+**Use Cases:**
+- Restrict access to specific features
+- Override role-based defaults
+- Audit permission changes
+
+#### \`user_brands\` (Brand Access)
+Maps users to brands with specific access levels.
+
+**Key Columns:**
+- \`user_id\` (uuid, FK → users)
+- \`brand_id\` (uuid, FK → brands)
+- \`access_level\` (text): viewer, editor, admin
+- \`can_view_analytics\`, \`can_manage_content\`, \`can_manage_team\`, \`can_manage_settings\` (boolean)
+
+**Pattern:**
+- Users can be assigned to multiple brands
+- Each assignment has granular permissions
+- Used by \`user_has_brand_access()\` function
+
+#### \`user_accountability_chart\`
+Defines roles, responsibilities, and work types for users.
+
+**Key Columns:**
+- \`user_id\` (uuid, FK → users)
+- \`serial_number\` (integer): Order/priority
+- \`type_of_work\` (text): Category of work
+- \`responsibilities\` (text): Detailed description
+
+---
+
+### 2. Brand Management Domain
+
+Multi-brand support with ownership and team collaboration.
+
+#### \`brands\`
+Core brand/client entity with ownership model.
+
+**Key Columns:**
+- \`id\` (uuid, PK)
+- \`name\` (text): Brand name
+- \`slug\` (text, unique): URL-friendly identifier
+- \`type\` (text): internal, external
+- \`status\` (text): active, inactive, archived
+- \`owner_id\` (uuid, FK → users): Primary owner
+- \`co_owner_id\` (uuid, FK → users): Secondary owner
+- \`team_members\` (uuid[]): Array of team member IDs
+- \`monthly_budget\` (numeric)
+- \`active_integrations\` (text[]): e.g., ["google_analytics", "n8n"]
+- \`website_url\`, \`logo_url\`, \`description\`
+
+**Access Control:**
+Uses \`user_has_brand_access()\` function for RLS
+
+#### \`brand_kpis\`
+Configurable key performance indicators per brand.
+
+**Key Columns:**
+- \`brand_id\` (uuid, FK → brands)
+- \`name\` (text): KPI name
+- \`type\` (text): revenue, engagement, conversions, traffic, etc.
+- \`source\` (text): manual, google_analytics, n8n
+- \`current_value\`, \`target_value\` (numeric)
+- \`display_order\` (integer)
+
+#### \`brand_analytics_integrations\`
+Configuration for analytics data sources per brand.
+
+**Key Columns:**
+- \`brand_id\` (uuid, FK → brands)
+- \`integration_type\` (text): n8n_analytics, google_analytics
+- \`webhook_url\`, \`webhook_secret\` (text)
+- \`n8n_workflow_id\` (text)
+- \`data_sources\` (jsonb): \`{"google_analytics": true}\`
+- \`sync_frequency\` (text): daily, hourly, manual
+- \`is_active\` (boolean)
+- \`last_sync_at\` (timestamptz)
+
+#### \`brand_analytics_data\`
+Stores time-series analytics data received from integrations.
+
+**Key Columns:**
+- \`brand_id\` (uuid, FK → brands)
+- \`integration_id\` (uuid, FK → brand_analytics_integrations)
+- \`data_type\` (text): traffic, engagement, conversions, etc.
+- \`date_range_start\`, \`date_range_end\` (date)
+- \`metrics\` (jsonb): Flexible metric storage
+- \`dimensions\` (jsonb): Breakdown dimensions
+- \`raw_data\` (jsonb): Original response
+- \`received_at\` (timestamptz)
+
+---
+
+### 3. Client & CRM Domain
+
+Comprehensive client relationship management with HubSpot sync.
+
+#### \`clients\`
+Primary client/company records.
+
+**Key Columns:**
+- \`id\` (uuid, PK)
+- \`name\` (text): Client/company name
+- \`company\` (text): Official company name
+- \`status\` (text): active, inactive, prospect, archived
+- \`source\` (text): manual, hubspot, import
+- \`email\`, \`phone\`, \`website\` (text)
+- \`address\`, \`city\`, \`state\`, \`country\` (text)
+- \`industry\` (text)
+- \`assigned_manager\` (uuid, FK → users)
+- \`satisfaction_score\` (integer): 1-10
+- \`total_revenue\`, \`monthly_billing\`, \`company_revenue\` (numeric)
+- \`team_size\`, \`founded_year\` (integer)
+- \`hubspot_id\`, \`hubspot_sync_status\`, \`hubspot_last_sync\` (HubSpot integration)
+- \`data_completeness_score\` (numeric): Data quality metric
+
+#### \`contacts\`
+Individual contacts within client companies.
+
+**Key Columns:**
+- \`client_id\` (uuid, FK → clients)
+- \`first_name\`, \`last_name\` (text)
+- \`email\`, \`phone\` (text)
+- \`job_title\`, \`title\` (text)
+- \`is_primary\` (boolean): Primary contact flag
+- \`lifecycle_stage\` (text): subscriber, lead, opportunity, customer
+- \`lead_status\` (text)
+- \`hubspot_id\`, \`hubspot_sync_status\`, \`hubspot_last_sync\`
+
+#### \`deals\`
+Sales pipeline and deal tracking.
+
+**Key Columns:**
+- \`client_id\` (uuid, FK → clients)
+- \`name\` (text): Deal name
+- \`amount\` (numeric): Deal value
+- \`stage\` (text): qualification, proposal, negotiation, closed_won, closed_lost
+- \`pipeline\` (text): sales, marketing, partnerships
+- \`deal_type\` (text)
+- \`probability\` (numeric): Win probability %
+- \`close_date\` (date)
+- \`hubspot_id\`, \`hubspot_created_at\`, \`hubspot_updated_at\`
+
+#### \`activities\`
+CRM activities and interactions.
+
+**Key Columns:**
+- \`client_id\` (uuid, FK → clients)
+- \`deal_id\` (uuid, FK → deals)
+- \`activity_type\` (text): call, email, meeting, note, task
+- \`subject\`, \`body\` (text)
+- \`activity_date\` (timestamptz)
+- \`duration_minutes\` (integer)
+- \`outcome\` (text)
+- \`hubspot_id\`
+
+#### \`client_communications\`
+Communication history with clients.
+
+**Key Columns:**
+- \`client_id\` (uuid, FK → clients)
+- \`project_id\` (uuid, FK → projects)
+- \`created_by\` (uuid, FK → users)
+- \`type\` (text): email, phone, meeting, chat
+- \`direction\` (text): inbound, outbound
+- \`subject\`, \`content\` (text)
+
+---
+
+### 4. Project Management Domain
+
+Project and task tracking with ActiveCollab integration.
+
+#### \`projects\`
+Core project entity.
+
+**Key Columns:**
+- \`id\` (uuid, PK)
+- \`client_id\` (uuid, FK → clients)
+- \`name\`, \`description\` (text)
+- \`status\` (text): planning, active, on_hold, completed, cancelled
+- \`priority\` (text): low, medium, high, urgent
+- \`progress\` (integer): 0-100%
+- \`budget\`, \`actual_cost\` (numeric)
+- \`start_date\`, \`end_date\`, \`deadline\` (date)
+- \`project_manager\` (uuid, FK → users)
+- \`assigned_team\` (uuid[]): Array of user IDs
+- \`tags\` (text[])
+- \`external_project_id\` (text): ActiveCollab project ID
+- \`total_logged_hours\`, \`last_hours_import\` (numeric, timestamptz)
+
+#### \`project_tasks\`
+Individual tasks within projects.
+
+**Key Columns:**
+- \`project_id\` (uuid, FK → projects)
+- \`title\`, \`description\` (text)
+- \`status\` (text): todo, in_progress, review, completed, cancelled
+- \`priority\` (text): low, medium, high, urgent
+- \`assigned_to\` (uuid, FK → users)
+- \`estimated_hours\`, \`actual_hours\`, \`imported_hours\` (numeric)
+- \`due_date\`, \`completed_at\` (date, timestamptz)
+- \`external_task_id\` (text): ActiveCollab task ID
+- \`last_hours_import\` (timestamptz)
+
+#### \`activecollab_task_data\`
+Raw ActiveCollab task data for EOD system.
+
+**Key Columns:**
+- \`external_task_id\` (text): ActiveCollab task ID
+- \`project_id\` (uuid, FK → projects)
+- \`assignee_id\` (uuid, FK → users)
+- \`task_name\`, \`status\` (text)
+- \`hours_logged\` (numeric)
+- \`last_comment\`, \`last_comment_date\` (text, timestamptz)
+- \`sync_date\` (date)
+- \`raw_data\` (jsonb): Full ActiveCollab response
+
+---
+
+### 5. EOD (End-of-Day) Domain
+
+Daily submission and AI summary system.
+
+#### \`team_eod_submissions\`
+User-submitted end-of-day reports.
+
+**Key Columns:**
+- \`user_id\` (uuid, FK → users)
+- \`submission_date\` (date)
+- \`task_links\` (text[]): Array of ActiveCollab task URLs
+- \`notes\` (text): Additional context
+
+**RLS:**
+- Users can CRUD their own submissions
+- Managers can view all submissions
+
+#### \`team_daily_summaries\`
+AI-generated summaries from EOD data.
+
+**Key Columns:**
+- \`user_id\` (uuid, FK → users)
+- \`eod_submission_id\` (uuid, FK → team_eod_submissions)
+- \`agent_run_id\` (uuid, FK → ai_agent_runs)
+- \`summary_date\` (date)
+- \`ai_summary\` (jsonb): Structured AI output
+- \`key_accomplishments\` (text[])
+- \`concerns\` (text[])
+- \`hours_logged\`, \`tasks_completed\` (numeric, integer)
+- \`productivity_score\` (numeric): 0-100
+
+---
+
+### 6. AI Agent Domain
+
+AI-powered automation and analysis system.
+
+#### \`ai_agents\`
+Configured AI agents for various tasks.
+
+**Key Columns:**
+- \`id\` (uuid, PK)
+- \`name\`, \`slug\` (text)
+- \`description\` (text)
+- \`category\` (text): eod_analysis, code_review, analytics, reporting
+- \`system_prompt\` (text): AI instructions
+- \`data_sources\` (jsonb): Data access configuration
+- \`output_actions\` (jsonb): Post-processing actions
+- \`schedule_config\` (jsonb): Cron schedule
+- \`required_role\` (app_role): Minimum role to execute
+- \`is_enabled\` (boolean)
+- \`created_by\` (uuid, FK → users)
+
+#### \`ai_agent_runs\`
+Execution history and results of AI agents.
+
+**Key Columns:**
+- \`agent_id\` (uuid, FK → ai_agents)
+- \`executed_by\` (uuid, FK → users)
+- \`title\`, \`category\` (text)
+- \`execution_context\` (jsonb): Input parameters
+- \`ai_summary\` (jsonb): Structured AI response
+- \`generated_tasks\` (jsonb): Auto-generated tasks
+- \`business_context\` (text)
+- \`tags\` (jsonb)
+- \`status\` (text): completed, failed, processing
+- \`approval_status\` (text): pending, approved, rejected
+- \`approved_by\`, \`approved_at\` (uuid, timestamptz)
+- \`error_message\` (text)
+
+#### \`ai_configurations\`
+System-wide AI configuration (business context, model settings, prompts).
+
+**Key Columns:**
+- \`configuration_type\` (text): business_context, model_settings, system_prompts
+- \`configuration_data\` (jsonb): Flexible JSON storage
+- \`created_by\`, \`updated_by\` (uuid, FK → users)
+
+---
+
+### 7. Code Management Domain
+
+Code analysis and generation features.
+
+#### \`code_repositories\`
+Registered code repositories for analysis.
+
+**Key Columns:**
+- \`name\`, \`description\` (text)
+- \`repository_url\` (text): Git URL
+- \`branch\` (text): Target branch
+- \`language\`, \`framework\` (text)
+- \`created_by\` (uuid, FK → users)
+- \`analysis_status\` (text): pending, analyzing, completed, failed
+- \`last_analyzed_at\` (timestamptz)
+- \`metadata\` (jsonb)
+
+#### \`code_analysis_results\`
+AI-generated code analysis findings.
+
+**Key Columns:**
+- \`repository_id\` (uuid, FK → code_repositories)
+- \`agent_run_id\` (uuid, FK → ai_agent_runs)
+- \`analysis_type\` (text): security, performance, quality, architecture
+- \`severity\` (text): critical, high, medium, low, info
+- \`file_path\` (text)
+- \`findings\` (jsonb): Structured findings
+- \`status\` (text): active, resolved, false_positive
+
+#### \`code_generation_templates\`
+Reusable code generation templates.
+
+**Key Columns:**
+- \`name\`, \`description\` (text)
+- \`category\` (text): component, hook, utility, api, test
+- \`language\`, \`framework\` (text)
+- \`template_content\` (text): Template source
+- \`variables\` (jsonb): Template variables
+- \`usage_count\` (integer)
+- \`is_active\` (boolean)
+- \`created_by\` (uuid, FK → users)
+
+---
+
+### 8. Video Generation Domain
+
+AI video creation with Gemini Veo.
+
+#### \`gemini_videos\`
+Generated video tracking.
+
+**Key Columns:**
+- \`id\` (text, PK): Gemini operation ID
+- \`user_id\` (uuid, FK → users)
+- \`operation_name\` (text): Gemini operation name
+- \`prompt\`, \`negative_prompt\` (text)
+- \`aspect_ratio\` (text): 16:9, 9:16, 1:1
+- \`resolution\` (text): 720p, 1080p
+- \`duration\` (integer): Seconds
+- \`has_audio\` (boolean)
+- \`status\` (text): processing, completed, failed
+- \`video_url\`, \`thumbnail_url\` (text)
+- \`metadata\`, \`error\` (jsonb)
+- \`completed_at\` (timestamptz)
+
+**RLS:**
+Users can only access their own videos
+
+---
+
+### 9. Integration Domain
+
+Third-party integration configurations.
+
+#### \`collabai_integrations\`
+CollabAI platform integration.
+
+**Key Columns:**
+- \`user_id\` (uuid, FK → users)
+- \`base_url\` (text): CollabAI instance URL
+- \`api_key_encrypted\` (text): Encrypted API key
+- \`agents_count\` (integer)
+- \`is_active\` (boolean)
+- \`last_sync_at\` (timestamptz)
+
+#### \`collabai_agents\`
+Synced agents from CollabAI.
+
+**Key Columns:**
+- \`integration_id\` (uuid, FK → collabai_integrations)
+- \`agent_id\` (text): External agent ID
+- \`name\`, \`description\` (text)
+- \`agent_type\` (text)
+- \`sample_questions\` (jsonb)
+- \`is_active\` (boolean)
+- \`last_synced_at\` (timestamptz)
+- \`metadata\` (jsonb)
+
+#### \`gohighlevel_integrations\`
+GoHighLevel CRM integration.
+
+**Key Columns:**
+- \`user_id\` (uuid, FK → users)
+- \`api_key_encrypted\` (text)
+- \`location_id\` (text): GHL location
+- \`is_active\` (boolean)
+
+#### \`gohighlevel_contacts\`
+Synced contacts from GoHighLevel.
+
+**Key Columns:**
+- \`integration_id\` (uuid, FK → gohighlevel_integrations)
+- \`contact_id\` (text): External contact ID
+- \`name\`, \`email\`, \`phone\` (text)
+- \`status\` (text)
+
+---
+
+## Security Model
+
+### Row-Level Security (RLS)
+
+**Every table has RLS enabled** with policies based on:
+
+1. **User ID matching** - Users access their own data
+2. **Role-based access** - Super admins, managers, PMs have elevated access
+3. **Security definer functions** - \`user_has_brand_access()\`, \`user_is_marketing_or_manager()\`
+4. **Service role bypass** - Edge functions use service role
+
+### Common RLS Patterns
+
+\`\`\`sql
+-- Pattern 1: Own data only
+CREATE POLICY "users_view_own" ON table_name
+  FOR SELECT USING (user_id = auth.uid());
+
+-- Pattern 2: Role-based access
+CREATE POLICY "managers_view_all" ON table_name
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM users 
+      WHERE id = auth.uid() 
+      AND role IN ('super_admin', 'manager')
+    )
+  );
+
+-- Pattern 3: Security definer function
+CREATE POLICY "brand_access" ON brand_kpis
+  FOR SELECT USING (
+    user_has_brand_access(auth.uid(), brand_id)
+  );
+\`\`\`
+
+## Key Database Functions
+
+### \`user_has_brand_access(_user_id uuid, _brand_id uuid)\`
+Checks if user has access to a brand via ownership or team membership.
+
+\`\`\`sql
+CREATE FUNCTION user_has_brand_access(_user_id uuid, _brand_id uuid)
+RETURNS boolean AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM brands
+    WHERE id = _brand_id
+    AND (
+      owner_id = _user_id
+      OR co_owner_id = _user_id
+      OR _user_id = ANY(team_members)
+    )
+  )
+$$ LANGUAGE sql STABLE SECURITY DEFINER;
+\`\`\`
+
+### \`user_is_marketing_or_manager(_user_id uuid)\`
+Checks if user is marketing team or manager role.
+
+\`\`\`sql
+CREATE FUNCTION user_is_marketing_or_manager(_user_id uuid)
+RETURNS boolean AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM users
+    WHERE id = _user_id
+    AND (role IN ('super_admin', 'manager') OR is_marketing = true)
+  )
+$$ LANGUAGE sql STABLE SECURITY DEFINER;
+\`\`\`
+
+### \`get_current_user_role()\`
+Returns the role of the currently authenticated user.
+
+\`\`\`sql
+CREATE FUNCTION get_current_user_role()
+RETURNS text AS $$
+  SELECT role::text FROM users WHERE id = auth.uid();
+$$ LANGUAGE sql STABLE SECURITY DEFINER;
+\`\`\`
+
+### \`update_updated_at_column()\`
+Trigger function to automatically update \`updated_at\` timestamps.
+
+\`\`\`sql
+CREATE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+\`\`\`
+
+## Data Types
+
+### Custom Enums
+
+\`\`\`sql
+-- User roles
+CREATE TYPE app_role AS ENUM ('super_admin', 'manager', 'pm', 'user');
+
+-- Used throughout the system for role-based access control
+\`\`\`
+
+### JSONB Fields
+
+Heavy use of JSONB for flexible, schema-less data:
+
+- **\`ai_summary\`**: Structured AI responses
+- **\`metadata\`**: Integration-specific data
+- **\`configuration_data\`**: Dynamic configuration
+- **\`raw_data\`**: Original API responses
+- **\`metrics\`, \`dimensions\`**: Analytics data
+
+Benefits:
+- Flexible schema evolution
+- No migrations for new fields
+- Efficient indexing with GIN indexes
+- JSON operators for querying
+
+## Migration Strategy
+
+### Naming Convention
+
+\`\`\`
+YYYYMMDDHHMMSS_descriptive_name.sql
+\`\`\`
+
+### Migration Template
+
+\`\`\`sql
+-- Create table
+CREATE TABLE IF NOT EXISTS public.new_table (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now(),
+  -- other columns
+);
+
+-- Enable RLS
+ALTER TABLE public.new_table ENABLE ROW LEVEL SECURITY;
+
+-- Create policies
+CREATE POLICY "policy_name" ON public.new_table
+  FOR SELECT USING (auth.uid() = user_id);
+
+-- Create indexes
+CREATE INDEX idx_new_table_user_id ON public.new_table(user_id);
+
+-- Create trigger for updated_at
+CREATE TRIGGER update_new_table_updated_at
+  BEFORE UPDATE ON public.new_table
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+\`\`\`
+
+## Performance Optimizations
+
+### Indexes
+
+- **Primary keys**: All UUIDs with default index
+- **Foreign keys**: Indexed for join performance
+- **Lookup fields**: email, slug, external_id
+- **Date ranges**: For time-series queries
+- **GIN indexes**: For JSONB and array columns
+
+### Query Patterns
+
+\`\`\`sql
+-- Efficient date range query
+SELECT * FROM brand_analytics_data
+WHERE brand_id = $1
+  AND date_range_start >= $2
+  AND date_range_end <= $3
+ORDER BY date_range_start DESC;
+
+-- JSONB querying
+SELECT * FROM ai_agent_runs
+WHERE ai_summary->>'status' = 'completed'
+  AND (ai_summary->'metrics'->>'score')::numeric > 80;
+
+-- Array membership
+SELECT * FROM brands
+WHERE $1 = ANY(team_members);
+\`\`\`
+
+## Common Queries
+
+### Get user's accessible brands
+
+\`\`\`sql
+SELECT b.* FROM brands b
+WHERE owner_id = auth.uid()
+   OR co_owner_id = auth.uid()
+   OR auth.uid() = ANY(b.team_members)
+ORDER BY b.name;
+\`\`\`
+
+### Get project with tasks and team
+
+\`\`\`sql
+SELECT 
+  p.*,
+  json_agg(DISTINCT jsonb_build_object(
+    'id', t.id,
+    'title', t.title,
+    'status', t.status
+  )) as tasks,
+  json_agg(DISTINCT jsonb_build_object(
+    'id', u.id,
+    'name', u.first_name || ' ' || u.last_name
+  )) as team
+FROM projects p
+LEFT JOIN project_tasks t ON t.project_id = p.id
+LEFT JOIN users u ON u.id = ANY(p.assigned_team)
+WHERE p.id = $1
+GROUP BY p.id;
+\`\`\`
+
+### Get EOD summary with tasks
+
+\`\`\`sql
+SELECT 
+  eod.*,
+  ds.ai_summary,
+  ds.productivity_score,
+  u.first_name,
+  u.last_name
+FROM team_eod_submissions eod
+LEFT JOIN team_daily_summaries ds ON ds.eod_submission_id = eod.id
+LEFT JOIN users u ON u.id = eod.user_id
+WHERE eod.submission_date = $1
+ORDER BY u.first_name;
+\`\`\`
+
+## Best Practices
+
+### 1. Always Use RLS
+Never bypass RLS in application code - rely on policies.
+
+### 2. Use Prepared Statements
+Prevent SQL injection with parameterized queries.
+
+### 3. Limit JSONB Depth
+Keep JSONB structures shallow for better performance.
+
+### 4. Index Foreign Keys
+Always index foreign key columns.
+
+### 5. Use Transactions
+Wrap multi-table operations in transactions.
+
+### 6. Validate Before Insert
+Use CHECK constraints or triggers for data validation.
+
+### 7. Archive, Don't Delete
+Use \`status\` fields instead of hard deletes.
+
+## Related Documentation
+
+- [Authentication Flow](../auth-flow)
+- [RLS Policies Guide](../../database/rls-policies)
+- [Users Table](../../database/tables/users)
+- [Brands Table](../../database/tables/brands)
+- [Database Migrations](../../deployment/database-migrations)
+`,
 };
 
 export default function Documentation() {
