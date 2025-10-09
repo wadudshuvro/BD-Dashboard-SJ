@@ -287,6 +287,723 @@ npm install
 - Read [Authentication Guide](../architecture/auth-flow)
 `,
 
+  "integrations/n8n-eod-workflow": `# N8n EOD Workflow Integration
+
+> **Last Updated**: 2025-01-09
+> **Tags**: integrations, n8n, activecollab, eod, automation
+
+## Overview
+
+Set up an **N8n** workflow that collects ActiveCollab tasks and time logs at the end of every day and pushes the payload to the `eod-data-sync` Supabase edge function. The automation keeps the **team_eod_submissions**, **activecollab_task_data**, and **team_daily_summaries** tables aligned with project activity.
+
+## Prerequisites
+
+- ActiveCollab API token with access to the monitored projects
+- Supabase project with the `eod-data-sync` edge function deployed
+- Secure webhook secret stored in Supabase as `EOD_WEBHOOK_SECRET`
+- N8n workspace (self-hosted or cloud)
+- User + project mapping spreadsheets for accurate ownership attribution
+
+## Step 1: Configure ActiveCollab requests
+
+1. In N8n add an **HTTP Request** node for tasks.
+2. Set **Method** to `GET` and target your ActiveCollab endpoint, e.g. `https://<account>.activecollab.com/api/v1/projects/<project-id>/tasks`.
+3. Use **Bearer Token** auth with the API key.
+4. Filter to the current day so only fresh work is synced:
+
+\```text
+updated_on_from: {{ $now.format('YYYY-MM-DD') }}
+updated_on_to: {{ $now.format('YYYY-MM-DD') }}
+\```
+
+5. Duplicate the node for **Time Records** using the same date filters and the `/time-records` endpoint.
+
+🖼️ **Screenshot suggestion**: Capture both HTTP nodes showing the URL, bearer token, and query parameters.
+
+## Step 2: Transform response data
+
+Add a **Function** node that merges the task and time responses into the format the edge function expects:
+
+\```javascript
+const tasks = $input.first().json.tasks;
+const timeRecords = $input.all()[1].json.time_records;
+const hoursMap: Record<string, number> = {};
+
+timeRecords.forEach(record => {
+  hoursMap[record.task_id] = (hoursMap[record.task_id] || 0) + record.value;
+});
+
+return {
+  sync_date: new Date().toISOString().split('T')[0],
+  tasks: tasks.map(task => ({
+    external_task_id: task.id.toString(),
+    task_name: task.name,
+    assignee_id: task.assignee_id,
+    assignee_email: task.assignee_email || null,
+    project_id: task.project_id.toString(),
+    status: task.is_completed ? 'completed' : 'in_progress',
+    last_comment: task.comments?.at(-1)?.body ?? null,
+    last_comment_date: task.comments?.at(-1)?.created_on ?? null,
+    hours_logged: hoursMap[task.id] || 0,
+    raw_data: task
+  }))
+};
+\```
+
+Highlight missing email addresses in your mapping spreadsheet to guarantee Supabase can match task owners to real users.
+
+## Step 3: Send payload to Supabase
+
+Create a final **HTTP Request** node that invokes the edge function endpoint:
+
+\```http
+POST https://<YOUR-PROJECT>.supabase.co/functions/v1/eod-data-sync
+Authorization: Bearer {{ $json.supabaseAnonKey }}
+x-webhook-secret: {{ $json.eodWebhookSecret }}
+Content-Type: application/json
+\```
+
+Store the anon key and webhook secret in an N8n credential. Successful calls archive raw payloads in `activecollab_task_data` and trigger AI rollups in `team_daily_summaries`.
+
+🖼️ **Screenshot suggestion**: Show the Supabase HTTP node with headers, body preview, and response inspector.
+
+## Data mapping checklist
+
+| Source field | Supabase target | Notes |
+|--------------|-----------------|-------|
+| `task.id` | `activecollab_task_data.external_task_id` | Always stringify IDs |
+| `task.assignee_id` | `team_eod_submissions.user_id` | Requires email→user mapping |
+| `time_records[].value` | `hours_logged` | Summed per task |
+| `comments[-1]` | `last_comment` / `last_comment_date` | Optional commentary |
+
+Keep mapping JSON files version-controlled and update them when new team members or brands are onboarded.
+
+## Testing & monitoring
+
+1. Manually **Execute Workflow** from N8n after each change.
+2. Tail Supabase logs with `supabase functions logs eod-data-sync`.
+3. Validate new rows in `activecollab_task_data`:
+
+\```sql
+SELECT sync_date, COUNT(*)
+FROM activecollab_task_data
+ORDER BY sync_date DESC
+LIMIT 5;
+\```
+
+4. Confirm AI summaries appear for the matching brand in the manager dashboard.
+
+## Troubleshooting
+
+- **401 from ActiveCollab** – Regenerate or re-authorize the API token.
+- **403 from Supabase** – Verify the `x-webhook-secret` header matches `EOD_WEBHOOK_SECRET`.
+- **Timeout** – Paginate task pulls or raise the node timeout in N8n.
+- **Null `assignee_email`** – Update the mapping or add an N8n lookup to fetch user details.
+- **500 edge function error** – Compare the payload with the example schema and inspect Supabase logs for validation errors.`,
+
+  "integrations/n8n-google-analytics": `# N8n Google Analytics Automation
+
+> **Last Updated**: 2025-01-09
+> **Tags**: integrations, n8n, google-analytics, analytics, automation
+
+## Overview
+
+Automate Google Analytics 4 reporting with an N8n workflow that authenticates via a service account, aggregates metrics, and posts data to the `brand_analytics_data` table using the `n8n-analytics-manage` Supabase edge function.
+
+## Prerequisites
+
+- Google Cloud project with the **Google Analytics Data API** enabled
+- GA4 property access granted to the service account email (Viewer role)
+- N8n instance with service-account credential support
+- Brand configured inside **Admin → Integration Manager → Brand Integrations**
+- Generated webhook URL + secret from the integration manager modal
+
+## Step 1: Configure Google Cloud credentials
+
+1. Open [Google Cloud Console](https://console.cloud.google.com/) and enable the **Analytics Data API**.
+2. Create a **Service Account**, download the JSON key, and upload it to N8n as a credential named e.g. `ga-service-account`.
+3. Grant the service account Viewer access inside GA (Admin → Account Access Management → Add user).
+
+🖼️ **Screenshot suggestion**: Service account permissions panel highlighting the Viewer role assignment.
+
+## Step 2: Build the N8n workflow
+
+Start with the schedule template below (daily at midnight):
+
+\```json
+{
+  "name": "Google Analytics to SJ Marketing AI",
+  "nodes": [
+    {
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "parameters": { "rule": { "interval": [{ "field": "cronExpression", "expression": "0 0 * * *" }] } }
+    },
+    {
+      "name": "Google Analytics",
+      "type": "n8n-nodes-base.googleAnalytics",
+      "parameters": {
+        "authentication": "serviceAccount",
+        "propertyId": "YOUR_GA4_PROPERTY_ID",
+        "metrics": ["sessions", "activeUsers", "pageviews", "bounceRate", "averageSessionDuration", "conversions"],
+        "dimensions": ["date", "deviceCategory", "sessionSource"],
+        "startDate": "={{ $now.minus({days: 1}).toFormat('yyyy-MM-dd') }}",
+        "endDate": "={{ $now.toFormat('yyyy-MM-dd') }}"
+      }
+    }
+  ]
+}
+\```
+
+Attach the downloaded credential to the Google Analytics node.
+
+## Step 3: Transform metrics for Supabase
+
+Add a **Function** node to aggregate metrics and format the payload expected by the webhook:
+
+\```javascript
+const gaData = $input.first()?.json;
+const metrics = {};
+const dimensions: Record<string, string[]> = {};
+
+if (gaData?.rows) {
+  gaData.rows.forEach((row: any) => {
+    row.metricValues?.forEach((metric: any, idx: number) => {
+      const metricName = gaData.metricHeaders[idx].name;
+      metrics[metricName] = (metrics[metricName] || 0) + (parseFloat(metric.value) || 0);
+    });
+
+    row.dimensionValues?.forEach((dim: any, idx: number) => {
+      const dimName = gaData.dimensionHeaders[idx].name;
+      dimensions[dimName] = Array.from(new Set([...(dimensions[dimName] || []), dim.value]));
+    });
+  });
+}
+
+return [{
+  json: {
+    data_type: 'traffic',
+    date_range_start: $now.minus({ days: 1 }).toFormat('yyyy-MM-dd'),
+    date_range_end: $now.toFormat('yyyy-MM-dd'),
+    metrics: {
+      sessions: Math.round(metrics.sessions || 0),
+      users: Math.round(metrics.activeUsers || 0),
+      pageviews: Math.round(metrics.pageviews || 0),
+      bounce_rate: parseFloat((metrics.bounceRate || 0).toFixed(2)),
+      avg_session_duration: Math.round(metrics.averageSessionDuration || 0),
+      conversions: Math.round(metrics.conversions || 0)
+    },
+    dimensions,
+    raw_data: gaData || {}
+  }
+}];
+\```
+
+🖼️ **Screenshot suggestion**: The N8n function editor with highlighted aggregation logic.
+
+## Step 4: Send data to Supabase
+
+Use the webhook credentials generated in **Integration Manager**:
+
+\```http
+POST https://<YOUR-PROJECT>.supabase.co/functions/v1/n8n-analytics-manage/webhook/<BRAND_ID>
+Authorization: Bearer {{ $json.supabaseAnonKey }}
+X-Webhook-Secret: {{ $json.analyticsWebhookSecret }}
+Content-Type: application/json
+\```
+
+The edge function validates brand access, stores the payload in `brand_analytics_data`, and updates `brand_analytics_integrations.last_sync_at`.
+
+## Scheduling & automation
+
+- **Default cadence**: Daily at `0 0 * * *` (midnight UTC)
+- Adjust cadence per brand by editing `sync_frequency` in **brand_analytics_integrations**
+- Enable retries inside N8n to handle transient GA outages
+
+## Verifying ingestion
+
+Run a manual execution and validate data:
+
+\```sql
+SELECT date_range_start, data_type, metrics->>'sessions' AS sessions
+FROM brand_analytics_data
+WHERE brand_id = '<BRAND_UUID>'
+ORDER BY received_at DESC
+LIMIT 10;
+\```
+
+If values appear, confirm dashboards display updated KPIs.
+
+## Troubleshooting
+
+- **Invalid webhook secret** – Regenerate credentials from Integration Manager.
+- **403 Forbidden** – Ensure the brand has an active `n8n_analytics` integration and the service role key is not being used client-side.
+- **GA authentication error** – Verify the JSON key is uploaded correctly and the service account has property access.
+- **Empty payload** – Confirm the GA property has events for the requested date range.
+- **Rate limiting** – Respect Google Analytics quotas; throttle schedule frequency or limit dimensions.`,
+
+  "integrations/collabai": `# CollabAI Integration Guide
+
+> **Last Updated**: 2025-01-09
+> **Tags**: collabai, ai, integrations, agents, automation
+
+## Overview
+
+The **CollabAI** integration lets marketing teams sync external AI assistants into the SJ Marketing AI platform. The `collabai-manage` edge function stores encrypted API keys, fetches agent metadata, and keeps the `collabai_agents` table aligned with the CollabAI platform.
+
+## Step 1: Configure secrets
+
+Set the organization-wide API key and optional base URL as Supabase secrets so the edge function can validate connections:
+
+\```bash
+supabase secrets set COLLABAI_API_KEY="sk_live_your_key"
+supabase secrets set COLLABAI_BASE_URL="https://api.collabai.com"
+\```
+
+In production, add the same values through **Supabase → Project Settings → Secrets**. The API key is used when managers test or save the integration inside the admin panel.
+
+## Step 2: Activate the integration from the UI
+
+1. Navigate to **Admin → Integrations → CollabAI**.
+2. Paste the user-specific API key (CollabAI → Settings → API Keys).
+3. Click **Test Connection** – the edge function performs a GET request to `/api/assistants/n8n/assistant-list`.
+4. On success, click **Save Integration** to encrypt and persist the key in `collabai_integrations`.
+
+🖼️ **Screenshot suggestion**: CollabAI card within Integration Manager with the API key modal open.
+
+## Step 3: Sync agents
+
+The Integration Manager exposes a **Sync Agents** action that triggers:
+
+\```typescript
+const { data, error } = await supabase.functions.invoke('collabai-manage', {
+  body: { action: 'sync_agents', integration_id }
+});
+\```
+
+The edge function fetches the latest assistant list, then upserts records into `collabai_agents` with activation flags and descriptions.
+
+## Data storage model
+
+- **collabai_integrations**: Stores `user_id`, encrypted `api_key_encrypted`, `base_url`, and `is_active` flags.
+- **collabai_agents**: Local cache of remote agents (id, agent_id, name, description, category, is_active).
+- **ai_agents**: Platform-defined assistants used across dashboards:
+
+  | Column | Description |
+  |--------|-------------|
+  | `id` | Primary key (UUID) |
+  | `name`, `slug` | Display + unique identifier |
+  | `category` | Used for filtering in dashboards |
+  | `system_prompt` | Instruction set executed by edge functions |
+  | `data_sources` | JSONB array describing required datasets |
+  | `required_role` | Role gate (defaults to manager) |
+  | `schedule_config` | JSON config for automation |
+
+RLS policies restrict access to authenticated users with manager or super admin privileges.
+
+## Usage examples
+
+### My Agents dashboard
+
+The `/dashboard/my-agents` and `/ai-agents` routes use the CollabAI hooks:
+
+\```typescript
+const { data: integration } = useCollabAIIntegration();
+const { data: agents } = useCollabAIAgents(integration?.id);
+
+return <AgentGrid agents={agents || []} onTry={handleTry} />;
+\```
+
+### Embedding inside AI Workspace
+
+`AIWorkspace.tsx` wraps `UnifiedVideoStudioPage`, so you can surface CollabAI cards by composing the same hooks:
+
+\```typescript
+import { AgentGrid } from '@/features/collabai/AgentGrid';
+import { useCollabAIIntegration, useCollabAIAgents } from '@/features/collabai/hooks';
+
+const CollabAIWorkspace = () => {
+  const { data: integration } = useCollabAIIntegration();
+  const { data: agents } = useCollabAIAgents(integration?.id);
+  return <AgentGrid agents={agents || []} onTry={(agent) => window.open(agent.chatUrl)} />;
+};
+\```
+
+Attach this component to a tab within `UnifiedVideoStudioPage` or render it alongside the video tools.
+
+## Troubleshooting
+
+- **401 Unauthorized** – Ensure the Supabase session is valid; only authenticated users may call `collabai-manage`.
+- **Connection failed (4xx/5xx)** – The API key or base URL is invalid. Regenerate the key inside CollabAI.
+- **No agents displayed** – Run **Sync Agents** and confirm rows exist in `collabai_agents`.
+- **Missing COLLABAI_API_KEY** – Double-check Supabase secrets in the environment where the edge function executes.`,
+
+  "features/user-management": `# User Management Walkthrough
+
+> **Last Updated**: 2025-01-09
+> **Tags**: users, admin, permissions, brands
+
+## Overview
+
+Administrators manage users from **/adminpanel/users** (also available to managers at **/manager/admin/users**). The page fetches live data through the `useAdminUsers` hook which proxies the `admin-users` edge function.
+
+🖼️ **Screenshot suggestion**: The user table with filters, status chips, and the "Add New User" dialog.
+
+## Interface tour
+
+- **Filters & search** – Filter by role, status, or marketing flag before calling `fetchUsers({ role, status, search })`.
+- **User table** – Displays role badges, brand assignments, and quick actions for edit/delete.
+- **Bulk actions** – Toggle status or open the permission dialog per row.
+
+## Creating users
+
+The "Add New User" dialog collects first name, last name, email, password, role, department, and initial brand access. Creation logic lives in `handleCreateUser`:
+
+\```typescript
+const brandAssignments = newUser.brandIds.map((brandId) => ({
+  brand_id: brandId,
+  access_level: 'member',
+}));
+
+await createUser({
+  firstName: newUser.firstName,
+  lastName: newUser.lastName,
+  email: newUser.email,
+  password: newUser.password,
+  role: newUser.role,
+  title: newUser.title.trim() || null,
+  department: newUser.department.trim() || null,
+  isMarketing: newUser.isMarketing,
+  brandAssignments,
+});
+\```
+
+The UI validates the `@sjinnovation.com` email policy before invoking the hook.
+
+## Editing roles & permissions
+
+- Clicking **Manage Access** opens `UserPermissionDialog`, letting admins tweak module-level permissions and brand access.
+- `updateUser` accepts partial updates for role, status, department, marketing flag, and `brandAssignments`.
+- The status toggle calls `updateUser(user.id, { status: 'inactive' })` to quickly deactivate accounts.
+
+## Assigning brands
+
+Each assignment persists to **user_brands** with granular capability booleans:
+
+| Field | Purpose |
+|-------|---------|
+| `access_level` | owner, member, or viewer |
+| `can_view_analytics` | Unlock analytics dashboards |
+| `can_manage_content` | Enable marketing content tools |
+| `can_manage_team` | Grant teammate management |
+| `can_manage_settings` | Allow brand configuration |
+
+Use the assignment chips within the dialog to toggle these flags per brand.
+
+## Accountability chart management
+
+Open a specific user (**/adminpanel/users/:userId**) to access:
+
+- `AccountabilityChartEditor` for inline CRUD of responsibilities stored in **user_accountability_chart**.
+- `AccountabilityChartImporter` to upload CSV definitions for bulk updates.
+- Tabs for profile, permissions, and accountability views, all referencing the same Supabase rows.
+
+## Hook reference
+
+The `useAdminUsers` hook wraps axios calls and emits toasts on failures:
+
+\```typescript
+const {
+  users,
+  loading,
+  total,
+  error,
+  fetchUsers,
+  createUser,
+  updateUser,
+  deleteUser,
+  getUserById,
+} = useAdminUsers();
+\```
+
+Call `fetchUsers` on mount and after mutations to refresh the table.
+
+## Status lifecycle
+
+- **active** – Full access; visible in dashboards.
+- **inactive** – Hidden from assignments; remains in the database for auditing.
+- **pending** – Created but not yet onboarded; restrict advanced permissions until verified.`,
+
+  "features/brand-management": `# Brand Management Guide
+
+> **Last Updated**: 2025-01-09
+> **Tags**: brands, admin, kpi, integrations
+
+## Overview
+
+Brand operations live under **/adminpanel/brands** (or **/dashboard/brands** for super admins). The page leverages `useAdminBrands` to fetch, create, update, and delete brand modules through the `admin-brands` edge function.
+
+🖼️ **Screenshot suggestion**: Brand cards showing owner avatars, integration badges, and KPI chips.
+
+## Creating a brand
+
+Open the **Add New Brand** dialog to collect name, description, type (internal/client), owner, and optional monthly budget.
+
+\```typescript
+const success = await createBrand({
+  name: newBrandData.name,
+  description: newBrandData.description,
+  type: newBrandData.type,
+  owner_id: newBrandData.owner_id,
+  monthly_budget: newBrandData.monthly_budget,
+});
+\```
+
+On success the hook prepends the new brand to local state and displays a toast.
+
+## Editing brand details
+
+Selecting **Edit** opens a dialog backed by `editBrandData` with fields for status, activity, and ownership. Submitting triggers:
+
+\```typescript
+await updateBrand(selectedBrand.id, {
+  ...editBrandData,
+  status: editBrandData.status,
+  is_active: editBrandData.is_active,
+});
+\```
+
+`refetch()` is called after updates or deletes to sync with Supabase.
+
+## Owner & co-owner assignment
+
+- Owners drive permissions and appear in dashboards.
+- Co-owner assignment happens inside the edit dialog (stored on the brand record as `co_owner_id`).
+- Team members are displayed via `brand.team_members` and can be managed through dedicated modals.
+
+## KPI configuration
+
+Each brand surfaces KPI chips using the `brand.kpis` array returned by the hook. Configure KPI definitions in the KPI Configurator or insert rows into **brand_kpis** with `type`, `target_value`, and `source` (manual, google_analytics, etc.).
+
+## Analytics integrations
+
+- Active integrations are tracked via `brand.active_integrations`.
+- The Integration Manager writes to **brand_analytics_integrations** (webhook URL, secret, workflow id).
+- Successful webhooks populate **brand_analytics_data**; verify through the Analytics tab or SQL queries.
+
+## Team management
+
+Leverage the team member panel to review `team_members` arrays and jump directly into User Management for adjustments. Brand dashboards respect RLS via the `user_has_brand_access` function.
+
+## Hook reference
+
+\```typescript
+const {
+  brands,
+  loading,
+  error,
+  createBrand,
+  updateBrand,
+  deleteBrand,
+  refetch,
+} = useAdminBrands();
+\```
+
+`loading` gates skeleton states, while `toast` feedback is emitted on mutation success or failure.`,
+
+  "deployment/environment-config": `# Environment Configuration
+
+> **Last Updated**: 2025-01-09
+> **Tags**: deployment, environment, secrets, configuration
+
+## Core environment variables
+
+| Variable | Location | Purpose |
+|----------|----------|---------|
+| `VITE_SUPABASE_URL` | Vite client (.env) | Supabase project URL for browser SDK |
+| `VITE_SUPABASE_ANON_KEY` | Vite client (.env) | Public anon key for Supabase Auth |
+| `VITE_API_BASE_URL` | Optional Vite client | Custom API base for axiosPrivate |
+| `OPENAI_KEY` | Supabase secret | Used by edge functions (code analysis, Sora, summaries) |
+| `OPENAI_API_KEY` | Supabase secret | Streaming agent + video functions |
+| `GEMINI_API_KEY` | Supabase secret | Gemini Veo video generation |
+| `Hubspot_Access_token` | Supabase secret | HubSpot sync edge function |
+| `EOD_WEBHOOK_SECRET` | Supabase secret | Validates N8n → Supabase EOD calls |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase secret | Required by server-side Supabase clients |
+| `COLLABAI_API_KEY` | Supabase secret | CollabAI integration testing fallback |
+
+Add any other third-party tokens (GoHighLevel, n8n analytics, etc.) via project secrets before deploying functions.
+
+## Local development setup
+
+1. Create an `.env.local` (gitignored) in the project root:
+
+\```env
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=anon-key
+VITE_API_BASE_URL=https://your-project.supabase.co/functions/v1
+\```
+
+2. Duplicate the file as `.env.test` or `.env.preview` if you maintain multiple environments.
+3. Launch the dev server with `npm run dev` and ensure the browser console shows authenticated Supabase requests.
+
+## Supabase secrets (local CLI)
+
+Use the Supabase CLI to mirror production secrets when running functions locally:
+
+\```bash
+supabase secrets set OPENAI_KEY="sk-live"
+supabase secrets set GEMINI_API_KEY="AIza..."
+supabase secrets set Hubspot_Access_token="pat-..."
+supabase secrets set EOD_WEBHOOK_SECRET="whs_..."
+supabase secrets set COLLABAI_API_KEY="sk_collab"
+\```
+
+Reference the env file when serving functions: `supabase functions serve collabai-manage --env-file .env.local`.
+
+## Production deployment
+
+- Configure secrets via **Project Settings → Configuration → Secrets** prior to deploying edge functions.
+- For Vite builds, inject `VITE_*` vars using your hosting provider (Vercel, Netlify, etc.).
+- Rotate secrets periodically; set calendar reminders for monthly rotation of webhook secrets.
+
+## Validation checklist
+
+- [ ] Browser requests succeed with anon key (no 401s).
+- [ ] Edge functions can read `SUPABASE_SERVICE_ROLE_KEY`.
+- [ ] OpenAI/Gemini keys return 200 responses from health checks.
+- [ ] HubSpot sync runs without expired token errors.
+- [ ] CollabAI sync logs show successful agent imports.`,
+
+  "deployment/database-migrations": `# Database Migration Workflow
+
+> **Last Updated**: 2025-01-09
+> **Tags**: deployment, supabase, migrations, database
+
+## Overview
+
+All schema changes are managed with Supabase migrations stored in **supabase/migrations/**. Use the CLI to generate reproducible SQL files and promote them across environments.
+
+## Creating migrations
+
+1. Generate a new migration file with a descriptive name:
+
+\```bash
+supabase migration new add_collabai_agents
+\```
+
+2. Edit the generated SQL under `supabase/migrations/<timestamp>_add_collabai_agents.sql`.
+3. Use `supabase db reset` (local) to test the migration against a clean database.
+
+## Developing locally
+
+- Run `supabase start` to launch the local stack.
+- Apply migrations automatically with `supabase db push` or manually with `supabase migration up`.
+- Seed optional data via scripts in **supabase/functions/** (e.g., `seed-sample-eod-data`).
+
+## Deploying to production
+
+1. Commit the migration file to Git.
+2. On the deployment server run:
+
+\```bash
+supabase db push --project-ref <project-ref>
+\```
+
+3. Verify the Supabase dashboard schema diff matches expectations.
+4. Notify the team about new columns or tables impacting application code.
+
+## Rollback procedures
+
+- Create a compensating migration (e.g., `supabase migration new revert_add_collabai_agents`).
+- Alternatively, use `supabase db remote commit` snapshots before applying critical migrations.
+- For emergency fixes, disable affected edge functions until the rollback is complete.
+
+## Best practices
+
+- Keep migrations small and reversible.
+- Avoid `DROP TABLE` without backups; prefer soft deletes or new tables.
+- Add indexes alongside new columns used in filters.
+- Update TypeScript types in `src/integrations/supabase/types.ts` after schema changes.
+- Run linting and a smoke test after applying migrations.`,
+
+  "troubleshooting/common-issues": `# Common Issues & Fixes
+
+> **Last Updated**: 2025-01-09
+> **Tags**: troubleshooting, authentication, integrations, build
+
+## Authentication errors
+
+| Symptom | Cause | Resolution |
+|---------|-------|------------|
+| `JWT expired` toast | Access token older than 60 minutes | Supabase auto-refreshes; ensure the browser tab stays open. Trigger `supabase.auth.refreshSession()` if needed. |
+| `Invalid token` response from edge functions | Missing or malformed `Authorization: Bearer <token>` header | Confirm axiosPrivate attaches the Supabase session token before invoking protected routes. |
+
+## Row Level Security failures
+
+- Error: `new row violates row-level security policy`
+- Fix: Include `user_id: user.id` (or the appropriate foreign key) when inserting. Validate policies in the [RLS documentation](../architecture/auth-flow).
+
+## Build & type failures
+
+- **Dependency mismatch** – Delete `node_modules` and run `npm install`.
+- **TypeScript errors** – Execute `npx tsc --noEmit` to reveal offending types (often due to schema changes).
+- **Vite build fails** – Clear the cache with `rm -rf node_modules .vite` and rebuild.
+
+## API & edge function issues
+
+- **CORS blocked** – Ensure edge functions include the shared headers from `supabase/functions/_shared/cors.ts`.
+- **500 from admin-users** – Inspect Supabase logs; commonly triggered by missing service role key or invalid payloads.
+- **HubSpot sync errors** – Refresh `Hubspot_Access_token` and re-run the cron job.
+
+## N8n webhook failures
+
+- **Endpoint unreachable** – Confirm your Supabase instance allows inbound HTTPS (cloud functions require TLS).
+- **422 validation error** – Compare the payload with the schema documented in the relevant integration page.
+- **Signature mismatch** – Double-check webhook secrets stored in N8n credentials.`,
+
+  "troubleshooting/debugging": `# Debugging Toolkit
+
+> **Last Updated**: 2025-01-09
+> **Tags**: troubleshooting, debugging, logs, monitoring
+
+## Browser DevTools
+
+- Open the **Network** tab to inspect Supabase REST requests and confirm auth headers.
+- Use the **Console** to watch React Query warnings or runtime errors.
+- Install **React Query Devtools** (already wired into development) and toggle with `ctrl + q` to view cache state.
+
+## Supabase observability
+
+- Dashboard → **Logs** → **Functions** to inspect edge function invocations.
+- Run `supabase functions logs <name>` locally for streaming output.
+- Check **Database → Logs** for query performance issues.
+
+## Edge function debugging
+
+- Add temporary `console.log` statements in Deno functions; logs surface in Supabase console.
+- Use `supabase functions serve <name> --env-file .env.local` to reproduce issues locally with live secrets.
+
+## Database query analysis
+
+- Use the Supabase SQL editor or `psql` to run `EXPLAIN ANALYZE` on slow queries.
+- Ensure indexes exist on columns used in `WHERE` clauses (e.g., `brand_id`, `user_id`, `sync_date`).
+- Validate row counts after integrations run:
+
+\```sql
+EXPLAIN ANALYZE
+SELECT *
+FROM brand_analytics_data
+WHERE brand_id = '<BRAND_UUID>'
+ORDER BY received_at DESC
+LIMIT 50;
+\```
+
+## Monitoring application state
+
+- Enable verbose logging via `axiosPrivate.interceptors` to trace HTTP errors.
+- In React components, check hook return values (`loading`, `error`) before rendering UI.
+- Combine Supabase logs with N8n execution history for end-to-end tracing.`,
+
   "features/eod-system": `# EOD Submission System
 
 > **Last Updated**: 2025-01-09
