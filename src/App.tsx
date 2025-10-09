@@ -124,7 +124,7 @@ const App = () => (
                 <Layout userRole="super_admin" />
               </ProtectedRoute>
             }>
-              <Route index element={<ManagerDashboard />} />
+              <Route index element={<Dashboard />} />
               <Route path="workspace" element={<AIWorkspace />} />
               <Route path="clients-projects" element={<ClientsProjects />} />
               <Route path="clients" element={<ClientManagement />} />
