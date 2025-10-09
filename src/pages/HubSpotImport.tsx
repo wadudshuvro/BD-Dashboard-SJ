@@ -27,18 +27,37 @@ export default function HubSpotImport() {
       return;
     }
 
+    console.log('[HubSpot Import] Starting search for:', searchTerm);
     setIsSearching(true);
+    
     try {
+      console.log('[HubSpot Import] Invoking hubspot-sync function...');
       const { data, error } = await supabase.functions.invoke('hubspot-sync', {
         body: { action: 'search_companies', searchTerm }
       });
 
-      if (error) throw error;
+      console.log('[HubSpot Import] Response:', { data, error });
+
+      if (error) {
+        console.error('[HubSpot Import] Error from edge function:', error);
+        throw error;
+      }
+      
+      console.log('[HubSpot Import] Search results:', data);
       setSearchResults(data || []);
       setSelectedCompany(null);
       setContacts([]);
+      
+      if (!data || data.length === 0) {
+        toast.info("No companies found matching your search");
+      } else {
+        toast.success(`Found ${data.length} companies`);
+      }
     } catch (error: any) {
-      toast.error(`Search failed: ${error.message}`);
+      console.error('[HubSpot Import] Search error:', error);
+      toast.error(`Search failed: ${error.message || 'Unknown error'}`, {
+        description: error.details || 'Check console for more details'
+      });
     } finally {
       setIsSearching(false);
     }
@@ -50,35 +69,61 @@ export default function HubSpotImport() {
       return;
     }
 
+    console.log('[HubSpot Import] Fetching by ID:', companyId);
     setIsFetching(true);
+    
     try {
+      console.log('[HubSpot Import] Invoking hubspot-sync function...');
       const { data, error } = await supabase.functions.invoke('hubspot-sync', {
         body: { action: 'fetch_company_by_id', companyId }
       });
 
-      if (error) throw error;
+      console.log('[HubSpot Import] Response:', { data, error });
+
+      if (error) {
+        console.error('[HubSpot Import] Error from edge function:', error);
+        throw error;
+      }
+      
       setSelectedCompany(data.company);
       setContacts(data.contacts || []);
       setSearchResults([]);
+      toast.success("Company details loaded successfully");
     } catch (error: any) {
-      toast.error(`Fetch failed: ${error.message}`);
+      console.error('[HubSpot Import] Fetch error:', error);
+      toast.error(`Fetch failed: ${error.message || 'Unknown error'}`, {
+        description: error.details || 'Check console for more details'
+      });
     } finally {
       setIsFetching(false);
     }
   };
 
   const handleSelectCompany = async (company: any) => {
+    console.log('[HubSpot Import] Selecting company:', company.id);
     setIsFetching(true);
+    
     try {
+      console.log('[HubSpot Import] Invoking hubspot-sync function...');
       const { data, error } = await supabase.functions.invoke('hubspot-sync', {
         body: { action: 'fetch_company_by_id', companyId: company.id }
       });
 
-      if (error) throw error;
+      console.log('[HubSpot Import] Response:', { data, error });
+
+      if (error) {
+        console.error('[HubSpot Import] Error from edge function:', error);
+        throw error;
+      }
+      
       setSelectedCompany(data.company);
       setContacts(data.contacts || []);
+      toast.success("Company details loaded successfully");
     } catch (error: any) {
-      toast.error(`Failed to load company details: ${error.message}`);
+      console.error('[HubSpot Import] Select company error:', error);
+      toast.error(`Failed to load company details: ${error.message || 'Unknown error'}`, {
+        description: error.details || 'Check console for more details'
+      });
     } finally {
       setIsFetching(false);
     }
@@ -87,8 +132,11 @@ export default function HubSpotImport() {
   const handleImport = async () => {
     if (!selectedCompany) return;
 
+    console.log('[HubSpot Import] Starting import for:', selectedCompany.properties.name);
     setIsImporting(true);
+    
     try {
+      console.log('[HubSpot Import] Invoking hubspot-sync function...');
       const { data, error } = await supabase.functions.invoke('hubspot-sync', {
         body: { 
           action: 'import_company', 
@@ -97,12 +145,20 @@ export default function HubSpotImport() {
         }
       });
 
-      if (error) throw error;
+      console.log('[HubSpot Import] Response:', { data, error });
+
+      if (error) {
+        console.error('[HubSpot Import] Error from edge function:', error);
+        throw error;
+      }
       
       toast.success(`Successfully imported ${selectedCompany.properties.name}`);
       navigate(`/dashboard/clients/${data.client.id}`);
     } catch (error: any) {
-      toast.error(`Import failed: ${error.message}`);
+      console.error('[HubSpot Import] Import error:', error);
+      toast.error(`Import failed: ${error.message || 'Unknown error'}`, {
+        description: error.details || 'Check console for more details'
+      });
     } finally {
       setIsImporting(false);
     }

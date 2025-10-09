@@ -8,26 +8,38 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+  console.log('[HubSpot Sync] Function invoked');
+  console.log('[HubSpot Sync] Method:', req.method);
+  
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { action, searchTerm, companyId, clientId, hubspotId } = await req.json();
+    console.log('[HubSpot Sync] Parsing request body...');
+    const body = await req.json();
+    const { action, searchTerm, companyId, clientId, hubspotId } = body;
+    
+    console.log('[HubSpot Sync] Action:', action);
+    console.log('[HubSpot Sync] Request params:', { searchTerm, companyId, clientId, hubspotId });
     
     const hubspotToken = Deno.env.get('Hubspot_Access_token');
     if (!hubspotToken) {
+      console.error('[HubSpot Sync] ERROR: HubSpot access token not configured');
       throw new Error('HubSpot access token not configured');
     }
+    console.log('[HubSpot Sync] HubSpot token loaded successfully');
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    console.log(`HubSpot Sync Action: ${action}`);
+    console.log(`[HubSpot Sync] Processing action: ${action}`);
 
     // Search companies by name
     if (action === 'search_companies') {
+      console.log('[HubSpot Sync] Searching companies with term:', searchTerm);
+      
       const response = await fetch(
         `https://api.hubapi.com/crm/v3/objects/companies/search`,
         {
@@ -54,11 +66,17 @@ serve(async (req) => {
         }
       );
 
+      console.log('[HubSpot Sync] HubSpot API response status:', response.status);
+      
       if (!response.ok) {
-        throw new Error(`HubSpot API error: ${response.statusText}`);
+        const errorText = await response.text();
+        console.error('[HubSpot Sync] HubSpot API error:', response.status, errorText);
+        throw new Error(`HubSpot API error: ${response.status} - ${errorText}`);
       }
 
       const data = await response.json();
+      console.log('[HubSpot Sync] Found', data.results?.length || 0, 'companies');
+      
       return new Response(JSON.stringify(data.results || []), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
@@ -285,8 +303,17 @@ serve(async (req) => {
     throw new Error('Invalid action');
 
   } catch (error) {
-    console.error('HubSpot Sync Error:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    console.error('[HubSpot Sync] ERROR:', error);
+    console.error('[HubSpot Sync] Error details:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
+    
+    return new Response(JSON.stringify({ 
+      error: error.message,
+      details: error.toString()
+    }), {
       status: 400,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
