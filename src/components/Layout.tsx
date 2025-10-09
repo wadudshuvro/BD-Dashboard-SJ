@@ -74,7 +74,16 @@ const Layout = ({ userRole }: LayoutProps) => {
           { name: "Brands", href: `${basePath}/brands`, icon: Building2, current: false },
           { name: "Clients", href: `${basePath}/clients`, icon: Users, current: false },
           { name: "Projects", href: `${basePath}/projects`, icon: FolderOpen, current: false },
-          { name: "Actions & Tasks", href: `${basePath}/actions-tasks`, icon: CheckSquare, current: false },
+          { 
+            name: "Actions & Tasks", 
+            href: `${basePath}/actions-tasks`, 
+            icon: CheckSquare, 
+            current: false,
+            subItems: [
+              { name: "Tasks", href: `${basePath}/actions-tasks`, icon: CheckSquare, current: false },
+              { name: "EOD Submission", href: `${basePath}/eod-submission`, icon: Bot, current: false },
+            ]
+          },
           { 
             name: "People", 
             href: `${basePath}/people`, 
@@ -97,7 +106,16 @@ const Layout = ({ userRole }: LayoutProps) => {
           { name: "Clients", href: `${basePath}/clients`, icon: Users, current: false },
           { name: "Projects", href: `${basePath}/projects`, icon: FolderOpen, current: false },
           { name: "Brands", href: `${basePath}/brands`, icon: Building2, current: false },
-          { name: "Actions & Tasks", href: `${basePath}/actions-tasks`, icon: CheckSquare, current: false },
+          { 
+            name: "Actions & Tasks", 
+            href: `${basePath}/actions-tasks`, 
+            icon: CheckSquare, 
+            current: false,
+            subItems: [
+              { name: "Tasks", href: `${basePath}/actions-tasks`, icon: CheckSquare, current: false },
+              { name: "EOD Submission", href: `${basePath}/eod-submission`, icon: Bot, current: false },
+            ]
+          },
           { 
             name: "People", 
             href: `${basePath}/people`, 
@@ -117,7 +135,16 @@ const Layout = ({ userRole }: LayoutProps) => {
           { name: "My Agents", href: `${basePath}/my-agents`, icon: Zap, current: false },
           { name: "Clients", href: `${basePath}/clients`, icon: Users, current: false },
           { name: "Projects", href: `${basePath}/projects`, icon: FolderOpen, current: false },
-          { name: "Tasks", href: `${basePath}/tasks`, icon: Target, current: false },
+          { 
+            name: "Actions & Tasks", 
+            href: `${basePath}/actions-tasks`, 
+            icon: CheckSquare, 
+            current: false,
+            subItems: [
+              { name: "Tasks", href: `${basePath}/tasks`, icon: Target, current: false },
+              { name: "EOD Submission", href: `${basePath}/eod-submission`, icon: Bot, current: false },
+            ]
+          },
           { name: "Reports", href: `${basePath}/reports`, icon: BarChart3, current: false },
         ];
       

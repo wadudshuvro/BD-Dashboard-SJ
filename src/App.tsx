@@ -25,6 +25,7 @@ import ProjectDetail from "@/pages/ProjectDetail";
 import ClientsProjects from "./pages/ClientsProjects";
 import People from "./pages/People";
 import ActionsTasks from "./pages/ActionsTasks";
+import EODSubmission from "./pages/EODSubmission";
 import AIWorkspace from "./pages/AIWorkspace";
 import UserManagement from "./pages/admin/UserManagement";
 import BrandManagement from "./pages/admin/BrandManagement";
@@ -32,6 +33,7 @@ import BrandDetail from "./pages/admin/BrandDetail";
 import IntegrationManager from "./pages/admin/IntegrationManager";
 import KPIConfigurator from "./pages/admin/KPIConfigurator";
 import AdminSettings from "./pages/admin/AdminSettings";
+import EODManagement from "./pages/admin/EODManagement";
 import UserDetail from "./pages/admin/UserDetail";
 import AdminPanel from "./pages/admin/AdminPanel";
 import UserBrands from "./pages/UserBrands";
@@ -115,6 +117,7 @@ const App = () => (
               <Route path="projects" element={<ProjectManagement />} />
               <Route path="projects/:projectId" element={<ProjectDetail />} />
               <Route path="tasks" element={<ActionsTasks />} />
+              <Route path="eod-submission" element={<EODSubmission />} />
               <Route path="my-agents" element={<MyAgentsPage />} />
             </Route>
             
@@ -135,6 +138,7 @@ const App = () => (
               <Route path="brands" element={<BrandManagement />} />
               <Route path="brands/:brandId" element={<BrandDetail />} />
               <Route path="actions-tasks" element={<ActionsTasks />} />
+              <Route path="eod-submission" element={<EODSubmission />} />
               <Route path="people" element={<People />} />
               <Route path="people/review" element={<React.Suspense fallback={<div>Loading...</div>}><PeopleReviewDashboard /></React.Suspense>} />
               <Route path="my-agents" element={<MyAgentsPage />} />
@@ -157,6 +161,7 @@ const App = () => (
               <Route path="brands" element={<BrandManagement />} />
               <Route path="brands/:brandId" element={<BrandDetail />} />
               <Route path="actions-tasks" element={<ActionsTasks />} />
+              <Route path="eod-submission" element={<EODSubmission />} />
               <Route path="people" element={<People />} />
               <Route path="people/review" element={<React.Suspense fallback={<div>Loading...</div>}><PeopleReviewDashboard /></React.Suspense>} />
               <Route path="my-agents" element={<MyAgentsPage />} />
@@ -188,6 +193,7 @@ const App = () => (
               <Route path="kpis" element={<KPIConfigurator />} />
               <Route path="documentation" element={<React.Suspense fallback={<div>Loading...</div>}><Documentation /></React.Suspense>} />
               <Route path="settings" element={<AdminSettings />} />
+              <Route path="eod-management" element={<EODManagement />} />
               <Route path="ai-agents" element={<AIAgentsPage />} />
               <Route path="ai-dashboard" element={<AIDashboard />} />
             </Route>

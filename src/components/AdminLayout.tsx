@@ -17,7 +17,8 @@ import {
   Briefcase,
   UserCheck,
   Zap,
-  TrendingUp
+  TrendingUp,
+  Calendar
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
@@ -38,6 +39,7 @@ const navigation = [
       { name: 'User Management', href: '/adminpanel/users', icon: Users },
       { name: 'Brand Management', href: '/adminpanel/brands', icon: Building2 },
       { name: 'KPI Configuration', href: '/adminpanel/kpis', icon: TrendingUp },
+      { name: 'EOD Management', href: '/adminpanel/eod-management', icon: Calendar },
       { name: 'Documentation', href: '/adminpanel/documentation', icon: FileText },
       { name: 'System Settings', href: '/adminpanel/settings', icon: Settings },
     ]
