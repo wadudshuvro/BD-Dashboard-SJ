@@ -1474,6 +1474,558 @@ Use \`status\` fields instead of hard deletes.
 - [Brands Table](../../database/tables/brands)
 - [Database Migrations](../../deployment/database-migrations)
 `,
+
+  "architecture/auth-flow": `# Authentication & Authorization
+
+> **Last Updated**: 2025-01-09
+> **Tags**: architecture, authentication, authorization, security, rls, roles
+
+## Overview
+
+The application implements a comprehensive authentication and authorization system using Supabase Auth with a custom role-based access control (RBAC) system. This system ensures secure access to resources while maintaining flexibility for different user types.
+
+---
+
+## Authentication System
+
+### Authentication Provider
+
+**Supabase Auth** handles all authentication operations:
+- User registration
+- Login/logout
+- Password reset
+- Session management
+- JWT token generation and validation
+
+### Authentication Flow
+
+\`\`\`mermaid
+sequenceDiagram
+    participant User
+    participant Frontend
+    participant Supabase Auth
+    participant Database
+    participant Edge Function
+
+    User->>Frontend: Enter credentials
+    Frontend->>Supabase Auth: POST /auth/v1/token
+    Supabase Auth->>Database: Validate credentials
+    Database-->>Supabase Auth: User validated
+    Supabase Auth->>Supabase Auth: Generate JWT token
+    Supabase Auth-->>Frontend: Return access_token & refresh_token
+    Frontend->>Frontend: Store tokens in memory
+    Frontend->>Edge Function: API request with JWT
+    Edge Function->>Supabase Auth: Validate JWT
+    Supabase Auth-->>Edge Function: Token valid
+    Edge Function->>Database: Query with auth.uid()
+    Database->>Database: Apply RLS policies
+    Database-->>Edge Function: Return filtered data
+    Edge Function-->>Frontend: Return response
+\`\`\`
+
+### JWT Token Structure
+
+The JWT token contains:
+- **sub**: User ID (UUID)
+- **email**: User's email address
+- **role**: Supabase role (authenticated/anon)
+- **exp**: Token expiration timestamp
+- **iat**: Token issued at timestamp
+
+---
+
+## Authorization System
+
+### Role Hierarchy
+
+The system uses a 4-tier role hierarchy defined in the \`app_role\` enum:
+
+\`\`\`sql
+CREATE TYPE app_role AS ENUM (
+  'super_admin',  -- Full system access
+  'manager',      -- Department/team management
+  'pm',           -- Project management
+  'user'          -- Basic team member
+);
+\`\`\`
+
+#### Role Capabilities
+
+**🔴 super_admin** (Highest privilege)
+- Full access to all data and operations
+- User management (create, update, delete users)
+- Brand management (all brands)
+- Permission assignment
+- System configuration
+- Access to admin panel
+
+**🟡 manager**
+- View and manage department/team data
+- Brand management (assigned brands)
+- User management (view users)
+- Project oversight
+- KPI configuration
+- EOD submission review
+
+**🟢 pm** (Project Manager)
+- Project management (assigned projects)
+- Task management
+- Client communication
+- View assigned team members
+- Submit EOD reports
+
+**⚪ user** (Team Member)
+- View assigned projects
+- Manage assigned tasks
+- Submit EOD reports
+- Update own profile
+- View own dashboard
+
+### Marketing Team Flag
+
+In addition to roles, users can have an \`is_marketing\` flag:
+
+\`\`\`sql
+users.is_marketing = true
+\`\`\`
+
+This grants special permissions for:
+- Brand analytics access
+- Marketing integrations (N8n Analytics)
+- Campaign data
+
+---
+
+## Row-Level Security (RLS)
+
+### RLS Policy Architecture
+
+Every table in the database has RLS enabled and policies that filter data based on:
+1. User ID (\`auth.uid()\`)
+2. User role (from \`users.role\`)
+3. Relationships (brand membership, project assignment)
+
+### Common RLS Patterns
+
+#### Pattern 1: User-Owned Data
+
+\`\`\`sql
+-- Users can only access their own data
+CREATE POLICY "Users can view their own records"
+ON table_name FOR SELECT
+USING (user_id = auth.uid());
+\`\`\`
+
+#### Pattern 2: Role-Based Access
+
+\`\`\`sql
+-- Super admins can access everything
+CREATE POLICY "Super admins can manage all records"
+ON table_name FOR ALL
+USING (
+  EXISTS (
+    SELECT 1 FROM users
+    WHERE id = auth.uid()
+    AND role = 'super_admin'
+  )
+);
+\`\`\`
+
+#### Pattern 3: Relationship-Based Access
+
+\`\`\`sql
+-- Users can access data through relationships
+CREATE POLICY "Users can view assigned projects"
+ON projects FOR SELECT
+USING (
+  project_manager = auth.uid()
+  OR auth.uid() = ANY(assigned_team)
+  OR EXISTS (
+    SELECT 1 FROM users
+    WHERE id = auth.uid()
+    AND role IN ('super_admin', 'manager', 'pm')
+  )
+);
+\`\`\`
+
+#### Pattern 4: Marketing Team Access
+
+\`\`\`sql
+-- Marketing team can access brand analytics
+CREATE POLICY "Marketing team can view brand analytics"
+ON brand_analytics_data FOR SELECT
+USING (
+  user_is_marketing_or_manager(auth.uid())
+  OR user_has_brand_access(auth.uid(), brand_id)
+);
+\`\`\`
+
+### Helper Functions
+
+Security definer functions prevent RLS recursion:
+
+\`\`\`sql
+-- Check if user is marketing or manager
+CREATE FUNCTION user_is_marketing_or_manager(_user_id uuid)
+RETURNS boolean
+LANGUAGE sql
+STABLE SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM users
+    WHERE id = _user_id
+    AND (role IN ('super_admin', 'manager') OR is_marketing = true)
+  )
+$$;
+
+-- Check if user has brand access
+CREATE FUNCTION user_has_brand_access(_user_id uuid, _brand_id uuid)
+RETURNS boolean
+LANGUAGE sql
+STABLE SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM brands
+    WHERE id = _brand_id
+    AND (
+      owner_id = _user_id
+      OR co_owner_id = _user_id
+      OR _user_id = ANY(team_members)
+    )
+  )
+$$;
+
+-- Get current user's role
+CREATE FUNCTION get_current_user_role()
+RETURNS text
+LANGUAGE sql
+STABLE SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+  SELECT role::text FROM users WHERE id = auth.uid()
+$$;
+\`\`\`
+
+---
+
+## Permission System
+
+### Granular Permissions
+
+The \`user_permissions\` table provides module-level permissions:
+
+\`\`\`typescript
+interface UserPermission {
+  user_id: UUID;
+  module_name: string;  // e.g., 'projects', 'clients', 'brands'
+  can_view: boolean;
+  can_create: boolean;
+  can_edit: boolean;
+  can_delete: boolean;
+}
+\`\`\`
+
+### Brand-Level Permissions
+
+The \`user_brands\` table provides brand-specific permissions:
+
+\`\`\`typescript
+interface UserBrand {
+  user_id: UUID;
+  brand_id: UUID;
+  access_level: 'viewer' | 'editor' | 'admin';
+  can_view_analytics: boolean;
+  can_manage_content: boolean;
+  can_manage_team: boolean;
+  can_manage_settings: boolean;
+}
+\`\`\`
+
+---
+
+## Frontend Protection
+
+### Protected Routes
+
+The \`ProtectedRoute\` component enforces authentication:
+
+\`\`\`typescript
+// src/components/ProtectedRoute.tsx
+function ProtectedRoute({ 
+  children, 
+  requiredRole 
+}: ProtectedRouteProps) {
+  const { user, session, role } = useAuth();
+  
+  if (!session) {
+    return <Navigate to="/login" />;
+  }
+  
+  if (requiredRole && !hasRequiredRole(role, requiredRole)) {
+    return <Navigate to="/unauthorized" />;
+  }
+  
+  return <>{children}</>;
+}
+\`\`\`
+
+### Usage Example
+
+\`\`\`typescript
+// App.tsx
+<Route
+  path="/adminpanel"
+  element={
+    <ProtectedRoute requiredRole="super_admin">
+      <AdminPanel />
+    </ProtectedRoute>
+  }
+/>
+\`\`\`
+
+### useAuth Hook
+
+Custom hook for accessing auth state:
+
+\`\`\`typescript
+const { 
+  user,           // Supabase user object
+  session,        // Current session
+  role,           // User's app_role
+  isMarketing,    // is_marketing flag
+  loading,        // Loading state
+  signIn,         // Login function
+  signOut         // Logout function
+} = useAuth();
+\`\`\`
+
+---
+
+## Edge Function Authentication
+
+### Validating Requests
+
+Edge functions automatically validate JWT tokens:
+
+\`\`\`typescript
+// Supabase client in edge function
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseClient = createClient(
+  Deno.env.get('SUPABASE_URL')!,
+  Deno.env.get('SUPABASE_ANON_KEY')!,
+  {
+    global: {
+      headers: { 
+        Authorization: req.headers.get('Authorization')! 
+      },
+    },
+  }
+);
+
+// Get authenticated user
+const { data: { user }, error } = await supabaseClient.auth.getUser();
+
+if (error || !user) {
+  return new Response('Unauthorized', { status: 401 });
+}
+\`\`\`
+
+### Role Checking
+
+\`\`\`typescript
+// Check user role in edge function
+const { data: userData, error: userError } = await supabaseClient
+  .from('users')
+  .select('role, is_marketing')
+  .eq('id', user.id)
+  .single();
+
+if (userData.role !== 'super_admin') {
+  return new Response('Forbidden', { status: 403 });
+}
+\`\`\`
+
+---
+
+## Login Flow
+
+### Step-by-Step Process
+
+1. **User enters credentials**
+   - Email and password on login page
+
+2. **Frontend submits to Supabase**
+   \`\`\`typescript
+   const { data, error } = await supabase.auth.signInWithPassword({
+     email: email,
+     password: password
+   });
+   \`\`\`
+
+3. **Supabase validates and returns tokens**
+   - Access token (JWT)
+   - Refresh token
+
+4. **Frontend fetches user details**
+   \`\`\`typescript
+   const { data: userData } = await supabase
+     .from('users')
+     .select('*')
+     .eq('id', user.id)
+     .single();
+   \`\`\`
+
+5. **Store auth state**
+   - Supabase client handles token storage
+   - User data stored in React state
+
+6. **Redirect to dashboard**
+   - Based on user role
+
+---
+
+## Logout Flow
+
+\`\`\`typescript
+// Sign out and clear session
+await supabase.auth.signOut();
+
+// Redirect to login
+navigate('/login');
+\`\`\`
+
+---
+
+## Password Reset Flow
+
+1. **User requests reset**
+   \`\`\`typescript
+   await supabase.auth.resetPasswordForEmail(email, {
+     redirectTo: 'https://app.example.com/reset-password'
+   });
+   \`\`\`
+
+2. **User receives email**
+   - Contains reset link with token
+
+3. **User submits new password**
+   \`\`\`typescript
+   await supabase.auth.updateUser({
+     password: newPassword
+   });
+   \`\`\`
+
+---
+
+## Security Best Practices
+
+### ✅ DO
+
+- Always validate on the server (RLS + Edge Functions)
+- Use SECURITY DEFINER functions to prevent RLS recursion
+- Implement proper role checks in edge functions
+- Use parameterized queries
+- Validate JWT tokens in all API endpoints
+- Implement rate limiting on auth endpoints
+- Use strong password requirements
+- Enable MFA for admin accounts
+
+### ❌ DON'T
+
+- Never check admin status client-side only
+- Don't store sensitive data in JWT
+- Don't use hardcoded credentials
+- Don't bypass RLS with service role key client-side
+- Don't trust client-sent role information
+- Don't expose service role keys
+
+---
+
+## Common Auth Patterns
+
+### Check if User is Admin
+
+\`\`\`typescript
+// Frontend
+const { role } = useAuth();
+const isAdmin = role === 'super_admin';
+
+// Edge Function
+const { data: userData } = await supabase
+  .from('users')
+  .select('role')
+  .eq('id', user.id)
+  .single();
+
+if (userData.role !== 'super_admin') {
+  throw new Error('Unauthorized');
+}
+\`\`\`
+
+### Check Brand Access
+
+\`\`\`typescript
+const { data: hasAccess } = await supabase
+  .rpc('user_has_brand_access', {
+    _user_id: user.id,
+    _brand_id: brandId
+  });
+\`\`\`
+
+### Conditional UI Rendering
+
+\`\`\`typescript
+{role === 'super_admin' && (
+  <Button onClick={handleDelete}>Delete User</Button>
+)}
+
+{['super_admin', 'manager'].includes(role) && (
+  <AdminPanel />
+)}
+\`\`\`
+
+---
+
+## Troubleshooting
+
+### "New row violates RLS policy"
+
+**Cause**: INSERT policy requires user_id but not provided
+**Solution**: Ensure user_id is set to auth.uid() in insert
+
+\`\`\`typescript
+await supabase.from('table').insert({
+  ...data,
+  user_id: user.id  // Add this!
+});
+\`\`\`
+
+### "Infinite recursion detected"
+
+**Cause**: RLS policy queries same table
+**Solution**: Use SECURITY DEFINER function
+
+### "JWT expired"
+
+**Cause**: Access token expired (1 hour default)
+**Solution**: Supabase client auto-refreshes with refresh token
+
+---
+
+## Related Documentation
+
+- [Database Schema](/adminpanel/documentation?page=architecture/database-schema) - Table structure and relationships
+- [RLS Policies](/adminpanel/documentation?page=database/rls-policies) - Detailed policy documentation
+- [Users Table](/adminpanel/documentation?page=database/tables/users) - User table schema
+
+---
+
+**Last Updated**: 2025-01-09
+**Tags**: #architecture #authentication #authorization #security #rls #roles
+`,
 };
 
 export default function Documentation() {
