@@ -62,14 +62,14 @@ export const useProjectTasks = (projectId?: string) => {
         .from('project_tasks')
         .select(`
           *,
-          projects:project_id (
+          projects!project_id (
             name,
             client_id,
-            clients:client_id (
+            clients!client_id (
               name
             )
           ),
-          assigned_user:assigned_to (
+          users!assigned_to (
             first_name,
             last_name,
             email
@@ -90,6 +90,9 @@ export const useProjectTasks = (projectId?: string) => {
 
       return data as unknown as ProjectTask[];
     },
+    retry: 2,
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
   });
 };
 
@@ -101,14 +104,14 @@ export const useAllProjectTasks = () => {
         .from('project_tasks')
         .select(`
           *,
-          projects:project_id (
+          projects!project_id (
             name,
             client_id,
-            clients:client_id (
+            clients!client_id (
               name
             )
           ),
-          assigned_user:assigned_to (
+          users!assigned_to (
             first_name,
             last_name,
             email
@@ -123,6 +126,9 @@ export const useAllProjectTasks = () => {
 
       return data as unknown as ProjectTask[];
     },
+    retry: 2,
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
   });
 };
 

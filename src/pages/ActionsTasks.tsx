@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useAllProjectTasks } from "@/hooks/useProjectTasks";
 import { TaskCard } from "@/components/tasks/TaskCard";
 import { TaskForm } from "@/components/tasks/TaskForm";
@@ -16,7 +17,7 @@ import { EmptyTasks } from "@/components/empty-states/EmptyTasks";
 export default function ActionsTasks() {
   const [showTaskForm, setShowTaskForm] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
-  const { data: tasks = [], isLoading } = useAllProjectTasks();
+  const { data: tasks = [], isLoading, error } = useAllProjectTasks();
   const { user } = useAuth();
   const { data: eodSubmissions } = useEODSubmissions(user?.id);
 
@@ -45,10 +46,38 @@ export default function ActionsTasks() {
     blocked: tasks.filter(t => t.status === 'blocked')
   };
 
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-96 space-y-4">
+        <AlertCircle className="h-12 w-12 text-destructive" />
+        <div className="text-center">
+          <h3 className="text-lg font-semibold">Unable to Load Tasks</h3>
+          <p className="text-muted-foreground">
+            There was an error loading your tasks. Please try refreshing.
+          </p>
+        </div>
+        <Button onClick={() => window.location.reload()}>
+          Refresh Page
+        </Button>
+      </div>
+    );
+  }
+
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-96">
-        <div className="text-muted-foreground">Loading tasks...</div>
+      <div className="space-y-6">
+        <div className="flex justify-between items-start">
+          <div>
+            <Skeleton className="h-9 w-48 mb-2" />
+            <Skeleton className="h-5 w-96" />
+          </div>
+          <Skeleton className="h-10 w-32" />
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {[...Array(4)].map((_, i) => (
+            <Skeleton key={i} className="h-32" />
+          ))}
+        </div>
       </div>
     );
   }
