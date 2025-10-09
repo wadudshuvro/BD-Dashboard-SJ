@@ -317,6 +317,21 @@ serve(async (req) => {
     if (!response.ok) {
       const errorText = await response.text();
       console.error('OpenAI API error:', response.status, errorText);
+      
+      // Return 410 Gone for expired videos
+      if (response.status === 404 && errorText.includes("no longer available")) {
+        return new Response(
+          JSON.stringify({ 
+            error: "Video has expired. Sora videos are only available for 1 hour after generation.",
+            code: "VIDEO_EXPIRED" 
+          }),
+          { 
+            headers: { ...corsHeaders, "Content-Type": "application/json" }, 
+            status: 410 
+          }
+        );
+      }
+      
       throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
     }
 

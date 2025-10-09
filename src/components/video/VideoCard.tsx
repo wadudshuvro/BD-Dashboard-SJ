@@ -16,7 +16,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
-import { getVideoThumbnail, SoraVideo } from "@/Api/videoApi";
+import { getVideoThumbnail, SoraVideo, isVideoExpired } from "@/Api/videoApi";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -39,6 +39,7 @@ const statusStyles: Record<string, string> = {
   failed: "bg-rose-500/10 text-rose-600 dark:text-rose-300 border border-rose-500/20",
   canceled: "bg-slate-500/10 text-slate-600 dark:text-slate-300 border border-slate-500/20",
   unknown: "bg-muted text-muted-foreground border border-border/50",
+  expired: "bg-slate-500/10 text-slate-600 dark:text-slate-300 border border-slate-500/20",
 };
 
 const formatDuration = (seconds?: number) => {
@@ -70,10 +71,13 @@ const VideoCardComponent = ({
   isDownloading,
   isRemixing,
 }: VideoCardProps) => {
-  const statusClass = statusStyles[video.status] ?? statusStyles.unknown;
+  const expired = isVideoExpired(video);
+  const displayStatus = expired ? "expired" : video.status;
+  const statusClass = statusStyles[displayStatus] ?? statusStyles.unknown;
+  
   const { data: fetchedThumbnail, isLoading: isThumbnailLoading } = useQuery({
     queryKey: ["sora-video-thumbnail", video.id, video.thumbnailUrl],
-    enabled: !video.thumbnailUrl,
+    enabled: !video.thumbnailUrl && !expired,
     queryFn: async () => {
       try {
         const response = await getVideoThumbnail(video.id);
@@ -118,7 +122,7 @@ const VideoCardComponent = ({
             {video.title || `Video ${video.id}`}
           </CardTitle>
           <Badge className={cn("rounded-full px-2.5 py-0.5 text-xs font-medium", statusClass)}>
-            {video.status.charAt(0).toUpperCase() + video.status.slice(1)}
+            {expired ? "Expired" : displayStatus.charAt(0).toUpperCase() + displayStatus.slice(1)}
           </Badge>
         </div>
         <CardDescription className="text-xs text-muted-foreground">
@@ -187,7 +191,7 @@ const VideoCardComponent = ({
         </div>
       </CardContent>
       <CardFooter className="flex flex-wrap items-center justify-between gap-2 border-t border-border/60 bg-muted/40">
-        <Button variant="secondary" size="sm" className="flex-1" onClick={() => onPlay(video)} disabled={isDownloading || isRemixing}>
+        <Button variant="secondary" size="sm" className="flex-1" onClick={() => onPlay(video)} disabled={expired || isDownloading || isRemixing}>
           <Play className="mr-2 h-4 w-4" />
           Play
         </Button>
@@ -196,7 +200,7 @@ const VideoCardComponent = ({
           size="sm"
           className="flex-1"
           onClick={() => onDownload(video)}
-          disabled={isDownloading || isDeleting}
+          disabled={expired || isDownloading || isDeleting}
         >
           {isDownloading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
           Download

@@ -37,6 +37,7 @@ export interface SoraVideo {
   prompt?: string;
   model?: string;
   createdAt?: string;
+  expiresAt?: string;
   durationSeconds?: number;
   url?: string;
   thumbnailUrl?: string;
@@ -49,6 +50,16 @@ export interface SoraVideo {
   inputReferenceName?: string;
   raw?: Record<string, unknown>;
 }
+
+export const isVideoExpired = (video: SoraVideo): boolean => {
+  if (!video.expiresAt) return false;
+  try {
+    const expiresAt = new Date(video.expiresAt);
+    return expiresAt.getTime() < Date.now();
+  } catch {
+    return false;
+  }
+};
 
 export interface VideoMetadata {
   user_id?: string;
@@ -366,6 +377,9 @@ const normalizeVideo = (raw: any): SoraVideo => {
     asNonEmptyString(raw.metadata?.reference_name) ||
     asNonEmptyString(raw.metadata?.input_reference?.name);
 
+  const createdAt = raw.created_at || raw.created || raw.timestamp;
+  const expiresAt = raw.expires_at || (createdAt ? new Date(new Date(createdAt).getTime() + 60 * 60 * 1000).toISOString() : undefined);
+
   return {
     id,
     status: normalizeStatus(raw),
@@ -375,7 +389,8 @@ const normalizeVideo = (raw: any): SoraVideo => {
       asNonEmptyString((metadata as any).prompt) ||
       (typeof raw.prompt === "string" ? raw.prompt : raw.metadata?.prompt),
     model: extractModel(raw),
-    createdAt: raw.created_at || raw.created || raw.timestamp,
+    createdAt,
+    expiresAt,
     durationSeconds: durationSeconds,
     url: extractUrl(raw),
     thumbnailUrl: extractThumbnail(raw),
