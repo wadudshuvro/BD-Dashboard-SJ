@@ -2,12 +2,13 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
 import { documentationIndex, getDocByFile } from "@/lib/documentation";
 import { DocumentationSearch } from "@/components/documentation/DocumentationSearch";
 import { DocSidebar } from "@/components/documentation/DocSidebar";
 import { MarkdownRenderer } from "@/components/documentation/MarkdownRenderer";
 import { TableOfContents } from "@/components/documentation/TableOfContents";
-import { FileText, Calendar, Tag } from "lucide-react";
+import { FileText, Calendar, Tag, Download } from "lucide-react";
 
 // Documentation content will be loaded dynamically
 const documentationContent: Record<string, string> = {
@@ -2040,14 +2041,52 @@ export default function Documentation() {
 
   const currentDocInfo = getDocByFile(selectedDoc);
 
+  const handleDownloadAll = () => {
+    // Combine all documentation content
+    let allContent = "SJ MARKETING AI PLATFORM - COMPLETE DOCUMENTATION\n";
+    allContent += "=".repeat(60) + "\n\n";
+    
+    documentationIndex.forEach((category) => {
+      allContent += `\n${"=".repeat(60)}\n`;
+      allContent += `CATEGORY: ${category.title.toUpperCase()}\n`;
+      allContent += `${"=".repeat(60)}\n\n`;
+      
+      category.items.forEach((item) => {
+        const itemContent = documentationContent[item.file] || "# Documentation Not Found";
+        allContent += `\n${"-".repeat(60)}\n`;
+        allContent += `Document: ${item.title}\n`;
+        allContent += `File: ${item.file}\n`;
+        allContent += `${"-".repeat(60)}\n\n`;
+        allContent += itemContent + "\n\n";
+      });
+    });
+
+    // Create blob and download
+    const blob = new Blob([allContent], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "sj-marketing-ai-documentation.txt";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="container mx-auto py-6 space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold">Developer Documentation</h1>
-        <p className="text-muted-foreground mt-2">
-          Comprehensive guides and API references for SJ Marketing AI platform
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Developer Documentation</h1>
+          <p className="text-muted-foreground mt-2">
+            Comprehensive guides and API references for SJ Marketing AI platform
+          </p>
+        </div>
+        <Button onClick={handleDownloadAll} variant="outline" className="gap-2">
+          <Download className="h-4 w-4" />
+          Download All
+        </Button>
       </div>
 
       {/* Search */}
