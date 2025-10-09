@@ -163,7 +163,7 @@ serve(async (req) => {
 
     // Import company with contacts
     if (action === 'import_company') {
-      const { company, contacts } = await req.json();
+      const { company, contacts } = body;
       const props = company.properties;
 
       // Map HubSpot company to client
