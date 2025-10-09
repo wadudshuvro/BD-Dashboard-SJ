@@ -16,19 +16,6 @@ export interface ProjectTask {
   completed_at?: string;
   created_at: string;
   updated_at: string;
-  // Relations
-  projects?: {
-    name: string;
-    client_id: string;
-    clients?: {
-      name: string;
-    };
-  };
-  assigned_user?: {
-    first_name: string;
-    last_name: string;
-    email: string;
-  };
 }
 
 export interface CreateProjectTaskData {
@@ -60,21 +47,7 @@ export const useProjectTasks = (projectId?: string) => {
     queryFn: async () => {
       let query = supabase
         .from('project_tasks')
-        .select(`
-          *,
-          projects!project_id (
-            name,
-            client_id,
-            clients!client_id (
-              name
-            )
-          ),
-          users!assigned_to (
-            first_name,
-            last_name,
-            email
-          )
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
       if (projectId) {
@@ -88,7 +61,7 @@ export const useProjectTasks = (projectId?: string) => {
         throw error;
       }
 
-      return data as unknown as ProjectTask[];
+      return data as ProjectTask[];
     },
     retry: 2,
     staleTime: 30000,
@@ -102,21 +75,7 @@ export const useAllProjectTasks = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('project_tasks')
-        .select(`
-          *,
-          projects!project_id (
-            name,
-            client_id,
-            clients!client_id (
-              name
-            )
-          ),
-          users!assigned_to (
-            first_name,
-            last_name,
-            email
-          )
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -124,7 +83,7 @@ export const useAllProjectTasks = () => {
         throw error;
       }
 
-      return data as unknown as ProjectTask[];
+      return data as ProjectTask[];
     },
     retry: 2,
     staleTime: 30000,

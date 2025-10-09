@@ -117,14 +117,9 @@ export function TaskCard({ task, onEdit }: TaskCardProps) {
           </Badge>
         </div>
 
-        {task.projects && (
-          <div className="text-xs text-muted-foreground">
-            <strong>Project:</strong> {task.projects.name}
-            {task.projects.clients && (
-              <span> • <strong>Client:</strong> {task.projects.clients.name}</span>
-            )}
-          </div>
-        )}
+        <div className="text-xs text-muted-foreground">
+          <strong>Project:</strong> <Badge variant="outline" className="text-xs">Unknown Project</Badge>
+        </div>
 
         <div className="flex items-center justify-between text-xs text-muted-foreground">
           <div className="flex items-center gap-4">
@@ -141,10 +136,10 @@ export function TaskCard({ task, onEdit }: TaskCardProps) {
               </div>
             )}
           </div>
-          {task.assigned_user && (
+          {task.assigned_to && (
             <div className="flex items-center gap-1">
               <User className="h-3 w-3" />
-              <span>{task.assigned_user.first_name} {task.assigned_user.last_name}</span>
+              <span>Assigned</span>
             </div>
           )}
         </div>
