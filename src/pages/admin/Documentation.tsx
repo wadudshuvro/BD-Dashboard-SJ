@@ -122,6 +122,129 @@ To begin development, see:
 - [Database Schema](../architecture/database-schema) for data structure
 `,
 
+  "getting-started/tech-stack": `# Tech Stack Deep Dive
+
+> **Last Updated**: 2025-01-09
+> **Tags**: stack, architecture, dependencies, tooling
+
+## Overview
+
+The SJ Marketing AI Platform combines a modern React frontend with Supabase-backed services. This page inventories every layer of the stack, the rationale for each tool, and how the pieces interoperate during development and deployment.
+
+## Technology Map
+
+| Layer | Tools & Versions | Purpose |
+| --- | --- | --- |
+| Frontend Framework | React 18.3.1, React DOM 18.3.1 | Component rendering, concurrent features |
+| Language & Types | TypeScript 5.8.3 | Static typing, build-time safety |
+| Bundler / Dev Server | Vite 5.4.19 | Fast HMR, optimized builds |
+| Styling | Tailwind CSS 3.4.17, tailwind-merge 2.6.0, tailwindcss-animate 1.0.7 | Utility-first styling, class consolidation, animation presets |
+| Component Libraries | shadcn/ui components (Radix UI primitives 1.x), lucide-react 0.462.0 | Accessible UI primitives, iconography |
+| Routing | React Router DOM 6.30.1 | Client-side navigation |
+| Data Fetching & State | @tanstack/react-query 5.83.0 | Query caching, mutation orchestration |
+| Forms & Validation | react-hook-form 7.61.1, @hookform/resolvers 3.10.0, zod 3.25.76 | Declarative form handling, schema validation |
+| Markdown Rendering | react-markdown 9.1.0, remark-gfm 4.0.1, rehype-raw 7.0.0 | Rich text documentation |
+| Charts & Visuals | recharts 2.15.4, embla-carousel-react 8.6.0 | KPI charts, carousels |
+| Backend SDK | @supabase/supabase-js 2.57.4 | Database, auth, storage interactions |
+| Edge Runtime | Supabase Edge Functions (Deno) | Server-side logic, API proxying |
+| Quality Tooling | ESLint 9.32.0, @eslint/js 9.32.0, typescript-eslint 8.38.0 | Linting and type-aware rules |
+| Build Tooling | TypeScript compiler, Vite build, @vitejs/plugin-react-swc 3.11.0 | Production builds, SWC-powered transforms |
+| Post-processing | PostCSS 8.5.6, autoprefixer 10.4.21 | CSS compatibility |
+
+> 📌 **Reference**: Full dependency manifest lives in \`package.json\`.
+
+## Frontend Composition
+
+The frontend layers React 18 with TypeScript for fully typed components. TanStack Query drives state management by caching Supabase data and coordinating background revalidation. Tailwind CSS and shadcn/ui provide a composable design system, while Radix primitives guarantee accessibility.
+
+### Component Dependency Graph
+
+\`\`\`mermaid
+graph TD
+    A[Vite Dev Server] --> B[React 18 App]
+    B --> C[TanStack Query Client]
+    C --> D[Supabase SDK]
+    B --> E[React Router DOM]
+    B --> F[shadcn/ui + Radix]
+    F --> G[Tailwind Tokens]
+    B --> H[react-hook-form + zod]
+\`\`\`
+
+### Vite & TypeScript Configuration
+
+Vite is tuned through `vite.config.ts` to apply the React SWC plugin for lightning-fast transforms:
+
+\`\`\`ts
+// vite.config.ts
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react-swc";
+
+export default defineConfig({
+  plugins: [react()],
+  resolve: {
+    alias: {
+      "@": "/src",
+    },
+  },
+});
+\`\`\`
+
+TypeScript paths mirror Vite aliases via `tsconfig.*` files, ensuring editors and builds share the same module resolution.
+
+## Backend & Data Layer
+
+- **Supabase PostgreSQL** powers persistent storage with row level security and real-time subscriptions.
+- **Edge Functions** written in Deno encapsulate privileged operations, invoked from `supabase/functions/*`.
+- **Row Level Security (RLS)** policies enforce tenant isolation and role-based access.
+
+### Supabase Interaction Flow
+
+\`\`\`mermaid
+sequenceDiagram
+    participant UI as React Component
+    participant RQ as TanStack Query
+    participant SB as Supabase JS Client
+    participant DB as Postgres (RLS)
+    UI->>RQ: useQuery(fetchBrands)
+    RQ->>SB: supabase.from('brands').select()
+    SB->>DB: Execute with row level policies
+    DB-->>SB: Filtered rows
+    SB-->>RQ: Response payload
+    RQ-->>UI: Cached data + revalidation hooks
+\`\`\`
+
+## State Management Patterns
+
+TanStack Query is the canonical state layer. Hooks such as `useAdminUsers` and `useBrandKPIs` leverage query caching, background refetching, and mutation lifecycle callbacks. For local component state, React hooks (`useState`, `useReducer`) remain lightweight alternatives.
+
+## Form Handling
+
+`react-hook-form` pairs with `zod` via `@hookform/resolvers` for schema-first validation. Example pattern:
+
+\`\`\`tsx
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+
+const schema = z.object({ email: z.string().email() });
+
+const form = useForm({ resolver: zodResolver(schema) });
+\`\`\`
+
+## Quality & Developer Experience
+
+- **ESLint** enforces repository conventions (`eslint.config.js`).
+- **TypeScript compiler** (`tsc --noEmit`) ensures type safety.
+- **Preconfigured scripts**: `npm run dev`, `npm run build`, `npm run lint`, `npm run preview`.
+
+## Cross-References
+
+- [Project Overview](./overview)
+- [Development Setup](./setup)
+- [Supabase Architecture](../architecture/database-schema)
+- [RLS Policies](../database/rls-policies)
+`,
+
   "getting-started/setup": `# Development Setup
 
 > **Last Updated**: 2025-01-09
@@ -2025,6 +2148,306 @@ await supabase.from('table').insert({
 
 **Last Updated**: 2025-01-09
 **Tags**: #architecture #authentication #authorization #security #rls #roles
+`,
+
+  "database/tables/users": `# Users Table Reference
+
+> **Last Updated**: 2025-01-09
+> **Tags**: database, users, auth, rls, relationships
+
+## Table Summary
+
+The \`users\` table extends Supabase auth identities with application-specific metadata and role assignments. Profiles are synchronized via the \`handle_new_auth_user()\` trigger to ensure that every authenticated account has a matching row.
+
+## Schema
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| \`id\` | uuid (PK, FK → auth.users) | Primary identifier; matches Supabase auth UID |
+| \`email\` | citext | Unique, case-insensitive email |
+| \`full_name\` | text | Display name composed of first/last name |
+| \`role\` | app_role enum | One of \`super_admin\`, \`manager\`, \`pm\`, \`brand_manager\`, \`user\` |
+| \`is_marketing\` | boolean | Flags marketing team eligibility |
+| \`status\` | text | \`active\`, \`inactive\`, \`invited\`, etc. |
+| \`avatar_url\` | text | Public storage URL |
+| \`created_at\` | timestamptz | Defaults to \`now()\` |
+| \`updated_at\` | timestamptz | Managed by trigger \`set_updated_at\` |
+
+## Relationships
+
+- **user_brands**: maps users to brand access levels (owner/member/viewer).
+- **user_permissions**: module-level access flags.
+- **projects**: \`projects.project_manager\` references \`users.id\`.
+- **eod_submissions**: each submission is owned by \`user_id\`.
+- **ai_agent_runs**: \`executed_by\` ties execution history back to a user.
+
+### Entity Diagram
+
+\`\`\`mermaid
+erDiagram
+  users ||--o{ user_brands : membership
+  users ||--o{ user_permissions : scoped_access
+  users ||--o{ projects : manages
+  users ||--o{ eod_submissions : submits
+  users ||--o{ ai_agent_runs : executes
+\`\`\`
+
+## RLS Policies
+
+1. **Self-access policy** — allows users to view/update their own record.
+
+   \`\`\`sql
+   create policy "Users can manage themselves"
+   on public.users
+   for select using (id = auth.uid())
+   with check (id = auth.uid());
+   \`\`\`
+
+2. **Manager/Admin policy** — grants elevated roles access to all profiles.
+
+   \`\`\`sql
+   create policy "Managers view all users"
+   on public.users
+   for select using (
+     exists (
+       select 1 from public.users u
+       where u.id = auth.uid()
+         and u.role in ('super_admin', 'manager')
+     )
+   );
+   \`\`\`
+
+## Security Automation
+
+The \`handle_new_auth_user()\` function provisions profile rows when a new account is created.
+
+\`\`\`sql
+create function handle_new_auth_user()
+returns trigger
+language plpgsql security definer
+set search_path = public as $$
+begin
+  insert into public.users (id, email, status)
+  values (new.id, new.email, 'invited')
+  on conflict (id) do nothing;
+  return new;
+end;
+$$;
+
+create trigger on_auth_user_created
+after insert on auth.users
+for each row execute procedure handle_new_auth_user();
+\`\`\`
+
+## Common Queries
+
+- **Fetch own profile**
+
+  \`\`\`sql
+  select id, email, full_name, role, status
+  from public.users
+  where id = auth.uid();
+  \`\`\`
+
+- **List all marketing-enabled managers**
+
+  \`\`\`sql
+  select id, full_name
+  from public.users
+  where is_marketing
+    and role in ('manager', 'super_admin')
+  order by full_name;
+  \`\`\`
+
+- **Assign role**
+
+  \`\`\`sql
+  update public.users
+  set role = 'manager', updated_at = now()
+  where id = :user_id;
+  \`\`\`
+
+## Code Usage
+
+### \`useAuth\` Profile Loading
+
+\`\`\`tsx
+// src/hooks/useAuth.tsx
+const { data: userProfile, error } = await supabase
+  .from('users')
+  .select('*')
+  .eq('id', authUser.id)
+  .maybeSingle();
+\`\`\`
+
+### \`useAdminUsers\` Admin Fetching
+
+\`\`\`tsx
+// src/hooks/useAdminUsers.tsx
+const { data } = await axiosPrivate.get<UsersResponse>('/admin-users', {
+  params,
+});
+setUsers(data.users);
+\`\`\`
+
+These hooks rely on RLS to scope data and on edge functions (\`admin-users\`) to handle privileged mutations.
+
+## Cross-References
+
+- [Authentication Architecture](../../architecture/authentication)
+- [RLS Policies Guide](../../database/rls-policies)
+- [Brands Table](../tables/brands)
+`,
+
+  "database/tables/brands": `# Brands Table Reference
+
+> **Last Updated**: 2025-01-09
+> **Tags**: database, brands, ownership, rls, analytics
+
+## Table Summary
+
+Brands anchor client workstreams, analytics connections, and KPI tracking. Ownership metadata and team member lists dictate access patterns across dashboards.
+
+## Schema
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| \`id\` | uuid (PK) | Generated via \`gen_random_uuid()\` |
+| \`name\` | text | Human-friendly brand name |
+| \`owner_id\` | uuid (FK → users) | Primary brand owner |
+| \`co_owner_id\` | uuid (FK → users) | Optional secondary owner |
+| \`team_members\` | uuid[] | Array of users with access |
+| \`logo_url\` | text | Storage reference |
+| \`description\` | text | Markdown-friendly summary |
+| \`status\` | text | \`active\`, \`paused\`, \`archived\` |
+| \`created_at\` | timestamptz | Defaults to \`now()\` |
+| \`updated_at\` | timestamptz | Managed by \`set_updated_at\` trigger |
+
+## Relationships
+
+- **user_brands**: join table for granular permissions (viewer/member/owner).
+- **brand_kpis**: KPI definitions scoped per brand.
+- **brand_analytics_integrations**: OAuth/API configuration per platform.
+- **projects**: projects reference \`brand_id\` for reporting.
+
+### Relationship Diagram
+
+\`\`\`mermaid
+erDiagram
+  brands ||--o{ user_brands : access
+  brands ||--o{ brand_kpis : metrics
+  brands ||--o{ brand_analytics_integrations : integrations
+  brands ||--o{ projects : initiatives
+  users ||--o{ user_brands : membership
+\`\`\`
+
+## RLS Policies
+
+Policies rely on the \`user_has_brand_access()\` helper:
+
+\`\`\`sql
+create policy "Brand access"
+on public.brands
+for select using (
+  user_has_brand_access(auth.uid(), id)
+  or exists (
+    select 1 from public.users u
+    where u.id = auth.uid()
+      and u.role in ('super_admin', 'manager')
+  )
+);
+\`\`\`
+
+Mutations require ownership checks:
+
+\`\`\`sql
+create policy "Brand owners manage brand"
+on public.brands
+for all using (
+  auth.uid() = owner_id
+  or auth.uid() = co_owner_id
+  or user_has_brand_access(auth.uid(), id)
+);
+\`\`\`
+
+## Team Member Management
+
+1. Owners assign collaborators by updating \`team_members[]\` or via \`user_brands\` rows.
+2. Edge functions validate permissions using \`user_has_brand_access()\` before persisting changes.
+3. Hooks such as \`useAdminBrands\` and \`useBrandKPIs\` refresh TanStack Query caches after mutations to keep UI in sync.
+
+### Example Access Workflow
+
+\`\`\`mermaid
+sequenceDiagram
+    participant Admin
+    participant UI as Admin UI
+    participant EF as Edge Function (admin-brands)
+    participant DB as brands
+    Admin->>UI: Add team member
+    UI->>EF: PUT /admin-brands?id=:brandId
+    EF->>DB: update brands set team_members = array_append(...)
+    DB-->>EF: Row updated (RLS enforced)
+    EF-->>UI: Success payload
+    UI-->>UI: refetch via useAdminBrands()
+\`\`\`
+
+## Example Queries
+
+- **List accessible brands for current user**
+
+  \`\`\`sql
+  select b.*
+  from public.brands b
+  where user_has_brand_access(auth.uid(), b.id);
+  \`\`\`
+
+- **Attach analytics integration**
+
+  \`\`\`sql
+  insert into public.brand_analytics_integrations (brand_id, provider, credentials)
+  values (:brand_id, 'google_analytics', :encrypted_payload);
+  \`\`\`
+
+- **Promote co-owner**
+
+  \`\`\`sql
+  update public.brands
+  set co_owner_id = :user_id
+  where id = :brand_id;
+  \`\`\`
+
+## Code Usage
+
+### \`useAdminBrands\` Edge Function Invocation
+
+\`\`\`tsx
+// src/hooks/useAdminBrands.tsx
+const response = await supabase.functions.invoke('admin-brands', {
+  method: 'GET',
+  headers: {
+    Authorization: `Bearer ${session.session.access_token}`,
+  },
+});
+setBrands(response.data || []);
+\`\`\`
+
+### \`useBrandKPIs\` Brand-Scoped KPIs
+
+\`\`\`tsx
+// src/hooks/useBrandKPIs.tsx
+const { data, error } = await supabase
+  .from('brand_kpis')
+  .select('*')
+  .order('display_order');
+setKpis(data || []);
+\`\`\`
+
+## Cross-References
+
+- [Users Table](../tables/users)
+- [KPI Architecture](../../analytics/kpi-architecture)
+- [Integrations Overview](../../integrations/overview)
 `,
 };
 
