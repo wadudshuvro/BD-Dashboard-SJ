@@ -1075,7 +1075,7 @@ The N8n workflow delivers a JSON document that matches \`SyncPayload\`:
 \`\`\`json
 {
   "sync_date": "2025-01-08",
-  "webhook_secret": "${EOD_WEBHOOK_SECRET}",
+  "webhook_secret": "\${EOD_WEBHOOK_SECRET}",
   "tasks": [
     {
       "external_task_id": "AC-12345",
@@ -1415,7 +1415,7 @@ const response = await fetch(
   {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${hubspotToken}`,
+      'Authorization': \`Bearer \${hubspotToken}\`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
@@ -1516,7 +1516,7 @@ If \`date\` is omitted, the function defaults to the current UTC date.
 const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
   method: 'POST',
   headers: {
-    'Authorization': `Bearer ${openaiKey}`,
+    'Authorization': \`Bearer \${openaiKey}\`,
     'Content-Type': 'application/json',
   },
   body: JSON.stringify({
@@ -1583,11 +1583,11 @@ Individual summaries are stored in \`team_daily_summaries.ai_summary\` as JSON. 
 ## Extensibility
 
 - Adjust the prompt template to include KPI targets or mood indicators.
-- Persist additional metadata (e.g., \`summary_version\`, \`qa_status\`) alongside \`ai_summary\` in \`team_daily_summaries\`.
+- Persist additional metadata (e.g., \\\`summary_version\\\`, \\\`qa_status\\\`) alongside \\\`ai_summary\\\` in \\\`team_daily_summaries\\\`.
 - Pipe summaries into Slack or email notifications once stored.
-`
+\`,
 
-  "architecture/database-schema": `# Database Schema
+  "architecture/database-schema": \`# Database Schema
 
 > **Last Updated**: 2025-01-09
 > **Tags**: database, schema, architecture, ERD
@@ -2355,9 +2355,9 @@ Use \`status\` fields instead of hard deletes.
 - [Users Table](../../database/tables/users)
 - [Brands Table](../../database/tables/brands)
 - [Database Migrations](../../deployment/database-migrations)
-`,
+\`,
 
-  "architecture/auth-flow": `# Authentication & Authorization
+  "architecture/auth-flow": \`# Authentication & Authorization
 
 > **Last Updated**: 2025-01-09
 > **Tags**: architecture, authentication, authorization, security, rls, roles
@@ -2907,9 +2907,9 @@ await supabase.from('table').insert({
 
 **Last Updated**: 2025-01-09
 **Tags**: #architecture #authentication #authorization #security #rls #roles
-`,
+\`,
 
-  "database/tables/users": `# Users Table Reference
+  "database/tables/users": \`# Users Table Reference
 
 > **Last Updated**: 2025-01-09
 > **Tags**: database, users, auth, rls, relationships
@@ -3056,9 +3056,9 @@ These hooks rely on RLS to scope data and on edge functions (\`admin-users\`) to
 - [Authentication Architecture](../../architecture/authentication)
 - [RLS Policies Guide](../../database/rls-policies)
 - [Brands Table](../tables/brands)
-`,
+\`,
 
-  "database/tables/brands": `# Brands Table Reference
+  "database/tables/brands": \`# Brands Table Reference
 
 > **Last Updated**: 2025-01-09
 > **Tags**: database, brands, ownership, rls, analytics

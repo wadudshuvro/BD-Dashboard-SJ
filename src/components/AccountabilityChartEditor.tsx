@@ -17,7 +17,7 @@ export function AccountabilityChartEditor({ userId, isEditable = true }: Account
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [editForm, setEditForm] = useState({
-    serial_number: items.length + 1,
+    serial_number: 1,
     type_of_work: '',
     responsibilities: '',
   });
@@ -52,7 +52,7 @@ export function AccountabilityChartEditor({ userId, isEditable = true }: Account
     setEditingId(null);
     setIsAddingNew(false);
     setEditForm({
-      serial_number: items.length + 1,
+      serial_number: 1,
       type_of_work: '',
       responsibilities: '',
     });
@@ -67,8 +67,9 @@ export function AccountabilityChartEditor({ userId, isEditable = true }: Account
   const handleAddNew = () => {
     setIsAddingNew(true);
     setEditingId(null);
+    const nextSerialNumber = items.length > 0 ? Math.max(...items.map(i => i.serial_number)) + 1 : 1;
     setEditForm({
-      serial_number: items.length + 1,
+      serial_number: nextSerialNumber,
       type_of_work: '',
       responsibilities: '',
     });
