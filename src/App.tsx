@@ -14,6 +14,7 @@ import PMDashboard from "./pages/PMDashboard";
 import ManagerDashboard from "./pages/ManagerDashboard";
 import Reports from "./pages/Reports";
 import Login from "./pages/Login";
+import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 import Unauthorized from "./pages/Unauthorized";
 import ClientManagement from "@/pages/ClientManagement";
@@ -77,6 +78,7 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/unauthorized" element={<Unauthorized />} />
             <Route path="/" element={<DashboardRedirect />} />
             <Route path="/dashboard" element={<DashboardRedirect />} />
