@@ -13,6 +13,7 @@ import { AgentGrid } from "@/features/collabai/AgentGrid";
 import { supabase } from "@/integrations/supabase/client";
 import { User, Bot, Settings, TestTube, Zap, ClipboardList } from "lucide-react";
 import { AccountabilityChartEditor } from "@/components/AccountabilityChartEditor";
+import { AccountabilityChartImporter } from "@/components/AccountabilityChartImporter";
 
 export default function UserProfile() {
   const { user } = useAuth();
@@ -181,7 +182,10 @@ export default function UserProfile() {
         </TabsContent>
 
         <TabsContent value="accountability">
-          <AccountabilityChartEditor userId={user?.id || ''} isEditable={true} />
+          <div className="space-y-6">
+            <AccountabilityChartEditor userId={user?.id || ''} isEditable={true} />
+            <AccountabilityChartImporter />
+          </div>
         </TabsContent>
 
         <TabsContent value="integrations">

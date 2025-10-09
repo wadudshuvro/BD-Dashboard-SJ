@@ -24,7 +24,9 @@ import {
 import { getUserById, getBrandById } from "@/data/mockData";
 import { UserPermissionDialog } from "@/components/admin/UserPermissionDialog";
 import { AccountabilityChartEditor } from "@/components/AccountabilityChartEditor";
+import { AccountabilityChartImporter } from "@/components/AccountabilityChartImporter";
 import { useState } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const UserDetail = () => {
   const { userId } = useParams<{ userId: string }>();
@@ -259,8 +261,21 @@ const UserDetail = () => {
         </CardContent>
       </Card>
 
-      {/* Accountability Chart */}
-      <AccountabilityChartEditor userId={user.id} isEditable={false} />
+      {/* Accountability Chart Section */}
+      <Tabs defaultValue="view" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="view">View Chart</TabsTrigger>
+          <TabsTrigger value="import">Import from CSV</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="view">
+          <AccountabilityChartEditor userId={user.id} isEditable={false} />
+        </TabsContent>
+        
+        <TabsContent value="import">
+          <AccountabilityChartImporter />
+        </TabsContent>
+      </Tabs>
 
       {/* Permission Dialog */}
       <UserPermissionDialog
