@@ -31,47 +31,28 @@ async function getIntegration(integrationId: string): Promise<IntegrationRow> {
 }
 
 export async function fetchAgentsByIntegration(integrationId: string) {
-  const integ = await getIntegration(integrationId);
-  const res = await fetch(
-    `${integ.base_url.replace(/\/+$/, "")}/api/assistants/n8n/assistant-list?page=1&pageSize=50`,
-    { headers: { Authorization: `Bearer ${integ.api_key_encrypted}` } }
-  );
-  if (!res.ok) throw new Error(`Agents load failed: ${res.status}`);
-  const json = await res.json();
-  return (json.assistants ?? []).map((a: any) => ({
-    id: a.assistant_id,
+  const { data, error } = await supabase
+    .from('collabai_agents')
+    .select('*')
+    .eq('integration_id', integrationId)
+    .eq('is_active', true)
+    .order('name');
+  
+  if (error) throw error;
+  return (data || []).map((a: any) => ({
+    id: a.id,
+    agent_id: a.agent_id,
     name: a.name,
-    type: a.assistantTypes || a.category || "General",
-    active: !!a.is_active,
+    type: a.agent_type || "General",
+    active: a.is_active,
     description: a.description || "",
   }));
 }
 
-export async function chatWithAgent(integrationId: string, agentId: string, message: string) {
-  const integ = await getIntegration(integrationId);
-  const res = await fetch(
-    `${integ.base_url.replace(/\/+$/, "")}/api/assistants/n8n/${agentId}/chats`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${integ.api_key_encrypted}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ message }),
-    }
-  );
-  if (!res.ok) throw new Error(`Chat failed: ${res.status}`);
-  const data = await res.json();
-
-  // Optional, non-blocking transcript
-  try {
-    await supabase.from("collabai_chats").insert({
-      integration_id: integrationId,
-      agent_id: agentId,
-      user_prompt: message,
-      ai_response: data?.reply ?? null,
-    });
-  } catch {}
-
+export async function syncAgents(integrationId: string) {
+  const { data, error } = await supabase.functions.invoke('collabai-manage', {
+    body: { action: 'sync_agents', integration_id: integrationId }
+  });
+  if (error) throw error;
   return data;
 }

@@ -795,37 +795,52 @@ export type Database = {
         }
         Relationships: []
       }
-      collabai_chats: {
+      collabai_agents: {
         Row: {
           agent_id: string
-          ai_response: string | null
+          agent_type: string | null
           created_at: string | null
+          description: string | null
           id: string
           integration_id: string
-          status: string | null
-          user_prompt: string
+          is_active: boolean | null
+          last_synced_at: string | null
+          metadata: Json | null
+          name: string
+          sample_questions: Json | null
+          updated_at: string | null
         }
         Insert: {
           agent_id: string
-          ai_response?: string | null
+          agent_type?: string | null
           created_at?: string | null
+          description?: string | null
           id?: string
           integration_id: string
-          status?: string | null
-          user_prompt: string
+          is_active?: boolean | null
+          last_synced_at?: string | null
+          metadata?: Json | null
+          name: string
+          sample_questions?: Json | null
+          updated_at?: string | null
         }
         Update: {
           agent_id?: string
-          ai_response?: string | null
+          agent_type?: string | null
           created_at?: string | null
+          description?: string | null
           id?: string
           integration_id?: string
-          status?: string | null
-          user_prompt?: string
+          is_active?: boolean | null
+          last_synced_at?: string | null
+          metadata?: Json | null
+          name?: string
+          sample_questions?: Json | null
+          updated_at?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "collabai_chats_integration_id_fkey"
+            foreignKeyName: "collabai_agents_integration_id_fkey"
             columns: ["integration_id"]
             isOneToOne: false
             referencedRelation: "collabai_integrations"
@@ -835,29 +850,35 @@ export type Database = {
       }
       collabai_integrations: {
         Row: {
+          agents_count: number | null
           api_key_encrypted: string
           base_url: string
           created_at: string | null
           id: string
           is_active: boolean | null
+          last_sync_at: string | null
           updated_at: string | null
           user_id: string
         }
         Insert: {
+          agents_count?: number | null
           api_key_encrypted: string
           base_url: string
           created_at?: string | null
           id?: string
           is_active?: boolean | null
+          last_sync_at?: string | null
           updated_at?: string | null
           user_id: string
         }
         Update: {
+          agents_count?: number | null
           api_key_encrypted?: string
           base_url?: string
           created_at?: string | null
           id?: string
           is_active?: boolean | null
+          last_sync_at?: string | null
           updated_at?: string | null
           user_id?: string
         }

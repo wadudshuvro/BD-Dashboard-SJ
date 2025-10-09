@@ -52,7 +52,7 @@ Deno.serve(async (req) => {
 
     if (req.method === 'POST') {
       const body = await req.json();
-      const { action, apiKey, baseUrl } = body;
+      const { action, apiKey, baseUrl, integration_id } = body;
 
       // Get the global base URL setting (set by admin)
       let globalBaseUrl = 'https://api.collabai.com'; // Default fallback
@@ -186,6 +186,108 @@ Deno.serve(async (req) => {
 
         console.log('[collabai-manage] Integration saved successfully');
         return new Response(JSON.stringify({ ok: true }), { headers: corsHeaders });
+      }
+
+      if (action === 'sync_agents') {
+        if (!integration_id) {
+          return new Response(JSON.stringify({ ok: false, error: 'Integration ID required' }), 
+            { status: 400, headers: corsHeaders });
+        }
+
+        // Get the integration details
+        const { data: integration, error: integrationError } = await client
+          .from('collabai_integrations')
+          .select('api_key_encrypted, base_url')
+          .eq('id', integration_id)
+          .eq('user_id', userId)
+          .single();
+
+        if (integrationError || !integration) {
+          console.error('[collabai-manage] Integration not found:', integrationError);
+          return new Response(JSON.stringify({ ok: false, error: 'Integration not found' }), 
+            { status: 404, headers: corsHeaders });
+        }
+
+        // Fetch agents from CollabAI API
+        try {
+          const agentsUrl = `${integration.base_url.replace(/\/+$/, '')}/api/assistants/n8n/assistant-list?page=1&pageSize=100`;
+          console.log('[collabai-manage] Fetching agents from:', agentsUrl);
+          
+          const response = await fetch(agentsUrl, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${integration.api_key_encrypted}`,
+              'Content-Type': 'application/json'
+            }
+          });
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            console.error('[collabai-manage] Failed to fetch agents:', response.status, errorText);
+            throw new Error(`Failed to fetch agents (${response.status})`);
+          }
+
+          const data = await response.json();
+          const agents = data.assistants || [];
+          console.log('[collabai-manage] Fetched', agents.length, 'agents');
+
+          // Prepare agents for upsert
+          const agentsToUpsert = agents.map((agent: any) => ({
+            integration_id: integration_id,
+            agent_id: agent.assistant_id,
+            name: agent.name || 'Unnamed Agent',
+            description: agent.description || '',
+            agent_type: agent.assistantTypes || agent.category || 'General',
+            is_active: !!agent.is_active,
+            sample_questions: agent.sample_questions || [],
+            metadata: {
+              category: agent.category,
+              model: agent.model,
+              created_at: agent.created_at
+            },
+            last_synced_at: new Date().toISOString()
+          }));
+
+          // Upsert agents (insert or update on conflict)
+          const { error: upsertError } = await client
+            .from('collabai_agents')
+            .upsert(agentsToUpsert, { 
+              onConflict: 'integration_id,agent_id',
+              ignoreDuplicates: false 
+            });
+
+          if (upsertError) {
+            console.error('[collabai-manage] Error upserting agents:', upsertError);
+            throw upsertError;
+          }
+
+          // Update integration with sync info
+          const { error: updateError } = await client
+            .from('collabai_integrations')
+            .update({
+              last_sync_at: new Date().toISOString(),
+              agents_count: agents.length
+            })
+            .eq('id', integration_id);
+
+          if (updateError) {
+            console.error('[collabai-manage] Error updating integration:', updateError);
+          }
+
+          console.log('[collabai-manage] Sync completed successfully');
+          return new Response(JSON.stringify({ 
+            ok: true, 
+            synced: agents.length,
+            message: `Successfully synced ${agents.length} agents`
+          }), { headers: corsHeaders });
+
+        } catch (error) {
+          console.error('[collabai-manage] Sync error:', error);
+          return new Response(JSON.stringify({ 
+            ok: false, 
+            error: error instanceof Error ? error.message : 'Sync failed' 
+          }), { status: 500, headers: corsHeaders });
+        }
       }
 
       if (action === 'save_base_url' && baseUrl) {

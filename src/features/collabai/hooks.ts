@@ -1,5 +1,5 @@
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { getActiveIntegration, fetchAgentsByIntegration, chatWithAgent } from "./api";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { getActiveIntegration, fetchAgentsByIntegration, syncAgents } from "./api";
 import { useAuth } from "@/hooks/useAuth";
 
 export function useCollabAIIntegration() {
@@ -15,13 +15,24 @@ export function useCollabAIAgents(integrationId?: string) {
   return useQuery({
     queryKey: ["collab:agents", integrationId],
     queryFn: async () => (integrationId ? fetchAgentsByIntegration(integrationId) : []),
-    enabled: !!integrationId
+    enabled: !!integrationId,
+    staleTime: 5 * 60 * 1000 // 5 minutes - data is now local
   });
 }
 
-export function useCollabAIChat() {
+export function useSyncCollabAIAgents() {
+  const queryClient = useQueryClient();
+  
   return useMutation({
-    mutationFn: ({ integrationId, agentId, message }: { integrationId: string; agentId: string; message: string }) =>
-      chatWithAgent(integrationId, agentId, message)
+    mutationFn: ({ integrationId }: { integrationId: string }) =>
+      syncAgents(integrationId),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ 
+        queryKey: ['collab:agents', variables.integrationId] 
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: ['collab:integration'] 
+      });
+    }
   });
 }

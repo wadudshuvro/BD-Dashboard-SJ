@@ -1,25 +1,21 @@
 import { useState } from "react";
-import { useCollabAIIntegration, useCollabAIAgents, useCollabAIChat } from "@/features/collabai/hooks";
+import { useCollabAIIntegration, useCollabAIAgents, useSyncCollabAIAgents } from "@/features/collabai/hooks";
 import { AgentGrid } from "@/features/collabai/AgentGrid";
-import { ChatPanel } from "@/features/collabai/ChatPanel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Bot, Settings, TestTube, Search } from "lucide-react";
+import { Bot, Settings, TestTube, Search, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 export default function MyAgentsPage() {
   const { toast } = useToast();
   const { data: integration } = useCollabAIIntegration();
   const { data: agents = [], isLoading } = useCollabAIAgents(integration?.id);
-  const chat = useCollabAIChat();
+  const syncMutation = useSyncCollabAIAgents();
 
-  const [open, setOpen] = useState(false);
-  const [agent, setAgent] = useState<any | null>(null);
-  const [messages, setMessages] = useState<{ role: "user" | "assistant"; content: string }[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   
   // Configuration state
@@ -33,28 +29,26 @@ export default function MyAgentsPage() {
     agent.description?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleTry = (a: any) => { 
-    setAgent(a); 
-    setOpen(true); 
-    setMessages([]); 
+  const handleTry = (agent: any) => {
+    const chatUrl = `https://collabai.buildyourai.consulting/agents/${agent.agent_id}`;
+    window.open(chatUrl, '_blank', 'noopener,noreferrer');
   };
 
-  const handleSend = async (text: string) => {
-    if (!integration?.id || !agent?.id) return;
-    setMessages((m) => [...m, { role: "user", content: text }]);
+  const handleSync = async () => {
+    if (!integration?.id) return;
     try {
-      const res = await chat.mutateAsync({ 
-        integrationId: integration.id, 
-        agentId: agent.id, 
-        message: text 
+      const result = await syncMutation.mutateAsync({ 
+        integrationId: integration.id 
       });
-      const reply = res?.reply ?? JSON.stringify(res);
-      setMessages((m) => [...m, { role: "assistant", content: reply }]);
-    } catch (e: any) {
       toast({ 
-        title: "Chat failed", 
-        description: e.message, 
-        variant: "destructive" 
+        title: 'Sync Complete', 
+        description: `Synced ${result.synced || 0} agents successfully!` 
+      });
+    } catch (error: any) {
+      toast({ 
+        title: 'Sync Failed', 
+        description: error.message || 'Unable to sync agents', 
+        variant: 'destructive' 
       });
     }
   };
@@ -186,10 +180,21 @@ export default function MyAgentsPage() {
             Manage and interact with your CollabAI agents
           </p>
         </div>
-        <Badge variant="secondary" className="flex items-center gap-1">
-          <div className="h-2 w-2 bg-green-500 rounded-full"></div>
-          Connected
-        </Badge>
+        <div className="flex items-center gap-3">
+          <Badge variant="secondary" className="flex items-center gap-1">
+            <div className="h-2 w-2 bg-green-500 rounded-full"></div>
+            Connected
+          </Badge>
+          <Button
+            onClick={handleSync}
+            disabled={syncMutation.isPending}
+            variant="outline"
+            className="flex items-center gap-2"
+          >
+            <RefreshCw className={`h-4 w-4 ${syncMutation.isPending ? 'animate-spin' : ''}`} />
+            {syncMutation.isPending ? 'Syncing...' : 'Synchronize'}
+          </Button>
+        </div>
       </div>
 
       <div className="relative">
@@ -210,15 +215,6 @@ export default function MyAgentsPage() {
       ) : (
         <AgentGrid agents={filteredAgents} onTry={handleTry} />
       )}
-
-      <ChatPanel
-        open={open}
-        onClose={() => setOpen(false)}
-        agent={agent}
-        onSend={handleSend}
-        pending={chat.isPending}
-        messages={messages}
-      />
     </div>
   );
 }

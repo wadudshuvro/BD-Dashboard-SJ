@@ -1,7 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Bot, MessageSquare } from "lucide-react";
+import { Bot, ExternalLink } from "lucide-react";
 
 export function AgentGrid({ agents, onTry }: { agents: any[]; onTry: (agent: any) => void }) {
   if (!agents?.length) return <div className="text-center text-muted-foreground py-8">No agents found.</div>;
@@ -48,15 +48,15 @@ export function AgentGrid({ agents, onTry }: { agents: any[]; onTry: (agent: any
               </div>
             )}
 
-            {/* Start Chat Button */}
+            {/* Open Chat Button */}
             <Button 
               onClick={() => onTry(agent)} 
               className="w-full"
               disabled={!agent.active}
               variant={agent.active ? "default" : "outline"}
             >
-              <MessageSquare className="h-4 w-4 mr-2" />
-              Start Chat
+              Open Chat
+              <ExternalLink className="ml-2 h-4 w-4" />
             </Button>
           </CardContent>
         </Card>
