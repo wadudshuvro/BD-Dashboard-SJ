@@ -1,18 +1,20 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useSubmitEOD } from '@/hooks/useTeamSummaries';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon, Plus, X } from 'lucide-react';
+import { CalendarIcon, Plus, X, History } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
 export function EODSubmissionForm() {
+  const navigate = useNavigate();
   const [date, setDate] = useState<Date>(new Date());
   const [taskLinks, setTaskLinks] = useState<string[]>(['']);
   const [notes, setNotes] = useState('');
@@ -49,7 +51,12 @@ export function EODSubmissionForm() {
         notes: notes.trim() || undefined,
       });
 
-      toast.success('EOD submitted successfully!');
+      toast.success('EOD submitted successfully!', {
+        action: {
+          label: 'View History',
+          onClick: () => navigate('/dashboard/my-eod-submissions'),
+        },
+      });
       setTaskLinks(['']);
       setNotes('');
     } catch (error) {
@@ -149,6 +156,17 @@ export function EODSubmissionForm() {
           </Button>
         </form>
       </CardContent>
+      <CardFooter className="border-t pt-4">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full"
+          onClick={() => navigate('/dashboard/my-eod-submissions')}
+        >
+          <History className="h-4 w-4 mr-2" />
+          View My EOD History
+        </Button>
+      </CardFooter>
     </Card>
   );
 }

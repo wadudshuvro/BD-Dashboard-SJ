@@ -26,6 +26,7 @@ import ClientsProjects from "./pages/ClientsProjects";
 import People from "./pages/People";
 import ActionsTasks from "./pages/ActionsTasks";
 import EODSubmission from "./pages/EODSubmission";
+import MyEODSubmissions from "./pages/MyEODSubmissions";
 import AIWorkspace from "./pages/AIWorkspace";
 import UserManagement from "./pages/admin/UserManagement";
 import BrandManagement from "./pages/admin/BrandManagement";
@@ -139,6 +140,7 @@ const App = () => (
               <Route path="brands/:brandId" element={<BrandDetail />} />
               <Route path="actions-tasks" element={<ActionsTasks />} />
               <Route path="eod-submission" element={<EODSubmission />} />
+              <Route path="my-eod-submissions" element={<MyEODSubmissions />} />
               <Route path="people" element={<People />} />
               <Route path="people/review" element={<React.Suspense fallback={<div>Loading...</div>}><PeopleReviewDashboard /></React.Suspense>} />
               <Route path="my-agents" element={<MyAgentsPage />} />
@@ -162,6 +164,7 @@ const App = () => (
               <Route path="brands/:brandId" element={<BrandDetail />} />
               <Route path="actions-tasks" element={<ActionsTasks />} />
               <Route path="eod-submission" element={<EODSubmission />} />
+              <Route path="my-eod-submissions" element={<MyEODSubmissions />} />
               <Route path="people" element={<People />} />
               <Route path="people/review" element={<React.Suspense fallback={<div>Loading...</div>}><PeopleReviewDashboard /></React.Suspense>} />
               <Route path="my-agents" element={<MyAgentsPage />} />

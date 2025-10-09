@@ -16,7 +16,9 @@ import {
   Target,
   Shield,
   Video,
-  Sparkles
+  Sparkles,
+  History,
+  Calendar
 } from "lucide-react";
 import { useState } from "react";
 import ProfileDropdown from "./ProfileDropdown";
@@ -81,7 +83,8 @@ const Layout = ({ userRole }: LayoutProps) => {
             current: false,
             subItems: [
               { name: "Tasks", href: `${basePath}/actions-tasks`, icon: CheckSquare, current: false },
-              { name: "EOD Submission", href: `${basePath}/eod-submission`, icon: Bot, current: false },
+              { name: "Submit EOD", href: `${basePath}/eod-submission`, icon: Calendar, current: false },
+              { name: "My EOD History", href: `${basePath}/my-eod-submissions`, icon: History, current: false },
             ]
           },
           { 
@@ -113,7 +116,8 @@ const Layout = ({ userRole }: LayoutProps) => {
             current: false,
             subItems: [
               { name: "Tasks", href: `${basePath}/actions-tasks`, icon: CheckSquare, current: false },
-              { name: "EOD Submission", href: `${basePath}/eod-submission`, icon: Bot, current: false },
+              { name: "Submit EOD", href: `${basePath}/eod-submission`, icon: Calendar, current: false },
+              { name: "My EOD History", href: `${basePath}/my-eod-submissions`, icon: History, current: false },
             ]
           },
           { 
