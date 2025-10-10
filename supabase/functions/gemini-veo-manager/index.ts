@@ -199,15 +199,21 @@ async function createVideo(
     throw new Error(`Failed to store video: ${dbError.message}`);
   }
 
-  console.log("Video creation started, operation name:", operationName);
+  console.log("✅ Video creation started, operation name:", operationName);
+  console.log("Video ID:", videoId, "| Duration:", duration, "| Aspect:", aspectRatio, "| Resolution:", resolution);
 
+  // Return complete video object matching database structure
   return {
     id: videoId,
-    operationName,
+    operation_name: operationName,
     prompt,
-    duration,
-    status: "processing",
-    createdAt: new Date().toISOString(),
+    duration: duration || 8,
+    aspect_ratio: aspectRatio || "16:9",
+    resolution: resolution || "720p",
+    negative_prompt: negativePrompt,
+    status: "processing",  // Will be normalized to "in_progress" by frontend
+    has_audio: true,
+    created_at: new Date().toISOString(),
     metadata: metadata || {},
   };
 }
@@ -385,8 +391,10 @@ async function downloadVideo(id: string): Promise<Response> {
   const videoData = await getVideo(id);
   
   if (videoData.status !== "completed" || !videoData.video_url) {
-    throw new Error("Video is not ready for download");
+    throw new Error(`Video not ready for download - status: ${videoData.status}`);
   }
+
+  console.log("Downloading video:", id, "from URL:", videoData.video_url);
 
   const response = await fetch(videoData.video_url, {
     headers: {
@@ -395,8 +403,14 @@ async function downloadVideo(id: string): Promise<Response> {
   });
 
   if (!response.ok) {
-    throw new Error("Failed to download video");
+    const errorText = await response.text();
+    console.error("Download failed:", response.status, errorText);
+    throw new Error(`Failed to download video: ${response.statusText}`);
   }
+
+  console.log("✅ Video download successful:", id);
+  return response;
+}
 
   return response;
 }
@@ -452,7 +466,16 @@ Deno.serve(async (req) => {
 
     switch (operation) {
       case "create": {
+        console.log("🎬 CREATE operation requested by user:", userId);
         const { prompt, duration, aspectRatio, resolution, negativePrompt, imageBase64, imageMimeType, metadata } = body as CreateVideoRequest;
+        console.log("Request params:", { 
+          promptLength: prompt?.length, 
+          duration, 
+          aspectRatio, 
+          resolution,
+          hasImage: !!imageBase64 
+        });
+        
         const result = await createVideo(
           prompt, 
           userId, 
@@ -464,6 +487,8 @@ Deno.serve(async (req) => {
           imageMimeType,
           metadata
         );
+        
+        console.log("✅ CREATE operation completed, video ID:", result.id);
         return new Response(JSON.stringify({ video: result }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });

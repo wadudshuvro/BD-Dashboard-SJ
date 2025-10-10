@@ -84,6 +84,11 @@ const GeminiVideoCardComponent = ({
 }: GeminiVideoCardProps) => {
   const badgeClass = statusStyles[video.status] ?? statusStyles.queued;
   const statusLabel = getGeminiStatusLabel(video.status);
+  
+  // Debug: Log if we see unexpected status
+  if (video.status === "queued" && video.video_url) {
+    console.warn("⚠️ Video has URL but shows queued:", video.id, video);
+  }
   const metadataTitle =
     getMetadataString(video.metadata, "title") ?? getMetadataString(video.metadata, "videoTitle");
   const creatorName =
