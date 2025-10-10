@@ -104,84 +104,118 @@ async function createVideo(
   imageMimeType?: string,
   metadata?: Record<string, unknown>
 ): Promise<any> {
-  console.log("Creating video with prompt:", prompt);
-  console.log("Parameters:", { duration, aspectRatio, resolution, negativePrompt });
+  try {
+    console.log("🎬 Creating video with prompt:", prompt?.substring(0, 50));
+    console.log("Parameters:", { 
+      userId: userId?.substring(0, 8),
+      duration, 
+      aspectRatio, 
+      resolution, 
+      negativePrompt: negativePrompt?.substring(0, 30),
+      hasImage: !!imageBase64,
+      metadataKeys: Object.keys(metadata || {})
+    });
 
-  // Build request body according to Veo 3 API spec
-  const requestBody: any = {
-    prompt: prompt,
-    personGeneration: "allow_adult", // Required for EU compliance
-  };
-
-  // Add optional parameters
-  if (duration && duration >= 5 && duration <= 8) {
-    requestBody.duration = duration;
-  }
-  
-  if (aspectRatio) {
-    requestBody.aspectRatio = aspectRatio;
-  }
-  
-  if (resolution) {
-    requestBody.resolution = resolution;
-  }
-  
-  if (negativePrompt) {
-    requestBody.negativePrompt = negativePrompt;
-  }
-
-  // Add image for image-to-video generation
-  if (imageBase64 && imageMimeType) {
-    console.log("Adding image for image-to-video generation, mime type:", imageMimeType);
-    requestBody.image = {
-      bytesBase64Encoded: imageBase64,
-      mimeType: imageMimeType,
+    // Build request body according to Veo 3 API spec
+    const requestBody: any = {
+      prompt: prompt,
+      personGeneration: "allow_adult", // Required for EU compliance
     };
-  }
 
-  const response = await fetch(`${BASE_URL}/models/${MODEL}:generateVideos`, {
-    method: "POST",
-    headers: {
-      "x-goog-api-key": GEMINI_API_KEY!,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(requestBody),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error("Error creating video:", errorText);
-    
-    // Parse error for better user messaging
-    let errorMessage = "Failed to create video";
-    try {
-      const errorJson = JSON.parse(errorText);
-      errorMessage = errorJson.error?.message || errorMessage;
-      
-      // Check for specific error types
-      if (errorMessage.includes("quota") || errorMessage.includes("QUOTA")) {
-        errorMessage = "API quota exceeded. Please try again later or check your Gemini API limits.";
-      } else if (errorMessage.includes("safety") || errorMessage.includes("blocked")) {
-        errorMessage = "Content blocked by safety filters. Please revise your prompt and try again.";
-      } else if (errorMessage.includes("audio") || errorMessage.includes("Audio")) {
-        errorMessage = "Audio content flagged. Veo 3 detected potentially unsafe audio. Please revise your prompt.";
-      }
-    } catch {
-      errorMessage = errorText.substring(0, 200);
+    // Add optional parameters
+    if (duration && duration >= 5 && duration <= 8) {
+      requestBody.duration = duration;
     }
     
-    throw new Error(errorMessage);
-  }
+    if (aspectRatio) {
+      requestBody.aspectRatio = aspectRatio;
+    }
+    
+    if (resolution) {
+      requestBody.resolution = resolution;
+    }
+    
+    if (negativePrompt) {
+      requestBody.negativePrompt = negativePrompt;
+    }
 
-  const result = await response.json();
-  const operationName = result.name;
-  
-  // Store operation in database
-  const videoId = operationName.split("/").pop() || operationName;
-  
-  const { error: dbError } = await supabase
-    .from("gemini_videos")
-    .insert({
+    // Add image for image-to-video generation
+    if (imageBase64 && imageMimeType) {
+      console.log("Adding image for image-to-video generation, mime type:", imageMimeType);
+      requestBody.image = {
+        bytesBase64Encoded: imageBase64,
+        mimeType: imageMimeType,
+      };
+    }
+
+
+    console.log("📤 Sending request to Gemini API:", `${BASE_URL}/models/${MODEL}:generateVideos`);
+
+    const response = await fetch(`${BASE_URL}/models/${MODEL}:generateVideos`, {
+      method: "POST",
+      headers: {
+        "x-goog-api-key": GEMINI_API_KEY!,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("❌ Gemini API error:", errorText);
+      
+      // Parse error for better user messaging
+      let errorMessage = "Failed to create video";
+      try {
+        const errorJson = JSON.parse(errorText);
+        errorMessage = errorJson.error?.message || errorMessage;
+        
+        // Check for specific error types
+        if (errorMessage.includes("quota") || errorMessage.includes("QUOTA")) {
+          errorMessage = "API quota exceeded. Please try again later or check your Gemini API limits.";
+        } else if (errorMessage.includes("safety") || errorMessage.includes("blocked")) {
+          errorMessage = "Content blocked by safety filters. Please revise your prompt and try again.";
+        } else if (errorMessage.includes("audio") || errorMessage.includes("Audio")) {
+          errorMessage = "Audio content flagged. Veo 3 detected potentially unsafe audio. Please revise your prompt.";
+        }
+      } catch {
+        errorMessage = errorText.substring(0, 200);
+      }
+      
+      throw new Error(errorMessage);
+    }
+
+    const result = await response.json();
+    const operationName = result.name;
+    
+    // Store operation in database
+    const videoId = operationName.split("/").pop() || operationName;
+    
+    const { error: dbError } = await supabase
+      .from("gemini_videos")
+      .insert({
+        id: videoId,
+        operation_name: operationName,
+        prompt,
+        duration: duration || 8,
+        aspect_ratio: aspectRatio || "16:9",
+        resolution: resolution || "720p",
+        negative_prompt: negativePrompt,
+        status: "processing",
+        metadata: metadata || {},
+        user_id: userId,
+      });
+
+    if (dbError) {
+      console.error("❌ Database error:", dbError);
+      throw new Error(`Failed to store video: ${dbError.message}`);
+    }
+
+    console.log("✅ Video creation started, operation name:", operationName);
+    console.log("Video ID:", videoId, "| Duration:", duration, "| Aspect:", aspectRatio, "| Resolution:", resolution);
+
+    // Return complete video object matching database structure
+    return {
       id: videoId,
       operation_name: operationName,
       prompt,
@@ -189,33 +223,21 @@ async function createVideo(
       aspect_ratio: aspectRatio || "16:9",
       resolution: resolution || "720p",
       negative_prompt: negativePrompt,
-      status: "processing",
+      status: "processing",  // Will be normalized to "in_progress" by frontend
+      has_audio: true,
+      created_at: new Date().toISOString(),
       metadata: metadata || {},
-      user_id: userId,
+    };
+  } catch (error) {
+    console.error("❌ Error in createVideo:", error);
+    console.error("Error details:", {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      userId,
+      promptLength: prompt?.length
     });
-
-  if (dbError) {
-    console.error("Error storing video in database:", dbError);
-    throw new Error(`Failed to store video: ${dbError.message}`);
+    throw error;
   }
-
-  console.log("✅ Video creation started, operation name:", operationName);
-  console.log("Video ID:", videoId, "| Duration:", duration, "| Aspect:", aspectRatio, "| Resolution:", resolution);
-
-  // Return complete video object matching database structure
-  return {
-    id: videoId,
-    operation_name: operationName,
-    prompt,
-    duration: duration || 8,
-    aspect_ratio: aspectRatio || "16:9",
-    resolution: resolution || "720p",
-    negative_prompt: negativePrompt,
-    status: "processing",  // Will be normalized to "in_progress" by frontend
-    has_audio: true,
-    created_at: new Date().toISOString(),
-    metadata: metadata || {},
-  };
 }
 
 // Convert gs:// URI to downloadable HTTP URL using Gemini Files API
