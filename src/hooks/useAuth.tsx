@@ -40,17 +40,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     'super_admin': 5
   };
 
-  // Fetch user profile from custom users table
+  // Fetch user profile from custom users table and role from user_roles table
   const fetchUserProfile = async (authUser: SupabaseUser): Promise<User | null> => {
     try {
-      const { data: userProfile, error } = await supabase
+      // Fetch user profile data
+      const { data: userProfile, error: userError } = await supabase
         .from('users')
-        .select('*')
+        .select('id, email, first_name, last_name, status')
         .eq('id', authUser.id)
         .maybeSingle();
 
-      if (error) {
-        console.error('Error fetching user profile:', error);
+      if (userError) {
+        console.error('Error fetching user profile:', userError);
         return null;
       }
 
@@ -59,11 +60,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return null;
       }
 
+      // Fetch role from user_roles table (secure separate table)
+      const { data: roleData, error: roleError } = await supabase
+        .from('user_roles' as any)
+        .select('role')
+        .eq('user_id', authUser.id)
+        .maybeSingle();
+
+      if (roleError) {
+        console.error('Error fetching user role:', roleError);
+      }
+
       return {
         id: userProfile.id,
         name: `${userProfile.first_name || ''} ${userProfile.last_name || ''}`.trim() || userProfile.email,
         email: userProfile.email,
-        role: userProfile.role as UserRole,
+        role: ((roleData as any)?.role || 'user') as UserRole,
         avatar: authUser.user_metadata?.avatar_url
       };
     } catch (error) {

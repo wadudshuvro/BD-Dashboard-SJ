@@ -57,7 +57,30 @@ serve(async (req) => {
       }
 
       if (action === 'signup') {
-        const { email, password, firstName, lastName, role = 'user' } = await req.json()
+        const { email, password, firstName, lastName } = await req.json()
+        
+        // Validate required fields
+        if (!email || !password || !firstName || !lastName) {
+          return new Response(
+            JSON.stringify({ error: 'Missing required fields' }),
+            { 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              status: 400 
+            }
+          )
+        }
+        
+        // Validate email format
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+        if (!emailRegex.test(email)) {
+          return new Response(
+            JSON.stringify({ error: 'Invalid email format' }),
+            { 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              status: 400 
+            }
+          )
+        }
         
         console.log('Signup attempt for:', email)
 
@@ -67,8 +90,8 @@ serve(async (req) => {
           options: {
             data: {
               first_name: firstName,
-              last_name: lastName,
-              role: role
+              last_name: lastName
+              // NOTE: Role is NOT set here - it's handled by database trigger
             }
           }
         })

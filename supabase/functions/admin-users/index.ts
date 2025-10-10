@@ -66,7 +66,6 @@ interface RawUserRecord {
   email: string;
   first_name: string | null;
   last_name: string | null;
-  role: string;
   status: string;
   title: string | null;
   department: string | null;
@@ -102,12 +101,12 @@ interface UpdateUserRequest {
   brandAssignments?: BrandAssignmentInput[];
 }
 
+// Build select query for users table (without role field)
 const buildUserSelect = () => `
   id,
   email,
   first_name,
   last_name,
-  role,
   status,
   title,
   department,
@@ -132,8 +131,9 @@ const buildUserSelect = () => `
   )
 `;
 
-const transformUser = (userData: RawUserRecord): UserWithDetails => ({
+const transformUser = (userData: RawUserRecord, role: string = 'user'): UserWithDetails => ({
   ...userData,
+  role,
   title: userData.title ?? null,
   department: userData.department ?? null,
   is_marketing: userData.is_marketing ?? false,
@@ -203,7 +203,7 @@ const syncUserBrands = async (
   if (normalizedAssignments.length > 0) {
     const { error: upsertError } = await client
       .from('user_brands')
-      .upsert(normalizedAssignments as any, { onConflict: 'user_id,brand_id' });
+      .upsert(normalizedAssignments, { onConflict: 'user_id,brand_id' });
 
     if (upsertError) {
       throw upsertError;
@@ -211,21 +211,71 @@ const syncUserBrands = async (
   }
 };
 
-const fetchUserWithDetails = async (
-  client: any,
-  userId: string,
-): Promise<UserWithDetails | null> => {
+// Fetch user with details including role from user_roles table
+const fetchUserWithDetails = async (client: any, userId: string): Promise<UserWithDetails> => {
+  // Fetch user data
   const { data: userData, error: userError } = await client
     .from('users')
     .select(buildUserSelect())
     .eq('id', userId)
     .single();
 
-  if (userError || !userData) {
-    throw userError || new Error('User not found');
+  if (userError) {
+    throw userError;
   }
 
-  return transformUser(userData as RawUserRecord);
+  // Fetch role from user_roles table
+  const { data: roleData, error: roleError } = await client
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (roleError) {
+    console.error('Error fetching user role:', roleError);
+  }
+
+  const role = roleData?.role || 'user';
+  
+  return transformUser(userData as RawUserRecord, role);
+};
+
+// Get user's role from user_roles table
+const getUserRole = async (client: any, userId: string): Promise<string | null> => {
+  const { data, error } = await client
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (error) {
+    console.error('Error fetching user role:', error);
+    return null;
+  }
+
+  return data?.role || null;
+};
+
+// Update user role in user_roles table
+const updateUserRole = async (client: any, userId: string, role: string): Promise<void> => {
+  const { error } = await client
+    .from('user_roles')
+    .upsert({ user_id: userId, role }, { onConflict: 'user_id,role' });
+
+  if (error) {
+    throw error;
+  }
+
+  // Remove old roles if changing to a new one
+  const { error: deleteError } = await client
+    .from('user_roles')
+    .delete()
+    .eq('user_id', userId)
+    .neq('role', role);
+
+  if (deleteError) {
+    console.error('Error removing old roles:', deleteError);
+  }
 };
 
 serve(async (req) => {
@@ -235,16 +285,23 @@ serve(async (req) => {
   }
 
   try {
-    // Create a Supabase client with service role key for admin operations
+    // Create a Supabase client with the service role key
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
     )
 
+    // Get the authorization header
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
       return new Response(
-        JSON.stringify({ error: 'Authorization header required' }),
+        JSON.stringify({ error: 'Missing authorization header' }),
         { 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 401 
@@ -266,14 +323,10 @@ serve(async (req) => {
       )
     }
 
-    // Check if user has admin privileges
-    const { data: adminUser, error: adminError } = await supabaseClient
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single()
-
-    if (adminError || !adminUser || !['super_admin', 'manager'].includes(adminUser.role)) {
+    // Check if user has admin privileges from user_roles table
+    const userRole = await getUserRole(supabaseClient, user.id);
+    
+    if (!userRole || !['super_admin', 'manager'].includes(userRole)) {
       return new Response(
         JSON.stringify({ error: 'Insufficient privileges' }),
         { 
@@ -333,9 +386,6 @@ serve(async (req) => {
         if (search) {
           query = query.or(`first_name.ilike.%${search}%,last_name.ilike.%${search}%,email.ilike.%${search}%`)
         }
-        if (roleFilter) {
-          query = query.eq('role', roleFilter)
-        }
         if (statusFilter) {
           query = query.eq('status', statusFilter)
         }
@@ -360,15 +410,35 @@ serve(async (req) => {
           )
         }
 
-        // Transform the data
-        const usersWithDetails: UserWithDetails[] = (users || []).map((user) =>
-          transformUser(user as any as RawUserRecord)
-        )
+        // Fetch roles for all users
+        const userIds = (users || []).map(u => u.id);
+        const { data: rolesData, error: rolesError } = await supabaseClient
+          .from('user_roles')
+          .select('user_id, role')
+          .in('user_id', userIds);
+
+        if (rolesError) {
+          console.error('Error fetching user roles:', rolesError);
+        }
+
+        // Create role map
+        const roleMap = new Map((rolesData || []).map(r => [r.user_id, r.role]));
+
+        // Transform the data with roles
+        let usersWithDetails: UserWithDetails[] = (users || []).map((user: any) => {
+          const role = roleMap.get(user.id) || 'user';
+          return transformUser(user as RawUserRecord, role);
+        });
+
+        // Apply role filter if specified
+        if (roleFilter) {
+          usersWithDetails = usersWithDetails.filter(u => u.role === roleFilter);
+        }
 
         return new Response(
           JSON.stringify({ 
             users: usersWithDetails,
-            total: count || 0,
+            total: roleFilter ? usersWithDetails.length : (count || 0),
             page,
             limit
           }),
@@ -395,7 +465,19 @@ serve(async (req) => {
         brandAssignments = [],
       } = await req.json() as CreateUserRequest
 
-      console.log('Creating user:', email)
+      console.log('Creating user:', email, 'with role:', role)
+
+      // Validate role
+      const validRoles = ['super_admin', 'manager', 'brand_manager', 'pm', 'user'];
+      if (!validRoles.includes(role)) {
+        return new Response(
+          JSON.stringify({ error: `Invalid role. Must be one of: ${validRoles.join(', ')}` }),
+          { 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 400 
+          }
+        )
+      }
 
       // Create user in auth
       const { data: authData, error: authError } = await supabaseClient.auth.admin.createUser({
@@ -405,7 +487,6 @@ serve(async (req) => {
         user_metadata: {
           first_name: firstName,
           last_name: lastName,
-          role: role,
           title,
           department,
           is_marketing: isMarketing
@@ -423,20 +504,30 @@ serve(async (req) => {
         )
       }
 
+      const newUserId = authData.user?.id;
+      if (!newUserId) {
+        return new Response(
+          JSON.stringify({ error: 'Failed to create user' }),
+          { 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 500 
+          }
+        )
+      }
+
       // Create or update user record in users table (trigger may have already created it)
+      // Note: We do NOT include role here - it goes in user_roles table
       const { data: userData, error: userError } = await supabaseClient
         .from('users')
         .upsert({
-          id: authData.user?.id,
+          id: newUserId,
           email,
           first_name: firstName,
           last_name: lastName,
-          role,
           status,
           title,
           department,
-          is_marketing: isMarketing,
-          password_hash: 'managed_by_auth' // placeholder since auth manages passwords
+          is_marketing: isMarketing
         }, {
           onConflict: 'id'
         })
@@ -446,7 +537,7 @@ serve(async (req) => {
       if (userError) {
         console.error('User table creation error:', userError)
         // Clean up auth user if database insert fails
-        await supabaseClient.auth.admin.deleteUser(authData.user?.id || '')
+        await supabaseClient.auth.admin.deleteUser(newUserId)
         
         return new Response(
           JSON.stringify({ error: userError.message }),
@@ -457,8 +548,27 @@ serve(async (req) => {
         )
       }
 
+      // Insert role into user_roles table (replacing any default role from trigger)
       try {
-        await syncUserBrands(supabaseClient, authData.user?.id || '', brandAssignments)
+        await updateUserRole(supabaseClient, newUserId, role);
+      } catch (roleError: unknown) {
+        console.error('Role assignment error:', roleError);
+        // Clean up user if role assignment fails
+        await supabaseClient.auth.admin.deleteUser(newUserId);
+        
+        const message = roleError instanceof Error ? roleError.message : 'Failed to assign role';
+        return new Response(
+          JSON.stringify({ error: message }),
+          { 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 400 
+          }
+        )
+      }
+
+      // Assign brands
+      try {
+        await syncUserBrands(supabaseClient, newUserId, brandAssignments)
       } catch (brandError: unknown) {
         const message = brandError instanceof Error ? brandError.message : 'Failed to assign brands'
         console.error('Brand assignment error:', brandError)
@@ -507,9 +617,7 @@ serve(async (req) => {
       if (typeof rawUpdates.lastName !== 'undefined') {
         updatePayload.last_name = rawUpdates.lastName
       }
-      if (typeof rawUpdates.role !== 'undefined') {
-        updatePayload.role = rawUpdates.role
-      }
+      // Note: role is NOT included in updatePayload - it's handled separately
       if (typeof rawUpdates.status !== 'undefined') {
         updatePayload.status = rawUpdates.status
       }
@@ -535,6 +643,33 @@ serve(async (req) => {
             {
               headers: { ...corsHeaders, 'Content-Type': 'application/json' },
               status: 400
+            }
+          )
+        }
+      }
+
+      // Update role in user_roles table if provided
+      if (typeof rawUpdates.role !== 'undefined') {
+        const validRoles = ['super_admin', 'manager', 'brand_manager', 'pm', 'user'];
+        if (!validRoles.includes(rawUpdates.role)) {
+          return new Response(
+            JSON.stringify({ error: `Invalid role. Must be one of: ${validRoles.join(', ')}` }),
+            { 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              status: 400 
+            }
+          )
+        }
+
+        try {
+          await updateUserRole(supabaseClient, userId, rawUpdates.role);
+        } catch (roleError: unknown) {
+          const message = roleError instanceof Error ? roleError.message : 'Failed to update role';
+          return new Response(
+            JSON.stringify({ error: message }),
+            { 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              status: 400 
             }
           )
         }
@@ -579,9 +714,7 @@ serve(async (req) => {
       if (typeof rawUpdates.lastName !== 'undefined') {
         metadataUpdates.last_name = rawUpdates.lastName
       }
-      if (typeof rawUpdates.role !== 'undefined') {
-        metadataUpdates.role = rawUpdates.role
-      }
+      // Note: role is NOT stored in user_metadata anymore
       if (typeof rawUpdates.title !== 'undefined') {
         metadataUpdates.title = rawUpdates.title
       }
@@ -620,7 +753,7 @@ serve(async (req) => {
         )
       }
 
-      // Delete from auth (this will cascade to users table via trigger)
+      // Delete from auth (this will cascade to users and user_roles tables via ON DELETE CASCADE)
       const { error: authError } = await supabaseClient.auth.admin.deleteUser(userId)
 
       if (authError) {
