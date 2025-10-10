@@ -434,9 +434,6 @@ async function downloadVideo(id: string): Promise<Response> {
   return response;
 }
 
-  return response;
-}
-
 async function remixVideo(id: string, newPrompt: string, userId: string): Promise<any> {
   const originalVideo = await getVideo(id);
   
