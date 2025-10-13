@@ -14,6 +14,7 @@ import PMDashboard from "./pages/PMDashboard";
 import ManagerDashboard from "./pages/ManagerDashboard";
 import Reports from "./pages/Reports";
 import Login from "./pages/Login";
+import Signup from "./pages/Signup";
 import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 import Unauthorized from "./pages/Unauthorized";
@@ -82,6 +83,7 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/unauthorized" element={<Unauthorized />} />
             <Route path="/" element={<DashboardRedirect />} />
