@@ -15,7 +15,6 @@ import {
   Zap,
   Target,
   Shield,
-  Video,
   Sparkles,
   History,
   Calendar
@@ -71,7 +70,6 @@ const Layout = ({ userRole }: LayoutProps) => {
         // Super admin gets clean navigation
         return [
           ...baseNavigation,
-          { name: "Video AI", href: `${basePath}/workspace`, icon: Video, current: false },
           { name: "My Agents", href: `${basePath}/my-agents`, icon: Zap, current: false },
           { name: "Brands", href: `${basePath}/brands`, icon: Building2, current: false },
           { name: "Clients", href: `${basePath}/clients`, icon: Users, current: false },
@@ -104,7 +102,6 @@ const Layout = ({ userRole }: LayoutProps) => {
       case 'manager':
         return [
           ...baseNavigation,
-          { name: "Video AI", href: `${basePath}/workspace`, icon: Video, current: false },
           { name: "My Agents", href: `${basePath}/my-agents`, icon: Zap, current: false },
           { name: "Clients", href: `${basePath}/clients`, icon: Users, current: false },
           { name: "Projects", href: `${basePath}/projects`, icon: FolderOpen, current: false },
@@ -135,7 +132,6 @@ const Layout = ({ userRole }: LayoutProps) => {
       case 'pm':
         return [
           ...baseNavigation,
-          { name: "Video AI", href: `${basePath}/workspace`, icon: Video, current: false },
           { name: "My Agents", href: `${basePath}/my-agents`, icon: Zap, current: false },
           { name: "Clients", href: `${basePath}/clients`, icon: Users, current: false },
           { name: "Projects", href: `${basePath}/projects`, icon: FolderOpen, current: false },
@@ -156,7 +152,6 @@ const Layout = ({ userRole }: LayoutProps) => {
       default:
         return [
           ...baseNavigation,
-          { name: "Video AI", href: `${basePath}/workspace`, icon: Video, current: false },
           { name: "My Agents", href: `${basePath}/my-agents`, icon: Zap, current: false },
           { name: "Reports", href: `${basePath}/reports`, icon: BarChart3, current: false },
           { 
