@@ -47,36 +47,48 @@ export type Database = {
       ai_agent_runs: {
         Row: {
           agent_id: string | null
+          ai_summary: Json | null
+          category: string | null
           completed_at: string | null
           created_at: string
           error: string | null
+          generated_tasks: Json | null
           id: string
           input: Json | null
           output: Json | null
           started_at: string
           status: string | null
+          title: string | null
         }
         Insert: {
           agent_id?: string | null
+          ai_summary?: Json | null
+          category?: string | null
           completed_at?: string | null
           created_at?: string
           error?: string | null
+          generated_tasks?: Json | null
           id?: string
           input?: Json | null
           output?: Json | null
           started_at?: string
           status?: string | null
+          title?: string | null
         }
         Update: {
           agent_id?: string | null
+          ai_summary?: Json | null
+          category?: string | null
           completed_at?: string | null
           created_at?: string
           error?: string | null
+          generated_tasks?: Json | null
           id?: string
           input?: Json | null
           output?: Json | null
           started_at?: string
           status?: string | null
+          title?: string | null
         }
         Relationships: [
           {
@@ -121,6 +133,33 @@ export type Database = {
           name?: string
           type?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      ai_configurations: {
+        Row: {
+          configuration_data: Json
+          configuration_type: string
+          created_at: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          configuration_data?: Json
+          configuration_type: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          configuration_data?: Json
+          configuration_type?: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -309,6 +348,92 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      collabai_agents: {
+        Row: {
+          agent_id: string
+          agent_type: string | null
+          created_at: string
+          description: string | null
+          id: string
+          integration_id: string
+          is_active: boolean | null
+          metadata: Json | null
+          name: string
+          sample_questions: Json | null
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          agent_type?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          integration_id: string
+          is_active?: boolean | null
+          metadata?: Json | null
+          name: string
+          sample_questions?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          agent_type?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          integration_id?: string
+          is_active?: boolean | null
+          metadata?: Json | null
+          name?: string
+          sample_questions?: Json | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collabai_agents_integration_id_fkey"
+            columns: ["integration_id"]
+            isOneToOne: false
+            referencedRelation: "collabai_integrations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      collabai_integrations: {
+        Row: {
+          agent_count: number | null
+          api_key_encrypted: string
+          base_url: string
+          created_at: string
+          id: string
+          is_active: boolean | null
+          last_synced_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          agent_count?: number | null
+          api_key_encrypted: string
+          base_url: string
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          last_synced_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          agent_count?: number | null
+          api_key_encrypted?: string
+          base_url?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          last_synced_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       contacts: {
         Row: {
@@ -750,6 +875,36 @@ export type Database = {
           team_size?: number | null
           total_hours?: number | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      user_accountability_chart: {
+        Row: {
+          created_at: string
+          id: string
+          responsibilities: string | null
+          serial_number: number
+          type_of_work: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          responsibilities?: string | null
+          serial_number?: number
+          type_of_work: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          responsibilities?: string | null
+          serial_number?: number
+          type_of_work?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
