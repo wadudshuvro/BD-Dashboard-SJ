@@ -193,34 +193,152 @@ export type Database = {
         }
         Relationships: []
       }
+      brand_analytics_integrations: {
+        Row: {
+          brand_id: string
+          created_at: string
+          created_by: string | null
+          data_sources: Json | null
+          id: string
+          integration_type: string
+          is_active: boolean | null
+          last_sync_at: string | null
+          metadata: Json | null
+          sync_frequency: string | null
+          updated_at: string
+          webhook_secret: string
+          webhook_url: string
+        }
+        Insert: {
+          brand_id: string
+          created_at?: string
+          created_by?: string | null
+          data_sources?: Json | null
+          id?: string
+          integration_type: string
+          is_active?: boolean | null
+          last_sync_at?: string | null
+          metadata?: Json | null
+          sync_frequency?: string | null
+          updated_at?: string
+          webhook_secret: string
+          webhook_url: string
+        }
+        Update: {
+          brand_id?: string
+          created_at?: string
+          created_by?: string | null
+          data_sources?: Json | null
+          id?: string
+          integration_type?: string
+          is_active?: boolean | null
+          last_sync_at?: string | null
+          metadata?: Json | null
+          sync_frequency?: string | null
+          updated_at?: string
+          webhook_secret?: string
+          webhook_url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brand_analytics_integrations_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      brand_kpis: {
+        Row: {
+          brand_id: string
+          created_at: string
+          current_value: number
+          description: string | null
+          display_order: number
+          id: string
+          name: string
+          source: string
+          target_value: number | null
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          brand_id: string
+          created_at?: string
+          current_value?: number
+          description?: string | null
+          display_order?: number
+          id?: string
+          name: string
+          source: string
+          target_value?: number | null
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          brand_id?: string
+          created_at?: string
+          current_value?: number
+          description?: string | null
+          display_order?: number
+          id?: string
+          name?: string
+          source?: string
+          target_value?: number | null
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brand_kpis_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       brands: {
         Row: {
+          active_integrations: string[] | null
           created_at: string
           description: string | null
           id: string
           industry: string | null
+          is_active: boolean | null
           logo_url: string | null
           name: string
+          owner_id: string | null
+          slug: string | null
           updated_at: string
           website: string | null
         }
         Insert: {
+          active_integrations?: string[] | null
           created_at?: string
           description?: string | null
           id?: string
           industry?: string | null
+          is_active?: boolean | null
           logo_url?: string | null
           name: string
+          owner_id?: string | null
+          slug?: string | null
           updated_at?: string
           website?: string | null
         }
         Update: {
+          active_integrations?: string[] | null
           created_at?: string
           description?: string | null
           id?: string
           industry?: string | null
+          is_active?: boolean | null
           logo_url?: string | null
           name?: string
+          owner_id?: string | null
+          slug?: string | null
           updated_at?: string
           website?: string | null
         }
@@ -228,34 +346,79 @@ export type Database = {
       }
       clients: {
         Row: {
+          address: string | null
           brand_id: string | null
+          city: string | null
           company: string | null
+          contact_person: string | null
+          country: string | null
           created_at: string
           email: string | null
+          employee_count: number | null
+          hubspot_id: string | null
           id: string
+          industry: string | null
+          last_contact_date: string | null
           name: string
+          notes: string | null
+          owner_id: string | null
           phone: string | null
+          postal_code: string | null
+          revenue: number | null
+          state: string | null
+          status: string | null
           updated_at: string
+          website: string | null
         }
         Insert: {
+          address?: string | null
           brand_id?: string | null
+          city?: string | null
           company?: string | null
+          contact_person?: string | null
+          country?: string | null
           created_at?: string
           email?: string | null
+          employee_count?: number | null
+          hubspot_id?: string | null
           id?: string
+          industry?: string | null
+          last_contact_date?: string | null
           name: string
+          notes?: string | null
+          owner_id?: string | null
           phone?: string | null
+          postal_code?: string | null
+          revenue?: number | null
+          state?: string | null
+          status?: string | null
           updated_at?: string
+          website?: string | null
         }
         Update: {
+          address?: string | null
           brand_id?: string | null
+          city?: string | null
           company?: string | null
+          contact_person?: string | null
+          country?: string | null
           created_at?: string
           email?: string | null
+          employee_count?: number | null
+          hubspot_id?: string | null
           id?: string
+          industry?: string | null
+          last_contact_date?: string | null
           name?: string
+          notes?: string | null
+          owner_id?: string | null
           phone?: string | null
+          postal_code?: string | null
+          revenue?: number | null
+          state?: string | null
+          status?: string | null
           updated_at?: string
+          website?: string | null
         }
         Relationships: [
           {
@@ -734,6 +897,65 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      project_tasks: {
+        Row: {
+          actual_hours: number | null
+          assigned_to: string | null
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          due_date: string | null
+          estimated_hours: number | null
+          id: string
+          priority: string | null
+          project_id: string | null
+          status: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          actual_hours?: number | null
+          assigned_to?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          due_date?: string | null
+          estimated_hours?: number | null
+          id?: string
+          priority?: string | null
+          project_id?: string | null
+          status?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          actual_hours?: number | null
+          assigned_to?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          due_date?: string | null
+          estimated_hours?: number | null
+          id?: string
+          priority?: string | null
+          project_id?: string | null
+          status?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_tasks_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       projects: {
         Row: {
