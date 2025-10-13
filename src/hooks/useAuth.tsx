@@ -40,13 +40,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     'super_admin': 5
   };
 
-  // Fetch user profile from custom users table and role from user_roles table
+  // Fetch user profile from profiles table and role from user_roles table
   const fetchUserProfile = async (authUser: SupabaseUser): Promise<User | null> => {
     try {
-      // Fetch user profile data
+      // Fetch user profile data from profiles table
       const { data: userProfile, error: userError } = await supabase
-        .from('users')
-        .select('id, email, first_name, last_name, status')
+        .from('profiles')
+        .select('id, email, full_name, avatar_url')
         .eq('id', authUser.id)
         .maybeSingle();
 
@@ -71,12 +71,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.error('Error fetching user role:', roleError);
       }
 
+      // Parse full_name to get first and last names
+      const nameParts = (userProfile.full_name || '').trim().split(' ');
+      const displayName = userProfile.full_name || userProfile.email;
+
       return {
         id: userProfile.id,
-        name: `${userProfile.first_name || ''} ${userProfile.last_name || ''}`.trim() || userProfile.email,
+        name: displayName,
         email: userProfile.email,
         role: ((roleData as any)?.role || 'user') as UserRole,
-        avatar: authUser.user_metadata?.avatar_url
+        avatar: userProfile.avatar_url || authUser.user_metadata?.avatar_url
       };
     } catch (error) {
       console.error('Error fetching user profile:', error);
