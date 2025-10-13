@@ -38,6 +38,8 @@ const navigation = [
       { name: 'Admin Panel', href: '/adminpanel', icon: Home, exact: true },
       { name: 'User Management', href: '/adminpanel/users', icon: Users },
       { name: 'Brand Management', href: '/adminpanel/brands', icon: Building2 },
+      { name: 'People Directory', href: '/adminpanel/people', icon: UserCheck },
+      { name: 'People Review', href: '/adminpanel/people/review', icon: Target },
       { name: 'KPI Configuration', href: '/adminpanel/kpis', icon: TrendingUp },
       { name: 'EOD Management', href: '/adminpanel/eod-management', icon: Calendar },
       { name: 'Documentation', href: '/adminpanel/documentation', icon: FileText },

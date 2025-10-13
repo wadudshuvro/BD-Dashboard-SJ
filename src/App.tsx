@@ -107,7 +107,6 @@ const App = () => (
               <Route path="dashboard" element={<UserDashboard />} />
               <Route path="workspace" element={<AIWorkspace />} />
               <Route path="reports" element={<Reports />} />
-              <Route path="people" element={<People />} />
               <Route path="people/my-dashboard" element={<React.Suspense fallback={<div>Loading...</div>}><MyDashboard /></React.Suspense>} />
               <Route path="brands" element={<UserBrands />} />
               <Route path="brands/:brandId" element={<BrandDetail />} />
@@ -153,8 +152,6 @@ const App = () => (
               <Route path="actions-tasks" element={<ActionsTasks />} />
               <Route path="eod-submission" element={<EODSubmission />} />
               <Route path="my-eod-submissions" element={<MyEODSubmissions />} />
-              <Route path="people" element={<People />} />
-              <Route path="people/review" element={<React.Suspense fallback={<div>Loading...</div>}><PeopleReviewDashboard /></React.Suspense>} />
               <Route path="my-agents" element={<MyAgentsPage />} />
             </Route>
 
@@ -177,8 +174,6 @@ const App = () => (
               <Route path="actions-tasks" element={<ActionsTasks />} />
               <Route path="eod-submission" element={<EODSubmission />} />
               <Route path="my-eod-submissions" element={<MyEODSubmissions />} />
-              <Route path="people" element={<People />} />
-              <Route path="people/review" element={<React.Suspense fallback={<div>Loading...</div>}><PeopleReviewDashboard /></React.Suspense>} />
               <Route path="my-agents" element={<MyAgentsPage />} />
               {/* Admin-specific routes accessible from manager interface */}
               <Route path="admin/users" element={<UserManagement />} />
@@ -209,6 +204,8 @@ const App = () => (
               <Route path="documentation" element={<React.Suspense fallback={<div>Loading...</div>}><Documentation /></React.Suspense>} />
               <Route path="settings" element={<AdminSettings />} />
               <Route path="eod-management" element={<EODManagement />} />
+              <Route path="people" element={<People />} />
+              <Route path="people/review" element={<React.Suspense fallback={<div>Loading...</div>}><PeopleReviewDashboard /></React.Suspense>} />
               <Route path="ai-agents" element={<AIAgentsPage />} />
               <Route path="ai-dashboard" element={<AIDashboard />} />
             </Route>

@@ -85,16 +85,6 @@ const Layout = ({ userRole }: LayoutProps) => {
               { name: "My EOD History", href: `${basePath}/my-eod-submissions`, icon: History, current: false },
             ]
           },
-          { 
-            name: "People", 
-            href: `${basePath}/people`, 
-            icon: Users, 
-            current: false,
-            subItems: [
-              { name: "Directory", href: `${basePath}/people`, icon: Users, current: false },
-              { name: "Review", href: `${basePath}/people/review`, icon: CheckSquare, current: false },
-            ]
-          },
           { name: "SEPARATOR", href: "", icon: null, current: false, isHeader: true },
           { name: "Admin Panel", href: "/adminpanel", icon: Shield, current: false, isAdmin: true },
         ];
@@ -115,16 +105,6 @@ const Layout = ({ userRole }: LayoutProps) => {
               { name: "Tasks", href: `${basePath}/actions-tasks`, icon: CheckSquare, current: false },
               { name: "Submit EOD", href: `${basePath}/eod-submission`, icon: Calendar, current: false },
               { name: "My EOD History", href: `${basePath}/my-eod-submissions`, icon: History, current: false },
-            ]
-          },
-          { 
-            name: "People", 
-            href: `${basePath}/people`, 
-            icon: Users, 
-            current: false,
-            subItems: [
-              { name: "Directory", href: `${basePath}/people`, icon: Users, current: false },
-              { name: "Review", href: `${basePath}/people/review`, icon: CheckSquare, current: false },
             ]
           },
         ];
