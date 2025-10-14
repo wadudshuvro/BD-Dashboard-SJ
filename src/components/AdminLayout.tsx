@@ -18,7 +18,9 @@ import {
   UserCheck,
   Zap,
   TrendingUp,
-  Calendar
+  Calendar,
+  Crosshair,
+  Megaphone
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
@@ -30,6 +32,14 @@ const navigation = [
     section: 'Quick Access',
     items: [
       { name: 'Back to Dashboard', href: '/dashboard', icon: ArrowLeft, isExternal: true },
+    ]
+  },
+  {
+    section: 'Business Development',
+    items: [
+      { name: 'POD Management', href: '/bd/pods', icon: Users },
+      { name: 'Target Niches', href: '/bd/niches', icon: Crosshair },
+      { name: 'BD Campaigns', href: '/bd/campaigns', icon: Megaphone },
     ]
   },
   {
