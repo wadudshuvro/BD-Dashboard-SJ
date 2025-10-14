@@ -239,7 +239,6 @@ export default function ProjectDetail() {
         open={isTaskFormOpen}
         onOpenChange={setIsTaskFormOpen}
         task={selectedTask}
-        projectId={projectId}
       />
     </div>
   );

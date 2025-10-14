@@ -278,8 +278,8 @@ export default function ClientDetail() {
                   {deals.map((deal) => (
                     <div key={deal.id} className="p-3 border rounded-lg">
                       <div className="flex items-start justify-between">
-                        <div>
-                          <p className="font-medium text-sm">{deal.name}</p>
+                      <div>
+                        <p className="font-medium text-sm">{deal.title}</p>
                           {deal.amount && (
                             <p className="text-sm text-muted-foreground">
                               ${deal.amount.toLocaleString()}

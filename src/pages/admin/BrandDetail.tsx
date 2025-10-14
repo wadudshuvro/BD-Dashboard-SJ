@@ -210,15 +210,18 @@ const BrandDetail = () => {
     queryKey: ["brand-owners"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('users')
-        .select('id, email, first_name, last_name')
-        .in('role', ['super_admin', 'manager']);
+        .from('profiles')
+        .select('id, full_name, email');
 
       if (error) {
-        throw new Error(error.message || 'Failed to fetch users');
+        throw new Error(error.message || 'Failed to fetch profiles');
       }
 
-      return data as ApiBrandOwner[];
+      return (data || []).map(profile => ({
+        id: profile.id,
+        name: profile.full_name || profile.email,
+        email: profile.email,
+      })) as ApiBrandOwner[];
     },
   });
 

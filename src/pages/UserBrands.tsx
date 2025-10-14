@@ -84,7 +84,7 @@ const UserBrands = () => {
               variant="outline" 
               size="sm" 
               className="mt-4"
-              onClick={dashboardData.refreshData}
+              onClick={() => dashboardData.refreshData()}
             >
               Try Again
             </Button>

@@ -31,24 +31,21 @@ export default function EODManagement() {
     queryKey: ["eod-submissions", "admin", dateFilter],
     queryFn: async () => {
       let query = supabase
-        .from("team_eod_submissions")
-        .select(`
-          *,
-          users!inner(first_name, last_name, email, department)
-        `)
-        .order("submission_date", { ascending: false });
+        .from("eod_submissions")
+        .select("*")
+        .order("date", { ascending: false });
 
       if (dateFilter === "today") {
         const today = new Date().toISOString().split("T")[0];
-        query = query.eq("submission_date", today);
+        query = query.eq("date", today);
       } else if (dateFilter === "week") {
         const weekAgo = new Date();
         weekAgo.setDate(weekAgo.getDate() - 7);
-        query = query.gte("submission_date", weekAgo.toISOString().split("T")[0]);
+        query = query.gte("date", weekAgo.toISOString().split("T")[0]);
       } else if (dateFilter === "month") {
         const monthAgo = new Date();
         monthAgo.setMonth(monthAgo.getMonth() - 1);
-        query = query.gte("submission_date", monthAgo.toISOString().split("T")[0]);
+        query = query.gte("date", monthAgo.toISOString().split("T")[0]);
       }
 
       const { data, error } = await query;
@@ -63,14 +60,13 @@ export default function EODManagement() {
       const today = new Date().toISOString().split("T")[0];
       
       const { data: submissions, error: submissionsError } = await supabase
-        .from("team_eod_submissions")
+        .from("eod_submissions")
         .select("user_id")
-        .eq("submission_date", today);
+        .eq("date", today);
 
       const { data: activeUsers, error: usersError } = await supabase
-        .from("users")
-        .select("id")
-        .eq("status", "active");
+        .from("profiles")
+        .select("id");
 
       if (submissionsError || usersError) throw submissionsError || usersError;
 
@@ -88,26 +84,20 @@ export default function EODManagement() {
     },
   });
 
-  const filteredSubmissions = allEODSubmissions?.filter((submission) => {
+  const filteredSubmissions = allEODSubmissions?.filter((submission: any) => {
     if (!searchTerm) return true;
-    const fullName = `${submission.users.first_name} ${submission.users.last_name}`.toLowerCase();
-    const email = submission.users.email?.toLowerCase() || "";
-    const department = submission.users.department?.toLowerCase() || "";
     const search = searchTerm.toLowerCase();
-    return fullName.includes(search) || email.includes(search) || department.includes(search);
+    return submission.id.toLowerCase().includes(search);
   });
 
   const exportToCSV = () => {
     if (!filteredSubmissions) return;
 
-    const headers = ["Date", "Name", "Email", "Department", "Tasks Count", "Notes", "Submitted At"];
-    const rows = filteredSubmissions.map((sub) => [
-      format(new Date(sub.submission_date), "yyyy-MM-dd"),
-      `${sub.users.first_name} ${sub.users.last_name}`,
-      sub.users.email,
-      sub.users.department || "N/A",
-      sub.task_links?.length || 0,
-      sub.notes?.replace(/\n/g, " ") || "N/A",
+    const headers = ["Date", "Hours Worked", "Tasks", "Submitted At"];
+    const rows = filteredSubmissions.map((sub: any) => [
+      format(new Date(sub.date), "yyyy-MM-dd"),
+      sub.hours_worked || "0",
+      (sub.tasks_completed || "").replace(/\n/g, " "),
       format(new Date(sub.created_at), "yyyy-MM-dd HH:mm"),
     ]);
 
@@ -232,43 +222,26 @@ export default function EODManagement() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Date</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Department</TableHead>
-                  <TableHead className="text-center">Tasks</TableHead>
-                  <TableHead>Notes Preview</TableHead>
+                  <TableHead>Hours</TableHead>
+                  <TableHead>Tasks Preview</TableHead>
                   <TableHead>Submitted</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredSubmissions.map((submission) => (
+                {filteredSubmissions.map((submission: any) => (
                   <TableRow key={submission.id}>
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-2">
                         <Calendar className="h-4 w-4 text-muted-foreground" />
-                        {format(new Date(submission.submission_date), "MMM d, yyyy")}
+                        {format(new Date(submission.date), "MMM d, yyyy")}
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div>
-                        <div className="font-medium">
-                          {submission.users.first_name} {submission.users.last_name}
-                        </div>
-                        <div className="text-sm text-muted-foreground">{submission.users.email}</div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {submission.users.department ? (
-                        <Badge variant="outline">{submission.users.department}</Badge>
-                      ) : (
-                        <span className="text-muted-foreground text-sm">N/A</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge variant="secondary">{submission.task_links?.length || 0}</Badge>
+                      <Badge variant="secondary">{submission.hours_worked || 0}h</Badge>
                     </TableCell>
                     <TableCell className="max-w-xs">
                       <div className="truncate text-sm text-muted-foreground">
-                        {submission.notes || "No notes provided"}
+                        {submission.tasks_completed || "No tasks provided"}
                       </div>
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
