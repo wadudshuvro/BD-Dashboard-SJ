@@ -128,7 +128,9 @@ const normalizeInputReference = (value: unknown): File | undefined => {
     : 'application/octet-stream';
 
   const bytes = base64ToUint8Array(candidate.data);
-  return new File([bytes], fileName, { type: mimeType });
+  // Create a new Uint8Array from the buffer to ensure proper type
+  const typedBytes = new Uint8Array(bytes);
+  return new File([typedBytes], fileName, { type: mimeType });
 };
 
 serve(async (req) => {
