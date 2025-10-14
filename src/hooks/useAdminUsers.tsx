@@ -1,7 +1,6 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import axiosPrivate from '@/lib/axiosPrivate';
 
 export interface AdminUser {
   id: string;
@@ -77,11 +76,6 @@ export function useAdminUsers() {
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const getAuthToken = useCallback(async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    return session?.access_token;
-  }, []);
-
   const fetchUsers = useCallback(async (params: {
     page?: number;
     limit?: number;
@@ -93,17 +87,28 @@ export function useAdminUsers() {
     setLoading(true);
     setError(null);
     try {
-      const { data } = await axiosPrivate.get<UsersResponse>('/admin-users', {
-        params,
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error('Not authenticated');
+      }
+
+      const { data, error: functionError } = await supabase.functions.invoke('admin-users', {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
       });
 
-      setUsers(data.users);
-      setTotal(data.total);
+      if (functionError) throw functionError;
+      if (!data) throw new Error('No data returned');
+
+      setUsers(data.users || []);
+      setTotal(data.total || 0);
 
       return data;
     } catch (error: any) {
       console.error('Error fetching users:', error);
-      const errorMsg = error.response?.data?.error || error.message || "Failed to fetch users";
+      const errorMsg = error.message || "Failed to fetch users";
       setError(errorMsg);
       toast({
         title: "Error",
@@ -118,7 +123,21 @@ export function useAdminUsers() {
 
   const createUser = useCallback(async (userData: CreateUserData): Promise<AdminUser> => {
     try {
-      const { data } = await axiosPrivate.post<{ user: AdminUser }>('/admin-users', userData);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error('Not authenticated');
+      }
+
+      const { data, error: functionError } = await supabase.functions.invoke('admin-users', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: userData,
+      });
+
+      if (functionError) throw functionError;
+      if (!data?.user) throw new Error('No user returned');
 
       const newUser: AdminUser = data.user;
       setUsers(prev => [newUser, ...prev]);
@@ -134,7 +153,7 @@ export function useAdminUsers() {
       console.error('Error creating user:', error);
       toast({
         title: "Error",
-        description: error.response?.data?.error || error.message || "Failed to create user",
+        description: error.message || "Failed to create user",
         variant: "destructive",
       });
       throw error;
@@ -143,7 +162,21 @@ export function useAdminUsers() {
 
   const updateUser = useCallback(async (userId: string, userData: UpdateUserData): Promise<AdminUser> => {
     try {
-      const { data } = await axiosPrivate.put<{ user: AdminUser }>(`/admin-users/${userId}`, userData);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error('Not authenticated');
+      }
+
+      const { data, error: functionError } = await supabase.functions.invoke(`admin-users?userId=${userId}`, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: userData,
+      });
+
+      if (functionError) throw functionError;
+      if (!data?.user) throw new Error('No user returned');
 
       const updatedUser: AdminUser = data.user;
       setUsers(prev => prev.map(user => 
@@ -160,7 +193,7 @@ export function useAdminUsers() {
       console.error('Error updating user:', error);
       toast({
         title: "Error",
-        description: error.response?.data?.error || error.message || "Failed to update user",
+        description: error.message || "Failed to update user",
         variant: "destructive",
       });
       throw error;
@@ -169,7 +202,19 @@ export function useAdminUsers() {
 
   const deleteUser = useCallback(async (userId: string): Promise<void> => {
     try {
-      await axiosPrivate.delete(`/admin-users/${userId}`);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error('Not authenticated');
+      }
+
+      const { error: functionError } = await supabase.functions.invoke(`admin-users?userId=${userId}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (functionError) throw functionError;
 
       setUsers(prev => prev.filter(user => user.id !== userId));
       setTotal(prev => prev - 1);
@@ -182,7 +227,7 @@ export function useAdminUsers() {
       console.error('Error deleting user:', error);
       toast({
         title: "Error",
-        description: error.response?.data?.error || error.message || "Failed to delete user",
+        description: error.message || "Failed to delete user",
         variant: "destructive",
       });
       throw error;
@@ -191,14 +236,27 @@ export function useAdminUsers() {
 
   const getUserById = useCallback(async (userId: string): Promise<AdminUser> => {
     try {
-      const { data } = await axiosPrivate.get<{ user: AdminUser }>(`/admin-users/${userId}`);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error('Not authenticated');
+      }
+
+      const { data, error: functionError } = await supabase.functions.invoke(`admin-users?userId=${userId}`, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (functionError) throw functionError;
+      if (!data?.user) throw new Error('User not found');
 
       return data.user;
     } catch (error: any) {
       console.error('Error fetching user:', error);
       toast({
         title: "Error",
-        description: error.response?.data?.error || error.message || "Failed to fetch user",
+        description: error.message || "Failed to fetch user",
         variant: "destructive",
       });
       throw error;
