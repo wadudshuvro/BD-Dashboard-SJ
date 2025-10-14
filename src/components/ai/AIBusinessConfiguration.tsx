@@ -47,6 +47,7 @@ export function AIBusinessConfiguration() {
         .from('ai_configurations')
         .select('configuration_data')
         .eq('user_id', user.id)
+        .eq('configuration_type', 'business_context')
         .maybeSingle();
 
       if (error) throw error;

@@ -89,6 +89,7 @@ export function AIModelConfiguration() {
         .from('ai_configurations')
         .select('configuration_data')
         .eq('user_id', user.id)
+        .eq('configuration_type', 'model_settings')
         .maybeSingle();
 
       if (error) throw error;
@@ -111,10 +112,8 @@ export function AIModelConfiguration() {
         .from('ai_configurations')
         .upsert({
           user_id: user.id,
-          configuration_data: config as any,
-          updated_at: new Date().toISOString()
-        }, {
-          onConflict: 'user_id'
+          configuration_type: 'model_settings',
+          configuration_data: config as any
         });
 
       if (error) throw error;

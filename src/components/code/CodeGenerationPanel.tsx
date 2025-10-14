@@ -17,7 +17,7 @@ import {
   Plus,
   Trash2
 } from 'lucide-react';
-import { useGenerateCode, useCodeGenerationTemplates } from '@/hooks/useCodeAnalysis';
+import { useGenerateCode } from '@/hooks/useCodeAnalysis';
 import { toast } from 'sonner';
 
 interface GeneratedCode {

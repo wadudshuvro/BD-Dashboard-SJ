@@ -30,8 +30,11 @@ export function CodeRepositoryForm({ open, onClose }: CodeRepositoryFormProps) {
     
     try {
       await createRepository.mutateAsync({
-        ...formData,
-        metadata: {}
+        name: formData.name,
+        description: formData.description,
+        url: formData.repository_url,
+        language: formData.language,
+        framework: formData.framework
       });
       
       toast.success('Repository added successfully');

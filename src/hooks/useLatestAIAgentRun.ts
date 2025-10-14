@@ -28,7 +28,7 @@ export function useAIAgents() {
       const { data, error } = await supabase
         .from('ai_agents')
         .select('*')
-        .eq('is_enabled', true)
+        .eq('is_active', true)
         .order('name');
 
       if (error) throw error;
