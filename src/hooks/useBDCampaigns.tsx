@@ -31,7 +31,7 @@ export const useBDCampaigns = (nicheId?: string) => {
   const { data: campaigns, isLoading, error } = useQuery({
     queryKey: ['bd_campaigns', nicheId],
     queryFn: async () => {
-      let query = supabase
+      let query = (supabase as any)
         .from('bd_campaigns')
         .select('*')
         .order('created_at', { ascending: false });
@@ -48,7 +48,7 @@ export const useBDCampaigns = (nicheId?: string) => {
 
   const createCampaign = useMutation({
     mutationFn: async (campaign: Partial<BDCampaign>) => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('bd_campaigns')
         .insert([campaign])
         .select()
@@ -75,7 +75,7 @@ export const useBDCampaigns = (nicheId?: string) => {
 
   const updateCampaign = useMutation({
     mutationFn: async ({ id, ...updates }: Partial<BDCampaign> & { id: string }) => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('bd_campaigns')
         .update(updates)
         .eq('id', id)
@@ -103,7 +103,7 @@ export const useBDCampaigns = (nicheId?: string) => {
 
   const deleteCampaign = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('bd_campaigns')
         .delete()
         .eq('id', id);

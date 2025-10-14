@@ -19,7 +19,7 @@ export const usePods = () => {
   const { data: pods, isLoading, error } = useQuery({
     queryKey: ['pods'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('pods')
         .select('*')
         .order('name');
@@ -31,7 +31,7 @@ export const usePods = () => {
 
   const createPod = useMutation({
     mutationFn: async (pod: Partial<Pod>) => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('pods')
         .insert([pod])
         .select()
@@ -58,7 +58,7 @@ export const usePods = () => {
 
   const updatePod = useMutation({
     mutationFn: async ({ id, ...updates }: Partial<Pod> & { id: string }) => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('pods')
         .update(updates)
         .eq('id', id)
@@ -86,7 +86,7 @@ export const usePods = () => {
 
   const deletePod = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('pods')
         .delete()
         .eq('id', id);

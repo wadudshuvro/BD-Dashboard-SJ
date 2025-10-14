@@ -29,7 +29,7 @@ export const useMarketingEfforts = (nicheId?: string) => {
   const { data: efforts, isLoading, error } = useQuery({
     queryKey: ['marketing_niche_efforts', nicheId],
     queryFn: async () => {
-      let query = supabase
+      let query = (supabase as any)
         .from('marketing_niche_efforts')
         .select('*')
         .order('created_at', { ascending: false });
@@ -46,7 +46,7 @@ export const useMarketingEfforts = (nicheId?: string) => {
 
   const createEffort = useMutation({
     mutationFn: async (effort: Partial<MarketingEffort>) => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('marketing_niche_efforts')
         .insert([effort])
         .select()
@@ -73,7 +73,7 @@ export const useMarketingEfforts = (nicheId?: string) => {
 
   const updateEffort = useMutation({
     mutationFn: async ({ id, ...updates }: Partial<MarketingEffort> & { id: string }) => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('marketing_niche_efforts')
         .update(updates)
         .eq('id', id)
@@ -101,7 +101,7 @@ export const useMarketingEfforts = (nicheId?: string) => {
 
   const deleteEffort = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('marketing_niche_efforts')
         .delete()
         .eq('id', id);

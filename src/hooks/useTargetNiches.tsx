@@ -34,7 +34,7 @@ export const useTargetNiches = (podId?: string) => {
   const { data: niches, isLoading, error } = useQuery({
     queryKey: ['target_niches', podId],
     queryFn: async () => {
-      let query = supabase
+      let query = (supabase as any)
         .from('target_niches')
         .select('*')
         .order('name');
@@ -51,7 +51,7 @@ export const useTargetNiches = (podId?: string) => {
 
   const createNiche = useMutation({
     mutationFn: async (niche: Partial<TargetNiche>) => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('target_niches')
         .insert([niche])
         .select()
@@ -78,7 +78,7 @@ export const useTargetNiches = (podId?: string) => {
 
   const updateNiche = useMutation({
     mutationFn: async ({ id, ...updates }: Partial<TargetNiche> & { id: string }) => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('target_niches')
         .update(updates)
         .eq('id', id)
@@ -106,7 +106,7 @@ export const useTargetNiches = (podId?: string) => {
 
   const deleteNiche = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('target_niches')
         .delete()
         .eq('id', id);
