@@ -40,10 +40,13 @@ export function AIBusinessConfiguration() {
 
   const loadConfiguration = async () => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
       const { data, error } = await supabase
         .from('ai_configurations')
         .select('configuration_data')
-        .eq('configuration_type', 'business_context')
+        .eq('user_id', user.id)
         .maybeSingle();
 
       if (error) throw error;
@@ -59,14 +62,17 @@ export function AIBusinessConfiguration() {
   const saveConfiguration = async () => {
     setLoading(true);
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
       const { error } = await supabase
         .from('ai_configurations')
         .upsert({
-          configuration_type: 'business_context',
+          user_id: user.id,
           configuration_data: config as any,
           updated_at: new Date().toISOString()
         }, {
-          onConflict: 'configuration_type'
+          onConflict: 'user_id'
         });
 
       if (error) throw error;

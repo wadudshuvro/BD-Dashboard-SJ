@@ -5,43 +5,20 @@ export interface CodeRepository {
   id: string;
   name: string;
   description?: string;
-  repository_url?: string;
-  branch: string;
+  url: string;
   language?: string;
   framework?: string;
-  last_analyzed_at?: string;
-  analysis_status: 'pending' | 'analyzing' | 'completed' | 'error';
-  metadata: any;
-  created_by?: string;
+  project_id?: string;
   created_at: string;
   updated_at: string;
 }
 
 export interface CodeAnalysisResult {
   id: string;
-  repository_id: string;
-  analysis_type: 'architecture' | 'quality' | 'security' | 'performance' | 'documentation';
-  file_path?: string;
-  findings: any;
-  severity: 'info' | 'warning' | 'error' | 'critical';
-  status: 'active' | 'resolved' | 'ignored';
-  agent_run_id?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface CodeGenerationTemplate {
-  id: string;
-  name: string;
-  description?: string;
-  category: 'component' | 'hook' | 'api' | 'test' | 'utility' | 'page';
-  template_content: string;
-  variables: any;
-  framework?: string;
-  language: string;
-  is_active: boolean;
-  usage_count: number;
-  created_by?: string;
+  repository_id?: string;
+  analysis_type?: string;
+  status?: string;
+  results?: any;
   created_at: string;
   updated_at: string;
 }
@@ -67,7 +44,7 @@ export function useCreateCodeRepository() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async (repository: Omit<CodeRepository, 'id' | 'created_at' | 'updated_at' | 'analysis_status'>) => {
+    mutationFn: async (repository: Omit<CodeRepository, 'id' | 'created_at' | 'updated_at'>) => {
       const { data, error } = await supabase
         .from('code_repositories')
         .insert(repository)
@@ -119,7 +96,7 @@ export function useCodeAnalysisResults(repositoryId?: string) {
     queryKey: ['code-analysis-results', repositoryId],
     queryFn: async () => {
       let query = supabase
-        .from('code_analysis_results')
+        .from('code_analyses')
         .select('*')
         .order('created_at', { ascending: false });
       
@@ -163,49 +140,6 @@ export function useGenerateCode() {
   });
 }
 
-// Hook for managing code generation templates
-export function useCodeGenerationTemplates(category?: string) {
-  return useQuery({
-    queryKey: ['code-generation-templates', category],
-    queryFn: async () => {
-      let query = supabase
-        .from('code_generation_templates')
-        .select('*')
-        .eq('is_active', true)
-        .order('usage_count', { ascending: false });
-      
-      if (category) {
-        query = query.eq('category', category);
-      }
-      
-      const { data, error } = await query;
-      if (error) throw error;
-      return data as CodeGenerationTemplate[];
-    }
-  });
-}
-
-// Hook for creating custom templates
-export function useCreateCodeTemplate() {
-  const queryClient = useQueryClient();
-  
-  return useMutation({
-    mutationFn: async (template: Omit<CodeGenerationTemplate, 'id' | 'created_at' | 'updated_at' | 'usage_count'>) => {
-      const { data, error } = await supabase
-        .from('code_generation_templates')
-        .insert(template)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['code-generation-templates'] });
-    }
-  });
-}
-
 // Hook for updating analysis result status
 export function useUpdateAnalysisStatus() {
   const queryClient = useQueryClient();
@@ -216,10 +150,10 @@ export function useUpdateAnalysisStatus() {
       status 
     }: { 
       resultId: string; 
-      status: 'active' | 'resolved' | 'ignored' 
+      status: string;
     }) => {
       const { data, error } = await supabase
-        .from('code_analysis_results')
+        .from('code_analyses')
         .update({ status })
         .eq('id', resultId)
         .select()

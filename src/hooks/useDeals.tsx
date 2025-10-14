@@ -5,30 +5,25 @@ import { toast } from "sonner";
 
 export interface Deal {
   id: string;
-  client_id: string;
-  hubspot_id?: string;
-  hubspot_created_at?: string;
-  hubspot_updated_at?: string;
-  name: string;
+  client_id?: string;
+  owner_id?: string;
+  title: string;
   amount?: number;
   stage?: string;
-  pipeline?: string;
   probability?: number;
   close_date?: string;
-  deal_type?: string;
   created_at: string;
   updated_at: string;
 }
 
 export interface CreateDealData {
-  client_id: string;
-  name: string;
+  client_id?: string;
+  owner_id?: string;
+  title: string;
   amount?: number;
   stage?: string;
-  pipeline?: string;
   probability?: number;
   close_date?: string;
-  deal_type?: string;
 }
 
 export interface UpdateDealData extends Partial<CreateDealData> {}
