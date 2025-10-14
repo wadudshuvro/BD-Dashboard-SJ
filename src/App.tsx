@@ -28,7 +28,6 @@ import People from "./pages/People";
 import ActionsTasks from "./pages/ActionsTasks";
 import EODSubmission from "./pages/EODSubmission";
 import MyEODSubmissions from "./pages/MyEODSubmissions";
-import AIWorkspace from "./pages/AIWorkspace";
 import UserManagement from "./pages/admin/UserManagement";
 import BrandManagement from "./pages/admin/BrandManagement";
 import BrandDetail from "./pages/admin/BrandDetail";
@@ -46,7 +45,6 @@ import MyDashboard from "./pages/MyDashboard";
 import UserProfile from "./pages/UserProfile";
 
 import AIDashboard from "./pages/ai-dashboard";
-import UnifiedVideoStudioPage from "./pages/video/UnifiedVideoStudioPage";
 
 const queryClient = new QueryClient();
 
@@ -105,7 +103,6 @@ const App = () => (
               </ProtectedRoute>
             }>
               <Route path="dashboard" element={<UserDashboard />} />
-              <Route path="workspace" element={<AIWorkspace />} />
               <Route path="reports" element={<Reports />} />
               <Route path="people/my-dashboard" element={<React.Suspense fallback={<div>Loading...</div>}><MyDashboard /></React.Suspense>} />
               <Route path="brands" element={<UserBrands />} />
@@ -121,7 +118,6 @@ const App = () => (
               </ProtectedRoute>
             }>
               <Route path="dashboard" element={<PMDashboard />} />
-              <Route path="workspace" element={<AIWorkspace />} />
               <Route path="reports" element={<Reports />} />
               <Route path="clients" element={<ClientManagement />} />
               <Route path="clients/:clientId" element={<ClientDetail />} />
@@ -140,7 +136,6 @@ const App = () => (
               </ProtectedRoute>
             }>
               <Route index element={<Dashboard />} />
-              <Route path="workspace" element={<AIWorkspace />} />
               <Route path="clients-projects" element={<ClientsProjects />} />
               <Route path="clients" element={<ClientManagement />} />
               <Route path="clients/:clientId" element={<ClientDetail />} />
@@ -162,7 +157,6 @@ const App = () => (
               </ProtectedRoute>
             }>
               <Route path="dashboard" element={<ManagerDashboard />} />
-              <Route path="workspace" element={<AIWorkspace />} />
               <Route path="clients-projects" element={<ClientsProjects />} />
               <Route path="clients" element={<ClientManagement />} />
               <Route path="clients/:clientId" element={<ClientDetail />} />
@@ -212,7 +206,6 @@ const App = () => (
             
             {/* Legacy/Fallback Routes */}
             <Route element={<Layout />}>
-              <Route path="workspace" element={<AIWorkspace />} />
               <Route path="reports" element={<Reports />} />
             </Route>
             

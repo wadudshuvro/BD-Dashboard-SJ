@@ -23,7 +23,7 @@ export const RemixModal = ({
   defaultPrompt,
   isLoading,
   onSubmit,
-  providerName = "OpenAI's Sora",
+  providerName = "Google Gemini Veo 3",
 }: RemixModalProps) => {
   const [prompt, setPrompt] = useState(defaultPrompt ?? "");
   const [touched, setTouched] = useState(false);

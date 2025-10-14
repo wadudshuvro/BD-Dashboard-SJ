@@ -6,7 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { CreateGeminiVideoModal } from "@/components/video-veo/CreateGeminiVideoModal";
 import { GeminiVideoCard } from "@/components/video-veo/GeminiVideoCard";
-import { RemixModal } from "@/components/video/RemixModal";
+import { RemixModal } from "@/components/video-veo/RemixModal";
 import {
   CreateGeminiVideoInput,
   GeminiVideo,

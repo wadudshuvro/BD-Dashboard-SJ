@@ -16,7 +16,7 @@ The **SJ Business Development AI Platform** is a comprehensive project managemen
 - EOD Reporting
 - Analytics & KPIs
 - AI Features
-- Video Generation (Sora & Gemini Veo)
+- Video Generation (Gemini Veo)
 - Third-Party Integrations
 
 For detailed documentation, please refer to the external documentation files.`,
