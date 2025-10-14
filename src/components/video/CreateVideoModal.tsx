@@ -260,7 +260,7 @@ export const CreateVideoModal = ({
           <DialogHeader>
             <DialogTitle className="text-2xl font-semibold">AI Video Assistant</DialogTitle>
             <DialogDescription>
-              Share your campaign idea, enhance it with AI, and generate a cinematic video with your selected Sora model.
+              Share your business development idea, enhance it with AI, and generate a cinematic video with your selected Sora model.
             </DialogDescription>
           </DialogHeader>
 
@@ -370,7 +370,7 @@ export const CreateVideoModal = ({
               className="w-full"
             />
             <p className="text-sm text-muted-foreground">
-              Sora supports clips up to {MAX_DURATION_SECONDS} seconds. Keep marketing snippets punchy and concise.
+              Sora supports clips up to {MAX_DURATION_SECONDS} seconds. Keep business development snippets punchy and concise.
             </p>
             {estimatedCost ? (
               <p className="text-sm text-muted-foreground">Estimated Cost: ${estimatedCost}</p>

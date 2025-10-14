@@ -169,7 +169,7 @@ serve(async (req) => {
       // Map HubSpot company to client
       const clientData = {
         name: props.name || 'Unknown Company',
-        company: props.name,
+        company: props.name || 'Unknown Company',
         email: props.email || null,
         phone: props.phone || null,
         website: props.website || props.domain || null,
@@ -254,11 +254,17 @@ serve(async (req) => {
       const companyData = await companyResponse.json();
       const props = companyData.properties;
 
+      const { data: existingClient } = await supabase
+        .from('clients')
+        .select('name')
+        .eq('id', clientId)
+        .single();
+
       const { error } = await supabase
         .from('clients')
         .update({
-          name: props.name || client.name,
-          company: props.name,
+          name: props.name || existingClient?.name || 'Unknown',
+          company: props.name || existingClient?.name || 'Unknown',
           phone: props.phone || null,
           website: props.website || props.domain || null,
           address: props.address || null,
@@ -302,17 +308,18 @@ serve(async (req) => {
 
     throw new Error('Invalid action');
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('[HubSpot Sync] ERROR:', error);
+    const err = error as Error;
     console.error('[HubSpot Sync] Error details:', {
-      message: error.message,
-      stack: error.stack,
-      name: error.name
+      message: err.message,
+      stack: err.stack,
+      name: err.name
     });
     
     return new Response(JSON.stringify({ 
-      error: error.message,
-      details: error.toString()
+      error: err.message,
+      details: err.toString()
     }), {
       status: 400,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }

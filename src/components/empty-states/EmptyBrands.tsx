@@ -9,7 +9,7 @@ export function EmptyBrands() {
     <EmptyState
       icon={Building2}
       title="No Brands Yet"
-      description="Create your first brand to start tracking performance and managing your marketing efforts."
+      description="Create your first brand to start tracking performance and managing your business development efforts."
       primaryAction={{
         label: "Create Brand",
         onClick: () => navigate("/admin/brands"),

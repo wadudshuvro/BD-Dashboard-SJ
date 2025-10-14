@@ -89,7 +89,7 @@ export default function ManagerDashboard() {
     {
       id: "2",
       name: "Michael Chen",
-      role: "Marketing Specialist",
+      role: "Business Development Specialist",
       achievement: "Increased client satisfaction by 15%",
       performance: 91,
       trend: "up"

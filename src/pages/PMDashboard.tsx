@@ -47,7 +47,7 @@ export default function PMDashboard() {
   const activeProjects = [
     {
       id: "1",
-      name: "Q4 Marketing Campaign",
+      name: "Q4 Business Development Campaign",
       client: "TechCorp Solutions",
       progress: 75,
       status: "on_track",

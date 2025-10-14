@@ -28,7 +28,7 @@ export const documentationIndex: DocCategory[] = [
       {
         id: 'overview',
         title: 'Project Overview',
-        description: 'Understanding the SJ Marketing AI platform',
+        description: 'Understanding the SJ Business Development AI platform',
         category: 'getting-started',
         file: 'getting-started/overview',
         tags: ['overview', 'introduction'],

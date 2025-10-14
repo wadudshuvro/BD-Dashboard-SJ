@@ -55,7 +55,7 @@ function getSupabaseClient(req?: Request) {
   });
 }
 
-async function getAuthenticatedUser(client: SupabaseClient) {
+async function getAuthenticatedUser(client: any) {
   const { data, error } = await client.auth.getUser();
   if (error || !data?.user) {
     return null;
@@ -63,7 +63,7 @@ async function getAuthenticatedUser(client: SupabaseClient) {
   return data.user;
 }
 
-async function getUserProfile(client: SupabaseClient, userId: string): Promise<UserProfile | null> {
+async function getUserProfile(client: any, userId: string): Promise<UserProfile | null> {
   const { data, error } = await client
     .from('users')
     .select('id, role, is_marketing')
@@ -92,7 +92,7 @@ function userHasBrandMembership(brand: BrandRecord, userId: string): boolean {
   return false;
 }
 
-async function getBrand(client: SupabaseClient, brandId: string): Promise<BrandRecord | null> {
+async function getBrand(client: any, brandId: string): Promise<BrandRecord | null> {
   const { data, error } = await client
     .from('brands')
     .select('id, name, owner_id, co_owner_id, team_members, active_integrations')
@@ -107,7 +107,7 @@ async function getBrand(client: SupabaseClient, brandId: string): Promise<BrandR
 }
 
 async function ensureBrandAccess(
-  client: SupabaseClient,
+  client: any,
   brandId: string,
   userId: string,
   profile: UserProfile | null,
@@ -141,24 +141,24 @@ function buildWebhookUrl(brandId: string): string {
   return `${baseUrl}/functions/v1/n8n-analytics-manage/webhook/${brandId}`;
 }
 
-async function addIntegrationToBrand(client: SupabaseClient, brand: BrandRecord) {
+async function addIntegrationToBrand(client: any, brand: BrandRecord) {
   const current = Array.isArray(brand.active_integrations) ? [...brand.active_integrations] : [];
   if (!current.includes(INTEGRATION_TYPE)) {
     current.push(INTEGRATION_TYPE);
     await client
       .from('brands')
-      .update({ active_integrations: current })
+      .update({ active_integrations: current } as any)
       .eq('id', brand.id);
   }
 }
 
-async function removeIntegrationFromBrand(client: SupabaseClient, brand: BrandRecord) {
+async function removeIntegrationFromBrand(client: any, brand: BrandRecord) {
   const current = Array.isArray(brand.active_integrations) ? [...brand.active_integrations] : [];
   if (current.includes(INTEGRATION_TYPE)) {
     const updated = current.filter((value) => value !== INTEGRATION_TYPE);
     await client
       .from('brands')
-      .update({ active_integrations: updated })
+      .update({ active_integrations: updated } as any)
       .eq('id', brand.id);
   }
 }
@@ -185,7 +185,7 @@ function sanitizeIntegrationResponse(row: AnalyticsIntegrationRow | null, includ
 }
 
 async function fetchAnalyticsIntegration(
-  client: SupabaseClient,
+  client: any,
   brandId: string,
 ): Promise<AnalyticsIntegrationRow | null> {
   const { data, error } = await client
@@ -204,7 +204,7 @@ async function fetchAnalyticsIntegration(
 }
 
 async function fetchAnalyticsData(
-  client: SupabaseClient,
+  client: any,
   brandId: string,
   limit = 20,
   startDate?: string,
@@ -366,7 +366,7 @@ async function handleWebhook(req: Request) {
 }
 
 async function handleListBrands(
-  client: SupabaseClient,
+  client: any,
   userId: string,
   profile: UserProfile | null,
 ) {
@@ -427,7 +427,7 @@ Deno.serve(async (req) => {
     });
   }
 
-  let client: SupabaseClient;
+  let client: any;
   try {
     client = getSupabaseClient(req);
   } catch (error) {
@@ -530,17 +530,17 @@ Deno.serve(async (req) => {
       if (existingIntegration) {
         const { error } = await client
           .from('brand_analytics_integrations')
-          .update(payload)
+          .update(payload as any)
           .eq('id', existingIntegration.id);
         if (error) throw error;
       } else {
         const { data, error } = await client
           .from('brand_analytics_integrations')
-          .insert(payload)
+          .insert(payload as any)
           .select('id')
           .single();
         if (error) throw error;
-        integrationId = data?.id;
+        integrationId = (data as any)?.id;
       }
 
       await addIntegrationToBrand(client, brand);
@@ -580,7 +580,7 @@ Deno.serve(async (req) => {
 
       const { error } = await client
         .from('brand_analytics_integrations')
-        .update(updates)
+        .update(updates as any)
         .eq('id', existingIntegration.id);
 
       if (error) {

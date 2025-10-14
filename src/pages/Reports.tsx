@@ -26,7 +26,7 @@ export default function Reports() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
         <div className="space-y-2">
-          <h1 className="text-3xl font-bold text-foreground">Marketing Reports</h1>
+          <h1 className="text-3xl font-bold text-foreground">Business Development Reports</h1>
           <p className="text-muted-foreground">
             Comprehensive analytics and performance insights
           </p>

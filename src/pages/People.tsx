@@ -84,14 +84,14 @@ export default function People() {
       <div>
         <h1 className="text-3xl font-bold">People</h1>
         <p className="text-muted-foreground">
-          Marketing team directory sourced from admin user profiles.
+          Business Development team directory sourced from admin user profiles.
         </p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Marketing team members</CardTitle>
+            <CardTitle className="text-sm font-medium">Business Development team members</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{marketingMembers.length}</div>
@@ -104,7 +104,7 @@ export default function People() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{totalBrandsManaged}</div>
-            <p className="text-xs text-muted-foreground">Across marketing users</p>
+            <p className="text-xs text-muted-foreground">Across business development users</p>
           </CardContent>
         </Card>
         <Card>
@@ -123,14 +123,14 @@ export default function People() {
 
       {loading ? (
         <div className="flex h-48 items-center justify-center">
-          <p className="text-sm text-muted-foreground">Loading marketing team…</p>
+          <p className="text-sm text-muted-foreground">Loading business development team…</p>
         </div>
       ) : filteredMembers.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
-            <h3 className="text-lg font-semibold">No marketing members found</h3>
+            <h3 className="text-lg font-semibold">No business development members found</h3>
             <p className="mt-2 text-sm text-muted-foreground">
-              Try adjusting your search or add marketing members from the admin panel.
+              Try adjusting your search or add business development members from the admin panel.
             </p>
           </CardContent>
         </Card>
@@ -159,7 +159,7 @@ export default function People() {
                 </CardHeader>
                 <CardContent className="flex flex-1 flex-col gap-4">
                   <div className="flex flex-wrap items-center gap-2">
-                    <Badge variant="outline" className="text-xs">Marketing Team</Badge>
+                    <Badge variant="outline" className="text-xs">Business Development Team</Badge>
                     {member.department && (
                       <Badge variant="secondary" className="text-xs">{member.department}</Badge>
                     )}

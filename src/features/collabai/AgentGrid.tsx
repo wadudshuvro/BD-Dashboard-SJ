@@ -31,7 +31,7 @@ export function AgentGrid({ agents, onTry }: { agents: any[]; onTry: (agent: any
             <div className="flex flex-wrap gap-2">
               <Badge variant="outline" className="flex items-center gap-1">
                 <span>🎯</span>
-                <span>{agent.category || "Marketing"}</span>
+                <span>{agent.category || "Business Development"}</span>
               </Badge>
               <Badge variant="secondary">ORGANIZATIONAL</Badge>
             </div>

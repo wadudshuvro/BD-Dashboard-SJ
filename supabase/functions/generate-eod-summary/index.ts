@@ -253,11 +253,12 @@ Respond in JSON format:
       }
     );
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in generate-eod-summary:', error);
+    const err = error as Error;
     return new Response(
       JSON.stringify({ 
-        error: error.message,
+        error: err.message,
         details: 'Check function logs for more information'
       }),
       { 

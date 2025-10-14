@@ -32,7 +32,7 @@ export default function EffortChart() {
           Effort vs Results Trend
         </CardTitle>
         <p className="text-sm text-muted-foreground">
-          Weekly comparison of team effort hours vs marketing results
+          Weekly comparison of team effort hours vs business development results
         </p>
       </CardHeader>
       <CardContent>

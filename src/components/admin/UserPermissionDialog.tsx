@@ -216,7 +216,7 @@ export const UserPermissionDialog = ({
                 id="title"
                 value={formState.title}
                 onChange={(event) => updateField('title', event.target.value)}
-                placeholder="e.g. Marketing Manager"
+                placeholder="e.g. Business Development Manager"
               />
             </div>
             <div>
@@ -225,7 +225,7 @@ export const UserPermissionDialog = ({
                 id="department"
                 value={formState.department}
                 onChange={(event) => updateField('department', event.target.value)}
-                placeholder="e.g. Marketing"
+                placeholder="e.g. Business Development"
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -272,9 +272,9 @@ export const UserPermissionDialog = ({
                 }
               />
               <Label htmlFor="marketing" className="flex items-center gap-2">
-                Marketing team member
+                Business Development team member
                 {formState.isMarketing && (
-                  <Badge variant="outline" className="text-xs">Marketing</Badge>
+                  <Badge variant="outline" className="text-xs">Business Development Team</Badge>
                 )}
               </Label>
             </div>

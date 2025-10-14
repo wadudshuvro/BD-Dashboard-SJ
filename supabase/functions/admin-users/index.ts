@@ -411,7 +411,7 @@ serve(async (req) => {
         }
 
         // Fetch roles for all users
-        const userIds = (users || []).map(u => u.id);
+        const userIds = (users && Array.isArray(users)) ? users.map((u: any) => u.id) : [];
         const { data: rolesData, error: rolesError } = await supabaseClient
           .from('user_roles')
           .select('user_id, role')

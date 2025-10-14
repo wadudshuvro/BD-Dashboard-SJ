@@ -60,7 +60,7 @@ export function EmptyDashboard({
             {userName ? `Welcome, ${userName}!` : "Welcome!"}
           </CardTitle>
           <p className="text-muted-foreground mt-2">
-            Let's get your dashboard set up. Complete these steps to start tracking your marketing performance.
+            Let's get your dashboard set up. Complete these steps to start tracking your business development performance.
           </p>
         </CardHeader>
         <CardContent className="space-y-6">

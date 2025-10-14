@@ -177,7 +177,7 @@ export const CreateGeminiVideoModal = ({
               <PlusCircle className="h-6 w-6" /> Create Gemini Veo 3 Video
             </DialogTitle>
             <DialogDescription>
-              Provide a cinematic marketing prompt (5-8 seconds for Veo 3), and optionally add a reference image. We&apos;ll send it to
+              Provide a cinematic business development prompt (5-8 seconds for Veo 3), and optionally add a reference image. We&apos;ll send it to
               Google Gemini Veo 3 for generation.
               {estimatedCost > 0 && (
                 <span className="mt-2 block text-sm font-medium text-amber-600 dark:text-amber-400">

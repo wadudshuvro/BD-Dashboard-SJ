@@ -7,7 +7,7 @@ import { Globe, Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const AdminSettings = () => {
-  const [companyName, setCompanyName] = useState("Marketing Intelligence Co.");
+  const [companyName, setCompanyName] = useState("Business Development Intelligence Co.");
   const { toast } = useToast();
 
   const handleSave = () => {

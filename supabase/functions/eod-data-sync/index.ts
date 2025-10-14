@@ -129,10 +129,11 @@ Deno.serve(async (req) => {
         }
 
         results.success++;
-      } catch (taskError) {
+      } catch (taskError: unknown) {
         console.error(`Error processing task ${task.external_task_id}:`, taskError);
         results.failed++;
-        results.errors.push(`Task ${task.external_task_id}: ${taskError.message}`);
+        const error = taskError as Error;
+        results.errors.push(`Task ${task.external_task_id}: ${error.message}`);
       }
     }
 
@@ -150,11 +151,12 @@ Deno.serve(async (req) => {
       }
     );
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error in eod-data-sync:', error);
+    const err = error as Error;
     return new Response(
       JSON.stringify({ 
-        error: error.message,
+        error: err.message,
         details: 'Check function logs for more information'
       }),
       { 

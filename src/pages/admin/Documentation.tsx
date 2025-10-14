@@ -7,7 +7,7 @@ import { FileText } from "lucide-react";
 const documentationContent: Record<string, string> = {
   "getting-started/overview": `# Project Overview
 
-The **SJ Marketing AI Platform** is a comprehensive project management and analytics system.
+The **SJ Business Development AI Platform** is a comprehensive project management and analytics system.
 
 ## Core Features
 

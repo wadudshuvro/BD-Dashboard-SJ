@@ -57,7 +57,7 @@ const mockProjects: Project[] = [
   },
   {
     id: '3',
-    name: 'Marketing Automation',
+    name: 'Business Development Automation',
     client: 'Fresh Startup Inc',
     status: 'planning',
     progress: 25,

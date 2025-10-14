@@ -195,7 +195,7 @@ const BrandManagement = () => {
             <DialogHeader>
               <DialogTitle>Add New Brand Module</DialogTitle>
               <DialogDescription>
-                Create a new brand module to track marketing efforts and results.
+                Create a new brand module to track business development efforts and results.
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">

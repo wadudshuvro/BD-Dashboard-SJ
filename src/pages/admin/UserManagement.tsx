@@ -321,7 +321,7 @@ const UserManagement = () => {
                     <Label htmlFor="user-title">Title</Label>
                     <Input
                       id="user-title"
-                      placeholder="e.g. Marketing Manager"
+                      placeholder="e.g. Business Development Manager"
                       value={newUser.title}
                       onChange={(e) => setNewUser(prev => ({ ...prev, title: e.target.value }))}
                     />
@@ -330,7 +330,7 @@ const UserManagement = () => {
                     <Label htmlFor="user-department">Department</Label>
                     <Input
                       id="user-department"
-                      placeholder="e.g. Marketing"
+                      placeholder="e.g. Business Development"
                       value={newUser.department}
                       onChange={(e) => setNewUser(prev => ({ ...prev, department: e.target.value }))}
                     />
@@ -374,7 +374,7 @@ const UserManagement = () => {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium">Marketing Team</Label>
+                  <Label className="text-sm font-medium">Business Development Team</Label>
                   <div className="flex items-center gap-2 rounded-md border p-3">
                     <Checkbox
                       id="user-marketing"
@@ -384,7 +384,7 @@ const UserManagement = () => {
                       }
                     />
                     <Label htmlFor="user-marketing" className="text-sm font-normal">
-                      Add to marketing team
+                      Add to business development team
                     </Label>
                   </div>
                 </div>
