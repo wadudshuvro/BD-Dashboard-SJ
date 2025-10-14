@@ -1,0 +1,143 @@
+import { useState } from 'react';
+import { Plus, Users, Edit, Trash2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { usePods, Pod } from '@/hooks/usePods';
+import { useTargetNiches } from '@/hooks/useTargetNiches';
+
+export default function PODManagement() {
+  const { pods, isLoading, createPod, updatePod, deletePod } = usePods();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingPod, setEditingPod] = useState<Pod | null>(null);
+  const [formData, setFormData] = useState({ name: '', description: '' });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (editingPod) {
+      await updatePod.mutateAsync({ id: editingPod.id, ...formData });
+    } else {
+      await createPod.mutateAsync(formData);
+    }
+    setDialogOpen(false);
+    setEditingPod(null);
+    setFormData({ name: '', description: '' });
+  };
+
+  const handleEdit = (pod: Pod) => {
+    setEditingPod(pod);
+    setFormData({ name: pod.name, description: pod.description || '' });
+    setDialogOpen(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (confirm('Are you sure you want to delete this POD?')) {
+      await deletePod.mutateAsync(id);
+    }
+  };
+
+  if (isLoading) return <div>Loading PODs...</div>;
+
+  return (
+    <div className="container mx-auto py-8">
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h1 className="text-3xl font-bold">POD Management</h1>
+          <p className="text-muted-foreground">Manage your team PODs and their niches</p>
+        </div>
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <DialogTrigger asChild>
+            <Button onClick={() => { setEditingPod(null); setFormData({ name: '', description: '' }); }}>
+              <Plus className="mr-2 h-4 w-4" />
+              Create POD
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{editingPod ? 'Edit POD' : 'Create New POD'}</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <Label htmlFor="name">POD Name</Label>
+                <Input
+                  id="name"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="e.g., Devsquad POD"
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="description">Description</Label>
+                <Textarea
+                  id="description"
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  placeholder="Describe the POD's expertise and focus"
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit">{editingPod ? 'Update' : 'Create'}</Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {pods.map((pod) => (
+          <PODCard key={pod.id} pod={pod} onEdit={handleEdit} onDelete={handleDelete} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function PODCard({ pod, onEdit, onDelete }: { pod: Pod; onEdit: (pod: Pod) => void; onDelete: (id: string) => void }) {
+  const { niches } = useTargetNiches(pod.id);
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex justify-between items-start">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              {pod.name}
+            </CardTitle>
+            <CardDescription>{pod.description}</CardDescription>
+          </div>
+          <div className="flex gap-1">
+            <Button variant="ghost" size="icon" onClick={() => onEdit(pod)}>
+              <Edit className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={() => onDelete(pod.id)}>
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">Status</span>
+            <Badge variant={pod.is_active ? "default" : "secondary"}>
+              {pod.is_active ? 'Active' : 'Inactive'}
+            </Badge>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">Target Niches</span>
+            <Badge variant="outline">{niches.length}</Badge>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
