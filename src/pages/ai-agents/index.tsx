@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useCollabAIIntegration, useCollabAIAgents } from "@/features/collabai/hooks";
+import { buildAgentChatUrl } from "@/features/collabai/buildAgentChatUrl";
 import { AgentGrid } from "@/features/collabai/AgentGrid";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,8 +14,19 @@ export default function AIAgentsPage() {
   const [searchQuery] = useState("");
 
   const handleTry = (agent: any) => {
-    const chatUrl = `https://collabai.buildyourai.consulting/agents/${agent.agent_id}`;
-    window.open(chatUrl, '_blank', 'noopener,noreferrer');
+    const chatUrl = buildAgentChatUrl(integration?.base_url, agent.agent_id);
+
+    if (!chatUrl) {
+      toast({
+        variant: "destructive",
+        title: "CollabAI URL missing",
+        description: "Add a base URL to your CollabAI integration before launching an agent.",
+      });
+      return;
+    }
+
+    // Respect the configured integration URL instead of hard-coding the hosted domain.
+    window.open(chatUrl, "_blank", "noopener,noreferrer");
   };
 
   if (!integration) {
