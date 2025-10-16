@@ -74,11 +74,22 @@ const Layout = ({ userRole }: LayoutProps) => {
         return [
           ...baseNavigation,
           { name: "My Agents", href: `${basePath}/my-agents`, icon: Zap, current: false },
+          { 
+            name: "Business Development", 
+            href: "/bd/niches", 
+            icon: Crosshair, 
+            current: false,
+            subItems: [
+              { name: "POD Management", href: "/bd/pods", icon: UserPlus, current: false },
+              { name: "Target Niches", href: "/bd/niches", icon: Crosshair, current: false },
+              { name: "BD Campaigns", href: "/bd/campaigns", icon: Megaphone, current: false },
+            ]
+          },
           { name: "Brands", href: `${basePath}/brands`, icon: Building2, current: false },
           { name: "Clients", href: `${basePath}/clients`, icon: Users, current: false },
           { name: "Projects", href: `${basePath}/projects`, icon: FolderOpen, current: false },
           { 
-            name: "Actions & Tasks", 
+            name: "Tasks & EOD", 
             href: `${basePath}/actions-tasks`, 
             icon: CheckSquare, 
             current: false,
@@ -96,11 +107,22 @@ const Layout = ({ userRole }: LayoutProps) => {
         return [
           ...baseNavigation,
           { name: "My Agents", href: `${basePath}/my-agents`, icon: Zap, current: false },
+          { 
+            name: "Business Development", 
+            href: "/bd/niches", 
+            icon: Crosshair, 
+            current: false,
+            subItems: [
+              { name: "POD Management", href: "/bd/pods", icon: UserPlus, current: false },
+              { name: "Target Niches", href: "/bd/niches", icon: Crosshair, current: false },
+              { name: "BD Campaigns", href: "/bd/campaigns", icon: Megaphone, current: false },
+            ]
+          },
           { name: "Clients", href: `${basePath}/clients`, icon: Users, current: false },
           { name: "Projects", href: `${basePath}/projects`, icon: FolderOpen, current: false },
           { name: "Brands", href: `${basePath}/brands`, icon: Building2, current: false },
           { 
-            name: "Actions & Tasks", 
+            name: "Tasks & EOD", 
             href: `${basePath}/actions-tasks`, 
             icon: CheckSquare, 
             current: false,
@@ -116,16 +138,28 @@ const Layout = ({ userRole }: LayoutProps) => {
         return [
           ...baseNavigation,
           { name: "My Agents", href: `${basePath}/my-agents`, icon: Zap, current: false },
+          { 
+            name: "Business Development", 
+            href: "/bd/niches", 
+            icon: Crosshair, 
+            current: false,
+            subItems: [
+              { name: "POD Management", href: "/bd/pods", icon: UserPlus, current: false },
+              { name: "Target Niches", href: "/bd/niches", icon: Crosshair, current: false },
+              { name: "BD Campaigns", href: "/bd/campaigns", icon: Megaphone, current: false },
+            ]
+          },
           { name: "Clients", href: `${basePath}/clients`, icon: Users, current: false },
           { name: "Projects", href: `${basePath}/projects`, icon: FolderOpen, current: false },
           { 
-            name: "Actions & Tasks", 
+            name: "Tasks & EOD", 
             href: `${basePath}/actions-tasks`, 
             icon: CheckSquare, 
             current: false,
             subItems: [
-              { name: "Tasks", href: `${basePath}/tasks`, icon: Target, current: false },
-              { name: "EOD Submission", href: `${basePath}/eod-submission`, icon: Bot, current: false },
+              { name: "Tasks", href: `${basePath}/actions-tasks`, icon: CheckSquare, current: false },
+              { name: "Submit EOD", href: `${basePath}/eod-submission`, icon: Calendar, current: false },
+              { name: "My EOD History", href: `${basePath}/my-eod-submissions`, icon: History, current: false },
             ]
           },
           { name: "Reports", href: `${basePath}/reports`, icon: BarChart3, current: false },
@@ -148,7 +182,6 @@ const Layout = ({ userRole }: LayoutProps) => {
             ]
           },
           { name: "Brands", href: `${basePath}/brands`, icon: Building2, current: false },
-          { name: "SEPARATOR", href: "", icon: null, current: false, isHeader: true },
           { 
             name: "Business Development", 
             href: "/bd/niches", 
@@ -193,8 +226,6 @@ const Layout = ({ userRole }: LayoutProps) => {
           <div className="flex h-auto items-center justify-center px-6 py-4 border-b border-border">
             <div className="flex flex-col items-center gap-2">
               <img src={logo} alt="SJ Innovation" className="h-20 w-auto" />
-              <p className="text-[18px] font-bold text-foreground tracking-tight">Business Dev AI</p>
-              <p className="text-xs text-muted-foreground capitalize">{currentRole.replace('_', ' ')} Dashboard</p>
             </div>
           </div>
 
