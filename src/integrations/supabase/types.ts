@@ -193,6 +193,87 @@ export type Database = {
         }
         Relationships: []
       }
+      bd_campaigns: {
+        Row: {
+          actual_contacts_reached: number | null
+          brand_id: string | null
+          campaign_type: string
+          created_at: string
+          created_by: string | null
+          deals_generated: number | null
+          end_date: string | null
+          id: string
+          meetings_booked: number | null
+          name: string
+          niche_id: string
+          owned_by: string | null
+          responses_received: number | null
+          start_date: string | null
+          status: string
+          target_contacts: string[] | null
+          target_contacts_count: number | null
+          target_regions: string[] | null
+          updated_at: string
+        }
+        Insert: {
+          actual_contacts_reached?: number | null
+          brand_id?: string | null
+          campaign_type: string
+          created_at?: string
+          created_by?: string | null
+          deals_generated?: number | null
+          end_date?: string | null
+          id?: string
+          meetings_booked?: number | null
+          name: string
+          niche_id: string
+          owned_by?: string | null
+          responses_received?: number | null
+          start_date?: string | null
+          status?: string
+          target_contacts?: string[] | null
+          target_contacts_count?: number | null
+          target_regions?: string[] | null
+          updated_at?: string
+        }
+        Update: {
+          actual_contacts_reached?: number | null
+          brand_id?: string | null
+          campaign_type?: string
+          created_at?: string
+          created_by?: string | null
+          deals_generated?: number | null
+          end_date?: string | null
+          id?: string
+          meetings_booked?: number | null
+          name?: string
+          niche_id?: string
+          owned_by?: string | null
+          responses_received?: number | null
+          start_date?: string | null
+          status?: string
+          target_contacts?: string[] | null
+          target_contacts_count?: number | null
+          target_regions?: string[] | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bd_campaigns_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bd_campaigns_niche_id_fkey"
+            columns: ["niche_id"]
+            isOneToOne: false
+            referencedRelation: "target_niches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       brand_analytics_integrations: {
         Row: {
           brand_id: string
@@ -871,6 +952,36 @@ export type Database = {
           },
         ]
       }
+      pods: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean | null
+          lead_user_id: string | null
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          lead_user_id?: string | null
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          lead_user_id?: string | null
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -1013,6 +1124,89 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      target_niches: {
+        Row: {
+          business_type: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          dreams: string[] | null
+          employee_size_max: number | null
+          employee_size_min: number | null
+          id: string
+          industries: string[] | null
+          name: string
+          pain_points: string[] | null
+          pod_id: string | null
+          priority: string
+          revenue_max: number | null
+          revenue_min: number | null
+          services: string[] | null
+          status: string
+          target_clients: number | null
+          target_contacts: string[] | null
+          target_regions: string[] | null
+          target_revenue: number | null
+          updated_at: string
+        }
+        Insert: {
+          business_type?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          dreams?: string[] | null
+          employee_size_max?: number | null
+          employee_size_min?: number | null
+          id?: string
+          industries?: string[] | null
+          name: string
+          pain_points?: string[] | null
+          pod_id?: string | null
+          priority?: string
+          revenue_max?: number | null
+          revenue_min?: number | null
+          services?: string[] | null
+          status?: string
+          target_clients?: number | null
+          target_contacts?: string[] | null
+          target_regions?: string[] | null
+          target_revenue?: number | null
+          updated_at?: string
+        }
+        Update: {
+          business_type?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          dreams?: string[] | null
+          employee_size_max?: number | null
+          employee_size_min?: number | null
+          id?: string
+          industries?: string[] | null
+          name?: string
+          pain_points?: string[] | null
+          pod_id?: string | null
+          priority?: string
+          revenue_max?: number | null
+          revenue_min?: number | null
+          services?: string[] | null
+          status?: string
+          target_clients?: number | null
+          target_contacts?: string[] | null
+          target_regions?: string[] | null
+          target_revenue?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "target_niches_pod_id_fkey"
+            columns: ["pod_id"]
+            isOneToOne: false
+            referencedRelation: "pods"
             referencedColumns: ["id"]
           },
         ]
