@@ -1,4 +1,4 @@
-import { LucideIcon, Rocket, Network, Database, Code, Layout, Puzzle, Box, Settings, AlertCircle } from "lucide-react";
+import { BookOpen, Database, Workflow, ArchiveRestore, ClipboardCheck, type LucideIcon } from "lucide-react";
 
 export interface DocCategory {
   id: string;
@@ -20,303 +20,100 @@ export interface DocItem {
 
 export const documentationIndex: DocCategory[] = [
   {
-    id: 'getting-started',
-    title: 'Getting Started',
-    icon: Rocket,
-    description: 'Setup and introduction to the project',
+    id: "overview",
+    title: "Overview",
+    icon: BookOpen,
+    description: "Project mission, stack, folder structure, and operational context.",
     items: [
       {
-        id: 'overview',
-        title: 'Project Overview',
-        description: 'Understanding the SJ Business Development AI platform',
-        category: 'getting-started',
-        file: 'getting-started/overview',
-        tags: ['overview', 'introduction'],
-        lastUpdated: '2025-01-09'
-      },
-      {
-        id: 'setup',
-        title: 'Development Setup',
-        description: 'Local development environment configuration',
-        category: 'getting-started',
-        file: 'getting-started/setup',
-        tags: ['setup', 'installation', 'local'],
-        lastUpdated: '2025-01-09'
-      },
-      {
-        id: 'tech-stack',
-        title: 'Tech Stack',
-        description: 'Technologies and frameworks used',
-        category: 'getting-started',
-        file: 'getting-started/tech-stack',
-        tags: ['react', 'supabase', 'typescript'],
-        lastUpdated: '2025-01-09'
+        id: "project-overview",
+        title: "Project Overview",
+        description: "High-level description of the SJ Business Development AI Platform and build commands.",
+        category: "overview",
+        file: "overview.md",
+        tags: ["summary", "setup", "environment"],
+        lastUpdated: "2025-02-15"
       }
     ]
   },
   {
-    id: 'architecture',
-    title: 'Architecture',
-    icon: Network,
-    description: 'System design and architectural patterns',
-    items: [
-      {
-        id: 'database-schema',
-        title: 'Database Schema',
-        description: 'Complete database structure and relationships',
-        category: 'architecture',
-        file: 'architecture/database-schema',
-        tags: ['database', 'schema', 'supabase'],
-        lastUpdated: '2025-01-09'
-      },
-      {
-        id: 'frontend',
-        title: 'Frontend Architecture',
-        description: 'React component structure and patterns',
-        category: 'architecture',
-        file: 'architecture/frontend',
-        tags: ['react', 'components', 'routing'],
-        lastUpdated: '2025-01-09'
-      },
-      {
-        id: 'auth-flow',
-        title: 'Authentication & Authorization',
-        description: 'Security, roles, and access control',
-        category: 'architecture',
-        file: 'architecture/auth-flow',
-        tags: ['auth', 'security', 'roles'],
-        lastUpdated: '2025-01-09'
-      }
-    ]
-  },
-  {
-    id: 'database',
-    title: 'Database',
+    id: "database",
+    title: "Database Schema",
     icon: Database,
-    description: 'Database tables, RLS policies, and migrations',
+    description: "Postgres tables, fields, and sample payloads for Supabase-managed data.",
     items: [
       {
-        id: 'users-table',
-        title: 'Users Table',
-        description: 'User management and authentication',
-        category: 'database',
-        file: 'database/tables/users',
-        tags: ['users', 'auth'],
-        lastUpdated: '2025-01-09'
-      },
-      {
-        id: 'brands-table',
-        title: 'Brands Table',
-        description: 'Brand management and ownership',
-        category: 'database',
-        file: 'database/tables/brands',
-        tags: ['brands', 'clients'],
-        lastUpdated: '2025-01-09'
-      },
-      {
-        id: 'rls-policies',
-        title: 'RLS Policies',
-        description: 'Row Level Security implementation',
-        category: 'database',
-        file: 'database/rls-policies',
-        tags: ['security', 'rls', 'policies'],
-        lastUpdated: '2025-01-09'
+        id: "schema",
+        title: "Database Schema",
+        description: "Complete reference of tables powering CRM, AI, and reporting flows.",
+        category: "database",
+        file: "database-schema.md",
+        tags: ["supabase", "tables", "schema"],
+        lastUpdated: "2025-02-15"
       }
     ]
   },
   {
-    id: 'api',
-    title: 'API Reference',
-    icon: Code,
-    description: 'Edge Functions and API endpoints',
+    id: "logic",
+    title: "Logic & Functions",
+    icon: Workflow,
+    description: "Edge functions, React service layer, and automation pipelines.",
     items: [
       {
-        id: 'edge-functions-overview',
-        title: 'Edge Functions Overview',
-        description: 'Introduction to Supabase Edge Functions',
-        category: 'api',
-        file: 'api/edge-functions/overview',
-        tags: ['api', 'edge-functions'],
-        lastUpdated: '2025-01-09'
-      },
-      {
-        id: 'admin-users',
-        title: 'admin-users Function',
-        description: 'User management API',
-        category: 'api',
-        file: 'api/edge-functions/admin-users',
-        tags: ['api', 'users', 'admin'],
-        lastUpdated: '2025-01-09'
-      },
-      {
-        id: 'eod-data-sync',
-        title: 'eod-data-sync Function',
-        description: 'EOD data synchronization',
-        category: 'api',
-        file: 'api/edge-functions/eod-data-sync',
-        tags: ['api', 'eod', 'sync'],
-        lastUpdated: '2025-01-09'
+        id: "logic-functions",
+        title: "Logic & Functions",
+        description: "Details of Supabase edge functions, client hooks, and automation flow.",
+        category: "logic",
+        file: "logic-and-functions.md",
+        tags: ["edge functions", "api", "automation"],
+        lastUpdated: "2025-02-15"
       }
     ]
   },
   {
-    id: 'frontend',
-    title: 'Frontend Development',
-    icon: Layout,
-    description: 'Components, hooks, and UI patterns',
+    id: "unused",
+    title: "Unused Analysis",
+    icon: ArchiveRestore,
+    description: "Inventory of dormant code paths and tables with recommended next steps.",
     items: [
       {
-        id: 'components',
-        title: 'Component Architecture',
-        description: 'React component structure and best practices',
-        category: 'frontend',
-        file: 'frontend/components',
-        tags: ['react', 'components'],
-        lastUpdated: '2025-01-09'
-      },
-      {
-        id: 'hooks',
-        title: 'Custom Hooks',
-        description: 'Reusable React hooks reference',
-        category: 'frontend',
-        file: 'frontend/hooks',
-        tags: ['react', 'hooks', 'custom'],
-        lastUpdated: '2025-01-09'
+        id: "unused-analysis",
+        title: "Unused Analysis",
+        description: "Highlights modules and database assets currently not surfaced in the UI.",
+        category: "unused",
+        file: "unused-analysis.md",
+        tags: ["cleanup", "audit"],
+        lastUpdated: "2025-02-15"
       }
     ]
   },
   {
-    id: 'integrations',
-    title: 'Integrations',
-    icon: Puzzle,
-    description: 'Third-party integrations and setup guides',
+    id: "checklist",
+    title: "Review Checklist",
+    icon: ClipboardCheck,
+    description: "QA steps for keeping documentation and data consistent.",
     items: [
       {
-        id: 'n8n-eod',
-        title: 'N8n EOD Workflow',
-        description: 'ActiveCollab EOD data integration',
-        category: 'integrations',
-        file: 'integrations/n8n-eod-workflow',
-        tags: ['n8n', 'eod', 'activecollab'],
-        lastUpdated: '2025-01-09'
-      },
-      {
-        id: 'n8n-analytics',
-        title: 'N8n Google Analytics',
-        description: 'Google Analytics integration setup',
-        category: 'integrations',
-        file: 'integrations/n8n-google-analytics',
-        tags: ['n8n', 'analytics', 'google'],
-        lastUpdated: '2025-01-09'
-      },
-      {
-        id: 'collabai',
-        title: 'CollabAI Integration',
-        description: 'AI agent collaboration setup',
-        category: 'integrations',
-        file: 'integrations/collabai',
-        tags: ['collabai', 'ai'],
-        lastUpdated: '2025-01-09'
-      }
-    ]
-  },
-  {
-    id: 'features',
-    title: 'Features',
-    icon: Box,
-    description: 'Application features and workflows',
-    items: [
-      {
-        id: 'eod-system',
-        title: 'EOD Submission System',
-        description: 'End-of-day reporting workflow',
-        category: 'features',
-        file: 'features/eod-system',
-        tags: ['eod', 'submissions', 'workflow'],
-        lastUpdated: '2025-01-09'
-      },
-      {
-        id: 'user-management',
-        title: 'User Management',
-        description: 'User administration and permissions',
-        category: 'features',
-        file: 'features/user-management',
-        tags: ['users', 'permissions', 'admin'],
-        lastUpdated: '2025-01-09'
-      },
-      {
-        id: 'brand-management',
-        title: 'Brand Management',
-        description: 'Brand configuration and team assignment',
-        category: 'features',
-        file: 'features/brand-management',
-        tags: ['brands', 'clients', 'teams'],
-        lastUpdated: '2025-01-09'
-      }
-    ]
-  },
-  {
-    id: 'deployment',
-    title: 'Deployment',
-    icon: Settings,
-    description: 'Build, deployment, and operations',
-    items: [
-      {
-        id: 'environment-config',
-        title: 'Environment Configuration',
-        description: 'Setting up environment variables and secrets',
-        category: 'deployment',
-        file: 'deployment/environment-config',
-        tags: ['environment', 'config', 'secrets'],
-        lastUpdated: '2025-01-09'
-      },
-      {
-        id: 'database-migrations',
-        title: 'Database Migrations',
-        description: 'Managing database schema changes',
-        category: 'deployment',
-        file: 'deployment/database-migrations',
-        tags: ['database', 'migrations', 'schema'],
-        lastUpdated: '2025-01-09'
-      }
-    ]
-  },
-  {
-    id: 'troubleshooting',
-    title: 'Troubleshooting',
-    icon: AlertCircle,
-    description: 'Common issues and debugging guides',
-    items: [
-      {
-        id: 'common-issues',
-        title: 'Common Issues',
-        description: 'Frequently encountered problems and solutions',
-        category: 'troubleshooting',
-        file: 'troubleshooting/common-issues',
-        tags: ['debugging', 'issues', 'faq'],
-        lastUpdated: '2025-01-09'
-      },
-      {
-        id: 'debugging',
-        title: 'Debugging Guide',
-        description: 'Tools and techniques for debugging',
-        category: 'troubleshooting',
-        file: 'troubleshooting/debugging',
-        tags: ['debugging', 'dev-tools'],
-        lastUpdated: '2025-01-09'
+        id: "review-checklist",
+        title: "Review Checklist",
+        description: "Markdown checklist for QA/Admin sign-off.",
+        category: "checklist",
+        file: "review-checklist.md",
+        tags: ["qa", "process"],
+        lastUpdated: "2025-02-15"
       }
     ]
   }
 ];
 
 export function getAllDocItems(): DocItem[] {
-  return documentationIndex.flatMap(category => category.items);
+  return documentationIndex.flatMap((category) => category.items);
 }
 
 export function getDocByFile(file: string): DocItem | undefined {
-  return getAllDocItems().find(item => item.file === file);
+  return getAllDocItems().find((item) => item.file === file);
 }
 
 export function getCategoryById(id: string): DocCategory | undefined {
-  return documentationIndex.find(category => category.id === id);
+  return documentationIndex.find((category) => category.id === id);
 }
