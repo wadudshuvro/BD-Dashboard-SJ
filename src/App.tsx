@@ -207,10 +207,10 @@ const App = () => (
               <Route path="ai-dashboard" element={<AIDashboard />} />
             </Route>
 
-            {/* BD Team Routes */}
+            {/* BD Team Routes - Available to all users */}
             <Route path="/bd/*" element={
-              <ProtectedRoute requiredMinimumRole="bd_team">
-                <AdminLayout />
+              <ProtectedRoute requiredMinimumRole="user">
+                <Layout />
               </ProtectedRoute>
             }>
               <Route path="pods" element={<PODManagement />} />

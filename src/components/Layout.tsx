@@ -17,7 +17,10 @@ import {
   Shield,
   Sparkles,
   History,
-  Calendar
+  Calendar,
+  Crosshair,
+  Megaphone,
+  UserPlus
 } from "lucide-react";
 import { useState } from "react";
 import ProfileDropdown from "./ProfileDropdown";
@@ -145,6 +148,18 @@ const Layout = ({ userRole }: LayoutProps) => {
             ]
           },
           { name: "Brands", href: `${basePath}/brands`, icon: Building2, current: false },
+          { name: "SEPARATOR", href: "", icon: null, current: false, isHeader: true },
+          { 
+            name: "Business Development", 
+            href: "/bd/niches", 
+            icon: Crosshair, 
+            current: false,
+            subItems: [
+              { name: "POD Management", href: "/bd/pods", icon: UserPlus, current: false },
+              { name: "Target Niches", href: "/bd/niches", icon: Crosshair, current: false },
+              { name: "BD Campaigns", href: "/bd/campaigns", icon: Megaphone, current: false },
+            ]
+          },
         ];
     }
   };

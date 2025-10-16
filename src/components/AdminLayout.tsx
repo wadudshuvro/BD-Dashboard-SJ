@@ -35,14 +35,6 @@ const navigation = [
     ]
   },
   {
-    section: 'Business Development',
-    items: [
-      { name: 'POD Management', href: '/bd/pods', icon: Users },
-      { name: 'Target Niches', href: '/bd/niches', icon: Crosshair },
-      { name: 'BD Campaigns', href: '/bd/campaigns', icon: Megaphone },
-    ]
-  },
-  {
     section: 'Administration',
     items: [
       { name: 'Admin Panel', href: '/adminpanel', icon: Home, exact: true },
