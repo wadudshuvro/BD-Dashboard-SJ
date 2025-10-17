@@ -1,0 +1,407 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
+import { corsHeaders } from "../_shared/cors.ts";
+
+const ALLOWED_STATUSES = ["open", "in_review", "resolved", "closed"] as const;
+type FeedbackStatus = (typeof ALLOWED_STATUSES)[number];
+
+type SupabaseClient = ReturnType<typeof createClient>;
+
+interface FeedbackReportRow {
+  id: string;
+  type: string;
+  subject: string;
+  description: string | null;
+  status: string;
+  email: string | null;
+  attachment_url: string | null;
+  created_by: string;
+  reviewed_by: string | null;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+}
+
+interface FeedbackCommentRow {
+  id: string;
+  feedback_id: string;
+  user_id: string;
+  comment: string;
+  created_at: string;
+}
+
+interface ProfileRow {
+  id: string;
+  full_name: string | null;
+  email: string | null;
+}
+
+async function assertAdmin(client: SupabaseClient, userId: string) {
+  const { data, error } = await client
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  if (!data || data.role !== "super_admin") {
+    throw new Error("Insufficient privileges");
+  }
+}
+
+async function fetchProfileMap(client: SupabaseClient, userIds: string[]) {
+  if (userIds.length === 0) {
+    return new Map<string, { name: string | null; email: string | null }>();
+  }
+
+  const { data, error } = await client
+    .from("profiles")
+    .select("id, full_name, email")
+    .in("id", userIds);
+
+  if (error) {
+    console.error("Failed to fetch profiles", error);
+    return new Map();
+  }
+
+  const profiles = (data ?? []) as ProfileRow[];
+  const map = new Map<string, { name: string | null; email: string | null }>();
+  for (const profile of profiles) {
+    map.set(profile.id, {
+      name: profile.full_name ?? profile.email ?? null,
+      email: profile.email ?? null,
+    });
+  }
+  return map;
+}
+
+function parseRoute(req: Request) {
+  const url = new URL(req.url);
+  const segments = url.pathname.split("/").filter(Boolean);
+  const functionIndex = segments.findIndex((segment) => segment === "manage-feedback");
+  const routeSegments = functionIndex >= 0 ? segments.slice(functionIndex + 1) : [];
+  return { url, routeSegments };
+}
+
+async function handleList(client: SupabaseClient, url: URL) {
+  const type = url.searchParams.get("type");
+  const status = url.searchParams.get("status");
+  const includeClosed = url.searchParams.get("includeClosed") === "true";
+  const search = url.searchParams.get("search");
+
+  let query = client
+    .from("feedback_reports")
+    .select("*", { count: "exact" })
+    .order("created_at", { ascending: false });
+
+  if (type) {
+    query = query.eq("type", type);
+  }
+
+  if (status) {
+    query = query.eq("status", status);
+  }
+
+  if (!includeClosed) {
+    query = query.eq("deleted_at", null).neq("status", "closed");
+  }
+
+  if (search) {
+    query = query.ilike("subject", `%${search}%`);
+  }
+
+  const { data, error, count } = await query;
+
+  if (error) {
+    console.error("Failed to list feedback", error);
+    return new Response(JSON.stringify({ message: "Unable to load feedback" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  const records = (data ?? []) as FeedbackReportRow[];
+  const userIds = Array.from(
+    new Set([
+      ...records.map((record) => record.created_by).filter((value): value is string => Boolean(value)),
+      ...records.map((record) => record.reviewed_by).filter((value): value is string => Boolean(value)),
+    ]),
+  );
+
+  const profileMap = await fetchProfileMap(client, userIds);
+
+  const items = records.map((record) => ({
+    ...record,
+    submitted_by_name: profileMap.get(record.created_by ?? "")?.name ?? null,
+    reviewed_by_name: profileMap.get(record.reviewed_by ?? "")?.name ?? null,
+  }));
+
+  return new Response(JSON.stringify({ items, total: count ?? records.length }), {
+    status: 200,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+async function handleDetail(client: SupabaseClient, id: string) {
+  const { data: feedback, error } = await client
+    .from("feedback_reports")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Failed to load feedback", error);
+    return new Response(JSON.stringify({ message: "Unable to load feedback" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  if (!feedback) {
+    return new Response(JSON.stringify({ message: "Feedback not found" }), {
+      status: 404,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  const report = feedback as FeedbackReportRow;
+
+  const { data: comments, error: commentsError } = await client
+    .from("feedback_comments")
+    .select("*")
+    .eq("feedback_id", id)
+    .order("created_at", { ascending: true });
+
+  if (commentsError) {
+    console.error("Failed to load comments", commentsError);
+    return new Response(JSON.stringify({ message: "Unable to load comments" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  const commentRows = (comments ?? []) as FeedbackCommentRow[];
+
+  const userIds = Array.from(
+    new Set([
+      report.created_by,
+      report.reviewed_by,
+      ...commentRows.map((comment) => comment.user_id),
+    ].filter((value): value is string => Boolean(value))),
+  );
+
+  const profileMap = await fetchProfileMap(client, userIds);
+
+  let attachmentSignedUrl: string | null = null;
+  if (report.attachment_url) {
+    const { data: signedUrlData, error: signedUrlError } = await client
+      .storage
+      .from("feedback")
+      .createSignedUrl(report.attachment_url, 60 * 60);
+
+    if (!signedUrlError) {
+      attachmentSignedUrl = signedUrlData?.signedUrl ?? null;
+    }
+  }
+
+  const mappedFeedback = {
+    ...report,
+    submitted_by_name: profileMap.get(report.created_by ?? "")?.name ?? null,
+    reviewed_by_name: profileMap.get(report.reviewed_by ?? "")?.name ?? null,
+  };
+
+  const mappedComments = commentRows.map((comment) => ({
+    ...comment,
+    author_name: profileMap.get(comment.user_id ?? "")?.name ?? null,
+    author_email: profileMap.get(comment.user_id ?? "")?.email ?? null,
+  }));
+
+  return new Response(
+    JSON.stringify({
+      feedback: mappedFeedback,
+      comments: mappedComments,
+      attachment_signed_url: attachmentSignedUrl,
+    }),
+    {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    },
+  );
+}
+
+async function handleComment(client: SupabaseClient, id: string, userId: string, body: unknown) {
+  const comment =
+    typeof body === "object" && body !== null && "comment" in body && typeof (body as { comment?: unknown }).comment === "string"
+      ? ((body as { comment: string }).comment || "").trim()
+      : "";
+  if (!comment) {
+    return new Response(JSON.stringify({ message: "Comment text is required" }), {
+      status: 400,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  const { data, error } = await client
+    .from("feedback_comments")
+    .insert({ feedback_id: id, user_id: userId, comment })
+    .select("*")
+    .single();
+
+  if (error) {
+    console.error("Failed to add comment", error);
+    return new Response(JSON.stringify({ message: "Unable to add comment" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  return new Response(JSON.stringify(data as FeedbackCommentRow), {
+    status: 201,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+async function handleStatus(client: SupabaseClient, id: string, userId: string, body: unknown) {
+  const status =
+    typeof body === "object" && body !== null && "status" in body && typeof (body as { status?: unknown }).status === "string"
+      ? ((body as { status: string }).status || "").toLowerCase()
+      : "";
+  if (!ALLOWED_STATUSES.includes(status as FeedbackStatus)) {
+    return new Response(JSON.stringify({ message: "Invalid status" }), {
+      status: 400,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  const { data, error } = await client
+    .from("feedback_reports")
+    .update({ status, reviewed_by: userId })
+    .eq("id", id)
+    .select("*")
+    .single();
+
+  if (error) {
+    console.error("Failed to update status", error);
+    return new Response(JSON.stringify({ message: "Unable to update status" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  return new Response(JSON.stringify(data as FeedbackReportRow), {
+    status: 200,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+async function handleDelete(client: SupabaseClient, id: string, userId: string) {
+  const { error } = await client
+    .from("feedback_reports")
+    .update({ status: "closed", deleted_at: new Date().toISOString(), reviewed_by: userId })
+    .eq("id", id);
+
+  if (error) {
+    console.error("Failed to archive feedback", error);
+    return new Response(JSON.stringify({ message: "Unable to archive feedback" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  return new Response(JSON.stringify({ success: true }), {
+    status: 200,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
+  try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+
+    const userClient = createClient(supabaseUrl, anonKey, {
+      global: {
+        headers: { Authorization: req.headers.get("Authorization") ?? "" },
+      },
+    });
+
+    const {
+      data: { user },
+      error: authError,
+    } = await userClient.auth.getUser();
+
+    if (authError || !user) {
+      return new Response(JSON.stringify({ message: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const serviceClient = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { persistSession: false },
+    });
+
+    try {
+      await assertAdmin(serviceClient, user.id);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Forbidden";
+      const status = message === "Insufficient privileges" ? 403 : 500;
+      return new Response(JSON.stringify({ message }), {
+        status,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const { url, routeSegments } = parseRoute(req);
+
+    if (req.method === "GET" && (routeSegments.length === 0 || routeSegments[0] === "list")) {
+      return handleList(serviceClient, url);
+    }
+
+    if (routeSegments.length === 0) {
+      return new Response(JSON.stringify({ message: "Not found" }), {
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const id = routeSegments[0];
+
+    if (req.method === "GET") {
+      return handleDetail(serviceClient, id);
+    }
+
+    if (req.method === "POST" && routeSegments[1] === "comment") {
+      const body = await req.json().catch(() => ({}));
+      return handleComment(serviceClient, id, user.id, body);
+    }
+
+    if (req.method === "PUT" && routeSegments[1] === "status") {
+      const body = await req.json().catch(() => ({}));
+      return handleStatus(serviceClient, id, user.id, body);
+    }
+
+    if (req.method === "DELETE" && routeSegments.length === 1) {
+      return handleDelete(serviceClient, id, user.id);
+    }
+
+    return new Response(JSON.stringify({ message: "Not found" }), {
+      status: 404,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  } catch (error) {
+    console.error("Unexpected error in manage-feedback", error);
+    return new Response(JSON.stringify({ message: "Unexpected error" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+});

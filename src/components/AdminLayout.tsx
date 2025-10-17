@@ -1,10 +1,10 @@
 import { Outlet, NavLink, useLocation } from "react-router-dom";
-import { 
-  Shield, 
-  Building2, 
-  Users, 
-  Plug, 
-  BarChart3, 
+import {
+  Shield,
+  Building2,
+  Users,
+  Plug,
+  BarChart3,
   Settings,
   Menu,
   X,
@@ -20,53 +20,76 @@ import {
   TrendingUp,
   Calendar,
   Crosshair,
-  Megaphone
+  Megaphone,
+  Bug,
+  Sparkles,
+  ClipboardList
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import logo from "@/assets/logo-sji.png";
-
-const navigation = [
-  {
-    section: 'Quick Access',
-    items: [
-      { name: 'Back to Dashboard', href: '/dashboard', icon: ArrowLeft, isExternal: true },
-    ]
-  },
-  {
-    section: 'Administration',
-    items: [
-      { name: 'Admin Panel', href: '/adminpanel', icon: Home, exact: true },
-      { name: 'User Management', href: '/adminpanel/users', icon: Users },
-      { name: 'Brand Management', href: '/adminpanel/brands', icon: Building2 },
-      { name: 'People Directory', href: '/adminpanel/people', icon: UserCheck },
-      { name: 'People Review', href: '/adminpanel/people/review', icon: Target },
-      { name: 'KPI Configuration', href: '/adminpanel/kpis', icon: TrendingUp },
-      { name: 'EOD Management', href: '/adminpanel/eod-management', icon: Calendar },
-      { name: 'Documentation', href: '/adminpanel/documentation', icon: FileText },
-      { name: 'System Settings', href: '/adminpanel/settings', icon: Settings },
-    ]
-  },
-  {
-    section: 'Integrations & AI',
-    items: [
-      { name: 'Integrations Hub', href: '/adminpanel/integrations', icon: Plug },
-      { name: 'AI Dashboard', href: '/adminpanel/ai-dashboard', icon: Bot },
-      { name: 'AI Agents', href: '/adminpanel/ai-agents', icon: Zap },
-    ]
-  }
-];
+import { useFeatureFlag } from "@/hooks/useFeatureFlag";
+import { FeedbackWidget } from "@/features/feedback/components/FeedbackWidget";
 
 const AdminLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
+  const { enabled: feedbackEnabled } = useFeatureFlag("feedback_enabled");
+  const { enabled: feedbackWidgetEnabled } = useFeatureFlag("feedback_widget");
+
+  const navigation = useMemo(() => {
+    const sections = [
+      {
+        section: "Quick Access",
+        items: [
+          { name: "Back to Dashboard", href: "/dashboard", icon: ArrowLeft, isExternal: true },
+        ],
+      },
+      {
+        section: "Administration",
+        items: [
+          { name: "Admin Panel", href: "/adminpanel", icon: Home, exact: true },
+          { name: "User Management", href: "/adminpanel/users", icon: Users },
+          { name: "Brand Management", href: "/adminpanel/brands", icon: Building2 },
+          { name: "People Directory", href: "/adminpanel/people", icon: UserCheck },
+          { name: "People Review", href: "/adminpanel/people/review", icon: Target },
+          { name: "KPI Configuration", href: "/adminpanel/kpis", icon: TrendingUp },
+          { name: "EOD Management", href: "/adminpanel/eod-management", icon: Calendar },
+          { name: "Documentation", href: "/adminpanel/documentation", icon: FileText },
+          { name: "System Settings", href: "/adminpanel/settings", icon: Settings },
+        ],
+      },
+      {
+        section: "Integrations & AI",
+        items: [
+          { name: "Integrations Hub", href: "/adminpanel/integrations", icon: Plug },
+          { name: "AI Dashboard", href: "/adminpanel/ai-dashboard", icon: Bot },
+          { name: "AI Agents", href: "/adminpanel/ai-agents", icon: Zap },
+        ],
+      },
+    ];
+
+    if (feedbackEnabled) {
+      sections.push({
+        section: "Support",
+        items: [
+          { name: "Feedback Manager", href: "/adminpanel/feedback", icon: ClipboardList },
+          { name: "Submit Bug", href: "/feedback/submit?type=bug", icon: Bug },
+          { name: "Submit Feature", href: "/feedback/submit?type=feature", icon: Sparkles },
+        ],
+      });
+    }
+
+    return sections;
+  }, [feedbackEnabled]);
 
   const isActiveRoute = (href: string, exact = false) => {
+    const sanitizedHref = href.split("?")[0];
     if (exact) {
-      return location.pathname === href;
+      return location.pathname === sanitizedHref;
     }
-    return location.pathname.startsWith(href);
+    return location.pathname.startsWith(sanitizedHref);
   };
 
   return (
@@ -228,6 +251,8 @@ const AdminLayout = () => {
           <Outlet />
         </main>
       </div>
+
+      {feedbackEnabled && feedbackWidgetEnabled ? <FeedbackWidget /> : null}
     </div>
   );
 };
