@@ -53,6 +53,8 @@ const queryClient = new QueryClient();
 
 // Lazy load Documentation
 const Documentation = lazy(() => import("./pages/admin/Documentation"));
+const FeedbackSubmitPage = lazy(() => import("./pages/feedback/SubmitFeedback"));
+const AdminFeedbackManager = lazy(() => import("./pages/admin/FeedbackManager"));
 
 // Smart redirect component based on user role
 function DashboardRedirect() {
@@ -187,6 +189,10 @@ const App = () => (
               </ProtectedRoute>
             }>
               <Route index element={<AdminPanel />} />
+              <Route
+                path="feedback"
+                element={<React.Suspense fallback={<div>Loading...</div>}><AdminFeedbackManager /></React.Suspense>}
+              />
               <Route path="brands" element={<BrandManagement />} />
               <Route path="brands/:brandId" element={<BrandDetail />} />
               <Route path="users" element={<UserManagement />} />
@@ -205,6 +211,18 @@ const App = () => (
               <Route path="people/review" element={<React.Suspense fallback={<div>Loading...</div>}><PeopleReviewDashboard /></React.Suspense>} />
               <Route path="ai-agents" element={<AIAgentsPage />} />
               <Route path="ai-dashboard" element={<AIDashboard />} />
+            </Route>
+
+            {/* Feedback Module */}
+            <Route path="/feedback/*" element={
+              <ProtectedRoute requiredMinimumRole="user">
+                <Layout />
+              </ProtectedRoute>
+            }>
+              <Route
+                path="submit"
+                element={<React.Suspense fallback={<div>Loading...</div>}><FeedbackSubmitPage /></React.Suspense>}
+              />
             </Route>
 
             {/* BD Team Routes - Available to all users */}

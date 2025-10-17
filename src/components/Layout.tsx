@@ -1,9 +1,9 @@
 import { Outlet, NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { 
-  LayoutDashboard, 
-  CheckSquare, 
-  BarChart3, 
+import {
+  LayoutDashboard,
+  CheckSquare,
+  BarChart3,
   Settings, 
   Users, 
   Menu,
@@ -22,9 +22,12 @@ import {
   Megaphone,
   UserPlus
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { useState } from "react";
 import ProfileDropdown from "./ProfileDropdown";
 import logo from "@/assets/logo-sji.png";
+import { useFeatureFlag } from "@/hooks/useFeatureFlag";
+import { FeedbackWidget } from "@/features/feedback/components/FeedbackWidget";
 
 interface LayoutProps {
   userRole?: 'super_admin' | 'manager' | 'pm' | 'user';
@@ -33,7 +36,7 @@ interface LayoutProps {
 interface NavigationItem {
   name: string;
   href: string;
-  icon: any;
+  icon: LucideIcon;
   current: boolean;
   isHeader?: boolean;
   isAdmin?: boolean;
@@ -197,7 +200,23 @@ const Layout = ({ userRole }: LayoutProps) => {
     }
   };
 
+  const { enabled: feedbackEnabled } = useFeatureFlag("feedback_enabled");
+  const { enabled: feedbackWidgetEnabled } = useFeatureFlag("feedback_widget");
+
   const navigation = getNavigation(currentRole);
+
+  if (feedbackEnabled) {
+    navigation.push({
+      name: "Support",
+      href: "/feedback",
+      icon: Wrench,
+      current: false,
+      subItems: [
+        { name: "Submit Bug", href: "/feedback/submit?type=bug", icon: Wrench, current: false },
+        { name: "Submit Feature", href: "/feedback/submit?type=feature", icon: Sparkles, current: false },
+      ],
+    });
+  }
 
   const handleLogout = () => {
     logout();
@@ -259,7 +278,8 @@ const Layout = ({ userRole }: LayoutProps) => {
                       {item.name}
                     </div>
                     {item.subItems.map((subItem) => {
-                      const isSubActive = location.pathname === subItem.href;
+                      const sanitizedHref = subItem.href.split("?")[0];
+                      const isSubActive = location.pathname === sanitizedHref;
                       return (
                         <NavLink
                           key={subItem.name}
@@ -348,6 +368,8 @@ const Layout = ({ userRole }: LayoutProps) => {
           </div>
         </main>
       </div>
+
+      {feedbackEnabled && feedbackWidgetEnabled ? <FeedbackWidget /> : null}
     </div>
   );
 };

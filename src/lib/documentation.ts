@@ -67,6 +67,15 @@ export const documentationIndex: DocCategory[] = [
         file: "logic-and-functions.md",
         tags: ["edge functions", "api", "automation"],
         lastUpdated: "2025-02-15"
+      },
+      {
+        id: "bug-feature-tracking",
+        title: "Bug & Feature Tracking",
+        description: "Feedback submission flow, Supabase schema, and admin review tooling.",
+        category: "logic",
+        file: "bug-tracking-integration.md",
+        tags: ["feedback", "support", "admin"],
+        lastUpdated: "2025-10-30"
       }
     ]
   },
