@@ -44,9 +44,9 @@ import MyAgentsPage from "./pages/my-agents";
 import PeopleReviewDashboard from "./pages/PeopleReviewDashboard";
 import MyDashboard from "./pages/MyDashboard";
 import UserProfile from "./pages/UserProfile";
-import PODManagement from "./pages/bd/PODManagement";
 import NicheManagement from "./pages/bd/NicheManagement";
 import CampaignManagement from "./pages/bd/CampaignManagement";
+import PODManagement from "./pages/admin/PODManagement";
 
 import AIDashboard from "./pages/ai-dashboard";
 
@@ -213,6 +213,7 @@ const App = () => (
               <Route path="people/review" element={<React.Suspense fallback={<div>Loading...</div>}><PeopleReviewDashboard /></React.Suspense>} />
               <Route path="ai-agents" element={<AIAgentsPage />} />
               <Route path="ai-dashboard" element={<AIDashboard />} />
+              <Route path="pods" element={<PODManagement />} />
             </Route>
 
             {/* Feedback Module */}
@@ -233,7 +234,6 @@ const App = () => (
                 <Layout />
               </ProtectedRoute>
             }>
-              <Route path="pods" element={<PODManagement />} />
               <Route path="niches" element={<NicheManagement />} />
               <Route path="campaigns" element={<CampaignManagement />} />
             </Route>

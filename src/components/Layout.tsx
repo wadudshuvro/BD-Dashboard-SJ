@@ -83,7 +83,6 @@ const Layout = ({ userRole }: LayoutProps) => {
             icon: Crosshair, 
             current: false,
             subItems: [
-              { name: "POD Management", href: "/bd/pods", icon: UserPlus, current: false },
               { name: "Target Niches", href: "/bd/niches", icon: Crosshair, current: false },
               { name: "BD Campaigns", href: "/bd/campaigns", icon: Megaphone, current: false },
             ]
@@ -116,7 +115,6 @@ const Layout = ({ userRole }: LayoutProps) => {
             icon: Crosshair, 
             current: false,
             subItems: [
-              { name: "POD Management", href: "/bd/pods", icon: UserPlus, current: false },
               { name: "Target Niches", href: "/bd/niches", icon: Crosshair, current: false },
               { name: "BD Campaigns", href: "/bd/campaigns", icon: Megaphone, current: false },
             ]
@@ -147,7 +145,6 @@ const Layout = ({ userRole }: LayoutProps) => {
             icon: Crosshair, 
             current: false,
             subItems: [
-              { name: "POD Management", href: "/bd/pods", icon: UserPlus, current: false },
               { name: "Target Niches", href: "/bd/niches", icon: Crosshair, current: false },
               { name: "BD Campaigns", href: "/bd/campaigns", icon: Megaphone, current: false },
             ]
@@ -191,7 +188,6 @@ const Layout = ({ userRole }: LayoutProps) => {
             icon: Crosshair, 
             current: false,
             subItems: [
-              { name: "POD Management", href: "/bd/pods", icon: UserPlus, current: false },
               { name: "Target Niches", href: "/bd/niches", icon: Crosshair, current: false },
               { name: "BD Campaigns", href: "/bd/campaigns", icon: Megaphone, current: false },
             ]
