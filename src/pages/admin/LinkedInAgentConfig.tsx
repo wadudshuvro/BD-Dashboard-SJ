@@ -49,7 +49,7 @@ export default function LinkedInAgentConfig() {
         execution_context: {
           user_id: user.id,
           timeframe: "latest",
-          filters: { category: agent.category },
+          filters: { type: agent.type },
         },
       },
       {
@@ -107,14 +107,14 @@ export default function LinkedInAgentConfig() {
                   <CardTitle className="text-xl">{agent.name}</CardTitle>
                   <CardDescription>{agent.description}</CardDescription>
                 </div>
-                <Badge variant={agent.is_enabled ? "secondary" : "outline"}>
-                  {agent.is_enabled ? "Enabled" : "Disabled"}
+                <Badge variant={agent.is_active ? "secondary" : "outline"}>
+                  {agent.is_active ? "Active" : "Inactive"}
                 </Badge>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="text-sm">
-                  <div className="font-medium">Category</div>
-                  <div className="text-muted-foreground capitalize">{agent.category.replace(/_/g, " ")}</div>
+                  <div className="font-medium">Type</div>
+                  <div className="text-muted-foreground capitalize">{agent.type.replace(/_/g, " ")}</div>
                 </div>
 
                 <Separator />

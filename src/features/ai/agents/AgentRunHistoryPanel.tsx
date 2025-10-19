@@ -32,8 +32,8 @@ function ProviderBadge({ provider }: { provider: ProviderTelemetry }) {
 function RunHistoryItem({ run }: { run: AgentRunHistoryRow }) {
   const summary = (run.ai_summary?.summary as string) || "No summary available";
   const createdAt = formatDistanceToNow(new Date(run.created_at), { addSuffix: true });
-  const telemetry = Array.isArray(run.provider_chain) ? run.provider_chain as ProviderTelemetry[] : [];
-  const output = run.output as { telemetry?: ProviderTelemetry[] } | undefined;
+  const output = run.output as { telemetry?: ProviderTelemetry[]; provider_chain?: ProviderTelemetry[] } | undefined;
+  const telemetry = Array.isArray(output?.provider_chain) ? output.provider_chain : [];
   const telemetrySummary = Array.isArray(output?.telemetry) ? output?.telemetry : [];
   const primaryTokenUsage = telemetrySummary?.[0]?.tokenUsage?.totalTokens;
 

@@ -361,8 +361,8 @@ export default function FeedbackManager() {
                       rows={4}
                     />
                     <div className="flex items-center justify-end gap-2">
-                      <Button type="submit" disabled={commentMutation.isLoading || !selectedFeedbackId}>
-                        {commentMutation.isLoading ? "Posting…" : "Add comment"}
+                      <Button type="submit" disabled={commentMutation.isPending || !selectedFeedbackId}>
+                        {commentMutation.isPending ? "Posting…" : "Add comment"}
                       </Button>
                     </div>
                   </form>
@@ -464,7 +464,7 @@ export default function FeedbackManager() {
                             type="button"
                             variant="outline"
                             onClick={() => selectedFeedbackId && statusMutation.mutate("resolved")}
-                            disabled={statusMutation.isLoading || !selectedFeedbackId}
+                            disabled={statusMutation.isPending || !selectedFeedbackId}
                           >
                             Mark resolved
                           </Button>
@@ -472,7 +472,7 @@ export default function FeedbackManager() {
                             type="button"
                             variant="destructive"
                             onClick={() => deleteMutation.mutate()}
-                            disabled={deleteMutation.isLoading || !selectedFeedbackId}
+                            disabled={deleteMutation.isPending || !selectedFeedbackId}
                           >
                             Archive
                           </Button>

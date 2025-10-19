@@ -24,12 +24,12 @@ export interface AgentConfigurationEnvelope {
 export interface AIAgent {
   id: string;
   name: string;
-  slug: string;
   description?: string;
-  category: string;
+  type: string;
   config: AgentConfigurationEnvelope;
-  is_enabled: boolean;
-  required_role: string;
+  is_active: boolean;
+  created_by?: string;
+  created_at?: string;
   updated_at?: string;
 }
 
@@ -57,10 +57,9 @@ export interface AgentRunHistoryRow {
   id: string;
   created_at: string;
   status: string;
-  approval_status: string | null;
-  output: Record<string, unknown>;
-  ai_summary: Record<string, unknown>;
-  provider_chain: Array<Record<string, unknown>>;
+  output: any;
+  ai_summary: any;
+  agent_id: string | null;
 }
 
 function handleError<T>(error: { message?: string } | null, fallbackMessage: string): asserts error is null {
@@ -72,7 +71,7 @@ function handleError<T>(error: { message?: string } | null, fallbackMessage: str
 export async function listAgents(): Promise<AIAgent[]> {
   const { data, error } = await supabase
     .from("ai_agents")
-    .select("id, name, slug, description, category, config, is_enabled, required_role, updated_at")
+    .select("id, name, description, type, config, is_active, created_by, created_at, updated_at")
     .order("name", { ascending: true });
 
   handleError(error, "Unable to fetch AI agents");
@@ -88,9 +87,9 @@ export async function updateAgentConfig(
 ): Promise<AIAgent> {
   const { data, error } = await supabase
     .from("ai_agents")
-    .update({ config })
+    .update({ config: config as any })
     .eq("id", agentId)
-    .select("id, name, slug, description, category, config, is_enabled, required_role, updated_at")
+    .select("id, name, description, type, config, is_active, created_by, created_at, updated_at")
     .single();
 
   handleError(error, "Unable to update agent configuration");
@@ -112,7 +111,7 @@ export async function triggerAgentRun(payload: AgentRunPayload): Promise<AgentRu
 export async function fetchAgentRunHistory(agentId: string, limit = 20): Promise<AgentRunHistoryRow[]> {
   const { data, error } = await supabase
     .from("ai_agent_runs")
-    .select("id, created_at, status, approval_status, output, ai_summary, provider_chain")
+    .select("id, created_at, status, output, ai_summary, agent_id")
     .eq("agent_id", agentId)
     .order("created_at", { ascending: false })
     .limit(limit);
