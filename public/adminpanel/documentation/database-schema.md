@@ -1122,6 +1122,168 @@ The Supabase Postgres database underpins authentication, CRM records, automation
 
 ---
 
+---
+
+## Business Development Tables
+
+### Table: pods
+
+| Field | Type | Default | Nullable | Description |
+| --- | --- | --- | --- | --- |
+| id | UUID | `gen_random_uuid()` | No | Primary key. |
+| name | Text | — | No | POD team identifier. |
+| description | Text | — | Yes | Strategic focus description. |
+| lead_user_id | UUID | — | Yes | References POD lead from `users.id`. |
+| is_active | Boolean | `true` | Yes | Activation toggle for active PODs. |
+| created_at | Timestamptz | `now()` | No | Creation timestamp. |
+| updated_at | Timestamptz | `now()` | No | Auto-updated timestamp. |
+
+**Sample Data**
+```json
+{
+  "id": "11111111-1111-1111-1111-111111111111",
+  "name": "Enterprise Solutions",
+  "description": "Focused on large enterprise clients in tech and finance sectors",
+  "lead_user_id": "06e7b3ed-e627-41e6-b267-4b5abfbead8d",
+  "is_active": true,
+  "created_at": "2025-02-15T10:00:00.000Z",
+  "updated_at": "2025-02-15T10:00:00.000Z"
+}
+```
+
+**RLS Policies:**
+- All authenticated users can **SELECT** (view all PODs)
+- Only admins and super_admins can **INSERT/UPDATE/DELETE**
+
+---
+
+### Table: target_niches
+
+| Field | Type | Default | Nullable | Description |
+| --- | --- | --- | --- | --- |
+| id | UUID | `gen_random_uuid()` | No | Primary key. |
+| pod_id | UUID | — | Yes | References `pods.id` for team assignment. |
+| name | Text | — | No | Niche identifier. |
+| description | Text | — | Yes | Market segment overview. |
+| services | Text[] | `{}` | Yes | Array of service offerings (e.g., "Custom Software Development"). |
+| industries | Text[] | `{}` | Yes | Target industry verticals (e.g., "Fintech", "Healthcare"). |
+| target_contacts | Text[] | `{}` | Yes | Decision-maker roles (e.g., "CTO", "VP of Engineering"). |
+| target_regions | Text[] | `{}` | Yes | Geographic focus areas (e.g., "North America", "Europe"). |
+| employee_size_min | Integer | — | Yes | Minimum company headcount. |
+| employee_size_max | Integer | — | Yes | Maximum company headcount. |
+| revenue_min | Numeric | — | Yes | Minimum annual revenue filter. |
+| revenue_max | Numeric | — | Yes | Maximum annual revenue filter. |
+| business_type | Text | — | Yes | B2B/B2C classification. |
+| pain_points | Text[] | `{}` | Yes | Array of customer challenges. |
+| dreams | Text[] | `{}` | Yes | Array of customer aspirations. |
+| status | Text | `'active'` | No | Lifecycle state (`active`, `researching`, `paused`). |
+| priority | Text | `'medium'` | No | Prioritization level (`high`, `medium`, `low`). |
+| target_revenue | Numeric | — | Yes | Revenue goal for this niche. |
+| target_clients | Integer | — | Yes | Client acquisition goal. |
+| created_by | UUID | — | Yes | References creator from `users.id`. |
+| created_at | Timestamptz | `now()` | No | Creation timestamp. |
+| updated_at | Timestamptz | `now()` | No | Auto-updated timestamp. |
+
+**Sample Data**
+```json
+{
+  "id": "a1111111-1111-1111-1111-111111111111",
+  "pod_id": "11111111-1111-1111-1111-111111111111",
+  "name": "Financial Services Tech Companies",
+  "description": "Mid to large-size fintech companies needing enterprise software solutions",
+  "services": ["Custom Software Development", "Cloud Migration", "AI/ML Integration"],
+  "industries": ["Financial Services", "Fintech", "Banking"],
+  "target_contacts": ["CTO", "VP of Engineering", "Head of Digital Transformation"],
+  "target_regions": ["North America", "Europe"],
+  "employee_size_min": 200,
+  "employee_size_max": 5000,
+  "revenue_min": 50000000,
+  "revenue_max": 500000000,
+  "business_type": "B2B SaaS",
+  "pain_points": [
+    "Legacy system modernization",
+    "Regulatory compliance challenges",
+    "Scaling technical infrastructure"
+  ],
+  "dreams": [
+    "Digital transformation leadership",
+    "Market innovation",
+    "Operational efficiency"
+  ],
+  "status": "active",
+  "priority": "high",
+  "target_revenue": 2500000,
+  "target_clients": 5,
+  "created_by": "06e7b3ed-e627-41e6-b267-4b5abfbead8d",
+  "created_at": "2025-02-15T11:00:00.000Z",
+  "updated_at": "2025-02-15T11:00:00.000Z"
+}
+```
+
+**RLS Policies:**
+- All authenticated users can **SELECT** (view all niches)
+- Authenticated users can **INSERT** their own niches (where `created_by = auth.uid()`)
+- Creators and admins can **UPDATE/DELETE** niches
+
+---
+
+### Table: bd_campaigns
+
+| Field | Type | Default | Nullable | Description |
+| --- | --- | --- | --- | --- |
+| id | UUID | `gen_random_uuid()` | No | Primary key. |
+| name | Text | — | No | Campaign identifier. |
+| niche_id | UUID | — | No | References `target_niches.id`. |
+| brand_id | UUID | — | Yes | References `brands.id` if brand-specific. |
+| campaign_type | Text | — | No | Channel type (`linkedin_outbound`, `email_outbound`, `abm`, `cold_calling`, `other`). |
+| status | Text | `'planning'` | No | Execution state (`planning`, `active`, `paused`, `completed`). |
+| start_date | Date | — | Yes | Campaign start date. |
+| end_date | Date | — | Yes | Campaign end date. |
+| target_contacts | Text[] | `{}` | Yes | Subset of niche contact roles. |
+| target_regions | Text[] | `{}` | Yes | Subset of niche regions. |
+| target_contacts_count | Integer | `0` | Yes | Total contacts to reach. |
+| actual_contacts_reached | Integer | `0` | Yes | Contacts actually engaged. |
+| responses_received | Integer | `0` | Yes | Replies/engagement count. |
+| meetings_booked | Integer | `0` | Yes | Scheduled conversations. |
+| deals_generated | Integer | `0` | Yes | Opportunities created. |
+| owned_by | UUID | — | Yes | References campaign owner from `users.id`. |
+| created_by | UUID | — | Yes | References campaign creator from `users.id`. |
+| created_at | Timestamptz | `now()` | No | Creation timestamp. |
+| updated_at | Timestamptz | `now()` | No | Auto-updated timestamp. |
+
+**Sample Data**
+```json
+{
+  "id": "ca111111-1111-1111-1111-111111111111",
+  "name": "Fintech CTO Outreach Q1 2025",
+  "niche_id": "a1111111-1111-1111-1111-111111111111",
+  "brand_id": null,
+  "campaign_type": "linkedin_outbound",
+  "status": "active",
+  "start_date": "2025-01-01",
+  "end_date": "2025-03-31",
+  "target_contacts": ["CTO", "VP of Engineering"],
+  "target_regions": ["North America"],
+  "target_contacts_count": 150,
+  "actual_contacts_reached": 89,
+  "responses_received": 23,
+  "meetings_booked": 8,
+  "deals_generated": 2,
+  "owned_by": "06e7b3ed-e627-41e6-b267-4b5abfbead8d",
+  "created_by": "06e7b3ed-e627-41e6-b267-4b5abfbead8d",
+  "created_at": "2025-01-05T09:00:00.000Z",
+  "updated_at": "2025-02-15T14:30:00.000Z"
+}
+```
+
+**RLS Policies:**
+- All authenticated users can **SELECT** (view all campaigns)
+- Authenticated users can **INSERT** their own campaigns (where `created_by = auth.uid()`)
+- Creators, owners, and admins can **UPDATE** campaigns
+- Creators and admins can **DELETE** campaigns
+
+---
+
 ### Table: documentation helpers (integrations & automation)
 
 Other supporting tables include:

@@ -1,4 +1,4 @@
-import { BookOpen, Database, Workflow, ArchiveRestore, ClipboardCheck, type LucideIcon } from "lucide-react";
+import { BookOpen, Database, Workflow, ArchiveRestore, ClipboardCheck, Target, type LucideIcon } from "lucide-react";
 
 export interface DocCategory {
   id: string;
@@ -110,6 +110,23 @@ export const documentationIndex: DocCategory[] = [
         file: "review-checklist.md",
         tags: ["qa", "process"],
         lastUpdated: "2025-02-15"
+      }
+    ]
+  },
+  {
+    id: "business-development",
+    title: "Business Development",
+    icon: Target,
+    description: "POD management, target niches, and campaign workflows.",
+    items: [
+      {
+        id: "bd-guide",
+        title: "Business Development Guide",
+        description: "Complete guide to using the BD module for outbound operations.",
+        category: "business-development",
+        file: "business-development.md",
+        tags: ["bd", "campaigns", "niches", "pods"],
+        lastUpdated: "2025-10-19"
       }
     ]
   }

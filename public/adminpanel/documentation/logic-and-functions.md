@@ -87,13 +87,16 @@ Each function is deployed under `supabase/functions/<name>/index.ts` and is expo
 - **Purpose:** Crawl repository metadata, summarize architecture, and store findings in `code_analysis_results`.
 - **Linked Tables:** `code_repositories`, `code_analysis_results`, `ai_agent_runs`.
 
-### Function: run-ai-agent
+### Function: run-ai-agent (Enhanced)
 - **File:** `supabase/functions/run-ai-agent/index.ts`
-- **Purpose:** Unified dispatcher that executes any registered AI agent configuration.
+- **Purpose:** Unified dispatcher that executes any registered AI agent configuration with provider chain orchestration.
 - **Behavior:**
   - Validates agent activation and permissions.
   - Compiles `input_context` from Supabase tables (e.g., tasks, CRM metrics).
-  - Streams OpenAI responses, persists them into `ai_agent_runs`, and optionally writes follow-up tasks (`project_tasks`).
+  - **Provider Chain:** Orchestrates primary → fallback → OpenAI mini → research provider sequence based on `ai_agents.config.providers`.
+  - **Telemetry Capture:** Stores provider execution chain in `ai_agent_runs.output.provider_chain` array with timestamps, tokens, and error details.
+  - Streams responses, persists them into `ai_agent_runs`, and optionally writes follow-up tasks (`project_tasks`).
+  - **LinkedIn Integration:** Supports file upload to OpenAI vector stores via `linkedin-upload-file-to-openai` function for knowledge base augmentation.
 
 ### Function: gemini-veo-manager
 - **File:** `supabase/functions/gemini-veo-manager/index.ts`
@@ -136,11 +139,17 @@ Each function is deployed under `supabase/functions/<name>/index.ts` and is expo
 - **`src/features/kpis/hooks/useKpis.ts`** – Wraps `axiosPrivate` calls to manage KPI CRUD flows.
 - **`src/features/eod/hooks/useEodSubmissions.ts`** – Provides create/update/fetch helpers that call `generate-eod-summary` after submissions.
 
+### BD Management Hooks
+- **`src/hooks/usePods.tsx`** – CRUD operations for team PODs with React Query caching. Fetches from `pods` table, provides `createPod`, `updatePod`, `deletePod` mutations with optimistic updates.
+- **`src/hooks/useTargetNiches.tsx`** – Target niche management with filtering by POD. Queries `target_niches` with joins to `pods`, supports create/update/delete with cache invalidation.
+- **`src/hooks/useBDCampaigns.tsx`** – Campaign tracking with metrics aggregation. Fetches from `bd_campaigns` with `target_niches` joins, provides mutations for campaign lifecycle and metric updates.
+
 ### Admin Panel Utilities
 - **`src/components/ai/AIAgentRunner.tsx`** – Executes `run-ai-agent` edge function, streams updates to UI, and writes generated tasks locally before Supabase persistence.
 - **`src/components/video-veo/GeminiVideoCard.tsx`** – Polls `gemini-veo-manager` for render progress and surfaces download links.
 - **`src/pages/admin/UserManagement.tsx`** – Orchestrates `admin-users` CRUD flows, user invite emails, and permission modals.
 - **`src/pages/admin/IntegrationManager.tsx`** – Bridges the UI with `n8n-analytics-manage`, `gohighlevel-manage`, and `hubspot-sync` endpoints to toggle integrations.
+- **`src/pages/admin/LinkedInAgentConfig.tsx`** – Configuration interface for LinkedIn AI agent with provider routing settings, file upload to vector stores, on-demand execution, and run history telemetry display.
 
 ## Automation Flow Summary
 1. **Data Ingestion:** External sources (HubSpot, GoHighLevel, n8n, ActiveCollab) push into respective edge functions which upsert normalized tables.

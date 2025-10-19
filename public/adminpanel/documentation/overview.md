@@ -19,8 +19,10 @@
 | `src/components/` | Shared UI primitives (cards, dialogs, tables) plus feature widgets such as AI runners, accountability chart editors, and documentation utilities. |
 | `src/features/` | Domain-specific modules (admin, BD tooling, video studio, AI agents) co-locating components, hooks, and mock data. |
 | `src/pages/` | Route-level screens including `/adminpanel`, manager dashboards, BD pods/niches, and AI feature pages. |
+| `src/pages/bd/` | Business development pages (POD management, target niches, campaign tracking). |
 | `src/integrations/supabase/` | Auto-generated Supabase types, client factory, and data helpers for calling PostgREST. |
 | `src/Api/` | REST helper wrappers for Supabase edge functions and external automation services. |
+| `src/hooks/usePods.tsx`, `useBDCampaigns.tsx`, `useTargetNiches.tsx` | React Query hooks for BD CRUD operations. |
 | `supabase/functions/` | Deno edge functions covering admin CRUD, analytics sync, AI operations, and integrations. |
 | `supabase/migrations/` | SQL schema migrations, policies, and seed data for all tables referenced in the app. |
 | `public/adminpanel/documentation/` | Markdown sources rendered inside the Admin Panel documentation experience. |
@@ -37,9 +39,10 @@
 ## Major Application Areas
 - **Admin Layout (`src/components/AdminLayout.tsx`):** Role-gated navigation shell for `/adminpanel`, wiring tabs for brands, clients, documentation, KPIs, AI tooling, and settings.
 - **Authentication (`src/features/auth`, `src/integrations/supabase/client.ts`):** Supabase-powered auth context with role-based routing guards in `src/App.tsx`.
+- **Business Development Module (`src/pages/bd/`):** Complete BD workflow covering POD management (`/bd/pods`), target niche definition (`/bd/niches`), and campaign execution (`/bd/campaigns`) with metrics tracking tied to Supabase tables `pods`, `target_niches`, and `bd_campaigns`.
 - **Business Development Dashboards (`src/pages/ManagerDashboard.tsx`, `src/pages/PMDashboard.tsx`, `src/pages/MyDashboard.tsx`):** Aggregated KPIs, pipeline metrics, and team performance cards.
 - **Project & Task Management (`src/pages/ProjectDetail.tsx`, `src/features/projects`):** Project drill downs, task lists, and timeline metrics tied to Supabase tables.
-- **AI & Automation (`src/pages/ai-agents`, `src/components/ai/AIAgentRunner.tsx`, Supabase `run-ai-agent`):** Configures agents, executes automations, and surfaces generated tasks/summaries.
+- **AI & Automation (`src/pages/ai-agents`, `src/components/ai/AIAgentRunner.tsx`, Supabase `run-ai-agent`):** Configures agents with provider routing (primary, fallback, research), executes automations, and surfaces generated tasks/summaries with telemetry tracking.
 - **Video Studio (`src/pages/video/GeminiVideoStudioPage.tsx`, `supabase/functions/gemini-veo-manager`):** Frontend orchestration for Gemini Veo prompts, asset storage, and processing status.
 - **Daily Reporting (`src/pages/EODSubmission.tsx`, `supabase/functions/generate-eod-summary`):** Collects end-of-day updates, aggregates summaries, and syncs with ActiveCollab.
 
