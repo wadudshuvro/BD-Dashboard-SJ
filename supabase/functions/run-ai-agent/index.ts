@@ -1,313 +1,407 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { corsHeaders } from "../_shared/cors.ts";
+import {
+  AgentConfig,
+  buildProviderChain,
+  invokeProvider,
+  ProviderTelemetry,
+} from "../_shared/providers.ts";
 
-interface AgentRunRequest {
-  agent_id: string;
-  execution_context: {
-    timeframe?: string;
-    filters?: any;
-    office_ids?: string[];
-    user_id: string;
-  };
+const AgentRunRequestSchema = z.object({
+  agent_id: z.string().uuid(),
+  execution_context: z.object({
+    timeframe: z.string().optional(),
+    filters: z.record(z.any()).optional(),
+    office_ids: z.array(z.string()).optional(),
+    user_id: z.string().uuid(),
+  }).default({ user_id: "" }),
+});
+
+const MetricsSchema = z.object({
+  total_items_analyzed: z.number().nonnegative().default(0),
+  anomalies_found: z.number().nonnegative().default(0),
+  high_priority_issues: z.number().nonnegative().default(0),
+});
+
+const ActionItemSchema = z.object({
+  type: z.enum(["task", "note"]).default("task"),
+  description: z.string(),
+  priority: z.enum(["high", "medium", "low"]).default("medium"),
+  assignee: z.string().optional(),
+  due_date: z.string().optional(),
+  confidence: z.number().min(0).max(1).optional(),
+});
+
+const AgentResponseSchema = z.object({
+  summary: z.string().min(1),
+  findings: z.array(z.string()).default([]),
+  recommendations: z.array(z.string()).default([]),
+  action_items: z.array(ActionItemSchema).default([]),
+  metrics: MetricsSchema.default({
+    total_items_analyzed: 0,
+    anomalies_found: 0,
+    high_priority_issues: 0,
+  }),
+  confidence_score: z.number().min(0).max(1).optional(),
+  insights: z.array(z.string()).optional(),
+  risks: z.array(z.string()).optional(),
+});
+
+type AgentResponse = z.infer<typeof AgentResponseSchema>;
+
+type SupabaseClient = ReturnType<typeof createClient>;
+
+interface DatabaseAgent {
+  id: string;
+  name: string;
+  category: string;
+  system_prompt: string;
+  config?: AgentConfig;
 }
 
-interface AIAnalysisResponse {
-  summary: string;
-  key_findings: string[];
-  recommendations: string[];
-  action_items: Array<{
-    type: 'task';
-    description: string;
-    priority: 'high' | 'medium' | 'low';
-    assignee?: string;
-    due_date?: string;
-    confidence: number;
-  }>;
-  metrics: {
-    total_items_analyzed: number;
-    anomalies_found: number;
-    high_priority_issues: number;
+interface SharedResourceRow {
+  resource_type: string;
+  resource_identifier: string;
+  metadata?: Record<string, unknown>;
+}
+
+interface ConfigurationRow {
+  configuration_type: string;
+  configuration_data: Record<string, unknown>;
+}
+
+interface ConfigurationPayload {
+  businessContext: Record<string, unknown>;
+  modelSettings: { default_model?: string };
+  prompts: {
+    analysis_prompts?: Record<string, string>;
   };
-  confidence_score?: number;
 }
 
 async function getClient(req: Request) {
-  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+  if (!supabaseUrl || !serviceKey) {
+    throw new Error("Missing Supabase configuration");
+  }
+
   return createClient(supabaseUrl, serviceKey, {
-    global: { headers: { Authorization: req.headers.get('Authorization') || '' } },
+    global: { headers: { Authorization: req.headers.get("Authorization") || "" } },
     auth: { persistSession: false },
   });
 }
 
-async function requireAuth(client: any): Promise<string | null> {
-  const { data: { user } } = await client.auth.getUser();
-  return user?.id || null;
+async function requireAuth(client: SupabaseClient): Promise<string | null> {
+  const { data, error } = await client.auth.getUser();
+  if (error || !data.user) return null;
+  return data.user.id;
 }
 
-async function fetchConfigurations(client: any) {
-  const { data: configs, error } = await client
-    .from('ai_configurations')
-    .select('configuration_type, configuration_data');
-  
+async function fetchConfigurations(client: SupabaseClient): Promise<ConfigurationPayload> {
+  const { data, error } = await client
+    .from("ai_configurations")
+    .select("configuration_type, configuration_data");
+
   if (error) throw error;
-  
-  const configMap: Record<string, any> = {};
-  configs?.forEach((config: any) => {
+
+  const configMap: Record<string, Record<string, unknown>> = {};
+  (data as ConfigurationRow[] | null)?.forEach((config) => {
     configMap[config.configuration_type] = config.configuration_data;
   });
-  
+
   return {
-    businessContext: configMap.business_context || {},
-    modelSettings: configMap.model_settings || { default_model: 'gpt-4o-mini' },
-    prompts: configMap.prompts || {}
+    businessContext: (configMap.business_context as Record<string, unknown>) || {},
+    modelSettings: (configMap.model_settings as { default_model?: string }) || { default_model: "gpt-4o-mini" },
+    prompts: (configMap.prompts as ConfigurationPayload["prompts"]) || {},
   };
 }
 
-function getModelParameters(modelSettings: any) {
-  const model = modelSettings.default_model || 'gpt-4o-mini';
-  const params: any = { model };
-  
-  // Newer models (GPT-5, O3, O4) use max_completion_tokens and don't support temperature
-  if (model.includes('gpt-5') || model.includes('o3') || model.includes('o4')) {
-    if (modelSettings.max_completion_tokens) {
-      params.max_completion_tokens = modelSettings.max_completion_tokens;
-    }
-    // Don't set temperature for newer models
-  } else {
-    // Legacy models (GPT-4, GPT-4o) use max_tokens and support temperature
-    if (modelSettings.max_tokens) {
-      params.max_tokens = modelSettings.max_tokens;
-    }
-    if (modelSettings.temperature !== undefined) {
-      params.temperature = modelSettings.temperature;
-    }
-  }
-  
-  return params;
+async function fetchSharedResources(client: SupabaseClient, agentId: string): Promise<SharedResourceRow[]> {
+  const { data, error } = await client
+    .from("ai_shared_resources")
+    .select("resource_type, resource_identifier, metadata")
+    .eq("agent_id", agentId);
+
+  if (error) throw error;
+  return (data as SharedResourceRow[] | null) ?? [];
 }
 
-function assemblePrompt(agent: any, businessContext: any, prompts: any, executionContext: any) {
-  let systemPrompt = agent.system_prompt;
-  
-  // Replace business context variables
-  if (businessContext.company_name) {
-    systemPrompt = systemPrompt.replace(/\{company_name\}/g, businessContext.company_name);
+function assemblePrompt(
+  agent: DatabaseAgent,
+  businessContext: Record<string, unknown>,
+  prompts: ConfigurationPayload["prompts"],
+  executionContext: Record<string, unknown>,
+  sharedResources: SharedResourceRow[],
+) {
+  let systemPrompt: string = agent.system_prompt;
+
+  const companyName = typeof businessContext["company_name"] === "string"
+    ? businessContext["company_name"] as string
+    : undefined;
+  const industry = typeof businessContext["industry"] === "string"
+    ? businessContext["industry"] as string
+    : undefined;
+  const companyPolicies = typeof businessContext["company_policies"] === "string"
+    ? businessContext["company_policies"] as string
+    : undefined;
+  const seasonalRules = businessContext["seasonal_rules"] as Record<string, string> | undefined;
+
+  if (companyName) {
+    systemPrompt = systemPrompt.replace(/\{company_name\}/g, companyName);
   }
-  if (businessContext.industry) {
-    systemPrompt = systemPrompt.replace(/\{industry\}/g, businessContext.industry);
+  if (industry) {
+    systemPrompt = systemPrompt.replace(/\{industry\}/g, industry);
   }
-  
-  // Add seasonal context if available
+
   const currentQuarter = Math.ceil((new Date().getMonth() + 1) / 3);
-  const seasonalRule = businessContext.seasonal_rules?.[`Q${currentQuarter}`];
+  const seasonalRule = seasonalRules?.[`Q${currentQuarter}`];
   if (seasonalRule) {
     systemPrompt += `\n\nSeasonal Context: ${seasonalRule}`;
   }
-  
-  // Add company policies
-  if (businessContext.company_policies) {
-    systemPrompt += `\n\nCompany Policies: ${businessContext.company_policies}`;
+
+  if (companyPolicies) {
+    systemPrompt += `\n\nCompany Policies: ${companyPolicies}`;
   }
-  
-  return systemPrompt;
+
+  if (sharedResources.length) {
+    systemPrompt += `\n\nShared Knowledge Bases:`;
+    sharedResources.forEach((resource) => {
+      const metadata = resource.metadata as Record<string, unknown> | undefined;
+      const description = typeof metadata?.description === "string" ? metadata.description : undefined;
+      const label = description ?? resource.resource_identifier;
+      systemPrompt += `\n- ${resource.resource_type}: ${label}`;
+    });
+  }
+
+  const defaultPrompt = prompts.analysis_prompts?.[agent.category] || "Provide an actionable analysis.";
+  const serializedContext = JSON.stringify(executionContext ?? {});
+  const responseTemplate = JSON.stringify({
+    summary: "Brief summary of findings",
+    findings: ["Finding 1"],
+    recommendations: ["Recommendation 1"],
+    action_items: [{
+      type: "task",
+      description: "Action description",
+      priority: "high|medium|low",
+      assignee: "Optional assignee",
+      due_date: "Optional ISO string",
+      confidence: 0.8
+    }],
+    metrics: {
+      total_items_analyzed: 0,
+      anomalies_found: 0,
+      high_priority_issues: 0
+    },
+    confidence_score: 0.8
+  }, null, 2);
+
+  const userPrompt = `You are executing the ${agent.name} agent.\n\n` +
+    `Contextual Filters: ${serializedContext}\n` +
+    `Primary Objective: ${defaultPrompt}\n\n` +
+    `Provide the result as JSON matching this schema:\n${responseTemplate}\n` +
+    `Only return valid JSON.`;
+
+  return {
+    systemPrompt,
+    userPrompt,
+  };
 }
 
-function parseAIResponse(responseText: string): AIAnalysisResponse {
+function tryParseJson(content: string): AgentResponse {
   try {
-    // Try direct JSON parsing first
-    return JSON.parse(responseText);
-  } catch (e) {
-    console.log('Direct JSON parse failed, trying cleanup approaches...');
-    
-    // Try to extract JSON from markdown code blocks
-    const codeBlockMatch = responseText.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-    if (codeBlockMatch) {
-      try {
-        return JSON.parse(codeBlockMatch[1]);
-      } catch (e2) {
-        console.log('Code block JSON parse failed');
-      }
-    }
-    
-    // Try to find JSON-like content
-    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+    const parsed = JSON.parse(content);
+    return AgentResponseSchema.parse(parsed);
+  } catch {
+    const jsonMatch = content.match(/```(?:json)?\n([\s\S]*?)```/);
     if (jsonMatch) {
       try {
-        return JSON.parse(jsonMatch[0]);
-      } catch (e3) {
-        console.log('JSON pattern match failed');
+        const parsed = JSON.parse(jsonMatch[1]);
+        return AgentResponseSchema.parse(parsed);
+      } catch (_error) {
+        // continue to fallback
       }
     }
-    
-    // Fallback: create structured response from text
-    return {
-      summary: responseText.substring(0, 500),
-      key_findings: ['Analysis completed but response format needs adjustment'],
-      recommendations: ['Review AI response format configuration'],
+    const bracesMatch = content.match(/\{[\s\S]*\}/);
+    if (bracesMatch) {
+      try {
+        const parsed = JSON.parse(bracesMatch[0]);
+        return AgentResponseSchema.parse(parsed);
+      } catch (_error) {
+        // continue to fallback
+      }
+    }
+
+    return AgentResponseSchema.parse({
+      summary: content.substring(0, 280),
+      findings: ["Unable to parse provider response as JSON."],
+      recommendations: ["Review provider output formatting."],
       action_items: [],
-      metrics: {
-        total_items_analyzed: 0,
-        anomalies_found: 0,
-        high_priority_issues: 0
-      },
-      confidence_score: 0.5
-    };
+      metrics: { total_items_analyzed: 0, anomalies_found: 0, high_priority_issues: 0 },
+      confidence_score: 0.2,
+    });
   }
+}
+
+function buildProviderTelemetry(result: ProviderResult): ProviderTelemetry {
+  return result.telemetry;
+}
+
+async function persistRun(
+  client: SupabaseClient,
+  payload: {
+    agentId: string;
+    userId: string;
+    agentCategory: string | null;
+    executionContext: Record<string, unknown>;
+    response: AgentResponse;
+    providerTelemetry: ProviderTelemetry[];
+    providerRawOutputs: unknown[];
+  },
+) {
+  const { data, error } = await client
+    .from("ai_agent_runs")
+    .insert({
+      agent_id: payload.agentId,
+      executed_by: payload.userId,
+      execution_context: payload.executionContext,
+      ai_summary: payload.response,
+      generated_tasks: payload.response.action_items,
+      status: "completed",
+      title: `${new Date().toISOString()} - ${payload.response.summary.substring(0, 60)}`,
+      category: payload.agentCategory,
+      output: {
+        response: payload.response,
+        telemetry: payload.providerTelemetry,
+        rawOutputs: payload.providerRawOutputs,
+      },
+      provider_chain: payload.providerTelemetry,
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
 }
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
-
-  const client = await getClient(req);
-  const userId = await requireAuth(client);
-
-  if (!userId) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), { 
-      status: 401, 
-      headers: corsHeaders 
-    });
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
   }
 
+  let client: SupabaseClient | null = null;
+
   try {
-    const body: AgentRunRequest = await req.json();
-    const { agent_id, execution_context } = body;
+    client = await getClient(req);
+    const userId = await requireAuth(client);
 
-    console.log('Running AI agent:', agent_id);
+    if (!userId) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
-    // Fetch agent configuration
+    const json = await req.json();
+    const payload = AgentRunRequestSchema.parse(json);
+
+    const { agent_id: agentId, execution_context: executionContext } = payload;
+
     const { data: agent, error: agentError } = await client
-      .from('ai_agents')
-      .select('*')
-      .eq('id', agent_id)
+      .from("ai_agents")
+      .select("*, config")
+      .eq("id", agentId)
       .single();
 
     if (agentError || !agent) {
-      throw new Error('Agent not found or access denied');
+      throw new Error("Agent not found or access denied");
     }
 
-    // Fetch system configurations
     const configs = await fetchConfigurations(client);
-    
-    // Assemble system prompt with business context
-    const systemPrompt = assemblePrompt(agent, configs.businessContext, configs.prompts, execution_context);
-    
-    // Prepare model parameters
-    const modelParams = getModelParameters(configs.modelSettings);
-    
-    // Simulate data fetching (replace with actual data queries based on agent.data_sources)
-    const analysisData = {
-      timeframe: execution_context.timeframe || 'current_month',
-      category: agent.category,
-      context: 'Sample data for analysis'
-    };
-    
-    const userPrompt = `
-Analyze the following data and provide a structured response in JSON format:
+    const sharedResources = await fetchSharedResources(client, agentId);
+    const { systemPrompt, userPrompt } = assemblePrompt(
+      agent,
+      configs.businessContext,
+      configs.prompts,
+      executionContext,
+      sharedResources,
+    );
 
-Data Context: ${JSON.stringify(analysisData)}
-Analysis Category: ${agent.category}
-Timeframe: ${execution_context.timeframe || 'current_month'}
+    const providerChain = buildProviderChain((agent.config as AgentConfig) || {}, configs.modelSettings?.default_model);
 
-Please provide your analysis in the following JSON structure:
-{
-  "summary": "Brief summary of findings",
-  "key_findings": ["Finding 1", "Finding 2", "Finding 3"],
-  "recommendations": ["Recommendation 1", "Recommendation 2"],
-  "action_items": [
-    {
-      "type": "task",
-      "description": "Action description",
-      "priority": "high|medium|low",
-      "confidence": 0.85
+    const messages = [
+      { role: "system" as const, content: systemPrompt },
+      { role: "user" as const, content: userPrompt },
+    ];
+
+    const telemetry: ProviderTelemetry[] = [];
+    const rawOutputs: unknown[] = [];
+    let parsedResponse: AgentResponse | null = null;
+
+    for (const providerConfig of providerChain) {
+      const result = await invokeProvider(providerConfig, messages);
+      telemetry.push(buildProviderTelemetry(result));
+      rawOutputs.push(result.rawResponse);
+
+      if (!result.content) {
+        continue;
+      }
+
+      try {
+        parsedResponse = tryParseJson(result.content);
+        break;
+      } catch (error) {
+        telemetry[telemetry.length - 1] = {
+          ...telemetry[telemetry.length - 1],
+          error: {
+            message: error instanceof Error ? error.message : "Unable to parse provider output",
+          },
+        };
+      }
     }
-  ],
-  "metrics": {
-    "total_items_analyzed": 100,
-    "anomalies_found": 5,
-    "high_priority_issues": 2
-  },
-  "confidence_score": 0.85
-}
-`;
 
-    console.log('Calling OpenAI with model:', modelParams.model);
+    if (!parsedResponse) {
+      throw new Error("All providers failed to produce a valid response");
+    }
 
-    // Call OpenAI API
-    const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${Deno.env.get('OPENAI_API_KEY')}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        ...modelParams,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ],
+    const runRecord = await persistRun(client, {
+      agentId,
+      userId,
+      agentCategory: agent.category ?? null,
+      executionContext,
+      response: parsedResponse,
+      providerTelemetry: telemetry,
+      providerRawOutputs: rawOutputs,
+    });
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        run_id: runRecord.id,
+        summary: parsedResponse.summary,
+        findings: parsedResponse.findings,
+        recommendations: parsedResponse.recommendations,
+        action_items: parsedResponse.action_items,
+        telemetry,
       }),
-    });
-
-    if (!openaiResponse.ok) {
-      const errorText = await openaiResponse.text();
-      console.error('OpenAI API error:', errorText);
-      throw new Error(`OpenAI API error: ${openaiResponse.status}`);
-    }
-
-    const openaiResult = await openaiResponse.json();
-    const aiResponseText = openaiResult.choices[0].message.content;
-    
-    console.log('Raw AI Response:', aiResponseText);
-    
-    // Parse AI response with enhanced error handling
-    const parsedResponse = parseAIResponse(aiResponseText);
-    
-    // Create agent run record
-    const { data: agentRun, error: runError } = await client
-      .from('ai_agent_runs')
-      .insert({
-        agent_id,
-        executed_by: userId,
-        execution_context,
-        ai_summary: parsedResponse,
-        generated_tasks: parsedResponse.action_items || [],
-        status: 'completed',
-        title: `${agent.name} - ${new Date().toISOString().split('T')[0]}`,
-        category: agent.category
-      })
-      .select()
-      .single();
-
-    if (runError) {
-      console.error('Error creating agent run:', runError);
-      throw runError;
-    }
-
-    console.log('Agent run completed successfully:', agentRun.id);
-
-    return new Response(JSON.stringify({
-      success: true,
-      run_id: agentRun.id,
-      summary: parsedResponse.summary,
-      tasks_created: parsedResponse.action_items?.length || 0
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
   } catch (error) {
-    console.error('Error in run-ai-agent function:', error);
-    return new Response(JSON.stringify({
-      error: error instanceof Error ? error.message : 'Internal server error'
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    console.error("Error in run-ai-agent function:", error);
+    return new Response(
+      JSON.stringify({
+        error: error instanceof Error ? error.message : "Internal server error",
+      }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
   }
 });
