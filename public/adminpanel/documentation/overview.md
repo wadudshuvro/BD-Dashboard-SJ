@@ -1,55 +1,58 @@
 # SJ Business Development AI Platform
 
+_Last Updated: 2025-02-18_
+
 ## Project Summary
-- **Purpose:** Internal operations hub that unifies business development workflows, brand management, analytics, AI tooling, and daily reporting for SJ Innovation teams.
-- **Key Capabilities:** Role-aware admin dashboards, CRM-style client + project tracking, KPI monitoring, AI agent orchestration, Gemini Veo video generation, and Supabase-backed data automation.
+- **Purpose:** Unified command center for SJ Innovation's business development, client operations, and automation teams.
+- **Highlights:** Role-aware admin workspace, BD pipeline dashboards, AI-assisted workflows, Gemini Veo video studio, and Supabase-backed automation for CRM and reporting tasks.
 
 ## Tech Stack
 | Layer | Technologies |
 | --- | --- |
-| Frontend | Vite, React 18, TypeScript, React Router, Tailwind CSS, shadcn/ui, TanStack Query |
-| Backend APIs | Supabase Edge Functions (Deno), Supabase PostgREST, Custom REST helpers via Axios |
-| Data & Auth | Supabase Postgres, Supabase Auth (RLS policies), Supabase Storage |
-| Tooling | ESLint, TypeScript, Bun (tests), Fuse.js for search, Lucide React icon set |
+| Frontend | Vite, React 18, TypeScript, React Router, Tailwind CSS, shadcn/ui, TanStack Query, React Hook Form |
+| Backend APIs | Supabase Edge Functions (Deno runtime) exposed via Supabase Functions client, Axios REST helpers |
+| Data & Auth | Supabase Postgres, Supabase Auth with RLS, Supabase Storage, row-level audit triggers |
+| Tooling | ESLint, TypeScript, Bun (unit tests), Fuse.js search, Lucide icons, Supabase CLI |
 
 ## Folder Structure Highlights
 | Path | Description |
 | --- | --- |
-| `src/main.tsx`, `src/App.tsx` | Bootstraps React, providers, and global routing shell. |
-| `src/components/` | Shared UI primitives (cards, dialogs, tables) plus feature widgets such as AI runners, accountability chart editors, and documentation utilities. |
-| `src/features/` | Domain-specific modules (admin, BD tooling, video studio, AI agents) co-locating components, hooks, and mock data. |
-| `src/pages/` | Route-level screens including `/adminpanel`, manager dashboards, BD pods/niches, and AI feature pages. |
-| `src/pages/bd/` | Business development pages (POD management, target niches, campaign tracking). |
-| `src/integrations/supabase/` | Auto-generated Supabase types, client factory, and data helpers for calling PostgREST. |
-| `src/Api/` | REST helper wrappers for Supabase edge functions and external automation services. |
-| `src/hooks/usePods.tsx`, `useBDCampaigns.tsx`, `useTargetNiches.tsx` | React Query hooks for BD CRUD operations. |
-| `supabase/functions/` | Deno edge functions covering admin CRUD, analytics sync, AI operations, and integrations. |
-| `supabase/migrations/` | SQL schema migrations, policies, and seed data for all tables referenced in the app. |
-| `public/adminpanel/documentation/` | Markdown sources rendered inside the Admin Panel documentation experience. |
+| `src/main.tsx`, `src/App.tsx` | Application bootstrap, router shell, auth gate checks, and layout composition. |
+| `src/components/` | Shared UI primitives (cards, tables, dialogs) plus reusable widgets such as AI runners, analytics cards, and admin forms. |
+| `src/features/` | Domain-specific modules grouped by feature (admin management, BD tooling, video studio, AI agents) with colocated hooks/services. |
+| `src/pages/` | Route-level screens (`/adminpanel`, BD dashboards, AI tooling pages, Gemini studio, reporting views). |
+| `src/hooks/` | React Query hooks and custom logic (`usePods`, `useTargetNiches`, `useControlTowerConfig`, `useSyncControlTowerDeals`). |
+| `src/lib/` | Shared utilities including Supabase documentation index, Axios client factory, and helper utilities. |
+| `src/integrations/supabase/` | Supabase client factory and generated types for typed PostgREST access. |
+| `supabase/functions/` | Deno edge functions powering admin CRUD, CRM integrations, AI orchestration, analytics ingestion, and feedback loops. |
+| `supabase/migrations/` | SQL migrations for schema, RLS policies, triggers, and seed data. |
+| `public/adminpanel/documentation/` | Markdown sources rendered inside the Admin Panel Documentation view. |
 
 ## Environment Variables
 | Variable | Location | Purpose |
 | --- | --- | --- |
-| `VITE_SUPABASE_URL` | Vite client | Supabase project URL for auth and database calls (`src/integrations/supabase/client.ts`). |
-| `VITE_SUPABASE_PUBLISHABLE_KEY` | Vite client | Public anon key passed to Supabase client factory. |
-| `VITE_API_BASE_URL` | Vite client | Base URL for Axios wrapper hitting edge functions (`src/lib/axiosPrivate.ts`). |
-| `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | Supabase CLI | Required when running or deploying Supabase edge functions locally. |
-| `OPENAI_API_KEY` (Supabase edge) | Edge functions | Used by AI-related functions such as `generate-code`, `run-ai-agent`, and `generate-eod-summary` for OpenAI calls. |
+| `VITE_SUPABASE_URL` | Vite client | Supabase project URL used by the browser client factory (`src/integrations/supabase/client.ts`). |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | Vite client | Public anon key for the Supabase browser client. |
+| `VITE_API_BASE_URL` | Vite client | Base URL for Axios wrapper that proxies Supabase edge functions (`src/lib/axiosPrivate.ts`). |
+| `VITE_CONTROL_TOWER_URL` | Vite client | Control Tower Supabase instance used for deal synchronization (`src/hooks/useControlTowerConfig.ts`). |
+| `VITE_CONTROL_TOWER_ANON_KEY` | Vite client | Public anon key for Control Tower Supabase access. |
+| `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | Supabase CLI / Edge | Required for local edge function execution, migrations, and server-side Supabase clients. |
+| `OPENAI_API_KEY`, `GEMINI_API_KEY` | Edge functions | Provider keys consumed by AI edge functions (`run-ai-agent`, `generate-code`, `gemini-veo-manager`). |
+| `HUBSPOT_PRIVATE_APP_TOKEN`, `GHL_API_KEY` | Edge functions secrets | CRM integration tokens decrypted by `integrations-dashboard` and related sync functions. |
 
-## Major Application Areas
-- **Admin Layout (`src/components/AdminLayout.tsx`):** Role-gated navigation shell for `/adminpanel`, wiring tabs for brands, clients, documentation, KPIs, AI tooling, and settings.
-- **Authentication (`src/features/auth`, `src/integrations/supabase/client.ts`):** Supabase-powered auth context with role-based routing guards in `src/App.tsx`.
-- **Business Development Module (`src/pages/bd/`):** Complete BD workflow covering POD management (`/bd/pods`), target niche definition (`/bd/niches`), and campaign execution (`/bd/campaigns`) with metrics tracking tied to Supabase tables `pods`, `target_niches`, and `bd_campaigns`.
-- **Business Development Dashboards (`src/pages/ManagerDashboard.tsx`, `src/pages/PMDashboard.tsx`, `src/pages/MyDashboard.tsx`):** Aggregated KPIs, pipeline metrics, and team performance cards.
-- **Project & Task Management (`src/pages/ProjectDetail.tsx`, `src/features/projects`):** Project drill downs, task lists, and timeline metrics tied to Supabase tables.
-- **AI & Automation (`src/pages/ai-agents`, `src/components/ai/AIAgentRunner.tsx`, Supabase `run-ai-agent`):** Configures agents with provider routing (primary, fallback, research), executes automations, and surfaces generated tasks/summaries with telemetry tracking.
-- **Video Studio (`src/pages/video/GeminiVideoStudioPage.tsx`, `supabase/functions/gemini-veo-manager`):** Frontend orchestration for Gemini Veo prompts, asset storage, and processing status.
-- **Daily Reporting (`src/pages/EODSubmission.tsx`, `supabase/functions/generate-eod-summary`):** Collects end-of-day updates, aggregates summaries, and syncs with ActiveCollab.
+## Major Components & Responsibilities
+- **Admin Shell (`src/components/AdminLayout.tsx`):** Builds sidebar navigation, permission-aware routes, and feature hubs (documentation, KPIs, integrations, AI tooling).
+- **Authentication (`src/features/auth`):** Context providers, Supabase session management, and route guards enforced in `src/App.tsx`.
+- **Business Development Workflows (`src/pages/bd/*`):** POD management, target niche research, outbound campaign tracking, and control-tower synchronisation widgets.
+- **AI Automation (`src/pages/ai-agents`, `src/components/ai`):** Interfaces for configuring, executing, and auditing AI agents with streaming output.
+- **Feedback & Integrations (`src/pages/admin/IntegrationManager.tsx`, `supabase/functions/manage-feedback`):** Manage CRM connectors, handle product feedback pipelines, and review aggregated insights.
+- **Reporting & Video Studio (`src/pages/EODSubmission.tsx`, `src/pages/video/GeminiVideoStudioPage.tsx`):** Capture daily updates, orchestrate Gemini Veo renders, and present analytics snapshots.
 
-## Build & Run
+## Build & Run Workflow
 1. Install dependencies: `npm install`
-2. Launch development server: `npm run dev`
-3. Lint before commits: `npm run lint`
-4. Build production bundle: `npm run build`
-5. Optional type check: `npx tsc --noEmit`
-6. Serve edge functions locally as needed: `supabase functions serve <name> --env-file .env.local`
+2. Start development server with hot reload: `npm run dev`
+3. Run lint checks before commits: `npm run lint`
+4. Execute Bun-powered tests: `npm run test`
+5. Build production bundle: `npm run build`
+6. Optional: strict type-check without emitting files: `npx tsc --noEmit`
+7. Serve Supabase edge functions locally as needed: `supabase functions serve <name> --env-file .env.local`

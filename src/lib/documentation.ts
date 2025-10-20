@@ -1,4 +1,4 @@
-import { BookOpen, Database, Workflow, ArchiveRestore, ClipboardCheck, Target, type LucideIcon } from "lucide-react";
+import { BookOpen, Database, Workflow, ArchiveRestore, ClipboardCheck, type LucideIcon } from "lucide-react";
 
 export interface DocCategory {
   id: string;
@@ -32,7 +32,7 @@ export const documentationIndex: DocCategory[] = [
         category: "overview",
         file: "overview.md",
         tags: ["summary", "setup", "environment"],
-        lastUpdated: "2025-02-15"
+        lastUpdated: "2025-02-18"
       }
     ]
   },
@@ -49,7 +49,7 @@ export const documentationIndex: DocCategory[] = [
         category: "database",
         file: "database-schema.md",
         tags: ["supabase", "tables", "schema"],
-        lastUpdated: "2025-02-15"
+        lastUpdated: "2025-02-18"
       }
     ]
   },
@@ -66,16 +66,7 @@ export const documentationIndex: DocCategory[] = [
         category: "logic",
         file: "logic-and-functions.md",
         tags: ["edge functions", "api", "automation"],
-        lastUpdated: "2025-02-15"
-      },
-      {
-        id: "bug-feature-tracking",
-        title: "Bug & Feature Tracking",
-        description: "Feedback submission flow, Supabase schema, and admin review tooling.",
-        category: "logic",
-        file: "bug-tracking-integration.md",
-        tags: ["feedback", "support", "admin"],
-        lastUpdated: "2025-10-30"
+        lastUpdated: "2025-02-18"
       }
     ]
   },
@@ -92,7 +83,7 @@ export const documentationIndex: DocCategory[] = [
         category: "unused",
         file: "unused-analysis.md",
         tags: ["cleanup", "audit"],
-        lastUpdated: "2025-02-15"
+        lastUpdated: "2025-02-18"
       }
     ]
   },
@@ -109,24 +100,7 @@ export const documentationIndex: DocCategory[] = [
         category: "checklist",
         file: "review-checklist.md",
         tags: ["qa", "process"],
-        lastUpdated: "2025-02-15"
-      }
-    ]
-  },
-  {
-    id: "business-development",
-    title: "Business Development",
-    icon: Target,
-    description: "POD management, target niches, and campaign workflows.",
-    items: [
-      {
-        id: "bd-guide",
-        title: "Business Development Guide",
-        description: "Complete guide to using the BD module for outbound operations.",
-        category: "business-development",
-        file: "business-development.md",
-        tags: ["bd", "campaigns", "niches", "pods"],
-        lastUpdated: "2025-10-19"
+        lastUpdated: "2025-02-18"
       }
     ]
   }

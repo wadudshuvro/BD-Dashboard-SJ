@@ -1,158 +1,128 @@
 # Logic & Functions
 
+_Last Updated: 2025-02-18_
+
+This document catalogues the Supabase edge functions, supporting client logic, and how automation flows interact with shared data models.
+
 ## Supabase Edge Functions (Deno)
-Each function is deployed under `supabase/functions/<name>/index.ts` and is exposed through Supabase Edge Function URLs. All functions enforce CORS headers via `_shared/cors.ts` and authenticate using the service role key unless otherwise noted.
+All functions live under `supabase/functions/<name>/index.ts`, import shared CORS helpers from `_shared`, and expect the Supabase service-role key via `SUPABASE_SERVICE_ROLE_KEY`.
 
 ### Function: admin-users
 - **File:** `supabase/functions/admin-users/index.ts`
-- **Purpose:** Full CRUD + assignment sync for platform users, brand memberships, and granular permissions.
-- **HTTP Methods:**
-  - `GET /?id=<uuid>` – Fetch single user with `user_brands` + `user_permissions` joins.
-  - `GET /list` – Paginated user directory with filters for role/status.
-  - `POST` – Creates auth user via Admin API, inserts profile row, and assigns brands/permissions.
-  - `PUT /<id>` – Updates metadata, resyncs brand assignments, and permissions.
-  - `DELETE /<id>` – Soft deletes user and revokes brand links.
-- **Linked Tables:** `users`, `user_brands`, `user_permissions`, `user_roles`, `brands`.
-- **Notable Logic:** Automatically normalizes brand assignments, removes stale links, and wraps Supabase Admin API calls with retry + error shaping.
+- **Purpose:** CRUD interface for platform users, brand assignments, and granular permissions.
+- **Highlights:** Filters by role/status, orchestrates Supabase Admin API calls, and syncs `user_brands` plus `user_permissions` in a transaction.
 
 ### Function: admin-brands
 - **File:** `supabase/functions/admin-brands/index.ts`
-- **Purpose:** Manage brand catalog, brand KPIs, analytics integrations, and ownership metadata.
-- **HTTP Methods:**
-  - `GET` – Lists brands with aggregated KPI count + integration state.
-  - `POST` – Creates new brand record and optional default KPIs.
-  - `PUT /<id>` – Updates brand profile, active integrations, and owner assignments.
-  - `DELETE /<id>` – Deactivates brand and cleans dependent relations.
-- **Linked Tables:** `brands`, `brand_kpis`, `brand_analytics_integrations`, `user_brands`.
+- **Purpose:** Manage brand catalogue, KPI metadata, and brand ownership.
+- **Endpoints:** `GET` list, `POST` create brand, `PUT` update brand, `DELETE` deactivate entry.
 
-### Function: admin-panel auth helpers
+### Function: admin-products
+- **File:** `supabase/functions/admin-products/index.ts`
+- **Purpose:** CRUD for product catalogue stored in `products` table. Returns JSON payloads for admin merchandising features.
+
+### Function: auth
 - **File:** `supabase/functions/auth/index.ts`
-- **Purpose:** Login/refresh helpers invoked by the frontend for service-level actions (e.g., exchanging invite tokens, verifying roles).
-- **Behavior:** Validates Supabase auth sessions, issues ephemeral tokens with elevated claims for short-lived admin workflows, and surfaces profile data with `user_roles` join.
+- **Purpose:** Token exchange helpers that validate Supabase sessions, return enriched profile/role data, and issue temporary elevated tokens for admin actions.
 
 ### Function: collabai-manage
 - **File:** `supabase/functions/collabai-manage/index.ts`
-- **Purpose:** Secure proxy to the CollabAI API for syncing agents, conversations, and metadata into Supabase.
-- **Responsibilities:**
-  - Imports CollabAI agents → `collabai_agents` table.
-  - Persists chat logs into `collabai_chats` with streaming support.
-  - Encrypts API keys using Supabase secrets and stores them in `collabai_integrations`.
+- **Purpose:** Sync CollabAI agents and chats into Supabase tables (`collabai_agents`, `collabai_chats`, `collabai_integrations`). Handles credential encryption and streaming ingest.
 
-### Function: gohighlevel-manage
-- **File:** `supabase/functions/gohighlevel-manage/index.ts`
-- **Purpose:** REST facade around GoHighLevel CRM for pulling contacts, updating pipeline status, and mirroring integration health.
-- **Endpoints:**
-  - `POST /sync-contacts` – Fetches contacts by location, upserts into `gohighlevel_contacts`.
-  - `POST /webhook` – Handles status change webhooks.
-  - `DELETE /integration/<id>` – Revokes integration and cascades contact cleanup.
-- **Linked Tables:** `gohighlevel_integrations`, `gohighlevel_contacts`, `clients`, `deals`.
-
-### Function: hubspot-sync
-- **File:** `supabase/functions/hubspot-sync/index.ts`
-- **Purpose:** Ingest HubSpot deals/companies and normalize them for BD dashboards.
-- **Behavior:** Schedules batched fetches using pagination cursors, maps HubSpot pipeline stages to internal `deals.status`, and updates `clients` & `contacts` when company metadata changes.
-
-### Function: n8n-analytics-manage
-- **File:** `supabase/functions/n8n-analytics-manage/index.ts`
-- **Purpose:** Entry point for the Google Analytics → n8n workflow. Handles handshake, secret verification, ingestion, and reporting APIs.
-- **Key Operations:**
-  - `POST /webhook` – Validates secret, persists payload into `brand_analytics_data`, and updates `brand_analytics_integrations.last_sync_at`.
-  - `GET /integrations` – Lists configured integrations with last sync timestamp.
-  - `POST /integrations` – Creates or updates integration metadata.
-  - `DELETE /integrations/<id>` – Disables analytics feed.
-
-### Function: generate-eod-summary
-- **File:** `supabase/functions/generate-eod-summary/index.ts`
-- **Purpose:** For a given date, gather `team_eod_submissions`, join ActiveCollab data, and craft AI-powered daily summaries.
-- **Inputs:** JSON body `{ "date"?: string }`; defaults to current date in ISO format.
-- **Outputs:** JSON payload containing per-user summary objects `{ user, submission, aiSummary, tasks }`.
-- **Linked Tables:** `team_eod_submissions`, `activecollab_task_data`, `team_daily_summaries`, `ai_agent_runs`.
+### Function: create-company-vector-store
+- **File:** `supabase/functions/create-company-vector-store/index.ts`
+- **Purpose:** Upsert a vector store reference into `ai_shared_resources` for a given `ai_agents` record.
+- **Inputs:** `{ agent_id: uuid, vector_store_id: string, metadata?: { description?: string, provider?: string } }`
 
 ### Function: eod-data-sync
 - **File:** `supabase/functions/eod-data-sync/index.ts`
-- **Purpose:** Sync End-of-Day submissions from ActiveCollab to Supabase.
-- **Behavior:** Pulls tasks via ActiveCollab API, upserts into `team_eod_submissions` and `activecollab_task_data`, triggers `generate-eod-summary` when new submissions arrive.
+- **Purpose:** Pull ActiveCollab task activity, persist to `activecollab_task_data`, and queue updates for `team_eod_submissions` and `team_daily_summaries`.
+
+### Function: generate-eod-summary
+- **File:** `supabase/functions/generate-eod-summary/index.ts`
+- **Purpose:** Produce AI summaries for a given date by combining EOD submissions, ActiveCollab data, and historical agent runs.
 
 ### Function: generate-code
 - **File:** `supabase/functions/generate-code/index.ts`
-- **Purpose:** Prompt OpenAI with curated templates to generate React/TypeScript code.
-- **Process:**
-  1. Fetches appropriate `code_generation_templates` based on request parameters (framework, category).
-  2. Builds context from `code_repositories`, existing files, and AI config.
-  3. Calls OpenAI responses, logs output to `code_analyses` and `code_analysis_results` when validation fails.
-- **Outputs:** Markdown-formatted code suggestion with snippet metadata.
+- **Purpose:** Invoke OpenAI templates for scaffolded React/TypeScript code, storing audit logs in `code_analyses` and `code_analysis_results` on failure.
 
-### Function: analyze-codebase
-- **File:** `supabase/functions/analyze-codebase/index.ts`
-- **Purpose:** Crawl repository metadata, summarize architecture, and store findings in `code_analysis_results`.
-- **Linked Tables:** `code_repositories`, `code_analysis_results`, `ai_agent_runs`.
+### Function: gohighlevel-manage
+- **File:** `supabase/functions/gohighlevel-manage/index.ts`
+- **Purpose:** Bridge GoHighLevel CRM: sync contacts, handle webhook updates, and toggle integration state in `gohighlevel_integrations`.
 
-### Function: run-ai-agent (Enhanced)
-- **File:** `supabase/functions/run-ai-agent/index.ts`
-- **Purpose:** Unified dispatcher that executes any registered AI agent configuration with provider chain orchestration.
-- **Behavior:**
-  - Validates agent activation and permissions.
-  - Compiles `input_context` from Supabase tables (e.g., tasks, CRM metrics).
-  - **Provider Chain:** Orchestrates primary → fallback → OpenAI mini → research provider sequence based on `ai_agents.config.providers`.
-  - **Telemetry Capture:** Stores provider execution chain in `ai_agent_runs.output.provider_chain` array with timestamps, tokens, and error details.
-  - Streams responses, persists them into `ai_agent_runs`, and optionally writes follow-up tasks (`project_tasks`).
-  - **LinkedIn Integration:** Supports file upload to OpenAI vector stores via `linkedin-upload-file-to-openai` function for knowledge base augmentation.
-
-### Function: gemini-veo-manager
-- **File:** `supabase/functions/gemini-veo-manager/index.ts`
-- **Purpose:** Integrate with Google Gemini Veo for video creation.
-- **Endpoints:**
-  - `POST /render` – Sends prompt + asset preferences, stores job metadata in `gemini_videos`.
-  - `POST /webhook` – Receives completion events, updates `videos` + `gemini_videos` status fields.
-  - `GET /videos` – Lists generated assets with filters.
+### Function: hubspot-sync
+- **File:** `supabase/functions/hubspot-sync/index.ts`
+- **Purpose:** Import deals and company data from HubSpot, map them to `deals`, `clients`, and `contacts`, and keep pipeline stages aligned.
 
 ### Function: import-hours
 - **File:** `supabase/functions/import-hours/index.ts`
-- **Purpose:** Pull billable hours from external sources (e.g., Toggl) and map to `projects` / `tasks` for EOD reconciliation.
-- **Behavior:** Validates CSV payloads, normalizes durations, and inserts aggregated metrics into `analytics_data`.
+- **Purpose:** Developer utility for ingesting CSV payloads of billable hours into `analytics_data` to reconcile against EOD submissions.
 
-### Function: seed-sample-eod-data
-- **File:** `supabase/functions/seed-sample-eod-data/index.ts`
-- **Purpose:** Developer utility for populating `team_eod_submissions`, `activecollab_task_data`, and `team_daily_summaries` with mock records to test dashboards.
+### Function: integrations-dashboard
+- **File:** `supabase/functions/integrations-dashboard/index.ts`
+- **Purpose:** Provide a consolidated JSON feed of HubSpot and GoHighLevel integration state, toggle activation flags, and verify encrypted credential presence.
+
+### Function: linkedin-upload-file-to-openai
+- **File:** `supabase/functions/linkedin-upload-file-to-openai/index.ts`
+- **Purpose:** Support the LinkedIn research agent by uploading documents to OpenAI vector stores and persisting references in `ai_shared_resources`.
+
+### Function: manage-feedback
+- **File:** `supabase/functions/manage-feedback/index.ts`
+- **Purpose:** Admin endpoints for triaging feedback, updating statuses, and joining related `feedback_comments`.
+
+### Function: manage-followups
+- **File:** `supabase/functions/manage-followups/index.ts`
+- **Purpose:** Generate and update follow-up tasks linked to BD deals, storing artifacts in `followup_tasks` tables (see migrations).
+
+### Function: n8n-analytics-manage
+- **File:** `supabase/functions/n8n-analytics-manage/index.ts`
+- **Purpose:** Receive analytics payloads from n8n, validate secrets, persist metrics into `brand_analytics_data`, and expose integration summaries.
 
 ### Function: openai-test
 - **File:** `supabase/functions/openai-test/index.ts`
-- **Purpose:** Health-check endpoint to validate OpenAI credentials and response formatting. Returns example completions for debugging.
+- **Purpose:** Health check endpoint that verifies OpenAI credentials and response formatting; meant for staging/debug use only.
 
-### Function: admin settings helpers
-- **File:** `supabase/functions/admin-settings/index.ts`
-- **Purpose:** Persist platform-wide configuration toggles (feature flags, announcement banners) into `ai_configurations` and `integrations` tables.
+### Function: run-ai-agent
+- **File:** `supabase/functions/run-ai-agent/index.ts`
+- **Purpose:** Central dispatcher for executing registered AI agents with multi-provider fallbacks, telemetry capture, and optional task creation.
+- **Telemetry:** Writes provider chain details and outputs into `ai_agent_runs` with step-level metadata.
 
-## Client-side Service Layer
+### Function: seed-sample-eod-data
+- **File:** `supabase/functions/seed-sample-eod-data/index.ts`
+- **Purpose:** Populate development environments with representative EOD submissions, ActiveCollab task mirrors, and AI summaries.
 
-### `src/lib/axiosPrivate.ts`
-- **Purpose:** Axios instance that injects `VITE_API_BASE_URL`, Authorization headers, and error interceptors for calling Supabase edge functions.
-- **Key Functions:**
-  - `axiosPrivate.get/post/put/delete` wrappers returned from `useAxiosPrivate()` hook.
-  - Automatically refreshes tokens using Supabase session when 401 responses occur.
+### Function: submit-feedback
+- **File:** `supabase/functions/submit-feedback/index.ts`
+- **Purpose:** Public submission endpoint for the feedback widget that creates `feedback_reports`, optional attachments, and notification events.
 
-### `src/integrations/supabase/client.ts`
-- **Purpose:** Factory for Supabase browser client using environment variables. Adds auth helpers and typed responses from `src/integrations/supabase/types.ts`.
+### Function: sync-control-tower-deals
+- **File:** `supabase/functions/sync-control-tower-deals/index.ts`
+- **Purpose:** Pull deal data from the Control Tower Supabase project (via environment variables) and upsert into `control_tower_deals` for dashboarding.
 
-### React Query Hooks (selected)
-- **`src/features/brands/hooks/useBrands.ts`** – Fetches brand list with KPI aggregates, caches by `brandId` and invalidates on mutations.
-- **`src/features/kpis/hooks/useKpis.ts`** – Wraps `axiosPrivate` calls to manage KPI CRUD flows.
-- **`src/features/eod/hooks/useEodSubmissions.ts`** – Provides create/update/fetch helpers that call `generate-eod-summary` after submissions.
+### Function: gemini-veo-manager
+- **File:** `supabase/functions/gemini-veo-manager/index.ts`
+- **Purpose:** Proxy Google Gemini Veo requests: kick off renders, handle webhooks, and update `gemini_videos` plus legacy `videos` table entries.
 
-### BD Management Hooks
-- **`src/hooks/usePods.tsx`** – CRUD operations for team PODs with React Query caching. Fetches from `pods` table, provides `createPod`, `updatePod`, `deletePod` mutations with optimistic updates.
-- **`src/hooks/useTargetNiches.tsx`** – Target niche management with filtering by POD. Queries `target_niches` with joins to `pods`, supports create/update/delete with cache invalidation.
-- **`src/hooks/useBDCampaigns.tsx`** – Campaign tracking with metrics aggregation. Fetches from `bd_campaigns` with `target_niches` joins, provides mutations for campaign lifecycle and metric updates.
+## Client-Side Service Layer
 
-### Admin Panel Utilities
-- **`src/components/ai/AIAgentRunner.tsx`** – Executes `run-ai-agent` edge function, streams updates to UI, and writes generated tasks locally before Supabase persistence.
-- **`src/components/video-veo/GeminiVideoCard.tsx`** – Polls `gemini-veo-manager` for render progress and surfaces download links.
-- **`src/pages/admin/UserManagement.tsx`** – Orchestrates `admin-users` CRUD flows, user invite emails, and permission modals.
-- **`src/pages/admin/IntegrationManager.tsx`** – Bridges the UI with `n8n-analytics-manage`, `gohighlevel-manage`, and `hubspot-sync` endpoints to toggle integrations.
-- **`src/pages/admin/LinkedInAgentConfig.tsx`** – Configuration interface for LinkedIn AI agent with provider routing settings, file upload to vector stores, on-demand execution, and run history telemetry display.
+### Axios + REST Helpers
+- `src/lib/axiosPrivate.ts` creates an Axios instance bound to `VITE_API_BASE_URL`, injects Supabase auth tokens, and retries on `401` by refreshing the session.
+
+### Supabase Browser Client
+- `src/integrations/supabase/client.ts` builds a typed Supabase client using `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`, exposing helper hooks for auth-aware components.
+
+### React Query Hooks
+- `src/hooks/usePods.tsx`, `useTargetNiches.tsx`, `useBDCampaigns.tsx` coordinate CRUD flows for PODs, niches, and campaigns.
+- `src/hooks/useControlTowerConfig.ts` and `useSyncControlTowerDeals.tsx` load Control Tower credentials and trigger the `sync-control-tower-deals` function.
+- `src/features/eod/hooks/useEodSubmissions.ts` manages creation and retrieval of team EOD submissions while chaining the `generate-eod-summary` function.
+
+### AI & Integrations Components
+- `src/components/ai/AIAgentRunner.tsx` streams responses from `run-ai-agent`, displays provider telemetry, and writes optimistic tasks.
+- `src/pages/admin/IntegrationManager.tsx` combines Supabase data with functions (`integrations-dashboard`, `manage-feedback`, `manage-followups`) to present toggles and queues.
+- `src/pages/video/GeminiVideoStudioPage.tsx` orchestrates Gemini renders with polling and asset download components.
 
 ## Automation Flow Summary
-1. **Data Ingestion:** External sources (HubSpot, GoHighLevel, n8n, ActiveCollab) push into respective edge functions which upsert normalized tables.
-2. **AI Processing:** `run-ai-agent`, `generate-code`, and `analyze-codebase` orchestrate GPT/Gemini requests and persist outputs to `ai_agent_runs`, `code_analysis_results`, `team_daily_summaries`, and `videos`.
-3. **Frontend Consumption:** React Query hooks and Supabase real-time listeners render dashboards, with admin tooling calling the same edge functions through `axiosPrivate`.
-4. **Auditing:** All functions log structured events (see `console.log` entries) and update timestamp triggers, ensuring the admin panel documentation can trace data lineage end-to-end.
+1. **Data Ingestion:** External systems (HubSpot, GoHighLevel, n8n, ActiveCollab, Control Tower) call respective edge functions that upsert into domain tables and emit analytics entries.
+2. **AI Processing:** `run-ai-agent`, `generate-code`, and `generate-eod-summary` coordinate AI providers, store outputs in `ai_agent_runs` or `team_daily_summaries`, and surface follow-up tasks when applicable.
+3. **Frontend Consumption:** React Query hooks and Supabase real-time listeners hydrate admin dashboards, BD tooling, documentation, and analytics widgets.
+4. **Feedback Loop:** `submit-feedback` captures user input while `manage-feedback` and `manage-followups` allow administrators to triage issues and convert them into actionable tasks.
