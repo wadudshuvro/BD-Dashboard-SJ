@@ -1,215 +1,580 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { corsHeaders } from "../_shared/cors.ts";
+import { encryptSecret, decryptSecret } from "../_shared/crypto.ts";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Content-Type': 'application/json',
+type GHLIntegrationRow = {
+  id: string;
+  user_id: string;
+  api_key_encrypted: string;
+  location_id: string | null;
+  is_active: boolean | null;
+  created_at: string;
+  updated_at: string;
 };
 
-async function getClient(req: Request) {
-  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-  return createClient(supabaseUrl, serviceKey, {
-    global: { headers: { Authorization: req.headers.get('Authorization') || '' } },
+type TriggerSource = "manual" | "webhook";
+
+const GHL_API_BASE = "https://services.leadconnectorhq.com";
+
+async function createSupabaseClient(req?: Request, forWebhook = false) {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!supabaseUrl || !supabaseServiceKey) {
+    throw new Error("Supabase environment variables are not configured");
+  }
+
+  return createClient(supabaseUrl, supabaseServiceKey, {
     auth: { persistSession: false },
+    global: !forWebhook && req
+      ? { headers: { Authorization: req.headers.get("Authorization") ?? "" } }
+      : undefined,
   });
 }
 
-async function requireAuth(client: any): Promise<string | null> {
-  const { data: { user } } = await client.auth.getUser();
-  return user?.id || null;
+async function requireAuth(client: SupabaseClient): Promise<string | null> {
+  const { data } = await client.auth.getUser();
+  return data.user?.id ?? null;
 }
 
-Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
+function parseNumber(value: unknown): number | null {
+  if (value === null || value === undefined) return null;
+  const numeric = Number(value);
+  if (Number.isNaN(numeric)) return null;
+  return numeric;
+}
 
-  const client = await getClient(req);
-  const userId = await requireAuth(client);
+function parseDate(value: unknown): string | null {
+  if (!value) return null;
+  if (typeof value === "number") {
+    const date = new Date(value);
+    if (!Number.isNaN(date.getTime())) {
+      return date.toISOString().split("T")[0];
+    }
+    return null;
+  }
+  if (typeof value === "string") {
+    const numeric = Number(value);
+    if (!Number.isNaN(numeric)) {
+      const date = new Date(numeric);
+      if (!Number.isNaN(date.getTime())) {
+        return date.toISOString().split("T")[0];
+      }
+    }
+    const date = new Date(value);
+    if (!Number.isNaN(date.getTime())) {
+      return date.toISOString().split("T")[0];
+    }
+  }
+  return null;
+}
 
-  if (!userId) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders });
+async function resolvePrimaryBrand(client: SupabaseClient, userId: string | null): Promise<string | null> {
+  if (userId) {
+    const { data } = await client
+      .from("user_brands")
+      .select("brand_id")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: true })
+      .limit(1);
+    if (data?.[0]?.brand_id) {
+      return data[0].brand_id as string;
+    }
+  }
+
+  const { data: brands } = await client
+    .from("brands")
+    .select("id")
+    .order("created_at", { ascending: true })
+    .limit(1);
+
+  return brands?.[0]?.id ?? null;
+}
+
+async function upsertBrandKpi(client: SupabaseClient, brandId: string, name: string, value: number, displayOrder: number, type: string, description: string) {
+  const { data: existing } = await client
+    .from("brand_kpis")
+    .select("id, target_value")
+    .eq("brand_id", brandId)
+    .eq("name", name)
+    .maybeSingle();
+
+  if (existing?.id) {
+    await client
+      .from("brand_kpis")
+      .update({
+        current_value: value,
+        type,
+        source: "gohighlevel",
+        description,
+      })
+      .eq("id", existing.id);
+    return;
+  }
+
+  await client.from("brand_kpis").insert({
+    brand_id: brandId,
+    name,
+    description,
+    type,
+    source: "gohighlevel",
+    current_value: value,
+    target_value: existing?.target_value ?? value,
+    display_order: displayOrder,
+  });
+}
+
+async function fetchGHL(endpoint: string, apiKey: string, method: string = "GET") {
+  const url = `${GHL_API_BASE}${endpoint}`;
+  const response = await fetch(url, {
+    method,
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`GoHighLevel API error (${response.status}): ${text}`);
+  }
+
+  return response.json();
+}
+
+async function syncGoHighLevel({
+  client,
+  integration,
+  apiKey,
+  triggeredBy,
+}: {
+  client: SupabaseClient;
+  integration: GHLIntegrationRow;
+  apiKey: string;
+  triggeredBy: TriggerSource;
+}) {
+  const locationParam = integration.location_id ? `?locationId=${integration.location_id}` : "";
+  const contactsPayload = await fetchGHL(`/contacts/${locationParam ? locationParam : ""}`, apiKey);
+  const contacts = Array.isArray(contactsPayload?.contacts) ? contactsPayload.contacts : (Array.isArray(contactsPayload) ? contactsPayload : []);
+
+  const contactsToInsert = contacts.map((contact: any) => {
+    const fullName = contact.name || [contact.firstName, contact.lastName].filter(Boolean).join(" ");
+    const status = contact.status || (Array.isArray(contact.tags) ? contact.tags.join(",") : null);
+    return {
+      integration_id: integration.id,
+      contact_id: contact.id,
+      name: fullName || contact.companyName || "Unknown Contact",
+      email: contact.email || null,
+      phone: contact.phone || null,
+      status,
+    };
+  });
+
+  await client
+    .from("gohighlevel_contacts")
+    .delete()
+    .eq("integration_id", integration.id);
+
+  if (contactsToInsert.length > 0) {
+    await client.from("gohighlevel_contacts").insert(contactsToInsert);
+  }
+
+  const emailMap = new Map<string, string>();
+  const contactClientMap = new Map<string, string>();
+
+  const emails = contacts
+    .map((contact: any) => (contact.email ? String(contact.email).toLowerCase() : null))
+    .filter((email: string | null): email is string => Boolean(email));
+
+  if (emails.length > 0) {
+    const { data: existingClients } = await client
+      .from("clients")
+      .select("id, email")
+      .in("email", emails);
+
+    existingClients?.forEach((row: any) => {
+      if (row.email) {
+        emailMap.set(String(row.email).toLowerCase(), row.id);
+      }
+    });
+  }
+
+  for (const contact of contacts) {
+    const email = contact.email ? String(contact.email).toLowerCase() : null;
+    const fullName = contact.name || [contact.firstName, contact.lastName].filter(Boolean).join(" ");
+    const payload = {
+      name: fullName || contact.companyName || "GHL Contact",
+      company: contact.companyName || null,
+      email: contact.email || null,
+      phone: contact.phone || null,
+      status: "active",
+      source: "gohighlevel",
+    } as Record<string, unknown>;
+
+    let clientId = email ? emailMap.get(email) ?? null : null;
+
+    if (clientId) {
+      await client
+        .from("clients")
+        .update(payload)
+        .eq("id", clientId);
+    } else {
+      const { data: inserted } = await client
+        .from("clients")
+        .insert(payload)
+        .select("id, email")
+        .single();
+
+      clientId = inserted?.id ?? null;
+      if (clientId && inserted?.email) {
+        emailMap.set(String(inserted.email).toLowerCase(), clientId);
+      }
+    }
+
+    if (clientId) {
+      contactClientMap.set(contact.id, clientId);
+    }
+  }
+
+  const opportunitiesPayload = await fetchGHL(`/opportunities/${locationParam ? locationParam : ""}`, apiKey);
+  const opportunities = Array.isArray(opportunitiesPayload?.opportunities)
+    ? opportunitiesPayload.opportunities
+    : (Array.isArray(opportunitiesPayload) ? opportunitiesPayload : []);
+
+  const dealRows = opportunities.map((opportunity: any) => {
+    const contactId = opportunity.contactId || opportunity.contact?.id || opportunity.contact?.contactId;
+    const clientId = contactId ? contactClientMap.get(contactId) ?? null : null;
+    if (!clientId) {
+      return null;
+    }
+
+    const amount = parseNumber(opportunity.monetaryValue ?? opportunity.amount ?? opportunity.value ?? null);
+    const probabilityRaw = parseNumber(opportunity.probability ?? null);
+    const probability = probabilityRaw && probabilityRaw <= 1 ? probabilityRaw * 100 : probabilityRaw;
+
+    const stage = opportunity.stageName
+      || opportunity.status
+      || opportunity.pipelineStage
+      || opportunity.pipelineStageName
+      || null;
+
+    const pipeline = opportunity.pipelineName || opportunity.pipelineId || null;
+
+    return {
+      hubspot_id: `ghl:${opportunity.id}`,
+      client_id: clientId,
+      name: opportunity.name || opportunity.title || `Opportunity ${opportunity.id}`,
+      amount,
+      stage,
+      pipeline,
+      probability,
+      close_date: parseDate(opportunity.closeDate || opportunity.expectedCloseDate || null),
+      deal_type: "gohighlevel",
+    } as Record<string, unknown>;
+  }).filter((deal): deal is Record<string, unknown> => Boolean(deal));
+
+  if (dealRows.length > 0) {
+    await client.from("deals").upsert(dealRows, { onConflict: "hubspot_id" });
+  }
+
+  const pipelineValue = dealRows.reduce((sum, deal) => {
+    const amount = typeof deal.amount === "number" ? deal.amount : Number(deal.amount ?? 0);
+    return sum + (Number.isFinite(amount) ? amount : 0);
+  }, 0);
+
+  const brandId = await resolvePrimaryBrand(client, integration.user_id);
+  if (brandId) {
+    await upsertBrandKpi(
+      client,
+      brandId,
+      "SQL Opportunities",
+      contactsToInsert.length,
+      1,
+      "growth",
+      "Active SQL opportunities sourced from GoHighLevel",
+    );
+    await upsertBrandKpi(
+      client,
+      brandId,
+      "Pipeline Value",
+      pipelineValue,
+      2,
+      "revenue",
+      "Total pipeline value synced from GoHighLevel",
+    );
+  }
+
+  const now = new Date().toISOString();
+  await client
+    .from("gohighlevel_integrations")
+    .update({ updated_at: now })
+    .eq("id", integration.id);
+
+  await client
+    .from("analytics_data")
+    .insert([
+      {
+        source: "gohighlevel",
+        metric_name: "integration_sync",
+        metric_value: contactsToInsert.length,
+        dimensions: {
+          contacts: contactsToInsert.length,
+          deals: dealRows.length,
+          pipelineValue,
+          triggeredBy,
+        },
+        recorded_at: now,
+      },
+    ], { returning: "minimal" });
+
+  return {
+    contactsSynced: contactsToInsert.length,
+    dealsSynced: dealRows.length,
+    pipelineValue,
+  };
+}
+
+async function handleGetIntegration(req: Request): Promise<Response> {
+  const headers = { ...corsHeaders, "Content-Type": "application/json" };
+  try {
+    const client = await createSupabaseClient(req);
+    const userId = await requireAuth(client);
+    if (!userId) {
+      return new Response(JSON.stringify({ ok: false, error: "Unauthorized" }), { headers, status: 401 });
+    }
+
+    const { data } = await client
+      .from("gohighlevel_integrations")
+      .select("id, location_id, is_active, updated_at")
+      .eq("user_id", userId)
+      .eq("is_active", true)
+      .maybeSingle();
+
+    return new Response(JSON.stringify({
+      ok: true,
+      integration: data ?? null,
+    }), { headers });
+  } catch (error) {
+    console.error("[GHL] GET integration", error);
+    return new Response(JSON.stringify({ ok: false, error: error instanceof Error ? error.message : "Unknown error" }), { headers, status: 500 });
+  }
+}
+
+async function handleCreateIntegration(req: Request): Promise<Response> {
+  const headers = { ...corsHeaders, "Content-Type": "application/json" };
+  const body = await req.json();
+  const apiKey = body?.apiKey;
+  const locationId = body?.locationId ?? null;
+
+  if (!apiKey) {
+    return new Response(JSON.stringify({ ok: false, error: "API key required" }), { headers, status: 400 });
   }
 
   try {
-    if (req.method === 'GET') {
-      // Get current GoHighLevel configuration for the user
-      const { data: config, error } = await client
-        .from('gohighlevel_integrations')
-        .select('location_id, is_active')
-        .eq('user_id', userId)
-        .eq('is_active', true)
-        .maybeSingle();
-
-      if (error) throw error;
-
-      return new Response(JSON.stringify({
-        ok: true,
-        configured: !!config,
-        locationId: config?.location_id || '',
-        enabled: config?.is_active || false
-      }), { headers: corsHeaders });
+    const client = await createSupabaseClient(req);
+    const userId = await requireAuth(client);
+    if (!userId) {
+      return new Response(JSON.stringify({ ok: false, error: "Unauthorized" }), { headers, status: 401 });
     }
 
-    if (req.method === 'POST') {
-      const body = await req.json();
-      const { action, apiKey, locationId } = body;
+    await fetchGHL("/locations/", apiKey);
 
-      if (action === 'test') {
-        // Test GoHighLevel connection
-        if (!apiKey) {
-          return new Response(JSON.stringify({ ok: false, error: 'API key required' }), 
-            { status: 400, headers: corsHeaders });
-        }
+    const encryptedKey = await encryptSecret(apiKey);
 
-        try {
-          const testUrl = 'https://services.leadconnectorhq.com/locations/';
-          const response = await fetch(testUrl, {
-            method: 'GET',
-            headers: {
-              'Authorization': `Bearer ${apiKey}`,
-              'Content-Type': 'application/json'
-            }
-          });
+    await client
+      .from("gohighlevel_integrations")
+      .update({ is_active: false })
+      .eq("user_id", userId);
 
-          if (!response.ok) {
-            throw new Error(`Connection failed (${response.status})`);
-          }
+    const { data, error } = await client
+      .from("gohighlevel_integrations")
+      .insert({
+        user_id: userId,
+        api_key_encrypted: encryptedKey,
+        location_id: locationId,
+        is_active: true,
+      })
+      .select("id, location_id, is_active, updated_at")
+      .single();
 
-          return new Response(JSON.stringify({ ok: true }), { headers: corsHeaders });
-        } catch (error) {
-          return new Response(JSON.stringify({ 
-            ok: false, 
-            error: error instanceof Error ? error.message : 'Connection test failed' 
-          }), { status: 400, headers: corsHeaders });
-        }
-      }
+    if (error) throw error;
 
-      if (action === 'save') {
-        if (!apiKey) {
-          return new Response(JSON.stringify({ ok: false, error: 'API key required' }), 
-            { status: 400, headers: corsHeaders });
-        }
+    const now = new Date().toISOString();
+    await client
+      .from("analytics_data")
+      .insert({
+        source: "gohighlevel",
+        metric_name: "integration_sync",
+        metric_value: 0,
+        dimensions: {
+          event: "integration_connected",
+          triggeredBy: "manual",
+        },
+        recorded_at: now,
+      }, { returning: "minimal" });
 
-        // First test the connection
-        try {
-          const testUrl = 'https://services.leadconnectorhq.com/locations/';
-          const response = await fetch(testUrl, {
-            method: 'GET',
-            headers: {
-              'Authorization': `Bearer ${apiKey}`,
-              'Content-Type': 'application/json'
-            }
-          });
-
-          if (!response.ok) {
-            throw new Error(`Connection failed (${response.status})`);
-          }
-        } catch (error) {
-          return new Response(JSON.stringify({ 
-            ok: false, 
-            error: `Connection test failed: ${error instanceof Error ? error.message : 'Unknown error'}` 
-          }), { status: 400, headers: corsHeaders });
-        }
-
-        // Deactivate existing integrations
-        await client
-          .from('gohighlevel_integrations')
-          .update({ is_active: false })
-          .eq('user_id', userId);
-
-        // Save new integration
-        const { error: saveError } = await client
-          .from('gohighlevel_integrations')
-          .insert({
-            user_id: userId,
-            api_key_encrypted: apiKey,
-            location_id: locationId || null,
-            is_active: true
-          });
-
-        if (saveError) throw saveError;
-
-        return new Response(JSON.stringify({ ok: true }), { headers: corsHeaders });
-      }
-
-      if (action === 'sync-contacts') {
-        // Sync contacts from GoHighLevel
-        const { data: integration, error: integrationError } = await client
-          .from('gohighlevel_integrations')
-          .select('id, api_key_encrypted, location_id')
-          .eq('user_id', userId)
-          .eq('is_active', true)
-          .single();
-
-        if (integrationError || !integration) {
-          return new Response(JSON.stringify({ ok: false, error: 'Integration not found' }), 
-            { status: 404, headers: corsHeaders });
-        }
-
-        try {
-          const contactsUrl = integration.location_id 
-            ? `https://services.leadconnectorhq.com/contacts/?locationId=${integration.location_id}`
-            : 'https://services.leadconnectorhq.com/contacts/';
-          
-          const response = await fetch(contactsUrl, {
-            method: 'GET',
-            headers: {
-              'Authorization': `Bearer ${integration.api_key_encrypted}`,
-              'Content-Type': 'application/json'
-            }
-          });
-
-          if (!response.ok) {
-            throw new Error(`Failed to sync contacts (${response.status})`);
-          }
-
-          const data = await response.json();
-          const contacts = data.contacts || [];
-
-          // Store contacts in database
-          const contactsToInsert = contacts.map((contact: any) => ({
-            integration_id: integration.id,
-            contact_id: contact.id,
-            name: contact.name || contact.firstName + ' ' + contact.lastName,
-            email: contact.email,
-            phone: contact.phone,
-            status: contact.tags ? contact.tags.join(',') : null
-          }));
-
-          if (contactsToInsert.length > 0) {
-            // Delete existing contacts for this integration
-            await client
-              .from('gohighlevel_contacts')
-              .delete()
-              .eq('integration_id', integration.id);
-
-            // Insert new contacts
-            const { error: insertError } = await client
-              .from('gohighlevel_contacts')
-              .insert(contactsToInsert);
-
-            if (insertError) throw insertError;
-          }
-
-          return new Response(JSON.stringify({ 
-            ok: true, 
-            synced: contactsToInsert.length 
-          }), { headers: corsHeaders });
-        } catch (error) {
-          return new Response(JSON.stringify({ 
-            ok: false, 
-            error: error instanceof Error ? error.message : 'Contact sync failed' 
-          }), { status: 500, headers: corsHeaders });
-        }
-      }
-    }
-
-    return new Response(JSON.stringify({ error: 'Unsupported action' }), 
-      { status: 400, headers: corsHeaders });
+    return new Response(JSON.stringify({ ok: true, integration: data }), { headers, status: 201 });
   } catch (error) {
-    console.error('[gohighlevel-manage]', error);
-    return new Response(JSON.stringify({ 
-      error: error instanceof Error ? error.message : 'Internal server error' 
-    }), { status: 500, headers: corsHeaders });
+    console.error("[GHL] create integration", error);
+    return new Response(JSON.stringify({ ok: false, error: error instanceof Error ? error.message : "Unknown error" }), { headers, status: 500 });
   }
+}
+
+async function handleDeleteIntegration(req: Request, integrationId: string): Promise<Response> {
+  const headers = { ...corsHeaders, "Content-Type": "application/json" };
+  try {
+    const client = await createSupabaseClient(req);
+    const userId = await requireAuth(client);
+    if (!userId) {
+      return new Response(JSON.stringify({ ok: false, error: "Unauthorized" }), { headers, status: 401 });
+    }
+
+    const { data: integration } = await client
+      .from("gohighlevel_integrations")
+      .select("id")
+      .eq("id", integrationId)
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (!integration) {
+      return new Response(JSON.stringify({ ok: false, error: "Integration not found" }), { headers, status: 404 });
+    }
+
+    await client
+      .from("gohighlevel_integrations")
+      .update({ is_active: false })
+      .eq("id", integrationId);
+
+    await client
+      .from("gohighlevel_contacts")
+      .delete()
+      .eq("integration_id", integrationId);
+
+    return new Response(JSON.stringify({ ok: true }), { headers });
+  } catch (error) {
+    console.error("[GHL] delete integration", error);
+    return new Response(JSON.stringify({ ok: false, error: error instanceof Error ? error.message : "Unknown error" }), { headers, status: 500 });
+  }
+}
+
+async function handleSyncContacts(req: Request): Promise<Response> {
+  const headers = { ...corsHeaders, "Content-Type": "application/json" };
+  try {
+    const client = await createSupabaseClient(req);
+    const userId = await requireAuth(client);
+    if (!userId) {
+      return new Response(JSON.stringify({ ok: false, error: "Unauthorized" }), { headers, status: 401 });
+    }
+
+    const { data: integration, error } = await client
+      .from<GHLIntegrationRow>("gohighlevel_integrations" as any)
+      .select("id, user_id, api_key_encrypted, location_id, is_active, created_at, updated_at")
+      .eq("user_id", userId)
+      .eq("is_active", true)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!integration) {
+      return new Response(JSON.stringify({ ok: false, error: "Integration not found" }), { headers, status: 404 });
+    }
+
+    const apiKey = await decryptSecret(integration.api_key_encrypted);
+    if (!apiKey) {
+      return new Response(JSON.stringify({ ok: false, error: "Integration credentials missing" }), { headers, status: 400 });
+    }
+
+    const result = await syncGoHighLevel({
+      client,
+      integration,
+      apiKey,
+      triggeredBy: "manual",
+    });
+
+    return new Response(JSON.stringify({ ok: true, ...result }), { headers });
+  } catch (error) {
+    console.error("[GHL] sync", error);
+    return new Response(JSON.stringify({ ok: false, error: error instanceof Error ? error.message : "Unknown error" }), { headers, status: 500 });
+  }
+}
+
+async function handleWebhook(req: Request): Promise<Response> {
+  const headers = { ...corsHeaders, "Content-Type": "application/json" };
+  const secret = Deno.env.get("GHL_WEBHOOK_SECRET");
+  if (secret) {
+    const provided = req.headers.get("x-webhook-secret") || req.headers.get("x-ghl-secret");
+    if (provided !== secret) {
+      return new Response(JSON.stringify({ ok: false, error: "Unauthorized" }), { headers, status: 401 });
+    }
+  }
+
+  try {
+    const payload = await req.json();
+    const locationId = payload?.locationId || payload?.data?.locationId || payload?.location_id || null;
+    if (!locationId) {
+      return new Response(JSON.stringify({ ok: false, error: "Missing location" }), { headers, status: 400 });
+    }
+
+    const client = await createSupabaseClient(undefined, true);
+    const { data: integration } = await client
+      .from<GHLIntegrationRow>("gohighlevel_integrations" as any)
+      .select("id, user_id, api_key_encrypted, location_id, is_active, created_at, updated_at")
+      .eq("location_id", locationId)
+      .eq("is_active", true)
+      .maybeSingle();
+
+    if (!integration) {
+      return new Response(JSON.stringify({ ok: false, error: "Integration not found" }), { headers, status: 404 });
+    }
+
+    const apiKey = await decryptSecret(integration.api_key_encrypted);
+    if (!apiKey) {
+      return new Response(JSON.stringify({ ok: false, error: "Integration credentials missing" }), { headers, status: 400 });
+    }
+
+    const result = await syncGoHighLevel({
+      client,
+      integration,
+      apiKey,
+      triggeredBy: "webhook",
+    });
+
+    return new Response(JSON.stringify({ ok: true, ...result }), { headers });
+  } catch (error) {
+    console.error("[GHL] webhook", error);
+    return new Response(JSON.stringify({ ok: false, error: error instanceof Error ? error.message : "Unknown error" }), { headers, status: 500 });
+  }
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
+  const url = new URL(req.url);
+  const pathname = url.pathname.replace(/\/gohighlevel-manage/, "") || "/";
+
+  if (req.method === "GET" && pathname === "/integration") {
+    return handleGetIntegration(req);
+  }
+
+  if (req.method === "POST" && pathname === "/integration") {
+    return handleCreateIntegration(req);
+  }
+
+  if (req.method === "DELETE" && pathname.startsWith("/integration/")) {
+    const integrationId = pathname.split("/")[2];
+    return handleDeleteIntegration(req, integrationId);
+  }
+
+  if (req.method === "POST" && pathname === "/sync-contacts") {
+    return handleSyncContacts(req);
+  }
+
+  if (req.method === "POST" && pathname === "/webhook") {
+    return handleWebhook(req);
+  }
+
+  return new Response(JSON.stringify({ error: "Not Found" }), {
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+    status: 404,
+  });
 });

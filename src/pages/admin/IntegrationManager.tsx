@@ -21,7 +21,8 @@ import {
   Loader2,
   Info,
   Download,
-  Calendar
+  Calendar,
+  ScrollText
 } from "lucide-react";
 import {
   Dialog,
@@ -121,6 +122,25 @@ interface AnalyticsDataEntry {
   received_at: string | null;
 }
 
+interface CrmIntegrationEntry {
+  id: string;
+  name: string;
+  type: "hubspot" | "gohighlevel" | string;
+  status: string;
+  is_active: boolean;
+  last_sync: string | null;
+  metadata?: Record<string, any> | null;
+}
+
+interface IntegrationLogEntry {
+  id: string;
+  source: string;
+  metric_name: string;
+  metric_value: number | null;
+  dimensions: Record<string, any> | null;
+  recorded_at: string | null;
+}
+
 const IntegrationManager = () => {
   const { toast } = useToast();
   const [globalIntegrations, setGlobalIntegrations] = useState<GlobalIntegration[]>([]);
@@ -150,6 +170,19 @@ const IntegrationManager = () => {
   const [analyticsFilterEnd, setAnalyticsFilterEnd] = useState('');
   const [analyticsDataBrandId, setAnalyticsDataBrandId] = useState<string>('');
   const [copySuccess, setCopySuccess] = useState<string | null>(null);
+  const [crmIntegrations, setCrmIntegrations] = useState<CrmIntegrationEntry[]>([]);
+  const [isCrmLoading, setIsCrmLoading] = useState(false);
+  const [crmSyncing, setCrmSyncing] = useState<Record<string, boolean>>({});
+  const [crmToggling, setCrmToggling] = useState<Record<string, boolean>>({});
+  const [isLogsDialogOpen, setIsLogsDialogOpen] = useState(false);
+  const [selectedLogSource, setSelectedLogSource] = useState<"hubspot" | "gohighlevel" | null>(null);
+  const [logEntries, setLogEntries] = useState<IntegrationLogEntry[]>([]);
+  const [isLogsLoading, setIsLogsLoading] = useState(false);
+  const [ghlForm, setGhlForm] = useState({ apiKey: "", locationId: "" });
+  const [isConnectingGhl, setIsConnectingGhl] = useState(false);
+
+  const hubspotIntegration = crmIntegrations.find((integration) => integration.type === 'hubspot');
+  const ghlIntegration = crmIntegrations.find((integration) => integration.type === 'gohighlevel');
 
   // Load integrations on mount
   useEffect(() => {
@@ -159,6 +192,8 @@ const IntegrationManager = () => {
   const loadIntegrations = async () => {
     setIsLoadingBrands(true);
     setCopySuccess(null);
+    setIsCrmLoading(true);
+    setCrmIntegrations([]);
 
     const globalIntegrationsData: GlobalIntegration[] = [
       {
@@ -187,19 +222,22 @@ const IntegrationManager = () => {
       }
     ];
 
+    try {
+      const { data, error } = await supabase.functions.invoke('integrations-dashboard', { method: 'GET' });
+      if (error) throw error;
+      setCrmIntegrations(Array.isArray(data?.integrations) ? data.integrations : []);
+    } catch (error) {
+      console.error('Failed to load CRM integrations', error);
+      toast({
+        title: 'Unable to load CRM integrations',
+        description: 'We could not fetch CRM integration details right now. Please try again shortly.',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsCrmLoading(false);
+    }
+
     const brandIntegrationsData: BrandIntegration[] = [
-      {
-        id: 'gohighlevel',
-        name: 'GoHighLevel',
-        type: 'gohighlevel',
-        description: 'CRM and marketing automation platform',
-        icon: '🎯',
-        category: 'crm',
-        is_available: true,
-        setup_complexity: 'medium',
-        required_fields: ['api_key', 'location_id'],
-        brand_connections: {}
-      }
     ];
 
     try {
@@ -220,19 +258,6 @@ const IntegrationManager = () => {
       }
     } catch (error) {
       console.error('Failed to load OpenAI config', error);
-    }
-
-    try {
-      const { data: ghlConfig } = await supabase.functions.invoke('gohighlevel-manage', { method: 'GET' });
-      if (ghlConfig?.configured) {
-        brandIntegrationsData[0].brand_connections['current'] = {
-          is_enabled: ghlConfig.enabled,
-          config: { location_id: ghlConfig.locationId || '' },
-          status: 'connected'
-        };
-      }
-    } catch (error) {
-      console.error('Failed to load GoHighLevel config', error);
     }
 
     let fetchedBrands: BrandSummary[] = [];
@@ -334,7 +359,136 @@ const IntegrationManager = () => {
     setIsLoadingBrands(false);
   };
 
-  const filteredGlobalIntegrations = globalIntegrations.filter(integration => 
+  const handleToggleCrmIntegration = async (integration: CrmIntegrationEntry) => {
+    setCrmToggling((prev) => ({ ...prev, [integration.id]: true }));
+    try {
+      const { data, error } = await supabase.functions.invoke('integrations-dashboard', {
+        method: 'PATCH',
+        body: { id: integration.id, type: integration.type, is_active: !integration.is_active }
+      });
+      if (error) throw error;
+      if (!data?.ok) {
+        throw new Error(data?.error || 'Unable to update integration');
+      }
+      toast({
+        title: `${integration.name} updated`,
+        description: `${integration.name} is now ${!integration.is_active ? 'active' : 'inactive'}.`
+      });
+      await loadIntegrations();
+    } catch (error) {
+      console.error('Failed to update CRM integration state', error);
+      toast({
+        title: 'Update failed',
+        description: error instanceof Error ? error.message : 'Unable to update integration state.',
+        variant: 'destructive'
+      });
+    } finally {
+      setCrmToggling((prev) => ({ ...prev, [integration.id]: false }));
+    }
+  };
+
+  const handleSyncCrmIntegration = async (integration: CrmIntegrationEntry) => {
+    setCrmSyncing((prev) => ({ ...prev, [integration.type]: true }));
+    try {
+      if (integration.type === 'hubspot') {
+        const { data, error } = await supabase.functions.invoke('hubspot-sync/sync', { method: 'POST' });
+        if (error) throw error;
+        if (!data?.ok) {
+          throw new Error(data?.error || 'HubSpot sync failed');
+        }
+        toast({
+          title: 'HubSpot sync complete',
+          description: `Synced ${data.companies ?? 0} companies, ${data.contacts ?? 0} contacts, ${data.deals ?? 0} deals.`
+        });
+      } else if (integration.type === 'gohighlevel') {
+        const { data, error } = await supabase.functions.invoke('gohighlevel-manage/sync-contacts', { method: 'POST' });
+        if (error) throw error;
+        if (!data?.ok) {
+          throw new Error(data?.error || 'GoHighLevel sync failed');
+        }
+        toast({
+          title: 'GoHighLevel sync complete',
+          description: `Synced ${data.contactsSynced ?? 0} contacts and ${data.dealsSynced ?? 0} deals.`
+        });
+      }
+      await loadIntegrations();
+    } catch (error) {
+      console.error('CRM sync failed', error);
+      toast({
+        title: 'Sync failed',
+        description: error instanceof Error ? error.message : 'Unable to sync integration.',
+        variant: 'destructive'
+      });
+    } finally {
+      setCrmSyncing((prev) => ({ ...prev, [integration.type]: false }));
+    }
+  };
+
+  const handleConnectGoHighLevel = async () => {
+    if (!ghlForm.apiKey.trim()) {
+      toast({
+        title: 'API key required',
+        description: 'Enter a GoHighLevel API key before connecting.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    setIsConnectingGhl(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('gohighlevel-manage/integration', {
+        method: 'POST',
+        body: {
+          apiKey: ghlForm.apiKey.trim(),
+          locationId: ghlForm.locationId.trim() || null
+        }
+      });
+      if (error) throw error;
+      if (!data?.ok) {
+        throw new Error(data?.error || 'Unable to connect GoHighLevel');
+      }
+      toast({ title: 'GoHighLevel connected', description: 'Credentials saved successfully.' });
+      setGhlForm({ apiKey: '', locationId: '' });
+      await loadIntegrations();
+    } catch (error) {
+      console.error('GoHighLevel connection failed', error);
+      toast({
+        title: 'Connection failed',
+        description: error instanceof Error ? error.message : 'Unable to connect to GoHighLevel.',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsConnectingGhl(false);
+    }
+  };
+
+  const handleOpenIntegrationLogs = async (source: 'hubspot' | 'gohighlevel') => {
+    setIsLogsDialogOpen(true);
+    setSelectedLogSource(source);
+    setIsLogsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('analytics_data')
+        .select('id, source, metric_name, metric_value, dimensions, recorded_at')
+        .eq('source', source)
+        .order('recorded_at', { ascending: false })
+        .limit(25);
+      if (error) throw error;
+      setLogEntries(data ?? []);
+    } catch (error) {
+      console.error('Failed to load integration logs', error);
+      toast({
+        title: 'Unable to load logs',
+        description: error instanceof Error ? error.message : 'An unexpected error occurred while loading logs.',
+        variant: 'destructive'
+      });
+      setLogEntries([]);
+    } finally {
+      setIsLogsLoading(false);
+    }
+  };
+
+  const filteredGlobalIntegrations = globalIntegrations.filter(integration =>
     integration.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     integration.description.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -769,35 +923,6 @@ const IntegrationManager = () => {
       return;
     }
 
-    if (integration.id === 'gohighlevel') {
-      if (!configData.apiKey) {
-        toast({
-          title: 'Missing API Key',
-          description: 'Please enter an API key before testing the connection.',
-          variant: 'destructive',
-        });
-        return;
-      }
-
-      try {
-        const { data, error } = await supabase.functions.invoke('gohighlevel-manage', {
-          body: {
-            action: 'test',
-            apiKey: configData.apiKey,
-            locationId: configData.locationId,
-          },
-        });
-        if (error || !data?.ok) throw error || new Error(data?.error || 'Test failed');
-        toast({ title: 'Connection Successful', description: 'Successfully connected to GoHighLevel' });
-      } catch (err: any) {
-        toast({
-          title: 'Connection Failed',
-          description: err.message || 'Failed to connect to GoHighLevel. Please check your credentials.',
-          variant: 'destructive',
-        });
-      }
-      return;
-    }
   };
 
   const saveConfiguration = async (integration: any) => {
@@ -930,6 +1055,154 @@ const IntegrationManager = () => {
         <p className="text-muted-foreground">
           Configure and manage system-wide and brand-specific integrations
         </p>
+      </div>
+
+      {/* CRM Integrations */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-semibold text-foreground">CRM Integrations</h2>
+            <p className="text-sm text-muted-foreground">
+              Keep HubSpot and GoHighLevel data synchronized with the BD platform.
+            </p>
+          </div>
+          {isCrmLoading && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading CRM integrations...
+            </div>
+          )}
+        </div>
+
+        <div className="grid gap-4 lg:grid-cols-2">
+          <Card>
+            <CardHeader className="space-y-4">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <span className="text-2xl">🧩</span>
+                    HubSpot CRM
+                  </CardTitle>
+                  <CardDescription>Sync companies, contacts, deals, and KPIs from HubSpot.</CardDescription>
+                </div>
+                <Switch
+                  checked={hubspotIntegration?.is_active ?? false}
+                  disabled={!hubspotIntegration || Boolean(crmToggling[hubspotIntegration.id]) || isCrmLoading}
+                  onCheckedChange={() => hubspotIntegration && handleToggleCrmIntegration(hubspotIntegration)}
+                />
+              </div>
+              <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+                <Badge variant={hubspotIntegration?.is_active ? 'default' : 'outline'}>
+                  {hubspotIntegration?.is_active ? 'Active' : 'Inactive'}
+                </Badge>
+                <span>
+                  Last sync: {hubspotIntegration?.last_sync ? formatDateTime(hubspotIntegration.last_sync) : 'Not yet synced'}
+                </span>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="text-sm text-muted-foreground">
+                {hubspotIntegration ? 'HubSpot connection detected. Use the controls below to trigger a manual sync or inspect logs.' : 'No active HubSpot integration found. Configure the integration in Supabase to enable syncing.'}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="default"
+                  disabled={!hubspotIntegration || Boolean(crmSyncing.hubspot)}
+                  onClick={() => hubspotIntegration && handleSyncCrmIntegration(hubspotIntegration)}
+                >
+                  {crmSyncing.hubspot ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                  Sync Now
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => handleOpenIntegrationLogs('hubspot')}
+                >
+                  <ScrollText className="mr-2 h-4 w-4" />
+                  View Logs
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="space-y-4">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <span className="text-2xl">🎯</span>
+                    GoHighLevel
+                  </CardTitle>
+                  <CardDescription>Import contacts, pipeline stages, and KPI metrics from GoHighLevel.</CardDescription>
+                </div>
+                <Switch
+                  checked={ghlIntegration?.is_active ?? false}
+                  disabled={!ghlIntegration || Boolean(crmToggling[ghlIntegration.id]) || isCrmLoading}
+                  onCheckedChange={() => ghlIntegration && handleToggleCrmIntegration(ghlIntegration)}
+                />
+              </div>
+              <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+                <Badge variant={ghlIntegration?.is_active ? 'default' : 'outline'}>
+                  {ghlIntegration?.is_active ? 'Active' : 'Inactive'}
+                </Badge>
+                <span>Last sync: {ghlIntegration?.last_sync ? formatDateTime(ghlIntegration.last_sync) : 'Not yet synced'}</span>
+                {ghlIntegration?.metadata?.location_id && (
+                  <span>Location: {ghlIntegration.metadata.location_id}</span>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-3">
+                <div className="grid gap-2">
+                  <Label htmlFor="ghl-api-key">API Key</Label>
+                  <Input
+                    id="ghl-api-key"
+                    type="password"
+                    placeholder="Enter GoHighLevel API key"
+                    value={ghlForm.apiKey}
+                    onChange={(event) => setGhlForm((prev) => ({ ...prev, apiKey: event.target.value }))}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Keys are encrypted before storage. Provide a new key to rotate credentials.
+                  </p>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="ghl-location-id">Location ID</Label>
+                  <Input
+                    id="ghl-location-id"
+                    placeholder="Optional GoHighLevel location ID"
+                    value={ghlForm.locationId}
+                    onChange={(event) => setGhlForm((prev) => ({ ...prev, locationId: event.target.value }))}
+                  />
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="default"
+                  onClick={handleConnectGoHighLevel}
+                  disabled={isConnectingGhl}
+                >
+                  {isConnectingGhl ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Power className="mr-2 h-4 w-4" />}
+                  Connect GHL
+                </Button>
+                <Button
+                  variant="outline"
+                  disabled={!ghlIntegration || Boolean(crmSyncing.gohighlevel)}
+                  onClick={() => ghlIntegration && handleSyncCrmIntegration(ghlIntegration)}
+                >
+                  {crmSyncing.gohighlevel ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                  Sync Contacts
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => handleOpenIntegrationLogs('gohighlevel')}
+                >
+                  <ScrollText className="mr-2 h-4 w-4" />
+                  View Logs
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       {/* Integration Tabs */}
@@ -1519,20 +1792,6 @@ const IntegrationManager = () => {
                     />
                   </div>
                 )}
-                {selectedIntegration?.id === 'gohighlevel' && (
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="location-id" className="text-right">
-                      Location ID
-                    </Label>
-                    <Input
-                      id="location-id"
-                      placeholder="Optional location ID..."
-                      className="col-span-3"
-                      value={configData.locationId}
-                      onChange={(e) => setConfigData(prev => ({ ...prev, locationId: e.target.value }))}
-                    />
-                  </div>
-                )}
               </div>
               <DialogFooter className="flex flex-wrap justify-end gap-2">
                 <Button variant="outline" onClick={() => setIsConfigDialogOpen(false)}>
@@ -1704,6 +1963,61 @@ const IntegrationManager = () => {
                 </Table>
               </ScrollArea>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={isLogsDialogOpen}
+        onOpenChange={(open) => {
+          setIsLogsDialogOpen(open);
+          if (!open) {
+            setLogEntries([]);
+            setSelectedLogSource(null);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-[720px]">
+          <DialogHeader>
+            <DialogTitle>
+              {selectedLogSource === 'hubspot' ? 'HubSpot sync logs' : selectedLogSource === 'gohighlevel' ? 'GoHighLevel sync logs' : 'Integration logs'}
+            </DialogTitle>
+            <DialogDescription>
+              Most recent analytics events captured for this integration.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            {isLogsLoading ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Loading logs...
+              </div>
+            ) : logEntries.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No recent events recorded yet.</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Metric</TableHead>
+                    <TableHead className="w-24">Value</TableHead>
+                    <TableHead className="w-48">Recorded</TableHead>
+                    <TableHead>Details</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {logEntries.map((entry) => (
+                    <TableRow key={entry.id}>
+                      <TableCell className="font-medium">{entry.metric_name}</TableCell>
+                      <TableCell>{entry.metric_value ?? '—'}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{formatDateTime(entry.recorded_at)}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {entry.dimensions ? JSON.stringify(entry.dimensions) : '—'}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
           </div>
         </DialogContent>
       </Dialog>
