@@ -731,7 +731,9 @@ export type Database = {
           amount: number | null
           client_id: string | null
           close_date: string | null
+          control_tower_client_id: string | null
           control_tower_id: string | null
+          control_tower_owner_id: string | null
           control_tower_status: string | null
           created_at: string
           id: string
@@ -748,7 +750,9 @@ export type Database = {
           amount?: number | null
           client_id?: string | null
           close_date?: string | null
+          control_tower_client_id?: string | null
           control_tower_id?: string | null
+          control_tower_owner_id?: string | null
           control_tower_status?: string | null
           created_at?: string
           id?: string
@@ -765,7 +769,9 @@ export type Database = {
           amount?: number | null
           client_id?: string | null
           close_date?: string | null
+          control_tower_client_id?: string | null
           control_tower_id?: string | null
+          control_tower_owner_id?: string | null
           control_tower_status?: string | null
           created_at?: string
           id?: string

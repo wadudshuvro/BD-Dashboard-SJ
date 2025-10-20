@@ -50,9 +50,8 @@ export const useSyncControlTowerDeals = () => {
             amount: ctDeal.value || ctDeal.amount,
             stage: ctDeal.stage,
             close_date: ctDeal.close_date,
-            client_id: ctDeal.client_id,
-            owner_id: ctDeal.owner_id,
-            pm_assigned_id: ctDeal.pm_assigned_id,
+            control_tower_client_id: ctDeal.client_id,
+            control_tower_owner_id: ctDeal.owner_id,
             control_tower_status: ctDeal.status,
             synced_from_control_tower: true,
             last_synced_at: new Date().toISOString()
