@@ -2,6 +2,7 @@ import { useControlTowerDeals } from '@/hooks/useControlTowerData';
 import { PipelineDataTable } from '@/components/bd/PipelineDataTable';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { SyncControlTowerButton } from '@/components/bd/SyncControlTowerButton';
 
 export default function Deals() {
   const { data: deals = [], isLoading } = useControlTowerDeals();
@@ -50,11 +51,14 @@ export default function Deals() {
 
   return (
     <div className="container mx-auto py-8">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold">Deals Pipeline</h1>
-        <p className="text-muted-foreground">
-          Active and historical deals with PM linkage
-        </p>
+      <div className="mb-6 flex items-start justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Deals Pipeline</h1>
+          <p className="text-muted-foreground">
+            Active and historical deals with PM linkage
+          </p>
+        </div>
+        <SyncControlTowerButton />
       </div>
 
       <div className="grid gap-4 md:grid-cols-3 mb-6">

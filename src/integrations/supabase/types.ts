@@ -425,105 +425,6 @@ export type Database = {
         }
         Relationships: []
       }
-      feedback_comments: {
-        Row: {
-          comment: string
-          created_at: string
-          feedback_id: string
-          id: string
-          user_id: string
-        }
-        Insert: {
-          comment: string
-          created_at?: string
-          feedback_id: string
-          id?: string
-          user_id: string
-        }
-        Update: {
-          comment?: string
-          created_at?: string
-          feedback_id?: string
-          id?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "feedback_comments_feedback_id_fkey"
-            columns: ["feedback_id"]
-            isOneToOne: false
-            referencedRelation: "feedback_reports"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "feedback_comments_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
-      feedback_reports: {
-        Row: {
-          attachment_url: string | null
-          created_at: string
-          created_by: string
-          deleted_at: string | null
-          description: string | null
-          email: string | null
-          id: string
-          reviewed_by: string | null
-          status: string
-          subject: string
-          type: string
-          updated_at: string
-        }
-        Insert: {
-          attachment_url?: string | null
-          created_at?: string
-          created_by: string
-          deleted_at?: string | null
-          description?: string | null
-          email?: string | null
-          id?: string
-          reviewed_by?: string | null
-          status?: string
-          subject: string
-          type: string
-          updated_at?: string
-        }
-        Update: {
-          attachment_url?: string | null
-          created_at?: string
-          created_by?: string
-          deleted_at?: string | null
-          description?: string | null
-          email?: string | null
-          id?: string
-          reviewed_by?: string | null
-          status?: string
-          subject?: string
-          type?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "feedback_reports_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "feedback_reports_reviewed_by_fkey"
-            columns: ["reviewed_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
       clients: {
         Row: {
           address: string | null
@@ -830,11 +731,16 @@ export type Database = {
           amount: number | null
           client_id: string | null
           close_date: string | null
+          control_tower_id: string | null
+          control_tower_status: string | null
           created_at: string
           id: string
+          last_synced_at: string | null
           owner_id: string | null
+          pm_assigned_id: string | null
           probability: number | null
           stage: string | null
+          synced_from_control_tower: boolean | null
           title: string
           updated_at: string
         }
@@ -842,11 +748,16 @@ export type Database = {
           amount?: number | null
           client_id?: string | null
           close_date?: string | null
+          control_tower_id?: string | null
+          control_tower_status?: string | null
           created_at?: string
           id?: string
+          last_synced_at?: string | null
           owner_id?: string | null
+          pm_assigned_id?: string | null
           probability?: number | null
           stage?: string | null
+          synced_from_control_tower?: boolean | null
           title: string
           updated_at?: string
         }
@@ -854,11 +765,16 @@ export type Database = {
           amount?: number | null
           client_id?: string | null
           close_date?: string | null
+          control_tower_id?: string | null
+          control_tower_status?: string | null
           created_at?: string
           id?: string
+          last_synced_at?: string | null
           owner_id?: string | null
+          pm_assigned_id?: string | null
           probability?: number | null
           stage?: string | null
+          synced_from_control_tower?: boolean | null
           title?: string
           updated_at?: string
         }
