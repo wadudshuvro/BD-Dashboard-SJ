@@ -221,7 +221,11 @@ export async function invokeProvider(
             provider: providerConfig.provider,
             model: providerConfig.model,
             latencyMs: Math.round(latency),
-            tokenUsage: payload.usage,
+            tokenUsage: payload.usage ? {
+              promptTokens: payload.usage.prompt_tokens,
+              completionTokens: payload.usage.completion_tokens,
+              totalTokens: payload.usage.total_tokens,
+            } : undefined,
           },
         };
       }

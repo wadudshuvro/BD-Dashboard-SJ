@@ -65,9 +65,9 @@ serve(async (req) => {
         resource_type: "vector_store",
         resource_identifier: payload.vector_store_id,
         metadata: {
-          description: `LinkedIn upload backing store for ${payload.file_name}`,
-          linkedDocument: payload.file_id,
-          syncedAt: new Date().toISOString(),
+          fileName: `LinkedIn upload backing store for ${payload.file_name}`,
+          mimeType: "application/octet-stream",
+          uploadedAt: new Date().toISOString(),
         },
       });
     }

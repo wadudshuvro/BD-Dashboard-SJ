@@ -21,7 +21,7 @@ interface SubmitFeedbackRequest {
   attachmentName?: string | null;
 }
 
-async function getFeatureFlags(client: ReturnType<typeof createClient>): Promise<FeatureFlags> {
+async function getFeatureFlags(client: any): Promise<FeatureFlags> {
   const { data, error } = await client
     .from("ai_configurations")
     .select("configuration_data")
@@ -32,7 +32,7 @@ async function getFeatureFlags(client: ReturnType<typeof createClient>): Promise
     return {};
   }
 
-  const rows = (data ?? []) as FeatureFlagRow[];
+  const rows = (data ?? []) as unknown as FeatureFlagRow[];
 
   return rows.reduce<FeatureFlags>((acc, entry) => ({
     ...acc,

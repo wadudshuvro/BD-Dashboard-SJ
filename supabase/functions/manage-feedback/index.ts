@@ -36,7 +36,7 @@ interface ProfileRow {
   email: string | null;
 }
 
-async function assertAdmin(client: SupabaseClient, userId: string) {
+async function assertAdmin(client: any, userId: string) {
   const { data, error } = await client
     .from("user_roles")
     .select("role")
@@ -47,12 +47,12 @@ async function assertAdmin(client: SupabaseClient, userId: string) {
     throw error;
   }
 
-  if (!data || data.role !== "super_admin") {
+  if (!data || (data as any).role !== "super_admin") {
     throw new Error("Insufficient privileges");
   }
 }
 
-async function fetchProfileMap(client: SupabaseClient, userIds: string[]) {
+async function fetchProfileMap(client: any, userIds: string[]) {
   if (userIds.length === 0) {
     return new Map<string, { name: string | null; email: string | null }>();
   }
@@ -67,7 +67,7 @@ async function fetchProfileMap(client: SupabaseClient, userIds: string[]) {
     return new Map();
   }
 
-  const profiles = (data ?? []) as ProfileRow[];
+  const profiles = (data ?? []) as unknown as ProfileRow[];
   const map = new Map<string, { name: string | null; email: string | null }>();
   for (const profile of profiles) {
     map.set(profile.id, {
@@ -86,7 +86,7 @@ function parseRoute(req: Request) {
   return { url, routeSegments };
 }
 
-async function handleList(client: SupabaseClient, url: URL) {
+async function handleList(client: any, url: URL) {
   const type = url.searchParams.get("type");
   const status = url.searchParams.get("status");
   const includeClosed = url.searchParams.get("includeClosed") === "true";
@@ -106,7 +106,7 @@ async function handleList(client: SupabaseClient, url: URL) {
   }
 
   if (!includeClosed) {
-    query = query.eq("deleted_at", null).neq("status", "closed");
+    query = query.is("deleted_at", null).neq("status", "closed");
   }
 
   if (search) {
@@ -123,7 +123,7 @@ async function handleList(client: SupabaseClient, url: URL) {
     });
   }
 
-  const records = (data ?? []) as FeedbackReportRow[];
+  const records = (data ?? []) as unknown as FeedbackReportRow[];
   const userIds = Array.from(
     new Set([
       ...records.map((record) => record.created_by).filter((value): value is string => Boolean(value)),
@@ -145,7 +145,7 @@ async function handleList(client: SupabaseClient, url: URL) {
   });
 }
 
-async function handleDetail(client: SupabaseClient, id: string) {
+async function handleDetail(client: any, id: string) {
   const { data: feedback, error } = await client
     .from("feedback_reports")
     .select("*")
@@ -167,7 +167,7 @@ async function handleDetail(client: SupabaseClient, id: string) {
     });
   }
 
-  const report = feedback as FeedbackReportRow;
+  const report = feedback as unknown as FeedbackReportRow;
 
   const { data: comments, error: commentsError } = await client
     .from("feedback_comments")
@@ -183,7 +183,7 @@ async function handleDetail(client: SupabaseClient, id: string) {
     });
   }
 
-  const commentRows = (comments ?? []) as FeedbackCommentRow[];
+  const commentRows = (comments ?? []) as unknown as FeedbackCommentRow[];
 
   const userIds = Array.from(
     new Set([
@@ -232,7 +232,7 @@ async function handleDetail(client: SupabaseClient, id: string) {
   );
 }
 
-async function handleComment(client: SupabaseClient, id: string, userId: string, body: unknown) {
+async function handleComment(client: any, id: string, userId: string, body: unknown) {
   const comment =
     typeof body === "object" && body !== null && "comment" in body && typeof (body as { comment?: unknown }).comment === "string"
       ? ((body as { comment: string }).comment || "").trim()
@@ -258,13 +258,13 @@ async function handleComment(client: SupabaseClient, id: string, userId: string,
     });
   }
 
-  return new Response(JSON.stringify(data as FeedbackCommentRow), {
+  return new Response(JSON.stringify(data as unknown as FeedbackCommentRow), {
     status: 201,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 }
 
-async function handleStatus(client: SupabaseClient, id: string, userId: string, body: unknown) {
+async function handleStatus(client: any, id: string, userId: string, body: unknown) {
   const status =
     typeof body === "object" && body !== null && "status" in body && typeof (body as { status?: unknown }).status === "string"
       ? ((body as { status: string }).status || "").toLowerCase()
@@ -291,13 +291,13 @@ async function handleStatus(client: SupabaseClient, id: string, userId: string, 
     });
   }
 
-  return new Response(JSON.stringify(data as FeedbackReportRow), {
+  return new Response(JSON.stringify(data as unknown as FeedbackReportRow), {
     status: 200,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 }
 
-async function handleDelete(client: SupabaseClient, id: string, userId: string) {
+async function handleDelete(client: any, id: string, userId: string) {
   const { error } = await client
     .from("feedback_reports")
     .update({ status: "closed", deleted_at: new Date().toISOString(), reviewed_by: userId })
