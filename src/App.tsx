@@ -58,6 +58,8 @@ import FollowUps from "./pages/bd/FollowUps";
 import UserSettings from "./pages/bd/UserSettings";
 
 import AIDashboard from "./pages/ai-dashboard";
+import LeadAutomationPage from "./pages/automation/LeadAutomationPage";
+import AutomationSettings from "./pages/admin/AutomationSettings";
 
 const queryClient = new QueryClient();
 
@@ -215,6 +217,7 @@ const App = () => (
               <Route path="linkedin-agents" element={<LinkedInAgentConfig />} />
               <Route path="documentation" element={<React.Suspense fallback={<div>Loading...</div>}><Documentation /></React.Suspense>} />
               <Route path="settings" element={<AdminSettings />} />
+              <Route path="settings/automation" element={<AutomationSettings />} />
               <Route path="eod-management" element={<EODManagement />} />
               <Route path="people" element={<People />} />
               <Route path="people/review" element={<React.Suspense fallback={<div>Loading...</div>}><PeopleReviewDashboard /></React.Suspense>} />
@@ -272,6 +275,14 @@ const App = () => (
               {/* Admin */}
               <Route path="admin/documentation" element={<React.Suspense fallback={<div>Loading...</div>}><Documentation /></React.Suspense>} />
               <Route path="admin/settings" element={<UserSettings />} />
+            </Route>
+
+            <Route path="/automation/*" element={
+              <ProtectedRoute requiredMinimumRole="user">
+                <Layout />
+              </ProtectedRoute>
+            }>
+              <Route path="leads" element={<LeadAutomationPage />} />
             </Route>
             
             {/* Legacy/Fallback Routes */}

@@ -1525,6 +1525,123 @@ export type Database = {
           },
         ]
       }
+      lead_automation_logs: {
+        Row: {
+          ai_confidence: number | null
+          client_id: string | null
+          created_at: string
+          email_message_id: string | null
+          ghl_status: string | null
+          id: string
+          parsed_data: Json | null
+          raw_body: string | null
+          raw_sender: string | null
+          raw_subject: string | null
+          status: string | null
+          hubspot_status: string | null
+        }
+        Insert: {
+          ai_confidence?: number | null
+          client_id?: string | null
+          created_at?: string
+          email_message_id?: string | null
+          ghl_status?: string | null
+          id?: string
+          parsed_data?: Json | null
+          raw_body?: string | null
+          raw_sender?: string | null
+          raw_subject?: string | null
+          status?: string | null
+          hubspot_status?: string | null
+        }
+        Update: {
+          ai_confidence?: number | null
+          client_id?: string | null
+          created_at?: string
+          email_message_id?: string | null
+          ghl_status?: string | null
+          id?: string
+          parsed_data?: Json | null
+          raw_body?: string | null
+          raw_sender?: string | null
+          raw_subject?: string | null
+          status?: string | null
+          hubspot_status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_automation_logs_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lead_automation_settings: {
+        Row: {
+          enable_cron: boolean | null
+          id: string
+          sync_interval_minutes: number | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          enable_cron?: boolean | null
+          id?: string
+          sync_interval_minutes?: number | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          enable_cron?: boolean | null
+          id?: string
+          sync_interval_minutes?: number | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_automation_settings_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_threads: {
+        Row: {
+          client_id: string | null
+          id: string
+          last_updated: string
+          summary: string | null
+          thread_id: string | null
+        }
+        Insert: {
+          client_id?: string | null
+          id?: string
+          last_updated?: string
+          summary?: string | null
+          thread_id?: string | null
+        }
+        Update: {
+          client_id?: string | null
+          id?: string
+          last_updated?: string
+          summary?: string | null
+          thread_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_threads_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       team_summaries: {
         Row: {
           created_at: string
