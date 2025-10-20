@@ -21,7 +21,11 @@ import {
   Crosshair,
   Megaphone,
   UserPlus,
-  TrendingUp
+  TrendingUp,
+  Package,
+  Trophy,
+  FileDown,
+  FileText,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useState } from "react";
@@ -78,34 +82,58 @@ const Layout = ({ userRole }: LayoutProps) => {
         return [
           ...baseNavigation,
           { name: "My Agents", href: `${basePath}/my-agents`, icon: Zap, current: false },
+          { name: "BD Dashboard", href: "/bd/dashboard", icon: LayoutDashboard, current: false },
           { 
-            name: "Business Development", 
-            href: "/bd/niches", 
-            icon: Crosshair, 
+            name: "Pipeline", 
+            href: "/bd/pipeline/leads", 
+            icon: Target, 
             current: false,
             subItems: [
               { name: "Lead Inbox", href: "/bd/pipeline/leads", icon: Users, current: false },
               { name: "Warm Leads", href: "/bd/pipeline/warm-leads", icon: Zap, current: false },
               { name: "Deals", href: "/bd/pipeline/deals", icon: TrendingUp, current: false },
               { name: "Clients", href: "/bd/pipeline/clients", icon: Building2, current: false },
-              { name: "Target Niches", href: "/bd/niches", icon: Crosshair, current: false },
-              { name: "BD Campaigns", href: "/bd/campaigns", icon: Megaphone, current: false },
+            ]
+          },
+          { 
+            name: "Strategy", 
+            href: "/bd/strategy/products", 
+            icon: Crosshair, 
+            current: false,
+            subItems: [
+              { name: "Products & Services", href: "/bd/strategy/products", icon: Package, current: false },
+              { name: "Target Niches", href: "/bd/strategy/niches", icon: Crosshair, current: false },
+              { name: "BD Campaigns", href: "/bd/strategy/campaigns", icon: Megaphone, current: false },
+            ]
+          },
+          { 
+            name: "Performance", 
+            href: "/bd/performance/scoreboard", 
+            icon: BarChart3, 
+            current: false,
+            subItems: [
+              { name: "Team Scoreboard", href: "/bd/performance/scoreboard", icon: Trophy, current: false },
+              { name: "Meetings & Follow-Ups", href: "/bd/performance/followups", icon: Calendar, current: false },
+              { name: "Reports & Exports", href: "/bd/performance/reports", icon: FileDown, current: false },
             ]
           },
           { name: "Brands", href: `${basePath}/brands`, icon: Building2, current: false },
           { name: "Clients", href: `${basePath}/clients`, icon: Users, current: false },
           { name: "Projects", href: `${basePath}/projects`, icon: FolderOpen, current: false },
           { 
-            name: "Tasks & EOD", 
-            href: `${basePath}/actions-tasks`, 
+            name: "Actions", 
+            href: "/bd/actions/tasks", 
             icon: CheckSquare, 
             current: false,
             subItems: [
-              { name: "Tasks", href: `${basePath}/actions-tasks`, icon: CheckSquare, current: false },
-              { name: "Submit EOD", href: `${basePath}/eod-submission`, icon: Calendar, current: false },
-              { name: "My EOD History", href: `${basePath}/my-eod-submissions`, icon: History, current: false },
+              { name: "My Tasks", href: "/bd/actions/tasks", icon: CheckSquare, current: false },
+              { name: "Submit EOD", href: "/bd/actions/eod", icon: Calendar, current: false },
+              { name: "My EOD History", href: "/bd/actions/eod-history", icon: History, current: false },
             ]
           },
+          { name: "SEPARATOR", href: "", icon: null, current: false, isHeader: true },
+          { name: "Documentation", href: "/bd/admin/documentation", icon: FileText, current: false },
+          { name: "Settings", href: "/bd/admin/settings", icon: Settings, current: false },
           { name: "SEPARATOR", href: "", icon: null, current: false, isHeader: true },
           { name: "Admin Panel", href: "/adminpanel", icon: Shield, current: false, isAdmin: true },
         ];

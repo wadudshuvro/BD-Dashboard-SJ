@@ -841,6 +841,42 @@ export type Database = {
           },
         ]
       }
+      followups: {
+        Row: {
+          contact: string
+          created_at: string
+          date: string
+          id: string
+          next_step: string | null
+          outcome: string | null
+          topic: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          contact: string
+          created_at?: string
+          date: string
+          id?: string
+          next_step?: string | null
+          outcome?: string | null
+          topic: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          contact?: string
+          created_at?: string
+          date?: string
+          id?: string
+          next_step?: string | null
+          outcome?: string | null
+          topic?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       gemini_videos: {
         Row: {
           created_at: string
@@ -1002,6 +1038,59 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      products: {
+        Row: {
+          category: string
+          created_at: string
+          description: string | null
+          google_drive_link: string | null
+          id: string
+          is_active: boolean | null
+          marketing_variant_link: string | null
+          name: string
+          owner_team: string | null
+          pricing_model: string | null
+          target_industries: string[] | null
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          description?: string | null
+          google_drive_link?: string | null
+          id?: string
+          is_active?: boolean | null
+          marketing_variant_link?: string | null
+          name: string
+          owner_team?: string | null
+          pricing_model?: string | null
+          target_industries?: string[] | null
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          description?: string | null
+          google_drive_link?: string | null
+          id?: string
+          is_active?: boolean | null
+          marketing_variant_link?: string | null
+          name?: string
+          owner_team?: string | null
+          pricing_model?: string | null
+          target_industries?: string[] | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "products_owner_team_fkey"
+            columns: ["owner_team"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {

@@ -51,6 +51,11 @@ import LeadInbox from "./pages/bd/pipeline/LeadInbox";
 import WarmLeads from "./pages/bd/pipeline/WarmLeads";
 import Deals from "./pages/bd/pipeline/Deals";
 import Clients from "./pages/bd/pipeline/Clients";
+import BDDashboard from "./pages/bd/Dashboard";
+import ProductManagement from "./pages/bd/ProductManagement";
+import Scoreboard from "./pages/bd/Scoreboard";
+import FollowUps from "./pages/bd/FollowUps";
+import UserSettings from "./pages/bd/UserSettings";
 
 import AIDashboard from "./pages/ai-dashboard";
 
@@ -232,18 +237,42 @@ const App = () => (
               />
             </Route>
 
-            {/* BD Team Routes - Available to all users */}
+            {/* BD Portal Routes - Available to all users */}
             <Route path="/bd/*" element={
               <ProtectedRoute requiredMinimumRole="user">
                 <Layout />
               </ProtectedRoute>
             }>
-              <Route path="niches" element={<NicheManagement />} />
-              <Route path="campaigns" element={<CampaignManagement />} />
+              <Route index element={<Navigate to="/bd/dashboard" replace />} />
+              <Route path="dashboard" element={<BDDashboard />} />
+              
+              {/* My Agents */}
+              <Route path="my-agents" element={<MyAgentsPage />} />
+              
+              {/* Pipeline - Read-only from Control Tower */}
               <Route path="pipeline/leads" element={<LeadInbox />} />
               <Route path="pipeline/warm-leads" element={<WarmLeads />} />
               <Route path="pipeline/deals" element={<Deals />} />
               <Route path="pipeline/clients" element={<Clients />} />
+              
+              {/* Strategy - CRUD */}
+              <Route path="strategy/products" element={<ProductManagement />} />
+              <Route path="strategy/niches" element={<NicheManagement />} />
+              <Route path="strategy/campaigns" element={<CampaignManagement />} />
+              
+              {/* Performance */}
+              <Route path="performance/scoreboard" element={<Scoreboard />} />
+              <Route path="performance/followups" element={<FollowUps />} />
+              <Route path="performance/reports" element={<Reports />} />
+              
+              {/* Actions */}
+              <Route path="actions/tasks" element={<ActionsTasks />} />
+              <Route path="actions/eod" element={<EODSubmission />} />
+              <Route path="actions/eod-history" element={<MyEODSubmissions />} />
+              
+              {/* Admin */}
+              <Route path="admin/documentation" element={<React.Suspense fallback={<div>Loading...</div>}><Documentation /></React.Suspense>} />
+              <Route path="admin/settings" element={<UserSettings />} />
             </Route>
             
             {/* Legacy/Fallback Routes */}
