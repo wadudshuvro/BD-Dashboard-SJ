@@ -290,7 +290,7 @@ const Layout = ({ userRole }: LayoutProps) => {
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 px-4 py-6 space-y-2">
+          <nav className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-6 space-y-2">
             {navigation.map((item, index) => {
               // Handle separator
               if (item.name === "SEPARATOR") {
