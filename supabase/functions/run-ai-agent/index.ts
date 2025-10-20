@@ -247,12 +247,12 @@ function tryParseJson(content: string): AgentResponse {
   }
 }
 
-function buildProviderTelemetry(result: ProviderResult): ProviderTelemetry {
+function buildProviderTelemetry(result: any): any {
   return result.telemetry;
 }
 
 async function persistRun(
-  client: SupabaseClient,
+  client: any,
   payload: {
     agentId: string;
     userId: string;
@@ -263,7 +263,7 @@ async function persistRun(
     providerRawOutputs: unknown[];
   },
 ) {
-  const { data, error } = await client
+  const { data, error } = await (client as any)
     .from("ai_agent_runs")
     .insert({
       agent_id: payload.agentId,
@@ -293,7 +293,7 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  let client: SupabaseClient | null = null;
+  let client: any = null;
 
   try {
     client = await getClient(req);
@@ -331,7 +331,7 @@ serve(async (req) => {
       sharedResources,
     );
 
-    const providerChain = buildProviderChain((agent.config as AgentConfig) || {}, configs.modelSettings?.default_model);
+    const providerChain = buildProviderChain((agent.config as any) || {}, configs.modelSettings?.default_model || "google/gemini-2.5-flash");
 
     const messages = [
       { role: "system" as const, content: systemPrompt },
@@ -371,7 +371,7 @@ serve(async (req) => {
     const runRecord = await persistRun(client, {
       agentId,
       userId,
-      agentCategory: agent.category ?? null,
+      agentCategory: (agent as any).category ?? null,
       executionContext,
       response: parsedResponse,
       providerTelemetry: telemetry,
@@ -381,7 +381,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
-        run_id: runRecord.id,
+        run_id: (runRecord as any).id,
         summary: parsedResponse.summary,
         findings: parsedResponse.findings,
         recommendations: parsedResponse.recommendations,
