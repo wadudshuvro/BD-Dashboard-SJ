@@ -9,6 +9,29 @@ export interface BDCampaign {
   brand_id?: string;
   campaign_type: 'email_outbound' | 'linkedin_outbound' | 'cold_calling' | 'abm' | 'other';
   status: 'planning' | 'active' | 'paused' | 'completed';
+  ghl_campaign_id?: string | null;
+  linkedin_campaign_id?: string | null;
+  ai_agent_id?: string | null;
+  content_template?: Record<string, unknown> | null;
+  research_data?: Record<string, unknown> | null;
+  linkedin_stats?: {
+    requests_sent?: number;
+    connections_accepted?: number;
+    messages_sent?: number;
+    responses_received?: number;
+    last_synced_at?: string;
+  } | null;
+  ghl_stats?: {
+    emails_sent?: number;
+    emails_delivered?: number;
+    opens?: number;
+    clicks?: number;
+    replies?: number;
+    bounces?: number;
+    last_synced_at?: string;
+  } | null;
+  linkedin_research_summary?: Record<string, unknown> | null;
+  contacts_summary?: Record<string, number> | null;
   start_date?: string;
   end_date?: string;
   target_contacts?: string[];
@@ -31,15 +54,15 @@ export const useBDCampaigns = (nicheId?: string) => {
   const { data: campaigns, isLoading, error } = useQuery({
     queryKey: ['bd_campaigns', nicheId],
     queryFn: async () => {
-      let query = (supabase as any)
+      let query = supabase
         .from('bd_campaigns')
         .select('*')
         .order('created_at', { ascending: false });
-      
+
       if (nicheId) {
         query = query.eq('niche_id', nicheId);
       }
-      
+
       const { data, error } = await query;
       if (error) throw error;
       return data as BDCampaign[];
@@ -48,12 +71,12 @@ export const useBDCampaigns = (nicheId?: string) => {
 
   const createCampaign = useMutation({
     mutationFn: async (campaign: Partial<BDCampaign>) => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('bd_campaigns')
         .insert([campaign])
         .select()
         .single();
-      
+
       if (error) throw error;
       return data;
     },
@@ -75,7 +98,7 @@ export const useBDCampaigns = (nicheId?: string) => {
 
   const updateCampaign = useMutation({
     mutationFn: async ({ id, ...updates }: Partial<BDCampaign> & { id: string }) => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('bd_campaigns')
         .update(updates)
         .eq('id', id)
@@ -103,11 +126,11 @@ export const useBDCampaigns = (nicheId?: string) => {
 
   const deleteCampaign = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await (supabase as any)
+      const { error } = await supabase
         .from('bd_campaigns')
         .delete()
         .eq('id', id);
-      
+
       if (error) throw error;
     },
     onSuccess: () => {
