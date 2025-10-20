@@ -53,14 +53,13 @@ Deno.serve(async (req) => {
     switch (method) {
       case 'GET':
         if (brandId) {
-          // Get single brand with KPIs
+          // Get single brand details
           const { data: brand, error: brandError } = await supabase
             .from('brands')
             .select(`
               *,
               owner:users!brands_owner_id_fkey(first_name, last_name, email),
-              co_owner:users!brands_co_owner_id_fkey(first_name, last_name, email),
-              brand_kpis(*)
+              co_owner:users!brands_co_owner_id_fkey(first_name, last_name, email)
             `)
             .eq('id', brandId)
             .single();
@@ -77,22 +76,20 @@ Deno.serve(async (req) => {
           const formattedBrand = {
             ...brand,
             owner_name: brand.owner ? `${brand.owner.first_name || ''} ${brand.owner.last_name || ''}`.trim() : 'Unknown',
-            co_owner_name: brand.co_owner ? `${brand.co_owner.first_name || ''} ${brand.co_owner.last_name || ''}`.trim() : null,
-            kpis: brand.brand_kpis || []
+            co_owner_name: brand.co_owner ? `${brand.co_owner.first_name || ''} ${brand.co_owner.last_name || ''}`.trim() : null
           };
 
           return new Response(JSON.stringify(formattedBrand), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
         } else {
-          // Get all brands with KPIs
+          // Get all brand details
           const { data: brands, error: brandsError } = await supabase
             .from('brands')
             .select(`
               *,
               owner:users!brands_owner_id_fkey(first_name, last_name, email),
-              co_owner:users!brands_co_owner_id_fkey(first_name, last_name, email),
-              brand_kpis(*)
+              co_owner:users!brands_co_owner_id_fkey(first_name, last_name, email)
             `)
             .order('created_at', { ascending: false });
 
@@ -108,8 +105,7 @@ Deno.serve(async (req) => {
           const formattedBrands = brands.map(brand => ({
             ...brand,
             owner_name: brand.owner ? `${brand.owner.first_name || ''} ${brand.owner.last_name || ''}`.trim() : 'Unknown',
-            co_owner_name: brand.co_owner ? `${brand.co_owner.first_name || ''} ${brand.co_owner.last_name || ''}`.trim() : null,
-            kpis: brand.brand_kpis || []
+            co_owner_name: brand.co_owner ? `${brand.co_owner.first_name || ''} ${brand.co_owner.last_name || ''}`.trim() : null
           }));
 
           return new Response(JSON.stringify(formattedBrands), {
@@ -166,8 +162,7 @@ Deno.serve(async (req) => {
         const formattedNewBrand = {
           ...newBrand,
           owner_name: newBrand.owner ? `${newBrand.owner.first_name || ''} ${newBrand.owner.last_name || ''}`.trim() : 'Unknown',
-          co_owner_name: newBrand.co_owner ? `${newBrand.co_owner.first_name || ''} ${newBrand.co_owner.last_name || ''}`.trim() : null,
-          kpis: []
+          co_owner_name: newBrand.co_owner ? `${newBrand.co_owner.first_name || ''} ${newBrand.co_owner.last_name || ''}`.trim() : null
         };
 
         return new Response(JSON.stringify(formattedNewBrand), {
@@ -214,8 +209,7 @@ Deno.serve(async (req) => {
           .select(`
             *,
             owner:users!brands_owner_id_fkey(first_name, last_name, email),
-            co_owner:users!brands_co_owner_id_fkey(first_name, last_name, email),
-            brand_kpis(*)
+            co_owner:users!brands_co_owner_id_fkey(first_name, last_name, email)
           `)
           .single();
 
@@ -231,8 +225,7 @@ Deno.serve(async (req) => {
         const formattedUpdatedBrand = {
           ...updatedBrand,
           owner_name: updatedBrand.owner ? `${updatedBrand.owner.first_name || ''} ${updatedBrand.owner.last_name || ''}`.trim() : 'Unknown',
-          co_owner_name: updatedBrand.co_owner ? `${updatedBrand.co_owner.first_name || ''} ${updatedBrand.co_owner.last_name || ''}`.trim() : null,
-          kpis: updatedBrand.brand_kpis || []
+          co_owner_name: updatedBrand.co_owner ? `${updatedBrand.co_owner.first_name || ''} ${updatedBrand.co_owner.last_name || ''}`.trim() : null
         };
 
         return new Response(JSON.stringify(formattedUpdatedBrand), {

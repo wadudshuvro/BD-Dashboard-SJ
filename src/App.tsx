@@ -32,7 +32,6 @@ import UserManagement from "./pages/admin/UserManagement";
 import BrandManagement from "./pages/admin/BrandManagement";
 import BrandDetail from "./pages/admin/BrandDetail";
 import IntegrationManager from "./pages/admin/IntegrationManager";
-import KPIConfigurator from "./pages/admin/KPIConfigurator";
 import LinkedInAgentConfig from "./pages/admin/LinkedInAgentConfig";
 import AdminSettings from "./pages/admin/AdminSettings";
 import EODManagement from "./pages/admin/EODManagement";
@@ -189,7 +188,6 @@ const App = () => (
               <Route path="admin/users" element={<UserManagement />} />
               <Route path="admin/users/:userId" element={<UserDetail />} />
               <Route path="admin/integrations" element={<IntegrationManager />} />
-              <Route path="admin/kpis" element={<KPIConfigurator />} />
               <Route path="admin/settings" element={<AdminSettings />} />
             </Route>
             
@@ -214,7 +212,6 @@ const App = () => (
               <Route path="projects" element={<ProjectManagement />} />
               <Route path="projects/:projectId" element={<ProjectDetail />} />
               <Route path="integrations" element={<IntegrationManager />} />
-              <Route path="kpis" element={<KPIConfigurator />} />
               <Route path="linkedin-agents" element={<LinkedInAgentConfig />} />
               <Route path="documentation" element={<React.Suspense fallback={<div>Loading...</div>}><Documentation /></React.Suspense>} />
               <Route path="settings" element={<AdminSettings />} />
