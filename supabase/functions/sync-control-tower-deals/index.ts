@@ -88,12 +88,11 @@ async function performSync(
   const startTime = Date.now();
   
   try {
-    // Fetch all active deals from Control Tower in one query
-    console.log('[Sync] Fetching active deals from Control Tower...');
+    // Fetch all deals from Control Tower in one query
+    console.log('[Sync] Fetching deals from Control Tower...');
     const { data: ctDeals, error: fetchError } = await ctClient
-      .from('Deal')
-      .select('*')
-      .eq('status', 'active');
+      .from('deals')
+      .select('*');
 
     if (fetchError) {
       console.error('[Sync] Error fetching deals:', fetchError);
