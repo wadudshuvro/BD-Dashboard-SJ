@@ -83,10 +83,10 @@ const Layout = ({ userRole }: LayoutProps) => {
           ...baseNavigation,
           { name: "My Agents", href: `${basePath}/my-agents`, icon: Zap, current: false },
           { name: "BD Dashboard", href: "/bd/dashboard", icon: LayoutDashboard, current: false },
-          { 
-            name: "Pipeline", 
-            href: "/bd/pipeline/leads", 
-            icon: Target, 
+          {
+            name: "Pipeline",
+            href: "/bd/pipeline/leads",
+            icon: Target,
             current: false,
             subItems: [
               { name: "Lead Inbox", href: "/bd/pipeline/leads", icon: Users, current: false },
@@ -95,10 +95,11 @@ const Layout = ({ userRole }: LayoutProps) => {
               { name: "Clients", href: "/bd/pipeline/clients", icon: Building2, current: false },
             ]
           },
-          { 
-            name: "Strategy", 
-            href: "/bd/strategy/products", 
-            icon: Crosshair, 
+          { name: "Lead Automation", href: "/automation/leads", icon: Sparkles, current: false },
+          {
+            name: "Strategy",
+            href: "/bd/strategy/products",
+            icon: Crosshair,
             current: false,
             subItems: [
               { name: "Products & Services", href: "/bd/strategy/products", icon: Package, current: false },
@@ -154,6 +155,7 @@ const Layout = ({ userRole }: LayoutProps) => {
               { name: "Clients", href: "/bd/pipeline/clients", icon: Building2, current: false },
               { name: "Target Niches", href: "/bd/niches", icon: Crosshair, current: false },
               { name: "BD Campaigns", href: "/bd/campaigns", icon: Megaphone, current: false },
+              { name: "Lead Automation", href: "/automation/leads", icon: Sparkles, current: false },
             ]
           },
           { name: "Clients", href: `${basePath}/clients`, icon: Users, current: false },
@@ -188,6 +190,7 @@ const Layout = ({ userRole }: LayoutProps) => {
               { name: "Clients", href: "/bd/pipeline/clients", icon: Building2, current: false },
               { name: "Target Niches", href: "/bd/niches", icon: Crosshair, current: false },
               { name: "BD Campaigns", href: "/bd/campaigns", icon: Megaphone, current: false },
+              { name: "Lead Automation", href: "/automation/leads", icon: Sparkles, current: false },
             ]
           },
           { name: "Clients", href: `${basePath}/clients`, icon: Users, current: false },
@@ -235,6 +238,7 @@ const Layout = ({ userRole }: LayoutProps) => {
               { name: "Clients", href: "/bd/pipeline/clients", icon: Building2, current: false },
               { name: "Target Niches", href: "/bd/niches", icon: Crosshair, current: false },
               { name: "BD Campaigns", href: "/bd/campaigns", icon: Megaphone, current: false },
+              { name: "Lead Automation", href: "/automation/leads", icon: Sparkles, current: false },
             ]
           },
         ];
