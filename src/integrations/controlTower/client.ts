@@ -2,6 +2,10 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 // Factory function to create a Control Tower client with dynamic credentials
 export const createControlTowerClient = (url: string, anonKey: string): SupabaseClient => {
+  if (!url || !anonKey) {
+    throw new Error('Control Tower URL and Anon Key are required');
+  }
+  
   return createClient(url, anonKey, {
     auth: {
       storage: localStorage,
@@ -10,12 +14,3 @@ export const createControlTowerClient = (url: string, anonKey: string): Supabase
     }
   });
 };
-
-// Default client using environment variables (fallback)
-const CONTROL_TOWER_URL = import.meta.env.VITE_CONTROL_TOWER_URL || '';
-const CONTROL_TOWER_ANON_KEY = import.meta.env.VITE_CONTROL_TOWER_ANON_KEY || '';
-
-export const controlTowerClient = createControlTowerClient(
-  CONTROL_TOWER_URL,
-  CONTROL_TOWER_ANON_KEY
-);
