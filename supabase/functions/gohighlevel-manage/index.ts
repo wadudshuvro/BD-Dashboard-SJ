@@ -90,39 +90,6 @@ async function resolvePrimaryBrand(client: SupabaseClient, userId: string | null
   return brands?.[0]?.id ?? null;
 }
 
-async function upsertBrandKpi(client: SupabaseClient, brandId: string, name: string, value: number, displayOrder: number, type: string, description: string) {
-  const { data: existing } = await client
-    .from("brand_kpis")
-    .select("id, target_value")
-    .eq("brand_id", brandId)
-    .eq("name", name)
-    .maybeSingle();
-
-  if (existing?.id) {
-    await client
-      .from("brand_kpis")
-      .update({
-        current_value: value,
-        type,
-        source: "gohighlevel",
-        description,
-      })
-      .eq("id", existing.id);
-    return;
-  }
-
-  await client.from("brand_kpis").insert({
-    brand_id: brandId,
-    name,
-    description,
-    type,
-    source: "gohighlevel",
-    current_value: value,
-    target_value: existing?.target_value ?? value,
-    display_order: displayOrder,
-  });
-}
-
 async function fetchGHL(endpoint: string, apiKey: string, method: string = "GET") {
   const url = `${GHL_API_BASE}${endpoint}`;
   const response = await fetch(url, {
@@ -280,28 +247,6 @@ async function syncGoHighLevel({
     const amount = typeof deal.amount === "number" ? deal.amount : Number(deal.amount ?? 0);
     return sum + (Number.isFinite(amount) ? amount : 0);
   }, 0);
-
-  const brandId = await resolvePrimaryBrand(client, integration.user_id);
-  if (brandId) {
-    await upsertBrandKpi(
-      client,
-      brandId,
-      "SQL Opportunities",
-      contactsToInsert.length,
-      1,
-      "growth",
-      "Active SQL opportunities sourced from GoHighLevel",
-    );
-    await upsertBrandKpi(
-      client,
-      brandId,
-      "Pipeline Value",
-      pipelineValue,
-      2,
-      "revenue",
-      "Total pipeline value synced from GoHighLevel",
-    );
-  }
 
   const now = new Date().toISOString();
   await client

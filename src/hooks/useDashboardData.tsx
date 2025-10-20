@@ -8,13 +8,10 @@ export function useDashboardData() {
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["dashboard-data", user?.id],
     queryFn: async () => {
-      // Fetch brands with KPIs
+      // Fetch active brands
       const { data: brandsData, error: brandsError } = await supabase
         .from("brands")
-        .select(`
-          *,
-          brand_kpis (*)
-        `)
+        .select("*")
         .eq("is_active", true);
 
       if (brandsError) throw brandsError;
@@ -40,12 +37,6 @@ export function useDashboardData() {
         growth: 0,
         monthly_budget: 0,
         activeTasks: 0,
-        kpis: (brand.brand_kpis || []).map((kpi: any) => ({
-          id: kpi.id,
-          name: kpi.name,
-          current_value: kpi.current_value,
-          target_value: kpi.target_value,
-        })),
         active_integrations: brand.active_integrations || [],
       }));
 

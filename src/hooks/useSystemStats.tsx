@@ -13,9 +13,8 @@ export interface RecentActivity {
   action: string;
   brand?: string;
   user?: string;
-  kpi?: string;
   time: string;
-  type: 'brand' | 'user' | 'kpi';
+  type: 'brand' | 'system';
 }
 
 export function useSystemStats() {
@@ -68,23 +67,14 @@ export function useSystemStats() {
           });
         });
 
-        // Fetch recent KPI updates
-        const { data: recentKPIs } = await supabase
-          .from('brand_kpis')
-          .select('id, name, updated_at')
-          .gte('updated_at', oneDayAgo)
-          .order('updated_at', { ascending: false })
-          .limit(5);
-
-        recentKPIs?.forEach((kpi) => {
+        if (stats.totalIntegrations > 0) {
           recentActivity.push({
-            id: `kpi-${kpi.id}`,
-            action: 'Brand KPI updated',
-            kpi: kpi.name,
-            time: new Date(kpi.updated_at).toLocaleString(),
-            type: 'kpi'
+            id: `integration-${Date.now()}`,
+            action: 'Active integrations monitored',
+            time: new Date().toLocaleString(),
+            type: 'system'
           });
-        });
+        }
       } catch (error) {
         console.error('Error fetching system stats:', error);
       }

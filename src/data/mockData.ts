@@ -547,21 +547,6 @@ export const mockBrandIntegrations = [
     }
   },
   {
-    id: 'brand_3',
-    name: 'Brand Analytics', 
-    type: 'brand_analytics',
-    description: 'Custom analytics tracking for brand performance',
-    icon: '📊',
-    category: 'analytics' as const,
-    is_available: true,
-    setup_complexity: 'easy' as const,
-    required_fields: ['tracking_id', 'domain'],
-    brand_connections: {
-      '1': { is_enabled: true, config: { tracking_id: 'GA_789', domain: 'brand1.com' }, status: 'connected' as const },
-      '2': { is_enabled: true, config: { tracking_id: 'GA_101', domain: 'brand2.com' }, status: 'connected' as const }
-    }
-  },
-  {
     id: 'brand_4',
     name: 'Meta Ads',
     type: 'meta_ads', 
