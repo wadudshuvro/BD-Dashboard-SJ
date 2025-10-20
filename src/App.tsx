@@ -46,6 +46,7 @@ import MyDashboard from "./pages/MyDashboard";
 import UserProfile from "./pages/UserProfile";
 import NicheManagement from "./pages/bd/NicheManagement";
 import CampaignManagement from "./pages/bd/CampaignManagement";
+import CampaignDetail from "./pages/bd/CampaignDetail";
 import PODManagement from "./pages/admin/PODManagement";
 import LeadInbox from "./pages/bd/pipeline/LeadInbox";
 import WarmLeads from "./pages/bd/pipeline/WarmLeads";
@@ -259,6 +260,7 @@ const App = () => (
               <Route path="strategy/products" element={<ProductManagement />} />
               <Route path="strategy/niches" element={<NicheManagement />} />
               <Route path="strategy/campaigns" element={<CampaignManagement />} />
+              <Route path="strategy/campaigns/:campaignId" element={<CampaignDetail />} />
               
               {/* Performance */}
               <Route path="performance/scoreboard" element={<Scoreboard />} />

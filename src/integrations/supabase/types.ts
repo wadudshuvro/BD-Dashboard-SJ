@@ -196,17 +196,26 @@ export type Database = {
       bd_campaigns: {
         Row: {
           actual_contacts_reached: number | null
+          ai_agent_id: string | null
           brand_id: string | null
           campaign_type: string
+          contacts_summary: Json | null
+          content_template: Json | null
           created_at: string
           created_by: string | null
           deals_generated: number | null
           end_date: string | null
+          ghl_campaign_id: string | null
+          ghl_stats: Json | null
           id: string
+          linkedin_campaign_id: string | null
+          linkedin_research_summary: Json | null
+          linkedin_stats: Json | null
           meetings_booked: number | null
           name: string
           niche_id: string
           owned_by: string | null
+          research_data: Json | null
           responses_received: number | null
           start_date: string | null
           status: string
@@ -217,17 +226,26 @@ export type Database = {
         }
         Insert: {
           actual_contacts_reached?: number | null
+          ai_agent_id?: string | null
           brand_id?: string | null
           campaign_type: string
+          contacts_summary?: Json | null
+          content_template?: Json | null
           created_at?: string
           created_by?: string | null
           deals_generated?: number | null
           end_date?: string | null
+          ghl_campaign_id?: string | null
+          ghl_stats?: Json | null
           id?: string
+          linkedin_campaign_id?: string | null
+          linkedin_research_summary?: Json | null
+          linkedin_stats?: Json | null
           meetings_booked?: number | null
           name: string
           niche_id: string
           owned_by?: string | null
+          research_data?: Json | null
           responses_received?: number | null
           start_date?: string | null
           status?: string
@@ -238,17 +256,26 @@ export type Database = {
         }
         Update: {
           actual_contacts_reached?: number | null
+          ai_agent_id?: string | null
           brand_id?: string | null
           campaign_type?: string
+          contacts_summary?: Json | null
+          content_template?: Json | null
           created_at?: string
           created_by?: string | null
           deals_generated?: number | null
           end_date?: string | null
+          ghl_campaign_id?: string | null
+          ghl_stats?: Json | null
           id?: string
+          linkedin_campaign_id?: string | null
+          linkedin_research_summary?: Json | null
+          linkedin_stats?: Json | null
           meetings_booked?: number | null
           name?: string
           niche_id?: string
           owned_by?: string | null
+          research_data?: Json | null
           responses_received?: number | null
           start_date?: string | null
           status?: string
@@ -266,10 +293,240 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "bd_campaigns_ai_agent_id_fkey"
+            columns: ["ai_agent_id"]
+            isOneToOne: false
+            referencedRelation: "ai_agents"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "bd_campaigns_niche_id_fkey"
             columns: ["niche_id"]
             isOneToOne: false
             referencedRelation: "target_niches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campaign_activities: {
+        Row: {
+          activity_data: Json | null
+          activity_type: string
+          ai_generated: boolean | null
+          campaign_id: string
+          contact_id: string | null
+          created_at: string
+          id: string
+          performed_at: string
+          performed_by: string | null
+          updated_at: string
+        }
+        Insert: {
+          activity_data?: Json | null
+          activity_type: string
+          ai_generated?: boolean | null
+          campaign_id: string
+          contact_id?: string | null
+          created_at?: string
+          id?: string
+          performed_at?: string
+          performed_by?: string | null
+          updated_at?: string
+        }
+        Update: {
+          activity_data?: Json | null
+          activity_type?: string
+          ai_generated?: boolean | null
+          campaign_id?: string
+          contact_id?: string | null
+          created_at?: string
+          id?: string
+          performed_at?: string
+          performed_by?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_activities_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "bd_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_activities_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_activities_performed_by_fkey"
+            columns: ["performed_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campaign_ai_tasks: {
+        Row: {
+          agent_id: string | null
+          campaign_id: string
+          completed_at: string | null
+          contact_id: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          input_data: Json | null
+          output_data: Json | null
+          status: string
+          task_type: string
+          updated_at: string
+        }
+        Insert: {
+          agent_id?: string | null
+          campaign_id: string
+          completed_at?: string | null
+          contact_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          input_data?: Json | null
+          output_data?: Json | null
+          status?: string
+          task_type: string
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string | null
+          campaign_id?: string
+          completed_at?: string | null
+          contact_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          input_data?: Json | null
+          output_data?: Json | null
+          status?: string
+          task_type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_ai_tasks_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "ai_agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_ai_tasks_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "bd_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_ai_tasks_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_ai_tasks_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campaign_contacts: {
+        Row: {
+          assigned_to: string | null
+          campaign_id: string
+          contact_company: string | null
+          contact_email: string | null
+          contact_linkedin_url: string | null
+          contact_name: string
+          contact_title: string | null
+          created_at: string
+          created_by: string | null
+          email_sent_at: string | null
+          id: string
+          last_activity_at: string | null
+          linkedin_accepted_at: string | null
+          linkedin_message_sent_at: string | null
+          linkedin_request_sent_at: string | null
+          personalization_notes: string | null
+          research_summary: Json | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          campaign_id: string
+          contact_company?: string | null
+          contact_email?: string | null
+          contact_linkedin_url?: string | null
+          contact_name: string
+          contact_title?: string | null
+          created_at?: string
+          created_by?: string | null
+          email_sent_at?: string | null
+          id?: string
+          last_activity_at?: string | null
+          linkedin_accepted_at?: string | null
+          linkedin_message_sent_at?: string | null
+          linkedin_request_sent_at?: string | null
+          personalization_notes?: string | null
+          research_summary?: Json | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          campaign_id?: string
+          contact_company?: string | null
+          contact_email?: string | null
+          contact_linkedin_url?: string | null
+          contact_name?: string
+          contact_title?: string | null
+          created_at?: string
+          created_by?: string | null
+          email_sent_at?: string | null
+          id?: string
+          last_activity_at?: string | null
+          linkedin_accepted_at?: string | null
+          linkedin_message_sent_at?: string | null
+          linkedin_request_sent_at?: string | null
+          personalization_notes?: string | null
+          research_summary?: Json | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_contacts_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_contacts_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "bd_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_contacts_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
