@@ -47,31 +47,18 @@ serve(async (req) => {
       .eq('configuration_type', 'control_tower')
       .single();
 
-    if (configError || !configData) {
-      // Try to get from env variables as fallback
-      const envUrl = Deno.env.get('VITE_CONTROL_TOWER_URL');
-      const envKey = Deno.env.get('VITE_CONTROL_TOWER_ANON_KEY');
-      
-      if (!envUrl || !envKey) {
-        throw new Error('Control Tower not configured. Please configure in settings.');
-      }
-
-      console.log('[Sync] Using Control Tower config from environment variables');
-      
-      const ctClient = createClient(envUrl, envKey);
-      return await performSync(ctClient, supabase, user.id);
-    }
-
-    const config = configData.configuration_data as { url: string; anon_key: string };
+    // Get Control Tower credentials from edge secrets
+    const envUrl = Deno.env.get('Controltowerurl');
+    const envKey = Deno.env.get('CONTROLTOWERAPIKEY');
     
-    if (!config.url || !config.anon_key) {
-      throw new Error('Invalid Control Tower configuration');
+    if (!envUrl || !envKey) {
+      throw new Error('Control Tower credentials not configured in edge secrets');
     }
 
-    console.log('[Sync] Using Control Tower config from database');
-
+    console.log('[Sync] Using Control Tower credentials from edge secrets');
+    
     // Create Control Tower client with server-side credentials
-    const ctClient = createClient(config.url, config.anon_key);
+    const ctClient = createClient(envUrl, envKey);
 
     return await performSync(ctClient, supabase, user.id);
 
@@ -104,7 +91,7 @@ async function performSync(
     // Fetch all active deals from Control Tower in one query
     console.log('[Sync] Fetching active deals from Control Tower...');
     const { data: ctDeals, error: fetchError } = await ctClient
-      .from('deals')
+      .from('Deal')
       .select('*')
       .eq('status', 'active');
 
