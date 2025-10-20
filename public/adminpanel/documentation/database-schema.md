@@ -1,5 +1,7 @@
 # Database Schema
 
+_Last Updated: 2025-02-18_
+
 The Supabase Postgres database underpins authentication, CRM records, automation pipelines, and analytics. All tables enforce Row Level Security (RLS) with policies defined in `supabase/migrations`. Below is the canonical schema grouped by domain.
 
 ---
@@ -1292,3 +1294,84 @@ Other supporting tables include:
 - **team_summaries:** high-level aggregated EOD summaries for leadership views.
 
 Each follows the same timestamp + `gen_random_uuid()` conventions shown above and is enforced with RLS policies defined in the migrations.
+
+### Table: ai_shared_resources
+
+| Field | Type | Default | Nullable | Description |
+| --- | --- | --- | --- | --- |
+| id | UUID | `gen_random_uuid()` | No | Primary key. |
+| agent_id | UUID | — | No | References `ai_agents.id`. |
+| resource_type | Text | — | No | Resource category such as `vector_store`. |
+| resource_identifier | Text | — | No | External identifier for the resource. |
+| metadata | JSONB | `{}` | Yes | Additional metadata (synced timestamps, provider, description). |
+| created_at | Timestamptz | `now()` | No | Creation timestamp. |
+| updated_at | Timestamptz | `now()` | No | Managed via trigger. |
+
+**Sample Data**
+```json
+{
+  "id": "8f7f0bdc-2e6c-40ea-9ff9-1ffce8e4bb7f",
+  "agent_id": "4fda706e-9376-41e2-b7fd-3dc901c15b7a",
+  "resource_type": "vector_store",
+  "resource_identifier": "vs_company_insights",
+  "metadata": { "syncedAt": "2025-02-18T06:20:00.000Z", "description": "Company news embeddings" },
+  "created_at": "2025-02-18T06:20:00.000Z",
+  "updated_at": "2025-02-18T06:20:00.000Z"
+}
+```
+
+### Table: feedback_reports
+
+| Field | Type | Default | Nullable | Description |
+| --- | --- | --- | --- | --- |
+| id | UUID | `gen_random_uuid()` | No | Primary key. |
+| type | Text | — | No | `bug` or `feature`. |
+| subject | Text | — | No | Summary line provided by reporter. |
+| description | Text | — | Yes | Detailed notes. |
+| status | Text | `'open'` | No | Workflow state (`open`, `in_review`, `resolved`, `closed`). |
+| email | Text | — | Yes | Reporter email used for follow-up. |
+| attachment_url | Text | — | Yes | Storage path for optional attachment. |
+| created_by | UUID | — | No | References `profiles.id`. |
+| reviewed_by | UUID | — | Yes | References `profiles.id`. |
+| created_at | Timestamptz | `now()` | No | Creation timestamp. |
+| updated_at | Timestamptz | `now()` | No | Managed via trigger. |
+| deleted_at | Timestamptz | — | Yes | Soft-delete marker. |
+
+**Sample Data**
+```json
+{
+  "id": "ab438c2c-6315-4592-8c42-7f6f0a21bd71",
+  "type": "bug",
+  "subject": "Gemini render stalls at 80%",
+  "description": "Job render_8912 never completes when attachments exceed 150MB.",
+  "status": "in_review",
+  "email": "bd-team@sjinno.com",
+  "attachment_url": "https://supabase.storage/feedback/gemini-log.txt",
+  "created_by": "1c50a8fa-d7f5-4dbf-bc8f-7d3e2c6f2a01",
+  "reviewed_by": "b3d5a68c-1f2a-4e71-8abf-27e2d5f0c123",
+  "created_at": "2025-02-16T11:40:00.000Z",
+  "updated_at": "2025-02-17T08:05:00.000Z",
+  "deleted_at": null
+}
+```
+
+### Table: feedback_comments
+
+| Field | Type | Default | Nullable | Description |
+| --- | --- | --- | --- | --- |
+| id | UUID | `gen_random_uuid()` | No | Primary key. |
+| feedback_id | UUID | — | No | References `feedback_reports.id`. |
+| user_id | UUID | — | No | References `profiles.id`. |
+| comment | Text | — | No | Comment body. |
+| created_at | Timestamptz | `now()` | No | Creation timestamp. |
+
+**Sample Data**
+```json
+{
+  "id": "7bc2431a-8474-4bb3-9c89-ff6a799a30fb",
+  "feedback_id": "ab438c2c-6315-4592-8c42-7f6f0a21bd71",
+  "user_id": "b3d5a68c-1f2a-4e71-8abf-27e2d5f0c123",
+  "comment": "Queued fix for deployment tonight.",
+  "created_at": "2025-02-17T12:05:00.000Z"
+}
+```
