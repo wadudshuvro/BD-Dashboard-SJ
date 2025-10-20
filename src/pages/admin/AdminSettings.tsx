@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Globe, Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { ControlTowerConfig } from "@/components/admin/ControlTowerConfig";
 
 const AdminSettings = () => {
   const [companyName, setCompanyName] = useState("Business Development Intelligence Co.");
@@ -70,6 +71,8 @@ const AdminSettings = () => {
           </div>
         </CardContent>
       </Card>
+
+      <ControlTowerConfig />
     </div>
   );
 };
