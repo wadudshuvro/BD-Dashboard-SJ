@@ -1,1 +1,4 @@
 project_id = "qzzvcqoletuummdsbbio"
+
+[functions.sync-control-tower-deals]
+verify_jwt = true
