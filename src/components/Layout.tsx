@@ -20,7 +20,8 @@ import {
   Calendar,
   Crosshair,
   Megaphone,
-  UserPlus
+  UserPlus,
+  TrendingUp
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useState } from "react";
@@ -83,6 +84,10 @@ const Layout = ({ userRole }: LayoutProps) => {
             icon: Crosshair, 
             current: false,
             subItems: [
+              { name: "Lead Inbox", href: "/bd/pipeline/leads", icon: Users, current: false },
+              { name: "Warm Leads", href: "/bd/pipeline/warm-leads", icon: Zap, current: false },
+              { name: "Deals", href: "/bd/pipeline/deals", icon: TrendingUp, current: false },
+              { name: "Clients", href: "/bd/pipeline/clients", icon: Building2, current: false },
               { name: "Target Niches", href: "/bd/niches", icon: Crosshair, current: false },
               { name: "BD Campaigns", href: "/bd/campaigns", icon: Megaphone, current: false },
             ]
@@ -115,6 +120,10 @@ const Layout = ({ userRole }: LayoutProps) => {
             icon: Crosshair, 
             current: false,
             subItems: [
+              { name: "Lead Inbox", href: "/bd/pipeline/leads", icon: Users, current: false },
+              { name: "Warm Leads", href: "/bd/pipeline/warm-leads", icon: Zap, current: false },
+              { name: "Deals", href: "/bd/pipeline/deals", icon: TrendingUp, current: false },
+              { name: "Clients", href: "/bd/pipeline/clients", icon: Building2, current: false },
               { name: "Target Niches", href: "/bd/niches", icon: Crosshair, current: false },
               { name: "BD Campaigns", href: "/bd/campaigns", icon: Megaphone, current: false },
             ]
@@ -145,6 +154,10 @@ const Layout = ({ userRole }: LayoutProps) => {
             icon: Crosshair, 
             current: false,
             subItems: [
+              { name: "Lead Inbox", href: "/bd/pipeline/leads", icon: Users, current: false },
+              { name: "Warm Leads", href: "/bd/pipeline/warm-leads", icon: Zap, current: false },
+              { name: "Deals", href: "/bd/pipeline/deals", icon: TrendingUp, current: false },
+              { name: "Clients", href: "/bd/pipeline/clients", icon: Building2, current: false },
               { name: "Target Niches", href: "/bd/niches", icon: Crosshair, current: false },
               { name: "BD Campaigns", href: "/bd/campaigns", icon: Megaphone, current: false },
             ]
@@ -188,6 +201,10 @@ const Layout = ({ userRole }: LayoutProps) => {
             icon: Crosshair, 
             current: false,
             subItems: [
+              { name: "Lead Inbox", href: "/bd/pipeline/leads", icon: Users, current: false },
+              { name: "Warm Leads", href: "/bd/pipeline/warm-leads", icon: Zap, current: false },
+              { name: "Deals", href: "/bd/pipeline/deals", icon: TrendingUp, current: false },
+              { name: "Clients", href: "/bd/pipeline/clients", icon: Building2, current: false },
               { name: "Target Niches", href: "/bd/niches", icon: Crosshair, current: false },
               { name: "BD Campaigns", href: "/bd/campaigns", icon: Megaphone, current: false },
             ]

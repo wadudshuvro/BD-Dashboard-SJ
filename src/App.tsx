@@ -47,6 +47,10 @@ import UserProfile from "./pages/UserProfile";
 import NicheManagement from "./pages/bd/NicheManagement";
 import CampaignManagement from "./pages/bd/CampaignManagement";
 import PODManagement from "./pages/admin/PODManagement";
+import LeadInbox from "./pages/bd/pipeline/LeadInbox";
+import WarmLeads from "./pages/bd/pipeline/WarmLeads";
+import Deals from "./pages/bd/pipeline/Deals";
+import Clients from "./pages/bd/pipeline/Clients";
 
 import AIDashboard from "./pages/ai-dashboard";
 
@@ -236,6 +240,10 @@ const App = () => (
             }>
               <Route path="niches" element={<NicheManagement />} />
               <Route path="campaigns" element={<CampaignManagement />} />
+              <Route path="pipeline/leads" element={<LeadInbox />} />
+              <Route path="pipeline/warm-leads" element={<WarmLeads />} />
+              <Route path="pipeline/deals" element={<Deals />} />
+              <Route path="pipeline/clients" element={<Clients />} />
             </Route>
             
             {/* Legacy/Fallback Routes */}
