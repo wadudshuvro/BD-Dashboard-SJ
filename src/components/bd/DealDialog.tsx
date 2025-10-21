@@ -40,12 +40,12 @@ const statusOptions = Object.values(DEAL_STATUSES) as [DealStatus, ...DealStatus
 const dealSchema = z.object({
   title: z.string().min(1, 'Title is required').max(200),
   amount: z.number().min(0, 'Amount must be positive').optional().nullable(),
-  stage: z.enum(stageOptions).optional().nullable(),
-  status: z.enum(statusOptions).optional().nullable(),
+  stage: z.union([z.enum(stageOptions), z.literal('unassigned')]).optional().nullable(),
+  status: z.union([z.enum(statusOptions), z.literal('unassigned')]).optional().nullable(),
   probability: z.number().min(0).max(100).optional().nullable(),
-  client_id: z.string().uuid().optional().nullable(),
-  owner_id: z.string().uuid().optional().nullable(),
-  pm_assigned_id: z.string().uuid().optional().nullable(),
+  client_id: z.union([z.string().uuid(), z.literal('unassigned')]).optional().nullable(),
+  owner_id: z.union([z.string().uuid(), z.literal('unassigned')]).optional().nullable(),
+  pm_assigned_id: z.union([z.string().uuid(), z.literal('unassigned')]).optional().nullable(),
   close_date: z.string().optional().nullable(),
   notes: z.string().max(1000).optional().nullable(),
 });
@@ -105,11 +105,11 @@ export function DealDialog({
       ...values,
       amount: typeof values.amount === 'number' ? Number(values.amount) : null,
       probability: typeof values.probability === 'number' ? Number(values.probability) : null,
-      stage: (values.stage as DealStage | null | undefined) ?? null,
-      status: (values.status as DealStatus | null | undefined) ?? null,
-      client_id: values.client_id || null,
-      owner_id: values.owner_id || null,
-      pm_assigned_id: values.pm_assigned_id || null,
+      stage: values.stage === 'unassigned' ? null : (values.stage as DealStage | null | undefined) ?? null,
+      status: values.status === 'unassigned' ? null : (values.status as DealStatus | null | undefined) ?? null,
+      client_id: values.client_id === 'unassigned' ? null : values.client_id || null,
+      owner_id: values.owner_id === 'unassigned' ? null : values.owner_id || null,
+      pm_assigned_id: values.pm_assigned_id === 'unassigned' ? null : values.pm_assigned_id || null,
       close_date: values.close_date || null,
       notes: values.notes ? values.notes : null,
     };
@@ -210,7 +210,7 @@ export function DealDialog({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="">Unassigned</SelectItem>
+                        <SelectItem value="unassigned">Unassigned</SelectItem>
                         {Object.values(DEAL_STAGES).map((stage) => (
                           <SelectItem key={stage} value={stage}>
                             {STAGE_LABELS[stage]}
@@ -239,7 +239,7 @@ export function DealDialog({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="">Unassigned</SelectItem>
+                        <SelectItem value="unassigned">Unassigned</SelectItem>
                         {Object.values(DEAL_STATUSES).map((status) => (
                           <SelectItem key={status} value={status}>
                             {STATUS_LABELS[status]}
@@ -268,7 +268,7 @@ export function DealDialog({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="">Unassigned</SelectItem>
+                        <SelectItem value="unassigned">Unassigned</SelectItem>
                         {clients.map((client) => (
                           <SelectItem key={client.id} value={client.id}>
                             {client.name}
@@ -297,7 +297,7 @@ export function DealDialog({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="">Unassigned</SelectItem>
+                        <SelectItem value="unassigned">Unassigned</SelectItem>
                         {owners.map((owner) => (
                           <SelectItem key={owner.id} value={owner.id}>
                             {owner.first_name || owner.last_name
@@ -328,7 +328,7 @@ export function DealDialog({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="">Unassigned</SelectItem>
+                        <SelectItem value="unassigned">Unassigned</SelectItem>
                         {pms.map((pm) => (
                           <SelectItem key={pm.id} value={pm.id}>
                             {pm.first_name || pm.last_name

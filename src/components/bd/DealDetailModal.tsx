@@ -270,7 +270,7 @@ export function DealDetailModal({
                     <SelectValue placeholder="Assign project manager" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Unassigned</SelectItem>
+                    <SelectItem value="unassigned">Unassigned</SelectItem>
                     {pms.map((pmOption) => (
                       <SelectItem key={pmOption.id} value={pmOption.id}>
                         {getUserDisplayName(pmOption)}

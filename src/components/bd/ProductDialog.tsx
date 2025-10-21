@@ -194,7 +194,7 @@ export function ProductDialog({ open, onOpenChange, product, pods, onSave }: Pro
                       <SelectValue placeholder="Select pricing model" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Not specified</SelectItem>
+                      <SelectItem value="unassigned">Not specified</SelectItem>
                       {PRICING_OPTIONS.map((option) => (
                         <SelectItem key={option} value={option}>
                           {option}
@@ -214,7 +214,7 @@ export function ProductDialog({ open, onOpenChange, product, pods, onSave }: Pro
                       <SelectValue placeholder="Select team" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Unassigned</SelectItem>
+                      <SelectItem value="unassigned">Unassigned</SelectItem>
                       {ownerTeamOptions.map((pod) => (
                         <SelectItem key={pod.id} value={pod.id}>
                           {pod.name}
