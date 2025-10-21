@@ -91,12 +91,17 @@ async function performSync(
     // Fetch all deals from Control Tower in one query
     console.log('[Sync] Fetching deals from Control Tower...');
     const { data: ctDeals, error: fetchError } = await ctClient
-      .from('deals')
+      .from('Deal')  // Capitalized to match Control Tower schema
       .select('*');
 
     if (fetchError) {
-      console.error('[Sync] Error fetching deals:', fetchError);
-      throw new Error(`Failed to fetch deals: ${fetchError.message}`);
+      console.error('[Sync] Error fetching deals from Control Tower:', {
+        message: fetchError.message,
+        code: fetchError.code,
+        hint: fetchError.hint,
+        details: fetchError.details
+      });
+      throw new Error(`Failed to fetch deals from Control Tower: ${fetchError.message}. Hint: ${fetchError.hint || 'Check table name and permissions'}`);
     }
 
     if (!ctDeals || ctDeals.length === 0) {
@@ -114,19 +119,30 @@ async function performSync(
 
     console.log(`[Sync] Found ${ctDeals.length} active deals to sync`);
 
-    // Transform deals for bulk upsert
+    // Log sample deal structure for debugging
+    if (ctDeals.length > 0) {
+      console.log('[Sync] Sample deal structure:', {
+        id: ctDeals[0].id,
+        hasTitle: !!ctDeals[0].title,
+        hasAmount: !!ctDeals[0].amount,
+        hasStage: !!ctDeals[0].stage,
+        keys: Object.keys(ctDeals[0]).slice(0, 10)
+      });
+    }
+
+    // Transform deals for bulk upsert with flexible field mapping
     const transformedDeals = ctDeals.map((ctDeal: any) => ({
       control_tower_id: ctDeal.id,
-      title: ctDeal.deal_name || ctDeal.title || 'Untitled Deal',
-      amount: ctDeal.value || ctDeal.amount || 0,
-      stage: ctDeal.stage || 'new',
-      close_date: ctDeal.close_date || null,
-      control_tower_client_id: ctDeal.client_id || null,
-      control_tower_owner_id: ctDeal.owner_id || null,
+      title: ctDeal.title || ctDeal.deal_name || ctDeal.name || 'Untitled Deal',
+      amount: parseFloat(ctDeal.amount || ctDeal.value || 0),
+      stage: ctDeal.stage || ctDeal.status || 'new',
+      close_date: ctDeal.close_date || ctDeal.closeDate || null,
+      control_tower_client_id: ctDeal.client_id || ctDeal.clientId || null,
+      control_tower_owner_id: ctDeal.owner_id || ctDeal.ownerId || null,
       control_tower_status: ctDeal.status || 'active',
       synced_from_control_tower: true,
       last_synced_at: new Date().toISOString(),
-      probability: ctDeal.probability || null
+      probability: ctDeal.probability ? parseFloat(ctDeal.probability) : null
     }));
 
     // Perform bulk upsert
