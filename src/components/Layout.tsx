@@ -133,7 +133,6 @@ const Layout = ({ userRole }: LayoutProps) => {
             ]
           },
           { name: "SEPARATOR", href: "", icon: null, current: false, isHeader: true },
-          { name: "Documentation", href: "/bd/admin/documentation", icon: FileText, current: false },
           { name: "Settings", href: "/bd/admin/settings", icon: Settings, current: false },
           { name: "SEPARATOR", href: "", icon: null, current: false, isHeader: true },
           { name: "Admin Panel", href: "/adminpanel", icon: Shield, current: false, isAdmin: true },
