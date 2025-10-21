@@ -23,10 +23,10 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { SyncControlTowerButton } from '@/components/bd/SyncControlTowerButton';
-import { DealDialog, DealFormValues } from '@/components/bd/DealDialog';
+import { DealDialog } from '@/components/bd/DealDialog';
 import { DealDetailModal } from '@/components/bd/DealDetailModal';
 import { DealFilters, DealFiltersState } from '@/components/bd/DealFilters';
-import { useDeals, Deal, DealFilters as QueryDealFilters, DealStatus, DealStage } from '@/hooks/useDeals';
+import { useDeals, Deal, DealFilters as QueryDealFilters, DealStatus, DealStage, CreateDealData, UpdateDealData } from '@/hooks/useDeals';
 import { useClients } from '@/hooks/useClients';
 import { useAdminUsers } from '@/hooks/useAdminUsers';
 import { STATUS_BADGE_VARIANTS, STATUS_LABELS, STAGE_COLORS, STAGE_LABELS } from '@/lib/dealStages';
@@ -147,13 +147,13 @@ export default function Deals() {
     }
   };
 
-  const handleSaveDeal = async (values: DealFormValues) => {
+  const handleSaveDeal = async (values: CreateDealData | UpdateDealData) => {
     setIsSubmitting(true);
     try {
       if (editingDeal) {
-        await updateDeal(editingDeal.id, values);
+        await updateDeal(editingDeal.id, values as UpdateDealData);
       } else {
-        await createDeal(values);
+        await createDeal(values as CreateDealData);
       }
       setIsDialogOpen(false);
       setEditingDeal(null);

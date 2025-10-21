@@ -101,17 +101,18 @@ export function DealDialog({
   }, [open, defaultValues, form]);
 
   const handleSubmit = async (values: DealFormValues) => {
-    const payload: DealFormValues = {
-      ...values,
+    // Convert "unassigned" values to null and ensure proper types
+    const payload = {
+      title: values.title,
       amount: typeof values.amount === 'number' ? Number(values.amount) : null,
       probability: typeof values.probability === 'number' ? Number(values.probability) : null,
-      stage: values.stage === 'unassigned' ? null : (values.stage as DealStage | null | undefined) ?? null,
-      status: values.status === 'unassigned' ? null : (values.status as DealStatus | null | undefined) ?? null,
-      client_id: values.client_id === 'unassigned' ? null : values.client_id || null,
-      owner_id: values.owner_id === 'unassigned' ? null : values.owner_id || null,
-      pm_assigned_id: values.pm_assigned_id === 'unassigned' ? null : values.pm_assigned_id || null,
+      stage: (values.stage === 'unassigned' || !values.stage ? null : values.stage) as DealStage | null,
+      status: (values.status === 'unassigned' || !values.status ? null : values.status) as DealStatus | null,
+      client_id: values.client_id === 'unassigned' || !values.client_id ? null : values.client_id,
+      owner_id: values.owner_id === 'unassigned' || !values.owner_id ? null : values.owner_id,
+      pm_assigned_id: values.pm_assigned_id === 'unassigned' || !values.pm_assigned_id ? null : values.pm_assigned_id,
       close_date: values.close_date || null,
-      notes: values.notes ? values.notes : null,
+      notes: values.notes || null,
     };
 
     await onSubmit(payload);
