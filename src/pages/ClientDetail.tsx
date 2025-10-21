@@ -21,7 +21,7 @@ export default function ClientDetail() {
   const { clients, loading: clientLoading, syncClientFromHubSpot } = useClients({});
   const { projects, loading: projectsLoading } = useProjects({ client_id: clientId });
   const { contacts, loading: contactsLoading } = useContacts(clientId);
-  const { deals, loading: dealsLoading } = useDeals(clientId);
+  const { deals, loading: dealsLoading } = useDeals({ clientId });
   const [isSyncing, setIsSyncing] = useState(false);
 
   const client = clients.find(c => c.id === clientId);

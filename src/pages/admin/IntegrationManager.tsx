@@ -62,7 +62,7 @@ interface IntegrationLogEntry {
   source: string;
   metric_name: string;
   metric_value: number | null;
-  dimensions: Record<string, any> | null;
+  dimensions: any;
   recorded_at: string | null;
 }
 

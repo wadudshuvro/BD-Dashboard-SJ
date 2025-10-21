@@ -38,6 +38,7 @@ export function useDashboardData() {
         monthly_budget: 0,
         activeTasks: 0,
         active_integrations: brand.active_integrations || [],
+        kpis: [] as any[],
       }));
 
       // Transform team member data

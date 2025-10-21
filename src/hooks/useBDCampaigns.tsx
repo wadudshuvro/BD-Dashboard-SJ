@@ -12,8 +12,8 @@ export interface BDCampaign {
   ghl_campaign_id?: string | null;
   linkedin_campaign_id?: string | null;
   ai_agent_id?: string | null;
-  content_template?: Record<string, unknown> | null;
-  research_data?: Record<string, unknown> | null;
+  content_template?: any | null;
+  research_data?: any | null;
   linkedin_stats?: {
     requests_sent?: number;
     connections_accepted?: number;
@@ -30,8 +30,8 @@ export interface BDCampaign {
     bounces?: number;
     last_synced_at?: string;
   } | null;
-  linkedin_research_summary?: Record<string, unknown> | null;
-  contacts_summary?: Record<string, number> | null;
+  linkedin_research_summary?: any | null;
+  contacts_summary?: any | null;
   start_date?: string;
   end_date?: string;
   target_contacts?: string[];
@@ -73,7 +73,7 @@ export const useBDCampaigns = (nicheId?: string) => {
     mutationFn: async (campaign: Partial<BDCampaign>) => {
       const { data, error } = await supabase
         .from('bd_campaigns')
-        .insert([campaign])
+        .insert([campaign as any])
         .select()
         .single();
 
@@ -100,7 +100,7 @@ export const useBDCampaigns = (nicheId?: string) => {
     mutationFn: async ({ id, ...updates }: Partial<BDCampaign> & { id: string }) => {
       const { data, error } = await supabase
         .from('bd_campaigns')
-        .update(updates)
+        .update(updates as any)
         .eq('id', id)
         .select()
         .single();

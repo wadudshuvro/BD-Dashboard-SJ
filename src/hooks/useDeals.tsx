@@ -143,7 +143,7 @@ export function useDeals(options: UseDealsOptions = {}): UseDealsReturn {
       setLoading(true);
       setError(null);
 
-      let query = supabase
+      let query: any = supabase
         .from('deals')
         .select(
           `
@@ -157,7 +157,7 @@ export function useDeals(options: UseDealsOptions = {}): UseDealsReturn {
         query = query.eq('client_id', clientId);
       }
 
-      const parsedFilters: DealFilters = filters ?? {};
+      const parsedFilters = filters ?? {};
       const searchTerm = search ?? parsedFilters.search;
 
       if (parsedFilters.stages?.length) {
