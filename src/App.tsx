@@ -9,33 +9,25 @@ import Layout from "./components/Layout";
 import AdminLayout from "./components/AdminLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Dashboard from "./pages/Dashboard";
-import UserDashboard from "./pages/UserDashboard";
-import PMDashboard from "./pages/PMDashboard";
-import ManagerDashboard from "./pages/ManagerDashboard";
+import PersonalDashboard from "./pages/PersonalDashboard";
 import Reports from "./pages/Reports";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 import Unauthorized from "./pages/Unauthorized";
-// Clients, Projects, and HubSpot - Removed from standalone pages
 import People from "./pages/People";
 import ActionsTasks from "./pages/ActionsTasks";
 import EODSubmission from "./pages/EODSubmission";
 import MyEODSubmissions from "./pages/MyEODSubmissions";
 import UserManagement from "./pages/admin/UserManagement";
-// Brand management - Removed
 import IntegrationManager from "./pages/admin/IntegrationManager";
 import LinkedInAgentConfig from "./pages/admin/LinkedInAgentConfig";
 import AdminSettings from "./pages/admin/AdminSettings";
 import EODManagement from "./pages/admin/EODManagement";
 import UserDetail from "./pages/admin/UserDetail";
 import AdminPanel from "./pages/admin/AdminPanel";
-// User brands - Removed
-import AIAgentsPage from "./pages/ai-agents";
 import MyAgentsPage from "./pages/my-agents";
-import PeopleReviewDashboard from "./pages/PeopleReviewDashboard";
-import MyDashboard from "./pages/MyDashboard";
 import UserProfile from "./pages/UserProfile";
 import NicheManagement from "./pages/bd/NicheManagement";
 import CampaignManagement from "./pages/bd/CampaignManagement";
@@ -49,12 +41,8 @@ import Negotiation from "./pages/bd/pipeline/Negotiation";
 import Clients from "./pages/bd/pipeline/Clients";
 import BDDashboard from "./pages/bd/Dashboard";
 import ProductManagement from "./pages/bd/ProductManagement";
-import Scoreboard from "./pages/bd/Scoreboard";
 import FollowUps from "./pages/bd/FollowUps";
 import UserSettings from "./pages/bd/UserSettings";
-
-import AIDashboard from "./pages/ai-dashboard";
-import LeadAutomationPage from "./pages/automation/LeadAutomationPage";
 import AutomationSettings from "./pages/admin/AutomationSettings";
 
 const queryClient = new QueryClient();
@@ -64,25 +52,14 @@ const Documentation = lazy(() => import("./pages/admin/Documentation"));
 const FeedbackSubmitPage = lazy(() => import("./pages/feedback/SubmitFeedback"));
 const AdminFeedbackManager = lazy(() => import("./pages/admin/FeedbackManager"));
 
-// Smart redirect component based on user role
+// Smart redirect component - send everyone to BD Dashboard
 function DashboardRedirect() {
   const { user } = useAuth();
   
   if (!user) return <Navigate to="/login" replace />;
   
-  switch (user.role) {
-    case 'super_admin':
-      return <Navigate to="/dashboard" replace />; // Super admin gets own dashboard
-    case 'manager':
-    case 'brand_manager':
-      return <Navigate to="/manager/dashboard" replace />;
-    case 'pm':
-      return <Navigate to="/pm/dashboard" replace />;
-    case 'user':
-      return <Navigate to="/user/dashboard" replace />;
-    default:
-      return <Navigate to="/user/dashboard" replace />;
-  }
+  // All users go to BD Dashboard as main entry point
+  return <Navigate to="/bd/dashboard" replace />;
 }
 
 const App = () => (
@@ -103,67 +80,28 @@ const App = () => (
             {/* Global User Profile Route */}
             <Route path="/my-profile" element={
               <ProtectedRoute requiredMinimumRole="user">
-                <Layout userRole="user" />
+                <Layout />
               </ProtectedRoute>
             }>
               <Route index element={<UserProfile />} />
             </Route>
             
-            {/* User Role Routes */}
-            <Route path="/user/*" element={
+            {/* Personal Performance Dashboard */}
+            <Route path="/my-performance" element={
               <ProtectedRoute requiredMinimumRole="user">
-                <Layout userRole="user" />
+                <Layout />
               </ProtectedRoute>
             }>
-              <Route path="dashboard" element={<UserDashboard />} />
-              <Route path="reports" element={<Reports />} />
-              <Route path="people/my-dashboard" element={<React.Suspense fallback={<div>Loading...</div>}><MyDashboard /></React.Suspense>} />
-              <Route path="my-agents" element={<MyAgentsPage />} />
+              <Route index element={<PersonalDashboard />} />
             </Route>
             
-            {/* PM Role Routes */}
-            <Route path="/pm/*" element={
-              <ProtectedRoute requiredMinimumRole="pm">
-                <Layout userRole="pm" />
-              </ProtectedRoute>
-            }>
-              <Route path="dashboard" element={<PMDashboard />} />
-              <Route path="reports" element={<Reports />} />
-              <Route path="actions-tasks" element={<ActionsTasks />} />
-              <Route path="eod-submission" element={<EODSubmission />} />
-              <Route path="my-eod-submissions" element={<MyEODSubmissions />} />
-              <Route path="my-agents" element={<MyAgentsPage />} />
-            </Route>
-            
-            {/* Super Admin Dashboard Routes */}
+            {/* Super Admin EOD/Accountability Dashboard */}
             <Route path="/dashboard/*" element={
               <ProtectedRoute requiredRole="super_admin">
                 <Layout userRole="super_admin" />
               </ProtectedRoute>
             }>
               <Route index element={<Dashboard />} />
-              <Route path="actions-tasks" element={<ActionsTasks />} />
-              <Route path="eod-submission" element={<EODSubmission />} />
-              <Route path="my-eod-submissions" element={<MyEODSubmissions />} />
-              <Route path="my-agents" element={<MyAgentsPage />} />
-            </Route>
-
-            {/* Manager Role Routes */}
-            <Route path="/manager/*" element={
-              <ProtectedRoute requiredRole="manager">
-                <Layout userRole="manager" />
-              </ProtectedRoute>
-            }>
-              <Route path="dashboard" element={<ManagerDashboard />} />
-              <Route path="actions-tasks" element={<ActionsTasks />} />
-              <Route path="eod-submission" element={<EODSubmission />} />
-              <Route path="my-eod-submissions" element={<MyEODSubmissions />} />
-              <Route path="my-agents" element={<MyAgentsPage />} />
-              {/* Admin-specific routes accessible from manager interface */}
-              <Route path="admin/users" element={<UserManagement />} />
-              <Route path="admin/users/:userId" element={<UserDetail />} />
-              <Route path="admin/integrations" element={<IntegrationManager />} />
-              <Route path="admin/settings" element={<AdminSettings />} />
             </Route>
             
             {/* Admin Panel Routes - Super Admin Only */}
@@ -186,9 +124,6 @@ const App = () => (
               <Route path="settings/automation" element={<AutomationSettings />} />
               <Route path="eod-management" element={<EODManagement />} />
               <Route path="people" element={<People />} />
-              <Route path="people/review" element={<React.Suspense fallback={<div>Loading...</div>}><PeopleReviewDashboard /></React.Suspense>} />
-              <Route path="ai-agents" element={<AIAgentsPage />} />
-              <Route path="ai-dashboard" element={<AIDashboard />} />
               <Route path="pods" element={<PODManagement />} />
               <Route path="data-sync" element={<DataSyncSettings />} />
             </Route>
@@ -231,7 +166,7 @@ const App = () => (
               <Route path="strategy/campaigns/:campaignId" element={<CampaignDetail />} />
               
               {/* Performance */}
-              <Route path="performance/scoreboard" element={<Scoreboard />} />
+              <Route path="performance/personal" element={<PersonalDashboard />} />
               <Route path="performance/followups" element={<FollowUps />} />
               <Route path="performance/reports" element={<Reports />} />
               
@@ -243,14 +178,6 @@ const App = () => (
               {/* Admin */}
               <Route path="admin/documentation" element={<React.Suspense fallback={<div>Loading...</div>}><Documentation /></React.Suspense>} />
               <Route path="admin/settings" element={<UserSettings />} />
-            </Route>
-
-            <Route path="/automation/*" element={
-              <ProtectedRoute requiredMinimumRole="user">
-                <Layout />
-              </ProtectedRoute>
-            }>
-              <Route path="leads" element={<LeadAutomationPage />} />
             </Route>
             
             {/* Legacy/Fallback Routes */}

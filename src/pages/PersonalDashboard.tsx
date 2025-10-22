@@ -4,16 +4,17 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { CheckCircle, Clock, Calendar, TrendingUp, Target, Zap, User, Award, AlertCircle, Plus, Loader2 } from "lucide-react";
-import { useDashboardData } from "@/hooks/useDashboardData";
 import { useAuth } from "@/hooks/useAuth";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
-export default function UserDashboard() {
+export default function PersonalDashboard() {
   const { user: authUser } = useAuth();
-  const { teamMembers, brandPerformance, loading, error } = useDashboardData();
   
-  // Find current user in team data or use defaults
-  const currentUserData = teamMembers.find(tm => tm.id === authUser?.id) || {
+  const loading = false;
+  const error = null;
+  
+  // Use auth user data directly
+  const currentUserData = {
     name: authUser?.email || "User",
     role: authUser?.role?.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) || "Team Member",
     performance: 88,

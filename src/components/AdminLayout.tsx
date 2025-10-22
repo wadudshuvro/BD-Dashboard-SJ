@@ -55,12 +55,10 @@ const AdminLayout = () => {
           { name: "User Management", href: "/adminpanel/users", icon: Users },
           { name: "POD Management", href: "/adminpanel/pods", icon: UserPlus },
           { name: "People Directory", href: "/adminpanel/people", icon: UserCheck },
-          { name: "People Review", href: "/adminpanel/people/review", icon: Target },
-          { name: "KPI Configuration", href: "/adminpanel/kpis", icon: TrendingUp },
           { name: "EOD Management", href: "/adminpanel/eod-management", icon: Calendar },
           { name: "Documentation", href: "/adminpanel/documentation", icon: FileText },
           { name: "System Settings", href: "/adminpanel/settings", icon: Settings },
-          { name: "Lead Automation", href: "/adminpanel/settings/automation", icon: Sparkles },
+          { name: "Automation Config", href: "/adminpanel/settings/automation", icon: Sparkles },
         ],
       },
       {
@@ -68,8 +66,7 @@ const AdminLayout = () => {
         items: [
           { name: "Integrations Hub", href: "/adminpanel/integrations", icon: Plug },
           { name: "Data Sync Settings", href: "/adminpanel/data-sync", icon: RefreshCw },
-          { name: "AI Dashboard", href: "/adminpanel/ai-dashboard", icon: Bot },
-          { name: "AI Agents", href: "/adminpanel/ai-agents", icon: Zap },
+          { name: "LinkedIn AI Agents", href: "/adminpanel/linkedin-agents", icon: Bot },
         ],
       },
     ];

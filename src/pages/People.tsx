@@ -2,10 +2,28 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Users } from "lucide-react";
-import { useDashboardData } from "@/hooks/useDashboardData";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function People() {
-  const { teamMembers, loading } = useDashboardData();
+  const { data: teamMembers = [], isLoading: loading } = useQuery({
+    queryKey: ['team-members'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, email');
+      
+      if (error) throw error;
+      
+      return (data || []).map((profile) => ({
+        id: profile.id,
+        name: profile.full_name || profile.email || "Unknown",
+        email: profile.email,
+        role: "Team Member",
+        availability: "available" as const,
+      }));
+    },
+  });
 
   if (loading) {
     return (
