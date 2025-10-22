@@ -17,8 +17,12 @@ interface Deal {
   probability: number;
   created_at: string;
   updated_at: string;
+  control_tower_id: string;
   control_tower_status: string;
+  control_tower_client_id: string;
+  control_tower_owner_id: string;
   synced_from_control_tower: boolean;
+  last_synced_at: string;
   client_id: string;
   owner_id: string;
   pm_assigned_id: string;
@@ -58,13 +62,23 @@ export default function DealDetail() {
         setLoading(true);
         setError(null);
 
-        // Extract ID from slug (assuming format: deal-name-{id})
-        const dealId = slug?.split('-').pop();
-
-        if (!dealId) {
+        // Extract UUID from slug (format: deal-name-xxx-xxx-xxx-xxx-xxx)
+        // UUID is the last 5 dash-separated segments
+        if (!slug) {
           setError('Invalid deal URL');
           return;
         }
+        
+        const parts = slug.split('-');
+        if (parts.length < 5) {
+          setError('Invalid deal URL format');
+          return;
+        }
+        
+        // Get last 5 parts to form UUID
+        const dealId = parts.slice(-5).join('-');
+        
+        console.log('Extracted deal ID:', dealId);
 
         // Fetch deal
         const { data: dealData, error: dealError } = await supabase
@@ -238,6 +252,44 @@ export default function DealDetail() {
               <div>
                 <p className="text-sm text-muted-foreground">Created</p>
                 <p className="font-medium">{formatDate(deal.created_at)}</p>
+              </div>
+              {deal.probability && (
+                <div>
+                  <p className="text-sm text-muted-foreground">Probability</p>
+                  <p className="font-medium">{deal.probability}%</p>
+                </div>
+              )}
+              <div>
+                <p className="text-sm text-muted-foreground">Last Updated</p>
+                <p className="font-medium">{formatDate(deal.updated_at)}</p>
+              </div>
+            </div>
+            
+            <Separator />
+            
+            <div className="space-y-3">
+              <h4 className="font-semibold text-sm">Control Tower Data</h4>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Control Tower ID</p>
+                  <p className="font-mono text-xs break-all">{deal.control_tower_id || '-'}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Last Synced</p>
+                  <p className="text-sm">{deal.last_synced_at ? formatDate(deal.last_synced_at) : '-'}</p>
+                </div>
+                {deal.control_tower_client_id && (
+                  <div className="col-span-2">
+                    <p className="text-sm text-muted-foreground">CT Client ID</p>
+                    <p className="font-mono text-xs break-all">{deal.control_tower_client_id}</p>
+                  </div>
+                )}
+                {deal.control_tower_owner_id && (
+                  <div className="col-span-2">
+                    <p className="text-sm text-muted-foreground">CT Owner ID</p>
+                    <p className="font-mono text-xs break-all">{deal.control_tower_owner_id}</p>
+                  </div>
+                )}
               </div>
             </div>
           </CardContent>
