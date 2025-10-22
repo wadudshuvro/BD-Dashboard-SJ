@@ -129,23 +129,22 @@ const Layout = ({ userRole }: LayoutProps) => {
       
   };
 
-  const { enabled: feedbackEnabled } = useFeatureFlag("feedback_enabled");
-  const { enabled: feedbackWidgetEnabled } = useFeatureFlag("feedback_widget");
+  const { enabled: feedbackEnabled } = useFeatureFlag("feedback_enabled", true);
+  const { enabled: feedbackWidgetEnabled } = useFeatureFlag("feedback_widget", true);
 
   const navigation = getNavigation(currentRole);
 
-  if (feedbackEnabled) {
-    navigation.push({
-      name: "Support",
-      href: "/feedback",
-      icon: Wrench,
-      current: false,
-      subItems: [
-        { name: "Submit Bug", href: "/feedback/submit?type=bug", icon: Wrench, current: false },
-        { name: "Submit Feature", href: "/feedback/submit?type=feature", icon: Sparkles, current: false },
-      ],
-    });
-  }
+  // Always show Support section
+  navigation.push({
+    name: "Support",
+    href: "/feedback",
+    icon: Wrench,
+    current: false,
+    subItems: [
+      { name: "Submit Bug", href: "/feedback/submit?type=bug", icon: Wrench, current: false },
+      { name: "Submit Feature", href: "/feedback/submit?type=feature", icon: Sparkles, current: false },
+    ],
+  });
 
   const handleLogout = () => {
     logout();
