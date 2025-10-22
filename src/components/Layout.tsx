@@ -293,9 +293,21 @@ const Layout = ({ userRole }: LayoutProps) => {
             <Menu className="h-6 w-6 text-muted-foreground" />
           </button>
 
-          <div className="flex flex-1 items-center">
-            <h2 className="text-lg font-semibold text-foreground">
-              {navigation.find(item => location.pathname.startsWith(item.href))?.name || 'Dashboard'}
+          <div className="flex flex-1 items-center justify-between">
+            <h1 className="text-xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+              SJ BD AI
+            </h1>
+            <h2 className="text-sm text-muted-foreground">
+              {(() => {
+                const currentItem = navigation.find(item => 
+                  item.href && item.href !== "" && location.pathname.startsWith(item.href) && item.name !== "SEPARATOR"
+                );
+                const currentSubItem = navigation
+                  .flatMap(item => item.subItems || [])
+                  .find(subItem => location.pathname === subItem.href.split("?")[0]);
+                
+                return currentSubItem?.name || currentItem?.name || 'Dashboard';
+              })()}
             </h2>
           </div>
         </div>
