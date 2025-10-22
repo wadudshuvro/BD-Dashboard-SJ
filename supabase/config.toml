@@ -2,3 +2,9 @@ project_id = "qzzvcqoletuummdsbbio"
 
 [functions.sync-control-tower-deals]
 verify_jwt = true
+
+[functions.apply-checklist-template]
+verify_jwt = true
+
+[functions.push-to-control-tower]
+verify_jwt = true

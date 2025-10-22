@@ -88,7 +88,12 @@ const ChecklistTemplateManager = () => {
     } else if (data) {
       const parsed = data.map((template) => ({
         ...template,
-        items: Array.isArray(template.items) ? template.items : [],
+        items: Array.isArray(template.items) 
+          ? (template.items as any[]).map(item => ({
+              title: (item as any).title || '',
+              order_index: (item as any).order_index || 0,
+            }))
+          : [],
       })) as ChecklistTemplate[];
       setTemplates(parsed);
     }

@@ -26,6 +26,8 @@ interface SyncConfig {
   auto_push_enabled: boolean;
   pull_schedule: 'hourly' | 'daily';
   push_schedule: 'hourly' | 'daily';
+  retry_failed?: boolean;
+  email_on_failure?: boolean;
 }
 
 const defaultConfig: SyncConfig = {
@@ -102,8 +104,17 @@ const ControlTowerSyncDashboard = () => {
 
       if (error && error.code !== 'PGRST116') throw error;
 
-      if (data?.configuration_data) {
-        setConfig({ ...defaultConfig, ...(data.configuration_data as SyncConfig) });
+      if (data?.configuration_data && typeof data.configuration_data === 'object') {
+        const configData = data.configuration_data as Record<string, any>;
+        setConfig({ 
+          ...defaultConfig, 
+          auto_pull_enabled: configData.auto_pull_enabled ?? defaultConfig.auto_pull_enabled,
+          auto_push_enabled: configData.auto_push_enabled ?? defaultConfig.auto_push_enabled,
+          pull_schedule: configData.pull_schedule ?? defaultConfig.pull_schedule,
+          push_schedule: configData.push_schedule ?? defaultConfig.push_schedule,
+          retry_failed: configData.retry_failed ?? defaultConfig.retry_failed,
+          email_on_failure: configData.email_on_failure ?? defaultConfig.email_on_failure,
+        });
       } else {
         setConfig(defaultConfig);
       }
@@ -123,11 +134,11 @@ const ControlTowerSyncDashboard = () => {
 
       const { error } = await supabase
         .from('ai_configurations')
-        .upsert({
+        .upsert([{
           user_id: user.id,
           configuration_type: 'control_tower_sync',
-          configuration_data: config,
-        });
+          configuration_data: config as any,
+        }]);
 
       if (error) throw error;
       toast({ title: 'Settings saved', description: 'Control Tower sync configuration updated.' });

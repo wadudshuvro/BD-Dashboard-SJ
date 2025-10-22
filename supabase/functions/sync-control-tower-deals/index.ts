@@ -47,13 +47,20 @@ serve(async (req) => {
       console.log('[Sync] Starting Control Tower sync with service credential');
     }
 
-    // Fetch Control Tower configuration from ai_configurations table
-    const { data: configData, error: configError } = await supabase
-      .from('ai_configurations')
-      .select('configuration_data')
-      .eq('user_id', user.id)
-      .eq('configuration_type', 'control_tower')
-      .single();
+    // Fetch Control Tower configuration from ai_configurations table (if user authenticated)
+    let configData = null;
+    if (userId) {
+      const { data, error: configError } = await supabase
+        .from('ai_configurations')
+        .select('configuration_data')
+        .eq('user_id', userId)
+        .eq('configuration_type', 'control_tower')
+        .maybeSingle();
+      
+      if (!configError) {
+        configData = data;
+      }
+    }
 
     // Get Control Tower credentials from edge secrets
     const envUrl = Deno.env.get('Controltowerurl');
