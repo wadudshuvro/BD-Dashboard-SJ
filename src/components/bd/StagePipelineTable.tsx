@@ -69,11 +69,6 @@ export function StagePipelineTable({ stage, title, description }: StagePipelineT
       render: (value: string) => value || '-'
     },
     { 
-      key: 'client_contact_person' as const, 
-      label: 'Contact',
-      render: (value: string) => value || '-'
-    },
-    { 
       key: 'value' as const, 
       label: 'Value', 
       render: formatCurrency 

@@ -61,8 +61,8 @@ export const useAddComment = (dealId: string) => {
           deal_id: dealId,
           user_id: user.id,
           comment,
-          mentioned_users,
-          mentioned_user_emails,
+          mentioned_users: mentioned_users || [],
+          mentioned_user_emails: mentioned_user_emails || [],
         })
         .select()
         .single();

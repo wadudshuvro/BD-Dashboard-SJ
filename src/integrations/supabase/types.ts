@@ -244,6 +244,7 @@ export type Database = {
           city: string | null
           company: string | null
           contact_person: string | null
+          control_tower_id: string | null
           country: string | null
           created_at: string
           email: string | null
@@ -269,6 +270,7 @@ export type Database = {
           city?: string | null
           company?: string | null
           contact_person?: string | null
+          control_tower_id?: string | null
           country?: string | null
           created_at?: string
           email?: string | null
@@ -294,6 +296,7 @@ export type Database = {
           city?: string | null
           company?: string | null
           contact_person?: string | null
+          control_tower_id?: string | null
           country?: string | null
           created_at?: string
           email?: string | null
@@ -448,94 +451,6 @@ export type Database = {
           },
         ]
       }
-      checklist_templates: {
-        Row: {
-          created_at: string | null
-          created_by: string | null
-          id: string
-          is_active: boolean | null
-          items: Json
-          name: string
-          stage: string | null
-          updated_at: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          created_by?: string | null
-          id?: string
-          is_active?: boolean | null
-          items?: Json
-          name: string
-          stage?: string | null
-          updated_at?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          created_by?: string | null
-          id?: string
-          is_active?: boolean | null
-          items?: Json
-          name?: string
-          stage?: string | null
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "checklist_templates_created_by_fkey",
-            columns: ["created_by"],
-            isOneToOne: false,
-            referencedRelation: "users",
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      control_tower_sync_log: {
-        Row: {
-          control_tower_id: string | null
-          entity_id: string | null
-          entity_type: string
-          error_message: string | null
-          id: string
-          payload: Json | null
-          status: string
-          sync_type: string
-          synced_at: string | null
-          synced_by: string | null
-        }
-        Insert: {
-          control_tower_id?: string | null
-          entity_id?: string | null
-          entity_type: string
-          error_message?: string | null
-          id?: string
-          payload?: Json | null
-          status: string
-          sync_type: string
-          synced_at?: string | null
-          synced_by?: string | null
-        }
-        Update: {
-          control_tower_id?: string | null
-          entity_id?: string | null
-          entity_type?: string
-          error_message?: string | null
-          id?: string
-          payload?: Json | null
-          status?: string
-          sync_type?: string
-          synced_at?: string | null
-          synced_by?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "control_tower_sync_log_synced_by_fkey",
-            columns: ["synced_by"],
-            isOneToOne: false,
-            referencedRelation: "users",
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       deal_checklist_items: {
         Row: {
           completed_at: string | null
@@ -545,7 +460,6 @@ export type Database = {
           id: string
           is_completed: boolean
           order_index: number
-          control_tower_synced_at: string | null
           title: string
           updated_at: string
         }
@@ -557,7 +471,6 @@ export type Database = {
           id?: string
           is_completed?: boolean
           order_index?: number
-          control_tower_synced_at?: string | null
           title: string
           updated_at?: string
         }
@@ -569,7 +482,6 @@ export type Database = {
           id?: string
           is_completed?: boolean
           order_index?: number
-          control_tower_synced_at?: string | null
           title?: string
           updated_at?: string
         }
@@ -593,36 +505,24 @@ export type Database = {
       deal_comments: {
         Row: {
           comment: string
-          control_tower_comment_id: string | null
           created_at: string
           deal_id: string
-          mentioned_user_emails: string[] | null
-          mentioned_users: string[] | null
-          synced_to_control_tower: boolean | null
           id: string
           updated_at: string
           user_id: string
         }
         Insert: {
           comment: string
-          control_tower_comment_id?: string | null
           created_at?: string
           deal_id: string
-          mentioned_user_emails?: string[] | null
-          mentioned_users?: string[] | null
-          synced_to_control_tower?: boolean | null
           id?: string
           updated_at?: string
           user_id: string
         }
         Update: {
           comment?: string
-          control_tower_comment_id?: string | null
           created_at?: string
           deal_id?: string
-          mentioned_user_emails?: string[] | null
-          mentioned_users?: string[] | null
-          synced_to_control_tower?: boolean | null
           id?: string
           updated_at?: string
           user_id?: string
@@ -684,31 +584,18 @@ export type Database = {
           amount: number | null
           client_id: string | null
           close_date: string | null
-          control_tower_metadata: Json | null
           control_tower_client_id: string | null
           control_tower_id: string | null
           control_tower_owner_id: string | null
           control_tower_status: string | null
           created_at: string
-          dealtype: string | null
-          expected_closing_date: string | null
-          external_links: Json | null
           id: string
-          hubspot_crm_deal_url: string | null
-          hubspot_deal_id: string | null
-          last_activity_at: string | null
-          last_activity_by: string | null
           last_synced_at: string | null
-          lead_source: string | null
-          notes: string | null
           owner_id: string | null
           pm_assigned_id: string | null
-          potential_amount: number | null
           probability: number | null
           stage: string | null
           synced_from_control_tower: boolean | null
-          priority: string | null
-          tags: string[] | null
           title: string
           updated_at: string
         }
@@ -716,31 +603,18 @@ export type Database = {
           amount?: number | null
           client_id?: string | null
           close_date?: string | null
-          control_tower_metadata?: Json | null
           control_tower_client_id?: string | null
           control_tower_id?: string | null
           control_tower_owner_id?: string | null
           control_tower_status?: string | null
           created_at?: string
-          dealtype?: string | null
-          expected_closing_date?: string | null
-          external_links?: Json | null
           id?: string
-          hubspot_crm_deal_url?: string | null
-          hubspot_deal_id?: string | null
-          last_activity_at?: string | null
-          last_activity_by?: string | null
           last_synced_at?: string | null
-          lead_source?: string | null
-          notes?: string | null
           owner_id?: string | null
           pm_assigned_id?: string | null
-          potential_amount?: number | null
           probability?: number | null
           stage?: string | null
           synced_from_control_tower?: boolean | null
-          priority?: string | null
-          tags?: string[] | null
           title: string
           updated_at?: string
         }
@@ -748,31 +622,18 @@ export type Database = {
           amount?: number | null
           client_id?: string | null
           close_date?: string | null
-          control_tower_metadata?: Json | null
           control_tower_client_id?: string | null
           control_tower_id?: string | null
           control_tower_owner_id?: string | null
           control_tower_status?: string | null
           created_at?: string
-          dealtype?: string | null
-          expected_closing_date?: string | null
-          external_links?: Json | null
           id?: string
-          hubspot_crm_deal_url?: string | null
-          hubspot_deal_id?: string | null
-          last_activity_at?: string | null
-          last_activity_by?: string | null
           last_synced_at?: string | null
-          lead_source?: string | null
-          notes?: string | null
           owner_id?: string | null
           pm_assigned_id?: string | null
-          potential_amount?: number | null
           probability?: number | null
           stage?: string | null
           synced_from_control_tower?: boolean | null
-          priority?: string | null
-          tags?: string[] | null
           title?: string
           updated_at?: string
         }

@@ -134,6 +134,7 @@ function mapStage(ctStage: any, stageName?: string): string {
 }
 
 async function getOrCreateClient(
+  ctClient: any,
   supabase: any,
   ctDeal: any
 ): Promise<string | null> {
@@ -147,12 +148,63 @@ async function getOrCreateClient(
 
   console.log('[Sync] Looking up client:', { clientId, clientCompany });
 
-  // Try to find existing client by Control Tower ID (stored as hubspot_id)
+  // First, try fetching client from Control Tower if we have a client ID
+  if (clientId) {
+    try {
+      const { data: ctClientData, error: ctClientError } = await ctClient
+        .from('Client')
+        .select('*')
+        .eq('id', clientId)
+        .maybeSingle();
+
+      if (!ctClientError && ctClientData) {
+        console.log('[Sync] Found client in Control Tower:', ctClientData);
+        
+        // Upsert client into BD Portal using control_tower_id
+        const { data: upsertedClient, error: upsertError } = await supabase
+          .from('clients')
+          .upsert({
+            control_tower_id: ctClientData.id,
+            hubspot_id: ctClientData.hubspot_id || null,
+            name: ctClientData.name || ctClientData.company || clientCompany || 'Unknown Client',
+            company: ctClientData.company || clientCompany || 'Unknown Client',
+            email: ctClientData.email || ctDeal.clientEmail || ctDeal.client_email || null,
+            phone: ctClientData.phone || ctDeal.clientPhone || ctDeal.client_phone || null,
+            contact_person: ctClientData.contact_person || ctDeal.clientContactName || 
+                           `${ctDeal.clientFirstName || ''} ${ctDeal.clientLastName || ''}`.trim() || null,
+            website: ctClientData.website || ctDeal.clientWebsite || ctDeal.client_website || null,
+            industry: ctClientData.industry || null,
+            status: ctClientData.status || 'active',
+            address: ctClientData.address || null,
+            city: ctClientData.city || null,
+            state: ctClientData.state || null,
+            postal_code: ctClientData.postal_code || null,
+            country: ctClientData.country || null,
+          }, {
+            onConflict: 'control_tower_id',
+            ignoreDuplicates: false
+          })
+          .select('id')
+          .single();
+
+        if (upsertError) {
+          console.error('[Sync] Error upserting client from Control Tower:', upsertError);
+        } else {
+          console.log('[Sync] Upserted client:', upsertedClient.id);
+          return upsertedClient.id;
+        }
+      }
+    } catch (ctError) {
+      console.warn('[Sync] Could not fetch client from Control Tower:', ctError);
+    }
+  }
+
+  // Fallback: Try to find existing client by hubspot_id or control_tower_id
   if (clientId) {
     const { data: existingClient } = await supabase
       .from('clients')
       .select('id')
-      .eq('hubspot_id', String(clientId))
+      .or(`hubspot_id.eq.${clientId},control_tower_id.eq.${clientId}`)
       .maybeSingle();
     
     if (existingClient) {
@@ -161,9 +213,9 @@ async function getOrCreateClient(
     }
   }
 
-  // Create new client if not found
+  // Final fallback: Create minimal client from deal data
   const clientData = {
-    hubspot_id: clientId ? String(clientId) : null,
+    control_tower_id: clientId || null,
     name: clientCompany || 'Unknown Client',
     company: clientCompany || 'Unknown Client',
     email: ctDeal.clientEmail || ctDeal.client_email || null,
@@ -174,14 +226,11 @@ async function getOrCreateClient(
     status: 'active',
   };
 
-  console.log('[Sync] Creating new client:', clientData);
+  console.log('[Sync] Creating minimal client:', clientData);
 
   const { data: newClient, error } = await supabase
     .from('clients')
-    .upsert(clientData, {
-      onConflict: 'hubspot_id',
-      ignoreDuplicates: false
-    })
+    .insert(clientData)
     .select('id')
     .single();
 
@@ -278,7 +327,7 @@ async function performSync(
         const ctStageName = ctDeal.dealstage_name || ctDeal.stage_name;
         
         // Get or create local client
-        const localClientId = await getOrCreateClient(supabase, ctDeal);
+        const localClientId = await getOrCreateClient(ctClient, supabase, ctDeal);
         
         const tags = Array.isArray(ctDeal.tags)
           ? ctDeal.tags
@@ -346,7 +395,7 @@ async function performSync(
         onConflict: 'control_tower_id',
         ignoreDuplicates: false
       })
-      .select('control_tower_id');
+      .select('id, control_tower_id');
 
     if (upsertError) {
       console.error('[Sync] Bulk upsert error:', upsertError);
@@ -354,6 +403,78 @@ async function performSync(
     }
 
     const syncedCount = upsertedDeals?.length || transformedDeals.length;
+    console.log(`[Sync] Synced ${syncedCount} deals`);
+
+    // Now sync checklist items for each deal
+    console.log('[Sync] Syncing checklist items from Control Tower...');
+    let checklistSyncedCount = 0;
+    let checklistFailedCount = 0;
+
+    for (const deal of upsertedDeals || []) {
+      if (!deal.control_tower_id) continue;
+
+      try {
+        // Fetch checklist items from Control Tower for this deal
+        const { data: ctChecklistItems, error: checklistError } = await ctClient
+          .from('deal_checklist_items')
+          .select('*')
+          .eq('deal_id', deal.control_tower_id)
+          .order('order_index', { ascending: true });
+
+        if (checklistError) {
+          console.warn(`[Sync] Error fetching checklist for deal ${deal.id}:`, checklistError);
+          checklistFailedCount++;
+          continue;
+        }
+
+        if (ctChecklistItems && ctChecklistItems.length > 0) {
+          console.log(`[Sync] Found ${ctChecklistItems.length} checklist items for deal ${deal.id}`);
+
+          // Map Control Tower checklist items to BD Portal format
+          const checklistItemsToUpsert = ctChecklistItems.map((item: any, index: number) => ({
+            deal_id: deal.id, // BD Portal deal ID
+            title: item.title || `Checklist Item ${index + 1}`,
+            is_completed: item.is_completed || false,
+            completed_by: null, // User mapping not available cross-system
+            completed_at: item.completed_at || null,
+            order_index: item.order_index ?? index,
+          }));
+
+          // Upsert checklist items
+          const { error: upsertChecklistError } = await supabase
+            .from('deal_checklist_items')
+            .upsert(checklistItemsToUpsert, {
+              onConflict: 'deal_id,order_index',
+              ignoreDuplicates: false
+            });
+
+          if (upsertChecklistError) {
+            console.error(`[Sync] Error upserting checklist for deal ${deal.id}:`, upsertChecklistError);
+            checklistFailedCount++;
+          } else {
+            checklistSyncedCount++;
+          }
+        } else {
+          // No checklist in Control Tower, apply default template as fallback
+          console.log(`[Sync] No checklist in Control Tower for deal ${deal.id}, applying template...`);
+          try {
+            await supabase.functions.invoke('apply-checklist-template', {
+              body: { 
+                dealId: deal.id, 
+                stage: transformedDeals.find(d => d.control_tower_id === deal.control_tower_id)?.stage || 'prospecting'
+              }
+            });
+          } catch (templateError) {
+            console.warn(`[Sync] Failed to apply template for deal ${deal.id}:`, templateError);
+          }
+        }
+      } catch (error) {
+        console.error(`[Sync] Error processing checklist for deal ${deal.id}:`, error);
+        checklistFailedCount++;
+      }
+    }
+
+    console.log(`[Sync] Checklist sync complete: ${checklistSyncedCount} synced, ${checklistFailedCount} failed`);
     const duration = Date.now() - startTime;
 
     console.log(`[Sync] Successfully synced ${syncedCount} deals in ${duration}ms`);
