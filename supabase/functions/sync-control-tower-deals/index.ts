@@ -80,6 +80,31 @@ serve(async (req) => {
   }
 });
 
+// Stage mapping from Control Tower to local pipeline stages
+const STAGE_MAPPING: Record<string, string> = {
+  'appointmentscheduled': 'prospecting',
+  'qualifiedtobuy': 'qualification',
+  'presentationscheduled': 'proposal',
+  'decisionmakerboughtin': 'proposal',
+  'contractsent': 'negotiation',
+  'closedwon': 'closed_won',
+  'closedlost': 'closed_lost',
+};
+
+function mapStage(ctStage: any, stageName?: string): string {
+  if (!ctStage) return 'prospecting';
+  
+  // If we have a stage name, use it
+  if (stageName) {
+    const nameStr = String(stageName).toLowerCase().replace(/\s+/g, '');
+    if (STAGE_MAPPING[nameStr]) return STAGE_MAPPING[nameStr];
+  }
+  
+  // Try mapping the stage ID/value
+  const stageStr = String(ctStage).toLowerCase().replace(/\s+/g, '');
+  return STAGE_MAPPING[stageStr] || 'prospecting';
+}
+
 async function performSync(
   ctClient: any,
   supabase: any,
@@ -88,6 +113,26 @@ async function performSync(
   const startTime = Date.now();
   
   try {
+    // First, try to fetch pipeline/stage definitions from Control Tower
+    console.log('[Sync] Fetching pipeline stages from Control Tower...');
+    const { data: pipelineStages, error: pipelineError } = await ctClient
+      .from('DealStage')
+      .select('*');
+    
+    if (!pipelineError && pipelineStages && pipelineStages.length > 0) {
+      console.log('[Sync] Found pipeline stages:', pipelineStages);
+      // Update stage mapping based on pipeline definitions
+      pipelineStages.forEach((stage: any) => {
+        const stageId = String(stage.id || stage.stage_id);
+        const stageName = String(stage.name || stage.label || '').toLowerCase().replace(/\s+/g, '');
+        if (stageName && !STAGE_MAPPING[stageId]) {
+          STAGE_MAPPING[stageId] = mapStage(stageName, stageName);
+        }
+      });
+    } else {
+      console.log('[Sync] No pipeline stages table found, using default mapping');
+    }
+
     // Fetch all deals from Control Tower in one query
     console.log('[Sync] Fetching deals from Control Tower...');
     const { data: ctDeals, error: fetchError } = await ctClient
@@ -131,19 +176,24 @@ async function performSync(
     }
 
     // Transform deals for bulk upsert with flexible field mapping
-    const transformedDeals = ctDeals.map((ctDeal: any) => ({
-      control_tower_id: ctDeal.id,
-      title: ctDeal.title || ctDeal.deal_name || ctDeal.name || 'Untitled Deal',
-      amount: parseFloat(ctDeal.amount || ctDeal.value || 0),
-      stage: ctDeal.dealstage || ctDeal.stage || 'new',
-      close_date: ctDeal.close_date || ctDeal.closeDate || null,
-      control_tower_client_id: ctDeal.client_id || ctDeal.clientId || null,
-      control_tower_owner_id: ctDeal.owner_id || ctDeal.ownerId || null,
-      control_tower_status: ctDeal.status || 'active',
-      synced_from_control_tower: true,
-      last_synced_at: new Date().toISOString(),
-      probability: ctDeal.probability ? parseFloat(ctDeal.probability) : null
-    }));
+    const transformedDeals = ctDeals.map((ctDeal: any) => {
+      const ctStage = ctDeal.dealstage || ctDeal.stage;
+      const ctStageName = ctDeal.dealstage_name || ctDeal.stage_name;
+      
+      return {
+        control_tower_id: ctDeal.id,
+        title: ctDeal.title || ctDeal.deal_name || ctDeal.name || 'Untitled Deal',
+        amount: parseFloat(ctDeal.amount || ctDeal.value || 0),
+        stage: mapStage(ctStage, ctStageName),
+        close_date: ctDeal.close_date || ctDeal.closeDate || null,
+        control_tower_client_id: ctDeal.client_id || ctDeal.clientId || null,
+        control_tower_owner_id: ctDeal.owner_id || ctDeal.ownerId || null,
+        control_tower_status: ctDeal.status || 'active',
+        synced_from_control_tower: true,
+        last_synced_at: new Date().toISOString(),
+        probability: ctDeal.probability ? parseFloat(ctDeal.probability) : null
+      };
+    });
 
     // Perform bulk upsert
     console.log('[Sync] Performing bulk upsert...');
