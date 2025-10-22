@@ -348,57 +348,74 @@ export function useLocalDealsByStage(
         const from = (page - 1) * limit;
         const to = from + limit - 1;
         
+        // Fetch deals without resource embedding to avoid foreign key cache issues
         const { data: dealsData, error, count } = await supabase
           .from('deals')
-          .select(`
-            *,
-            client:clients!client_id(
-              id,
-              name,
-              email,
-              phone,
-              contact_person,
-              company
-            ),
-            owner:users!owner_id(
-              id,
-              first_name,
-              last_name
-            ),
-            pm:users!pm_assigned_id(
-              id,
-              first_name,
-              last_name
-            )
-          `, { count: 'exact' })
+          .select('*', { count: 'exact' })
           .eq('stage', stage)
           .order('created_at', { ascending: false })
           .range(from, to);
         
         if (error) throw error;
         
-        // Transform to match expected format
-        const deals = (dealsData || []).map((deal: any) => ({
-          id: deal.id,
-          deal_name: deal.title,
-          client_id: deal.client_id,
-          client_name: deal.client?.name || deal.client?.company || '-',
-          client_email: deal.client?.email || '-',
-          client_phone: deal.client?.phone || '-',
-          client_contact_person: deal.client?.contact_person || '-',
-          value: deal.amount,
-          owner_id: deal.owner_id,
-          owner_name: deal.owner ? `${deal.owner.first_name} ${deal.owner.last_name}` : '-',
-          pm_assigned_id: deal.pm_assigned_id,
-          pm_assigned_name: deal.pm ? `${deal.pm.first_name} ${deal.pm.last_name}` : '-',
-          stage: deal.stage,
-          close_date: deal.close_date,
-          created_at: deal.created_at,
-          control_tower_id: deal.control_tower_id,
-          synced_from_control_tower: deal.synced_from_control_tower,
-          lead_source: deal.control_tower_status || '-',
-          hubspot_crm_deal_url: deal.control_tower_id ? `https://app.hubspot.com/contacts/deal/${deal.control_tower_id}` : null,
-        }));
+        if (!dealsData || dealsData.length === 0) {
+          setData({ data: [], total: count || 0 });
+          setIsLoading(false);
+          return;
+        }
+
+        // Fetch related data separately
+        const clientIds = [...new Set(dealsData.map(d => d.client_id).filter(Boolean))];
+        const ownerIds = [...new Set(dealsData.map(d => d.owner_id).filter(Boolean))];
+        const pmIds = [...new Set(dealsData.map(d => d.pm_assigned_id).filter(Boolean))];
+
+        const [clientsRes, ownersRes, pmsRes] = await Promise.all([
+          clientIds.length > 0 
+            ? supabase.from('clients').select('id, name, email, phone, contact_person, company').in('id', clientIds)
+            : Promise.resolve({ data: [] }),
+          ownerIds.length > 0
+            ? supabase.from('users').select('id, first_name, last_name').in('id', ownerIds)
+            : Promise.resolve({ data: [] }),
+          pmIds.length > 0
+            ? supabase.from('users').select('id, first_name, last_name').in('id', pmIds)
+            : Promise.resolve({ data: [] })
+        ]);
+
+        // Create lookup maps
+        const clientsMap = new Map<string, any>(clientsRes.data?.map(c => [c.id, c] as [string, any]) || []);
+        const usersMap = new Map<string, any>([
+          ...(ownersRes.data?.map(u => [u.id, u] as [string, any]) || []),
+          ...(pmsRes.data?.map(u => [u.id, u] as [string, any]) || [])
+        ]);
+        
+        // Transform to match expected format with related data
+        const deals = dealsData.map((deal: any) => {
+          const client = deal.client_id ? clientsMap.get(deal.client_id) : null;
+          const owner = deal.owner_id ? usersMap.get(deal.owner_id) : null;
+          const pm = deal.pm_assigned_id ? usersMap.get(deal.pm_assigned_id) : null;
+
+          return {
+            id: deal.id,
+            deal_name: deal.title,
+            client_id: deal.client_id,
+            client_name: (client as any)?.name || (client as any)?.company || '-',
+            client_email: (client as any)?.email || '-',
+            client_phone: (client as any)?.phone || '-',
+            client_contact_person: (client as any)?.contact_person || '-',
+            value: deal.amount,
+            owner_id: deal.owner_id,
+            owner_name: owner ? `${(owner as any).first_name} ${(owner as any).last_name}` : '-',
+            pm_assigned_id: deal.pm_assigned_id,
+            pm_assigned_name: pm ? `${(pm as any).first_name} ${(pm as any).last_name}` : '-',
+            stage: deal.stage,
+            close_date: deal.close_date,
+            created_at: deal.created_at,
+            control_tower_id: deal.control_tower_id,
+            synced_from_control_tower: deal.synced_from_control_tower,
+            lead_source: deal.control_tower_status || '-',
+            hubspot_crm_deal_url: deal.control_tower_id ? `https://app.hubspot.com/contacts/deal/${deal.control_tower_id}` : null,
+          };
+        });
         
         setData({
           data: deals,
