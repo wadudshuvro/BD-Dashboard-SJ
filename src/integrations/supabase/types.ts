@@ -688,13 +688,25 @@ export type Database = {
           control_tower_owner_id: string | null
           control_tower_status: string | null
           created_at: string
+          dealtype: string | null
+          expected_closing_date: string | null
+          external_links: Json | null
+          hubspot_crm_deal_url: string | null
+          hubspot_deal_id: string | null
           id: string
+          last_activity_by: string | null
+          last_activity_date: string | null
           last_synced_at: string | null
+          lead_source: string | null
+          notes: string | null
           owner_id: string | null
           pm_assigned_id: string | null
+          potential_amount: number | null
+          priority: string | null
           probability: number | null
           stage: string | null
           synced_from_control_tower: boolean | null
+          tags: string[] | null
           title: string
           updated_at: string
         }
@@ -708,13 +720,25 @@ export type Database = {
           control_tower_owner_id?: string | null
           control_tower_status?: string | null
           created_at?: string
+          dealtype?: string | null
+          expected_closing_date?: string | null
+          external_links?: Json | null
+          hubspot_crm_deal_url?: string | null
+          hubspot_deal_id?: string | null
           id?: string
+          last_activity_by?: string | null
+          last_activity_date?: string | null
           last_synced_at?: string | null
+          lead_source?: string | null
+          notes?: string | null
           owner_id?: string | null
           pm_assigned_id?: string | null
+          potential_amount?: number | null
+          priority?: string | null
           probability?: number | null
           stage?: string | null
           synced_from_control_tower?: boolean | null
+          tags?: string[] | null
           title: string
           updated_at?: string
         }
@@ -728,13 +752,25 @@ export type Database = {
           control_tower_owner_id?: string | null
           control_tower_status?: string | null
           created_at?: string
+          dealtype?: string | null
+          expected_closing_date?: string | null
+          external_links?: Json | null
+          hubspot_crm_deal_url?: string | null
+          hubspot_deal_id?: string | null
           id?: string
+          last_activity_by?: string | null
+          last_activity_date?: string | null
           last_synced_at?: string | null
+          lead_source?: string | null
+          notes?: string | null
           owner_id?: string | null
           pm_assigned_id?: string | null
+          potential_amount?: number | null
+          priority?: string | null
           probability?: number | null
           stage?: string | null
           synced_from_control_tower?: boolean | null
+          tags?: string[] | null
           title?: string
           updated_at?: string
         }
