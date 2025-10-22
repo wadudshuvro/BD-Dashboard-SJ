@@ -42,6 +42,7 @@ import UserSettings from "./pages/bd/UserSettings";
 import AutomationSettings from "./pages/admin/AutomationSettings";
 import LinkedInAgentConfig from "./pages/admin/LinkedInAgentConfig";
 import DealDetail from "./pages/bd/DealDetail";
+import DealFiles from "./pages/bd/DealFiles";
 import ClientDetail from "./pages/bd/ClientDetail";
 import ChecklistTemplateManager from "./pages/admin/ChecklistTemplateManager";
 import ControlTowerSyncDashboard from "./pages/admin/ControlTowerSyncDashboard";
@@ -181,6 +182,7 @@ const App = () => (
               }
             >
               <Route index element={<DealDetail />} />
+              <Route path="files" element={<DealFiles />} />
             </Route>
 
             {/* Catch-all route */}

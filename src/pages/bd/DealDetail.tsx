@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { format, formatDistanceToNow } from 'date-fns';
 import {
@@ -24,7 +24,10 @@ import {
   Folder,
   Bot,
   Workflow,
-  Zap
+  Zap,
+  RefreshCw,
+  FolderOpen,
+  Loader2,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -33,13 +36,17 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Progress } from '@/components/ui/progress';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useDealComments, useAddComment, useDeleteComment, AddCommentPayload } from '@/hooks/useDealComments';
 import { useDealChecklist, useAddChecklistItem, useToggleChecklistItem, useDeleteChecklistItem } from '@/hooks/useDealChecklist';
 import { useDealSystemInfo } from '@/hooks/useDealSystemInfo';
+import { useDealFiles } from '@/hooks/useDealFiles';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import type { DealFile } from '@/hooks/useDeals';
@@ -81,6 +88,8 @@ interface Deal {
   tags?: string[] | null;
   external_links?: DealExternalLinks | null;
   deal_files?: DealFile[];
+  google_drive_folder_id?: string | null;
+  google_drive_folder_url?: string | null;
 }
 
 interface Client {
@@ -328,6 +337,7 @@ const highlightMentions = (text: string, mentionedEmails?: string[] | null) => {
 export default function DealDetail() {
   const { stage, slug } = useParams<{ stage: string; slug: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
@@ -340,6 +350,11 @@ export default function DealDetail() {
   const [newComment, setNewComment] = useState('');
   const [newChecklistItem, setNewChecklistItem] = useState('');
   const autoApplyAttemptedRef = useRef(false);
+  
+  // Google Drive state
+  const [syncingFolder, setSyncingFolder] = useState(false);
+  const [showMapFolderDialog, setShowMapFolderDialog] = useState(false);
+  const [folderUrl, setFolderUrl] = useState("");
 
   const parts = slug?.split('-') || [];
   const dealId = parts.length >= 5 ? parts.slice(-5).join('-') : '';
@@ -347,6 +362,10 @@ export default function DealDetail() {
   const { data: comments, isLoading: commentsLoading } = useDealComments(dealId);
   const { data: checklistItems, isLoading: checklistLoading } = useDealChecklist(dealId);
   const { data: systemInfo, isLoading: systemInfoLoading } = useDealSystemInfo(dealId, deal?.title);
+  const { files, loading: filesLoading, refetch: refetchFiles } = useDealFiles({ 
+    dealId: deal?.id,
+    enabled: !!deal?.id 
+  });
   const addCommentMutation = useAddComment(dealId);
   const deleteCommentMutation = useDeleteComment(dealId);
   const addChecklistMutation = useAddChecklistItem(dealId);
@@ -558,6 +577,93 @@ export default function DealDetail() {
     });
   };
 
+  const handleMapGoogleDriveFolder = async () => {
+    if (!deal || !folderUrl.trim()) return;
+    
+    const folderIdMatch = folderUrl.match(/\/folders\/([a-zA-Z0-9_-]+)/);
+    if (!folderIdMatch) {
+      toast({
+        title: "Invalid URL",
+        description: "Please enter a valid Google Drive folder URL",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    const folderId = folderIdMatch[1];
+    
+    try {
+      const { error } = await supabase
+        .from("deals")
+        .update({
+          google_drive_folder_id: folderId,
+          google_drive_folder_url: folderUrl.trim(),
+        })
+        .eq("id", deal.id);
+      
+      if (error) throw error;
+      
+      setDeal({ ...deal, google_drive_folder_id: folderId, google_drive_folder_url: folderUrl.trim() });
+      setShowMapFolderDialog(false);
+      setFolderUrl("");
+      
+      toast({
+        title: "Folder mapped",
+        description: "Google Drive folder has been linked to this deal",
+      });
+      
+      await handleSyncDriveFolder(folderId);
+    } catch (error) {
+      console.error("Failed to map folder", error);
+      toast({
+        title: "Error",
+        description: "Failed to map Google Drive folder",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleSyncDriveFolder = async (folderId?: string) => {
+    if (!deal) return;
+    
+    const driveFolder = folderId || deal.google_drive_folder_id;
+    if (!driveFolder) return;
+    
+    setSyncingFolder(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("sync-deal-files", {
+        body: {
+          deals: [{
+            dealId: deal.id,
+            driveFolderId: driveFolder,
+          }],
+        },
+      });
+      
+      if (error) throw error;
+      
+      const result = data?.results?.[0];
+      if (result?.status === "success") {
+        toast({
+          title: "Sync complete",
+          description: `${result.filesAdded || 0} files added, ${result.filesUpdated || 0} updated`,
+        });
+        refetchFiles();
+      } else {
+        throw new Error(result?.error || "Sync failed");
+      }
+    } catch (error) {
+      console.error("Sync failed", error);
+      toast({
+        title: "Sync failed",
+        description: error instanceof Error ? error.message : "Unable to sync Google Drive folder",
+        variant: "destructive",
+      });
+    } finally {
+      setSyncingFolder(false);
+    }
+  };
+
   const completionPercentage = checklistItems
     ? Math.round((checklistItems.filter((item) => item.is_completed).length / checklistItems.length) * 100) || 0
     : 0;
@@ -602,12 +708,36 @@ export default function DealDetail() {
     );
   }
 
+  const currentPath = location.pathname;
+  const basePath = `/pipeline/${stage}/${slug}`;
+  const isFilesTab = currentPath.includes('/files');
+
   return (
     <div className="container mx-auto py-8 space-y-6">
-      <Button onClick={() => navigate(-1)} variant="ghost" size="sm">
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        Back
-      </Button>
+      <div className="flex items-center justify-between">
+        <Button onClick={() => navigate(-1)} variant="ghost" size="sm">
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back
+        </Button>
+        
+        <Tabs value={isFilesTab ? "files" : "overview"} className="w-auto">
+          <TabsList>
+            <TabsTrigger value="overview" asChild>
+              <Link to={basePath}>Overview</Link>
+            </TabsTrigger>
+            <TabsTrigger value="files" asChild>
+              <Link to={`${basePath}/files`} className="flex items-center gap-2">
+                Files
+                {files.length > 0 && (
+                  <Badge variant="secondary" className="ml-1 px-1.5 py-0 text-xs">
+                    {files.length}
+                  </Badge>
+                )}
+              </Link>
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
 
       <div className="space-y-4">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -925,24 +1055,139 @@ export default function DealDetail() {
             hubspotUrl={deal.hubspot_crm_deal_url}
           />
 
+          {/* Google Drive Documents */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <FolderOpen className="h-5 w-5 text-muted-foreground" />
+                  <CardTitle>Google Drive Documents</CardTitle>
+                </div>
+                {deal?.google_drive_folder_url && (
+                  <Button
+                    onClick={() => handleSyncDriveFolder()}
+                    disabled={syncingFolder}
+                    variant="outline"
+                    size="sm"
+                  >
+                    {syncingFolder ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Syncing...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                        Sync Folder
+                      </>
+                    )}
+                  </Button>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent>
+              {!deal?.google_drive_folder_url ? (
+                <div className="text-center py-8">
+                  <FolderOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-sm text-muted-foreground mb-4">
+                    No Google Drive folder mapped to this deal
+                  </p>
+                  <Button onClick={() => setShowMapFolderDialog(true)} variant="outline">
+                    <ExternalLink className="mr-2 h-4 w-4" />
+                    Map Google Drive Folder
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
+                    <FolderOpen className="h-4 w-4 text-muted-foreground" />
+                    <a
+                      href={deal.google_drive_folder_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-primary hover:underline flex-1 truncate"
+                    >
+                      {deal.google_drive_folder_url}
+                    </a>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => window.open(deal.google_drive_folder_url!, "_blank")}
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  
+                  {filesLoading ? (
+                    <div className="flex items-center justify-center py-4">
+                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : files.length > 0 ? (
+                    <>
+                      <div className="space-y-2">
+                        {files.slice(0, 5).map((file) => {
+                          const isAIReady = file.metadata?.parser === 'pdfjs' || file.json_snapshot_path;
+                          return (
+                            <div key={file.id} className="flex items-center gap-3 p-2 hover:bg-muted rounded-md">
+                              <FileText className="h-4 w-4 text-muted-foreground" />
+                              <span className="text-sm flex-1 truncate">{file.drive_file_name}</span>
+                              {isAIReady && (
+                                <Badge variant="secondary" className="text-xs">
+                                  <FileCheck className="h-3 w-3 mr-1" />
+                                  AI-Ready
+                                </Badge>
+                              )}
+                              <span className="text-xs text-muted-foreground">
+                                {file.drive_file_type}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      
+                      {files.length > 5 && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full"
+                          onClick={() => navigate(`${basePath}/files`)}
+                        >
+                          View All Files ({files.length})
+                        </Button>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      No files synced yet. Click "Sync Folder" to fetch documents.
+                    </p>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <CheckCircle2 className="h-5 w-5" />
+                <CheckSquare className="h-5 w-5" />
                 Checklist
+                {checklistItems && checklistItems.length > 0 && (
+                  <Badge variant="secondary">{checklistItems.length}</Badge>
+                )}
               </CardTitle>
-              {checklistItems && checklistItems.length > 0 && (
-                <div className="mt-2 space-y-1">
-                  <div className="flex justify-between text-sm text-muted-foreground">
-                    <span>{checklistItems.filter((item) => item.is_completed).length} of {checklistItems.length} completed</span>
-                    <span>{completionPercentage}%</span>
-                  </div>
-                  <Progress value={completionPercentage} className="h-2" />
-                </div>
-              )}
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2 max-h-80 overflow-y-auto">
+              {checklistItems && checklistItems.length > 0 && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Completion</span>
+                    <span className="font-medium">{completionPercentage}%</span>
+                  </div>
+                  <Progress value={completionPercentage} />
+                </div>
+              )}
+
+              <div className="space-y-2 max-h-96 overflow-y-auto">
                 {checklistLoading ? (
                   <div className="space-y-2">
                     <div className="h-10 bg-muted animate-pulse rounded" />
@@ -950,31 +1195,18 @@ export default function DealDetail() {
                   </div>
                 ) : checklistItems && checklistItems.length > 0 ? (
                   checklistItems.map((item) => (
-                    <div key={item.id} className="flex items-start gap-3 p-2 rounded hover:bg-muted/50">
+                    <div key={item.id} className="flex items-center gap-2 p-2 hover:bg-muted rounded-lg group">
                       <Checkbox
                         checked={item.is_completed}
-                        onCheckedChange={() => handleToggleChecklistItem(item.id, item.is_completed)}
-                        className="mt-1"
+                        onCheckedChange={(checked) => handleToggleChecklistItem(item.id, Boolean(checked))}
                       />
-                      <div className="flex-1 space-y-1">
-                        <p className={`text-sm ${item.is_completed ? 'line-through text-muted-foreground' : ''}`}>
-                          {item.title}
-                        </p>
-                        {item.is_completed && item.completed_user && (
-                          <p className="text-xs text-muted-foreground">
-                            Completed by {item.completed_user.first_name} {item.completed_user.last_name}
-                            {item.completed_at && ` • ${formatDistanceToNow(new Date(item.completed_at), { addSuffix: true })}`}
-                          </p>
-                        )}
-                        {item.control_tower_synced_at && (
-                          <p className="text-xs text-muted-foreground">
-                            Synced {formatDistanceToNow(new Date(item.control_tower_synced_at), { addSuffix: true })}
-                          </p>
-                        )}
-                      </div>
+                      <label className={`flex-1 text-sm cursor-pointer ${item.is_completed ? 'line-through text-muted-foreground' : ''}`}>
+                        {item.title}
+                      </label>
                       <Button
                         variant="ghost"
                         size="icon"
+                        className="opacity-0 group-hover:opacity-100 transition-opacity"
                         onClick={() => handleDeleteChecklistItem(item.id)}
                       >
                         <Trash2 className="h-4 w-4" />
@@ -982,12 +1214,13 @@ export default function DealDetail() {
                     </div>
                   ))
                 ) : (
-                  <p className="text-sm text-muted-foreground text-center py-8">No checklist items yet</p>
+                  <p className="text-sm text-muted-foreground text-center py-4">No checklist items</p>
                 )}
               </div>
+
               <div className="flex gap-2">
                 <Input
-                  placeholder="Add checklist item..."
+                  placeholder="Add new item..."
                   value={newChecklistItem}
                   onChange={(e) => setNewChecklistItem(e.target.value)}
                   onKeyDown={(e) => {
@@ -1014,71 +1247,75 @@ export default function DealDetail() {
                 System Information
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
-              {systemInfoLoading ? (
-                <div className="space-y-3">
-                  <div className="h-10 bg-muted animate-pulse rounded" />
-                  <div className="h-10 bg-muted animate-pulse rounded" />
+            <CardContent className="space-y-2 text-sm">
+              <div className="flex items-start justify-between gap-2">
+                <span className="text-muted-foreground">Deal ID</span>
+                <div className="flex items-center gap-2">
+                  <code className="text-xs bg-muted px-2 py-1 rounded break-all">{deal.id}</code>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    onClick={() => copyToClipboard(deal.id, 'Deal ID')}
+                  >
+                    <Copy className="h-3 w-3" />
+                  </Button>
                 </div>
-              ) : systemInfo ? (
-                <>
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium text-muted-foreground">Deal ID</p>
-                    <div className="flex items-center gap-2">
-                      <code className="text-xs bg-muted px-2 py-1 rounded flex-1 truncate">
-                        {dealId}
-                      </code>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => copyToClipboard(dealId, 'Deal ID')}
-                      >
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                    </div>
+              </div>
+
+              {systemInfo?.slug && (
+                <div className="flex items-start justify-between gap-2">
+                  <span className="text-muted-foreground">Slug</span>
+                  <div className="flex items-center gap-2">
+                    <code className="text-xs bg-muted px-2 py-1 rounded break-all">{systemInfo.slug}</code>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6"
+                      onClick={() => copyToClipboard(systemInfo.slug, 'Slug')}
+                    >
+                      <Copy className="h-3 w-3" />
+                    </Button>
                   </div>
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium text-muted-foreground">Slug</p>
-                    <div className="flex items-center gap-2">
-                      <code className="text-xs bg-muted px-2 py-1 rounded flex-1 truncate">
-                        {systemInfo.slug}
-                      </code>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => copyToClipboard(systemInfo.slug, 'Slug')}
-                      >
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium text-muted-foreground">Created</p>
-                    <p className="text-sm">
-                      {new Date(systemInfo.created_at).toLocaleDateString()} at{' '}
-                      {new Date(systemInfo.created_at).toLocaleTimeString()}
-                    </p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium text-muted-foreground">Last Updated</p>
-                    <p className="text-sm">
-                      {formatDistanceToNow(new Date(systemInfo.updated_at), { addSuffix: true })}
-                    </p>
-                  </div>
-                  {deal.synced_from_control_tower && (
-                    <div className="space-y-1">
-                      <p className="text-sm font-medium text-muted-foreground">Control Tower Status</p>
-                      <Badge variant="secondary">Synced</Badge>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <p className="text-sm text-muted-foreground">Generating system info...</p>
+                </div>
               )}
             </CardContent>
           </Card>
         </div>
       </div>
+      
+      <Dialog open={showMapFolderDialog} onOpenChange={setShowMapFolderDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Map Google Drive Folder</DialogTitle>
+            <DialogDescription>
+              Enter the URL of the Google Drive folder containing documents for this deal.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="folder-url">Folder URL</Label>
+              <Input
+                id="folder-url"
+                placeholder="https://drive.google.com/drive/folders/..."
+                value={folderUrl}
+                onChange={(e) => setFolderUrl(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Copy the URL from your browser when viewing the folder in Google Drive
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowMapFolderDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleMapGoogleDriveFolder} disabled={!folderUrl.trim()}>
+              Map Folder
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
