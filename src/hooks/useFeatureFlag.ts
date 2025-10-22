@@ -19,6 +19,10 @@ async function fetchFeatureFlags(): Promise<FeatureFlagsResult> {
     .eq("configuration_type", "feature_flags");
 
   if (error) {
+    if (error.code === "42501") {
+      return { flags: {} };
+    }
+
     throw error;
   }
 
