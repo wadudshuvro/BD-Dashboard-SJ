@@ -5,8 +5,18 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { ArrowLeft, ExternalLink, Mail, Phone, Building, Calendar, DollarSign, User } from 'lucide-react';
-import { format } from 'date-fns';
+import { ArrowLeft, ExternalLink, Mail, Phone, Building, Calendar, DollarSign, User, MessageSquare, Trash2, CheckCircle2, Copy, Info } from 'lucide-react';
+import { format, formatDistanceToNow } from 'date-fns';
+import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Progress } from '@/components/ui/progress';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { useDealComments, useAddComment, useDeleteComment } from '@/hooks/useDealComments';
+import { useDealChecklist, useAddChecklistItem, useToggleChecklistItem, useDeleteChecklistItem } from '@/hooks/useDealChecklist';
+import { useDealSystemInfo } from '@/hooks/useDealSystemInfo';
+import { toast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
 
 interface Deal {
   id: string;
@@ -55,6 +65,23 @@ export default function DealDetail() {
   const [pm, setPm] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [newComment, setNewComment] = useState("");
+  const [newChecklistItem, setNewChecklistItem] = useState("");
+  
+  const { user } = useAuth();
+  
+  // Extract dealId from slug
+  const parts = slug?.split('-') || [];
+  const dealId = parts.length >= 5 ? parts.slice(-5).join('-') : '';
+  
+  const { data: comments, isLoading: commentsLoading } = useDealComments(dealId);
+  const { data: checklistItems, isLoading: checklistLoading } = useDealChecklist(dealId);
+  const { data: systemInfo, isLoading: systemInfoLoading } = useDealSystemInfo(dealId, deal?.title);
+  const addCommentMutation = useAddComment(dealId);
+  const deleteCommentMutation = useDeleteComment(dealId);
+  const addChecklistMutation = useAddChecklistItem(dealId);
+  const toggleChecklistMutation = useToggleChecklistItem(dealId);
+  const deleteChecklistMutation = useDeleteChecklistItem(dealId);
 
   useEffect(() => {
     async function fetchDeal() {
@@ -183,6 +210,46 @@ export default function DealDetail() {
       return '-';
     }
   };
+
+  const handleAddComment = async () => {
+    if (!newComment.trim()) return;
+    addCommentMutation.mutate(newComment);
+    setNewComment("");
+  };
+
+  const handleDeleteComment = (commentId: string) => {
+    if (window.confirm("Are you sure you want to delete this comment?")) {
+      deleteCommentMutation.mutate(commentId);
+    }
+  };
+
+  const handleAddChecklistItem = () => {
+    if (!newChecklistItem.trim()) return;
+    addChecklistMutation.mutate(newChecklistItem);
+    setNewChecklistItem("");
+  };
+
+  const handleToggleChecklistItem = (itemId: string, isCompleted: boolean) => {
+    toggleChecklistMutation.mutate({ itemId, isCompleted });
+  };
+
+  const handleDeleteChecklistItem = (itemId: string) => {
+    if (window.confirm("Are you sure you want to delete this item?")) {
+      deleteChecklistMutation.mutate(itemId);
+    }
+  };
+
+  const copyToClipboard = (text: string, label: string) => {
+    navigator.clipboard.writeText(text);
+    toast({
+      title: "Copied!",
+      description: `${label} copied to clipboard.`,
+    });
+  };
+
+  const completionPercentage = checklistItems
+    ? Math.round((checklistItems.filter(item => item.is_completed).length / checklistItems.length) * 100) || 0
+    : 0;
 
   const getStageColor = (stage: string): "default" | "destructive" | "outline" | "secondary" => {
     const colors: Record<string, "default" | "destructive" | "outline" | "secondary"> = {
@@ -392,6 +459,233 @@ export default function DealDetail() {
                 )}
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Comments Section */}
+        <Card className="md:col-span-2">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <MessageSquare className="h-5 w-5" />
+              Comments
+              {comments && comments.length > 0 && (
+                <Badge variant="secondary">{comments.length}</Badge>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {commentsLoading ? (
+                <div className="space-y-3">
+                  <div className="h-20 bg-muted animate-pulse rounded-lg" />
+                  <div className="h-20 bg-muted animate-pulse rounded-lg" />
+                </div>
+              ) : comments && comments.length > 0 ? (
+                comments.map((comment) => (
+                  <div key={comment.id} className="bg-muted/50 p-4 rounded-lg space-y-2">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-2">
+                        <Avatar className="h-8 w-8">
+                          <AvatarFallback>
+                            {comment.user.first_name?.[0] || comment.user.email[0].toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="text-sm font-medium">
+                            {comment.user.first_name} {comment.user.last_name}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
+                          </p>
+                        </div>
+                      </div>
+                      {user?.id === comment.user_id && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDeleteComment(comment.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                    <p className="text-sm">{comment.comment}</p>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-8">No comments yet</p>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <Textarea
+                placeholder="Add a comment..."
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleAddComment();
+                  }
+                }}
+                className="min-h-[60px]"
+              />
+              <Button
+                onClick={handleAddComment}
+                disabled={!newComment.trim() || addCommentMutation.isPending}
+              >
+                Add
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Checklist Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5" />
+              Checklist
+            </CardTitle>
+            {checklistItems && checklistItems.length > 0 && (
+              <div className="mt-2 space-y-1">
+                <div className="flex justify-between text-sm text-muted-foreground">
+                  <span>{checklistItems.filter(i => i.is_completed).length} of {checklistItems.length} completed</span>
+                  <span>{completionPercentage}%</span>
+                </div>
+                <Progress value={completionPercentage} className="h-2" />
+              </div>
+            )}
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2 max-h-80 overflow-y-auto">
+              {checklistLoading ? (
+                <div className="space-y-2">
+                  <div className="h-10 bg-muted animate-pulse rounded" />
+                  <div className="h-10 bg-muted animate-pulse rounded" />
+                </div>
+              ) : checklistItems && checklistItems.length > 0 ? (
+                checklistItems.map((item) => (
+                  <div key={item.id} className="flex items-start gap-3 p-2 rounded hover:bg-muted/50">
+                    <Checkbox
+                      checked={item.is_completed}
+                      onCheckedChange={() => handleToggleChecklistItem(item.id, item.is_completed)}
+                      className="mt-1"
+                    />
+                    <div className="flex-1 space-y-1">
+                      <p className={`text-sm ${item.is_completed ? "line-through text-muted-foreground" : ""}`}>
+                        {item.title}
+                      </p>
+                      {item.is_completed && item.completed_user && (
+                        <p className="text-xs text-muted-foreground">
+                          Completed by {item.completed_user.first_name} {item.completed_user.last_name}
+                          {item.completed_at && ` • ${formatDistanceToNow(new Date(item.completed_at), { addSuffix: true })}`}
+                        </p>
+                      )}
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDeleteChecklistItem(item.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-8">No checklist items yet</p>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <Input
+                placeholder="Add checklist item..."
+                value={newChecklistItem}
+                onChange={(e) => setNewChecklistItem(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleAddChecklistItem();
+                  }
+                }}
+              />
+              <Button
+                onClick={handleAddChecklistItem}
+                disabled={!newChecklistItem.trim() || addChecklistMutation.isPending}
+              >
+                Add
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* System Information Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Info className="h-5 w-5" />
+              System Information
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {systemInfoLoading ? (
+              <div className="space-y-3">
+                <div className="h-10 bg-muted animate-pulse rounded" />
+                <div className="h-10 bg-muted animate-pulse rounded" />
+              </div>
+            ) : systemInfo ? (
+              <>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-muted-foreground">Deal ID</p>
+                  <div className="flex items-center gap-2">
+                    <code className="text-xs bg-muted px-2 py-1 rounded flex-1 truncate">
+                      {dealId}
+                    </code>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => copyToClipboard(dealId, "Deal ID")}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-muted-foreground">Slug</p>
+                  <div className="flex items-center gap-2">
+                    <code className="text-xs bg-muted px-2 py-1 rounded flex-1 truncate">
+                      {systemInfo.slug}
+                    </code>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => copyToClipboard(systemInfo.slug, "Slug")}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-muted-foreground">Created</p>
+                  <p className="text-sm">
+                    {new Date(systemInfo.created_at).toLocaleDateString()} at{" "}
+                    {new Date(systemInfo.created_at).toLocaleTimeString()}
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-muted-foreground">Last Updated</p>
+                  <p className="text-sm">
+                    {formatDistanceToNow(new Date(systemInfo.updated_at), { addSuffix: true })}
+                  </p>
+                </div>
+                {deal?.synced_from_control_tower && (
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-muted-foreground">Control Tower Status</p>
+                    <Badge variant="secondary">Synced</Badge>
+                  </div>
+                )}
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground">Generating system info...</p>
+            )}
           </CardContent>
         </Card>
       </div>
