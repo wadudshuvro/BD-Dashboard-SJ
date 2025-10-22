@@ -41,6 +41,7 @@ import ProductManagement from "./pages/bd/ProductManagement";
 import FollowUps from "./pages/bd/FollowUps";
 import UserSettings from "./pages/bd/UserSettings";
 import AutomationSettings from "./pages/admin/AutomationSettings";
+import DealDetail from "./pages/bd/DealDetail";
 
 const queryClient = new QueryClient();
 
@@ -146,6 +147,9 @@ const App = () => (
               <Route path="pipeline/proposal" element={<Proposal />} />
               <Route path="pipeline/negotiation" element={<Negotiation />} />
               <Route path="pipeline/clients" element={<Clients />} />
+              
+              {/* Deal Detail */}
+              <Route path="deals/:slug" element={<DealDetail />} />
               
               {/* Strategy - Campaigns only (Products & Niches moved to Admin Panel) */}
               <Route path="strategy/campaigns" element={<CampaignManagement />} />

@@ -36,39 +36,45 @@ export function StagePipelineTable({ stage, title, description }: StagePipelineT
     }
   };
 
+  const createDealSlug = (dealName: string, dealId: string) => {
+    const slug = dealName
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '');
+    return `/bd/deals/${slug}-${dealId}`;
+  };
+
   const columns = [
-    { key: 'deal_name' as const, label: 'Deal Name' },
-    { key: 'client_name' as const, label: 'Client' },
-    { key: 'client_contact_person' as const, label: 'Contact Person' },
     { 
-      key: 'client_email' as const, 
-      label: 'Email',
+      key: 'deal_name' as const, 
+      label: 'Deal Name',
+      render: (value: string, row: any) => (
+        <a 
+          href={createDealSlug(value || 'untitled', row.id)}
+          className="text-primary hover:underline font-medium"
+          onClick={(e) => {
+            e.preventDefault();
+            window.location.href = createDealSlug(value || 'untitled', row.id);
+          }}
+        >
+          {value || 'Untitled Deal'}
+        </a>
+      )
+    },
+    { 
+      key: 'client_name' as const, 
+      label: 'Client',
       render: (value: string) => value || '-'
     },
     { 
-      key: 'client_phone' as const, 
-      label: 'Phone',
+      key: 'client_contact_person' as const, 
+      label: 'Contact',
       render: (value: string) => value || '-'
     },
     { 
       key: 'value' as const, 
       label: 'Value', 
       render: formatCurrency 
-    },
-    { 
-      key: 'owner_name' as const, 
-      label: 'Owner (SJ)',
-      render: (value: string) => value || '-'
-    },
-    { 
-      key: 'pm_assigned_name' as const, 
-      label: 'PM (SJ)',
-      render: (value: string) => value || '-'
-    },
-    { 
-      key: 'lead_source' as const, 
-      label: 'Source',
-      render: (value: string) => value || '-'
     },
     { 
       key: 'close_date' as const, 
