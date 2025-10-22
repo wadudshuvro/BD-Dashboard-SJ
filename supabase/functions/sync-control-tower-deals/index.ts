@@ -180,81 +180,47 @@ async function getOrCreateClient(
 ): Promise<string | null> {
   const clientCompany = ctDeal.clientCompanyName || ctDeal.company_name || ctDeal.client_company;
   const clientId = ctDeal.client_id || ctDeal.clientId;
+// Build a client lookup cache from company names
+async function buildClientCache(supabase: any): Promise<Map<string, string>> {
+  console.log('[Sync] Building client lookup cache...');
+  const { data: existingClients, error } = await supabase
+    .from('clients')
+    .select('id, company, email, control_tower_id, hubspot_id')
+    .not('company', 'is', null);
   
-  if (!clientId && !clientCompany) {
-    console.log('[Sync] No client info for deal:', ctDeal.id);
+  if (error) {
+    console.warn('[Sync] Could not load client cache:', error);
+    return new Map();
+  }
+  
+  const cache = new Map<string, string>();
+  existingClients?.forEach((client: any) => {
+    const key = client.company.toLowerCase().trim();
+    cache.set(key, client.id);
+    
+    // Also cache by control_tower_id and hubspot_id for faster lookups
+    if (client.control_tower_id) {
+      cache.set(`ct:${client.control_tower_id}`, client.id);
+    }
+    if (client.hubspot_id) {
+      cache.set(`hs:${client.hubspot_id}`, client.id);
+    }
+  });
+  
+  console.log(`[Sync] Cached ${cache.size} client lookup keys`);
+  return cache;
+}
+
+// Extract client data from a deal
+function extractClientData(ctDeal: any): any {
+  const clientCompany = ctDeal.clientCompanyName || ctDeal.company_name || ctDeal.client_company;
+  const clientId = ctDeal.client_id || ctDeal.clientId;
+  
+  if (!clientCompany && !clientId) {
     return null;
   }
-
-  console.log('[Sync] Looking up client:', { clientId, clientCompany });
-
-  // First, try fetching client from Control Tower if we have a client ID
-  if (clientId) {
-    try {
-      const { data: ctClientData, error: ctClientError } = await ctClient
-        .from('Client')
-        .select('*')
-        .eq('id', clientId)
-        .maybeSingle();
-
-      if (!ctClientError && ctClientData) {
-        console.log('[Sync] Found client in Control Tower:', ctClientData);
-        
-        // Upsert client into BD Portal using control_tower_id
-        const { data: upsertedClient, error: upsertError } = await supabase
-          .from('clients')
-          .upsert({
-            control_tower_id: ctClientData.id,
-            hubspot_id: ctClientData.hubspot_id || null,
-            name: ctClientData.name || ctClientData.company || clientCompany || 'Unknown Client',
-            company: ctClientData.company || clientCompany || 'Unknown Client',
-            email: ctClientData.email || ctDeal.clientEmail || ctDeal.client_email || null,
-            phone: ctClientData.phone || ctDeal.clientPhone || ctDeal.client_phone || null,
-            contact_person: ctClientData.contact_person || ctDeal.clientContactName || 
-                           `${ctDeal.clientFirstName || ''} ${ctDeal.clientLastName || ''}`.trim() || null,
-            website: ctClientData.website || ctDeal.clientWebsite || ctDeal.client_website || null,
-            industry: ctClientData.industry || null,
-            status: ctClientData.status || 'active',
-            address: ctClientData.address || null,
-            city: ctClientData.city || null,
-            state: ctClientData.state || null,
-            postal_code: ctClientData.postal_code || null,
-            country: ctClientData.country || null,
-          }, {
-            onConflict: 'control_tower_id',
-            ignoreDuplicates: false
-          })
-          .select('id')
-          .single();
-
-        if (upsertError) {
-          console.error('[Sync] Error upserting client from Control Tower:', upsertError);
-        } else {
-          console.log('[Sync] Upserted client:', upsertedClient.id);
-          return upsertedClient.id;
-        }
-      }
-    } catch (ctError) {
-      console.warn('[Sync] Could not fetch client from Control Tower:', ctError);
-    }
-  }
-
-  // Fallback: Try to find existing client by hubspot_id or control_tower_id
-  if (clientId) {
-    const { data: existingClient } = await supabase
-      .from('clients')
-      .select('id')
-      .or(`hubspot_id.eq.${clientId},control_tower_id.eq.${clientId}`)
-      .maybeSingle();
-    
-    if (existingClient) {
-      console.log('[Sync] Found existing client:', existingClient.id);
-      return existingClient.id;
-    }
-  }
-
-  // Final fallback: Create minimal client from deal data
-  const clientData = {
+  
+  return {
     control_tower_id: clientId || null,
     name: clientCompany || 'Unknown Client',
     company: clientCompany || 'Unknown Client',
@@ -265,22 +231,6 @@ async function getOrCreateClient(
     website: ctDeal.clientWebsite || ctDeal.client_website || null,
     status: 'active',
   };
-
-  console.log('[Sync] Creating minimal client:', clientData);
-
-  const { data: newClient, error } = await supabase
-    .from('clients')
-    .insert(clientData)
-    .select('id')
-    .single();
-
-  if (error) {
-    console.error('[Sync] Error creating client:', error);
-    return null;
-  }
-
-  console.log('[Sync] Created new client:', newClient?.id);
-  return newClient?.id || null;
 }
 
 async function performSync(
@@ -372,15 +322,86 @@ async function performSync(
       });
     }
 
-    // Transform deals for bulk upsert with flexible field mapping
-    console.log('[Sync] Transforming deals with client lookup...');
-    const transformedDeals = await Promise.all(
-      ctDeals.map(async (ctDeal: any) => {
+    // Build client lookup cache for fast lookups
+    const clientCache = await buildClientCache(supabase);
+    
+    // Step 1: Collect all unique clients from deals
+    console.log('[Sync] Extracting clients from deals...');
+    const clientsMap = new Map<string, any>();
+    
+    ctDeals.forEach((ctDeal: any) => {
+      const clientData = extractClientData(ctDeal);
+      if (clientData && clientData.company) {
+        const key = clientData.company.toLowerCase().trim();
+        // Keep first occurrence (deals are already sorted by creation)
+        if (!clientsMap.has(key)) {
+          clientsMap.set(key, clientData);
+        }
+      }
+    });
+    
+    console.log(`[Sync] Found ${clientsMap.size} unique clients to sync`);
+    
+    // Step 2: Bulk upsert all clients
+    let clientsCreated = 0;
+    let clientsUpdated = 0;
+    
+    if (clientsMap.size > 0) {
+      const clientsToUpsert = Array.from(clientsMap.values());
+      
+      const { data: upsertedClients, error: clientUpsertError } = await supabase
+        .from('clients')
+        .upsert(clientsToUpsert, {
+          onConflict: 'company',
+          ignoreDuplicates: false
+        })
+        .select('id, company, created_at');
+      
+      if (clientUpsertError) {
+        console.error('[Sync] Error upserting clients:', clientUpsertError);
+      } else {
+        console.log(`[Sync] Upserted ${upsertedClients?.length || 0} clients`);
+        
+        // Update cache with newly created/updated clients
+        upsertedClients?.forEach((client: any) => {
+          const key = client.company.toLowerCase().trim();
+          clientCache.set(key, client.id);
+          
+          // Track new vs updated based on created_at timestamp
+          const createdRecently = new Date(client.created_at).getTime() > startTime - 1000;
+          if (createdRecently) {
+            clientsCreated++;
+          } else {
+            clientsUpdated++;
+          }
+        });
+      }
+    }
+    
+    // Step 3: Transform deals for bulk upsert using cached client IDs
+    console.log('[Sync] Transforming deals with cached client references...');
+    const transformedDeals = ctDeals.map((ctDeal: any) => {
         const ctStage = ctDeal.dealstage || ctDeal.stage;
         const ctStageName = ctDeal.dealstage_name || ctDeal.stage_name;
         
-        // Get or create local client
-        const localClientId = await getOrCreateClient(ctClient, supabase, ctDeal);
+        // Lookup client from cache
+        let localClientId = null;
+        const clientData = extractClientData(ctDeal);
+        
+        if (clientData?.company) {
+          const key = clientData.company.toLowerCase().trim();
+          localClientId = clientCache.get(key) || null;
+        }
+        
+        // Fallback: try control_tower_id or hubspot_id
+        if (!localClientId) {
+          const clientId = ctDeal.client_id || ctDeal.clientId;
+          if (clientId) {
+            localClientId = clientCache.get(`ct:${clientId}`) || 
+                           clientCache.get(`hs:${clientId}`) || 
+                           null;
+          }
+        }
         
         const tags = Array.isArray(ctDeal.tags)
           ? ctDeal.tags
@@ -422,7 +443,7 @@ async function performSync(
             collabai_agent_url: ctDeal.collabai_agent_url || null,
           },
           control_tower_metadata: ctDeal,
-          last_activity_at: ctDeal.updated_at || ctDeal.last_activity_at || new Date().toISOString(),
+          last_activity_date: ctDeal.updated_at?.split('T')[0] || ctDeal.last_activity_date || new Date().toISOString().split('T')[0],
 
           // Control Tower may not expose the user reference; store null until mappings exist.
           last_activity_by: null,
@@ -435,10 +456,9 @@ async function performSync(
           created_at: ctDeal.createdate || ctDeal.created_at || new Date().toISOString(),
           updated_at: ctDeal.updated_at || new Date().toISOString(),
         };
-      })
-    );
+      });
     
-    console.log('[Sync] Transformed', transformedDeals.length, 'deals');
+    console.log('[Sync] Transformed', transformedDeals.length, 'deals with cached client references');
 
     // Perform bulk upsert
     console.log('[Sync] Performing bulk upsert...');
@@ -544,7 +564,7 @@ async function performSync(
             await supabase.functions.invoke('apply-checklist-template', {
               body: { 
                 dealId: deal.id, 
-                stage: transformedDeals.find(d => d.control_tower_id === deal.control_tower_id)?.stage || 'prospecting'
+                stage: transformedDeals.find((d: any) => d.control_tower_id === deal.control_tower_id)?.stage || 'prospecting'
               }
             });
           } catch (templateError) {
@@ -600,15 +620,15 @@ async function performSync(
         failed: 0
       },
       clients: {
-        new: 0,
-        updated: 0
+        new: clientsCreated,
+        updated: clientsUpdated
       },
       checklists: {
-        synced: 0,
-        failed: 0
+        synced: checklistSyncedCount,
+        failed: checklistFailedCount
       },
       errors: [],
-      duration: 0
+      duration
     };
 
     return new Response(

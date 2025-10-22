@@ -512,7 +512,9 @@ export type Database = {
       }
       control_tower_sync_log: {
         Row: {
+          control_tower_id: string | null
           created_at: string
+          entity_id: string | null
           entity_type: string
           error_message: string | null
           id: string
@@ -520,9 +522,12 @@ export type Database = {
           status: string
           sync_type: string
           synced_at: string
+          synced_by: string | null
         }
         Insert: {
+          control_tower_id?: string | null
           created_at?: string
+          entity_id?: string | null
           entity_type: string
           error_message?: string | null
           id?: string
@@ -530,9 +535,12 @@ export type Database = {
           status: string
           sync_type: string
           synced_at?: string
+          synced_by?: string | null
         }
         Update: {
+          control_tower_id?: string | null
           created_at?: string
+          entity_id?: string | null
           entity_type?: string
           error_message?: string | null
           id?: string
@@ -540,8 +548,17 @@ export type Database = {
           status?: string
           sync_type?: string
           synced_at?: string
+          synced_by?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_sync_log_synced_by"
+            columns: ["synced_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       deal_checklist_items: {
         Row: {
@@ -638,6 +655,66 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deal_files: {
+        Row: {
+          checksum: string | null
+          client_id: string | null
+          created_at: string
+          deal_id: string
+          drive_file_id: string
+          drive_file_mime_type: string | null
+          drive_file_name: string
+          drive_last_modified_at: string | null
+          id: string
+          json_snapshot_path: string | null
+          storage_bucket_path: string | null
+          updated_at: string
+        }
+        Insert: {
+          checksum?: string | null
+          client_id?: string | null
+          created_at?: string
+          deal_id: string
+          drive_file_id: string
+          drive_file_mime_type?: string | null
+          drive_file_name: string
+          drive_last_modified_at?: string | null
+          id?: string
+          json_snapshot_path?: string | null
+          storage_bucket_path?: string | null
+          updated_at?: string
+        }
+        Update: {
+          checksum?: string | null
+          client_id?: string | null
+          created_at?: string
+          deal_id?: string
+          drive_file_id?: string
+          drive_file_mime_type?: string | null
+          drive_file_name?: string
+          drive_last_modified_at?: string | null
+          id?: string
+          json_snapshot_path?: string | null
+          storage_bucket_path?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deal_files_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deal_files_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
             referencedColumns: ["id"]
           },
         ]
