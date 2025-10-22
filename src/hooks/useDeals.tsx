@@ -4,6 +4,21 @@ import { useAuth } from './useAuth';
 import { toast } from 'sonner';
 import { DEAL_STAGES, DEAL_STATUSES, DealStage, DealStatus } from '@/lib/dealStages';
 
+export interface DealFile {
+  id: string;
+  deal_id: string;
+  client_id?: string | null;
+  drive_file_id: string;
+  drive_file_name: string;
+  drive_file_mime_type?: string | null;
+  drive_last_modified_at?: string | null;
+  storage_bucket_path?: string | null;
+  json_snapshot_path?: string | null;
+  checksum?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Deal {
   id: string;
   title: string;
@@ -28,6 +43,7 @@ export interface Deal {
     id: string;
     name: string | null;
   } | null;
+  deal_files?: DealFile[];
 }
 
 export interface DealStats {
@@ -148,7 +164,21 @@ export function useDeals(options: UseDealsOptions = {}): UseDealsReturn {
         .select(
           `
           *,
-          client:clients(id, name)
+          client:clients(id, name),
+          deal_files:deal_files(
+            id,
+            deal_id,
+            client_id,
+            drive_file_id,
+            drive_file_name,
+            drive_file_mime_type,
+            drive_last_modified_at,
+            storage_bucket_path,
+            json_snapshot_path,
+            checksum,
+            created_at,
+            updated_at
+          )
         `
         )
         .order(sortBy, { ascending: sortOrder === 'asc' });
@@ -228,7 +258,21 @@ export function useDeals(options: UseDealsOptions = {}): UseDealsReturn {
       .select(
         `
         *,
-        client:clients(id, name)
+        client:clients(id, name),
+        deal_files:deal_files(
+          id,
+          deal_id,
+          client_id,
+          drive_file_id,
+          drive_file_name,
+          drive_file_mime_type,
+          drive_last_modified_at,
+          storage_bucket_path,
+          json_snapshot_path,
+          checksum,
+          created_at,
+          updated_at
+        )
       `
       )
       .single();
@@ -250,7 +294,21 @@ export function useDeals(options: UseDealsOptions = {}): UseDealsReturn {
       .select(
         `
         *,
-        client:clients(id, name)
+        client:clients(id, name),
+        deal_files:deal_files(
+          id,
+          deal_id,
+          client_id,
+          drive_file_id,
+          drive_file_name,
+          drive_file_mime_type,
+          drive_last_modified_at,
+          storage_bucket_path,
+          json_snapshot_path,
+          checksum,
+          created_at,
+          updated_at
+        )
       `
       )
       .single();
@@ -302,7 +360,21 @@ export function useDeals(options: UseDealsOptions = {}): UseDealsReturn {
       .select(
         `
         *,
-        client:clients(id, name)
+        client:clients(id, name),
+        deal_files:deal_files(
+          id,
+          deal_id,
+          client_id,
+          drive_file_id,
+          drive_file_name,
+          drive_file_mime_type,
+          drive_last_modified_at,
+          storage_bucket_path,
+          json_snapshot_path,
+          checksum,
+          created_at,
+          updated_at
+        )
       `
       )
       .eq('id', dealId)
@@ -349,12 +421,31 @@ export function useLocalDealsByStage(
         const to = from + limit - 1;
         
         // Fetch deals without resource embedding to avoid foreign key cache issues
-        const { data: dealsData, error, count } = await supabase
-          .from('deals')
-          .select('*', { count: 'exact' })
-          .eq('stage', stage)
-          .order('created_at', { ascending: false })
-          .range(from, to);
+          const { data: dealsData, error, count } = await supabase
+            .from('deals')
+            .select(
+              `
+              *,
+              deal_files:deal_files(
+                id,
+                deal_id,
+                client_id,
+                drive_file_id,
+                drive_file_name,
+                drive_file_mime_type,
+                drive_last_modified_at,
+                storage_bucket_path,
+                json_snapshot_path,
+                checksum,
+                created_at,
+                updated_at
+              )
+            `,
+              { count: 'exact' }
+            )
+            .eq('stage', stage)
+            .order('created_at', { ascending: false })
+            .range(from, to);
         
         if (error) throw error;
         
@@ -414,6 +505,7 @@ export function useLocalDealsByStage(
             synced_from_control_tower: deal.synced_from_control_tower,
             lead_source: deal.control_tower_status || '-',
             hubspot_crm_deal_url: deal.control_tower_id ? `https://app.hubspot.com/contacts/deal/${deal.control_tower_id}` : null,
+            deal_files: deal.deal_files || [],
           };
         });
         
