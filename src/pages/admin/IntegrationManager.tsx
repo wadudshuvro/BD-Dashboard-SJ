@@ -106,6 +106,8 @@ const IntegrationManager = () => {
   const [selectedLogSource, setSelectedLogSource] = useState<"hubspot" | "gohighlevel" | null>(null);
   const [logEntries, setLogEntries] = useState<IntegrationLogEntry[]>([]);
   const [isLogsLoading, setIsLogsLoading] = useState(false);
+  const [testingOpenAI, setTestingOpenAI] = useState(false);
+  const [openAITestResult, setOpenAITestResult] = useState<any>(null);
 
   const hubspotIntegration = crmIntegrations.find((integration) => integration.type === "hubspot");
   const goHighLevelIntegration = crmIntegrations.find((integration) => integration.type === "gohighlevel");
@@ -147,7 +149,7 @@ const IntegrationManager = () => {
       const { data: openaiStatus } = await supabase.functions.invoke("openai-test", {
         body: { action: "status" },
       });
-      const openaiEnabled = Boolean(openaiStatus?.configured ? openaiStatus.enabled : false);
+      const openaiEnabled = Boolean(openaiStatus?.configured);
       nextGlobal[1] = { ...nextGlobal[1], is_enabled: openaiEnabled };
     } catch (error) {
       console.error("Failed to load OpenAI config", error);
@@ -273,6 +275,45 @@ const IntegrationManager = () => {
     }
   };
 
+  const handleTestOpenAI = async () => {
+    setTestingOpenAI(true);
+    setOpenAITestResult(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("openai-test", {
+        body: { action: "test" },
+      });
+      
+      if (error) throw error;
+      
+      setOpenAITestResult(data);
+      
+      if (data?.ok) {
+        toast({
+          title: "OpenAI connection successful",
+          description: `Connected successfully. Found ${data.models_available || 0} models available.`,
+        });
+      } else {
+        toast({
+          title: "OpenAI connection failed",
+          description: data?.error || "Unable to connect to OpenAI API.",
+          variant: "destructive",
+        });
+      }
+      
+      await loadIntegrations();
+    } catch (error) {
+      console.error("OpenAI test failed", error);
+      toast({
+        title: "Test failed",
+        description: error instanceof Error ? error.message : "Unable to test OpenAI connection.",
+        variant: "destructive",
+      });
+      setOpenAITestResult({ ok: false, error: "Connection test failed" });
+    } finally {
+      setTestingOpenAI(false);
+    }
+  };
+
   return (
     <div className="space-y-8">
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
@@ -304,14 +345,52 @@ const IntegrationManager = () => {
                   </div>
                 </div>
               </CardHeader>
-              <CardContent className="flex items-center justify-between">
-                <div className="space-y-1 text-sm text-muted-foreground">
-                  <p>Category: {integration.category}</p>
-                  <p>Status: {integration.is_enabled ? "Configured" : "Not configured"}</p>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1 text-sm text-muted-foreground">
+                    <p>Category: {integration.category}</p>
+                    <p>Status: {integration.is_enabled ? "Configured" : "Not configured"}</p>
+                    {integration.id === "openai" && openAITestResult && (
+                      <>
+                        {openAITestResult.ok && (
+                          <p className="text-green-600 dark:text-green-400">
+                            ✓ {openAITestResult.models_available} models available
+                          </p>
+                        )}
+                        {!openAITestResult.ok && (
+                          <p className="text-destructive flex items-center gap-1">
+                            <AlertCircle className="h-3 w-3" />
+                            {openAITestResult.error}
+                          </p>
+                        )}
+                      </>
+                    )}
+                  </div>
+                  <Badge variant={integration.is_enabled ? "default" : "outline"}>
+                    {integration.is_enabled ? "Active" : "Pending"}
+                  </Badge>
                 </div>
-                <Badge variant={integration.is_enabled ? "default" : "outline"}>
-                  {integration.is_enabled ? "Active" : "Pending"}
-                </Badge>
+                {integration.id === "openai" && (
+                  <Button
+                    onClick={handleTestOpenAI}
+                    disabled={testingOpenAI}
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                  >
+                    {testingOpenAI ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Testing connection...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                        Test Connection
+                      </>
+                    )}
+                  </Button>
+                )}
               </CardContent>
             </Card>
           ))}
