@@ -173,13 +173,6 @@ function extractDriveFolderId(ctDeal: any): string | null {
   return null;
 }
 
-async function getOrCreateClient(
-  ctClient: any,
-  supabase: any,
-  ctDeal: any
-): Promise<string | null> {
-  const clientCompany = ctDeal.clientCompanyName || ctDeal.company_name || ctDeal.client_company;
-  const clientId = ctDeal.client_id || ctDeal.clientId;
 // Build a client lookup cache from company names
 async function buildClientCache(supabase: any): Promise<Map<string, string>> {
   console.log('[Sync] Building client lookup cache...');

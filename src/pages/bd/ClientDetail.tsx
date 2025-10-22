@@ -21,7 +21,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { useClients, type Client } from '@/hooks/useClients';
 import { useDeals } from '@/hooks/useDeals';
-import { useDealFiles, type DealFileMetadata } from '@/hooks/useDealFiles';
+import { useDealFiles } from '@/hooks/useDealFiles';
 
 function formatDate(value?: string | null, withTime = false) {
   if (!value) return '—';
@@ -315,18 +315,14 @@ export default function ClientDetail() {
                 </TableHeader>
                 <TableBody>
                   {files.map((file) => {
-                    const metadata = file.metadata ?? ({} as DealFileMetadata);
-                    const source = metadata.source ?? metadata.origin ?? file.file_source ?? '—';
-                    const localUrl =
-                      metadata.local_json_path ?? metadata.local_path ?? file.local_path ?? metadata.storage_url ?? undefined;
-                    const driveUrl = metadata.google_drive_url ?? metadata.drive_url ?? file.external_url ?? undefined;
-                    const lastSync = file.last_synced_at ?? metadata.last_synced_at ?? file.updated_at;
+                    const driveUrl = file.drive_folder_url ?? undefined;
+                    const lastSync = file.drive_last_modified_at ?? file.updated_at;
                     const relativeSync = formatRelativeDate(lastSync);
 
                     return (
                       <TableRow key={file.id}>
-                        <TableCell className="font-medium">{file.file_name || metadata.name || 'Untitled File'}</TableCell>
-                        <TableCell>{source}</TableCell>
+                        <TableCell className="font-medium">{file.drive_file_name || 'Untitled File'}</TableCell>
+                        <TableCell>Google Drive</TableCell>
                         <TableCell>
                           <div className="flex flex-col">
                             <span>{formatDate(lastSync, true)}</span>
@@ -334,11 +330,6 @@ export default function ClientDetail() {
                           </div>
                         </TableCell>
                         <TableCell className="flex justify-end gap-2">
-                          <Button variant="outline" size="sm" asChild disabled={!localUrl}>
-                            <a href={localUrl || '#'} target="_blank" rel="noopener noreferrer">
-                              View JSON
-                            </a>
-                          </Button>
                           <Button variant="outline" size="sm" asChild disabled={!driveUrl}>
                             <a href={driveUrl || '#'} target="_blank" rel="noopener noreferrer">
                               <ExternalLink className="mr-2 h-4 w-4" /> Drive

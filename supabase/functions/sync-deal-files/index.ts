@@ -1,7 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.75.0";
-import { encode as base64Encode, decode as base64Decode } from "https://deno.land/std@0.224.0/encoding/base64.ts";
+import { encodeBase64, decodeBase64 } from "https://deno.land/std@0.224.0/encoding/base64.ts";
 
 interface PdfTextItem {
   str?: string;
@@ -23,7 +23,7 @@ interface PdfJsModule {
   GlobalWorkerOptions?: { workerSrc?: string };
 }
 
-let pdfjsLib: PdfJsModule | null = null;
+let pdfjsLib: any | null = null;
 try {
   pdfjsLib = await import("https://esm.sh/pdfjs-dist@3.11.174/legacy/build/pdf.mjs");
   if (pdfjsLib?.GlobalWorkerOptions) {
@@ -145,7 +145,7 @@ serve(async (req) => {
             const storagePath = createStoragePath(deal.dealId, file);
 
             const uploadError = await uploadJsonToStorage(
-              supabase,
+              supabase as any,
               storagePath,
               {
                 dealId: deal.dealId,
@@ -173,21 +173,20 @@ serve(async (req) => {
             }
 
             const metadataError = await upsertMetadata(
-              supabase,
+              supabase as any,
               {
                 deal_id: deal.dealId,
-                control_tower_deal_id: deal.controlTowerDealId ?? null,
+                client_id: null,
                 drive_file_id: file.id,
                 drive_folder_id: deal.driveFolderId,
-                file_name: file.name,
-                mime_type: file.mimeType,
-                storage_path: storagePath,
-                drive_modified_at: file.modifiedTime ?? null,
+                drive_file_name: file.name,
+                drive_file_type: file.mimeType,
+                storage_bucket_path: storagePath,
+                json_snapshot_path: storagePath,
+                drive_last_modified_at: file.modifiedTime ?? null,
                 drive_created_at: file.createdTime ?? null,
                 file_size: file.size ? Number(file.size) : null,
-                md5_checksum: file.md5Checksum ?? null,
-                parser: conversion.parser,
-                last_synced_at: new Date().toISOString(),
+                checksum: file.md5Checksum ?? null,
               },
             );
 
@@ -304,7 +303,7 @@ function parseServiceAccount(raw: string): GoogleServiceAccount {
     return parsed as GoogleServiceAccount;
   } catch (_error) {
     try {
-      const decoded = base64Decode(raw.replace(/\s+/g, ""));
+      const decoded = decodeBase64(raw.replace(/\s+/g, ""));
       const json = new TextDecoder().decode(decoded);
       const parsed = JSON.parse(json);
       if (!parsed || typeof parsed !== "object") {
@@ -371,10 +370,10 @@ async function importPrivateKey(privateKeyPem: string): Promise<CryptoKey> {
     .replace("-----END PRIVATE KEY-----", "")
     .replace(/\s+/g, "");
 
-  const raw = base64Decode(cleaned);
+  const raw = decodeBase64(cleaned);
   return await crypto.subtle.importKey(
     "pkcs8",
-    raw,
+    raw as any,
     {
       name: "RSASSA-PKCS1-v1_5",
       hash: "SHA-256",
@@ -385,7 +384,7 @@ async function importPrivateKey(privateKeyPem: string): Promise<CryptoKey> {
 }
 
 function base64UrlEncode(bytes: Uint8Array): string {
-  return base64Encode(bytes)
+  return encodeBase64(bytes)
     .replace(/\+/g, "-")
     .replace(/\//g, "_")
     .replace(/=+$/g, "");
@@ -463,7 +462,7 @@ async function convertFileToJson(file: DriveFile, data: Uint8Array): Promise<Con
         const page = await pdf.getPage(index);
         const textContent = await page.getTextContent();
         const text = textContent.items
-          .map((item) => (typeof item.str === "string" ? item.str : ""))
+          .map((item: any) => (typeof item.str === "string" ? item.str : ""))
           .join(" ")
           .replace(/\s+/g, " ")
           .trim();
@@ -499,7 +498,7 @@ async function convertFileToJson(file: DriveFile, data: Uint8Array): Promise<Con
     payload: {
       type: "binary",
       mimeType: file.mimeType,
-      data: base64Encode(data),
+      data: encodeBase64(data),
     },
   };
 }
@@ -531,12 +530,12 @@ async function uploadJsonToStorage(
 }
 
 async function upsertMetadata(
-  supabase: ReturnType<typeof createClient>,
-  record: Record<string, unknown>,
+  supabase: any,
+  record: any,
 ): Promise<string | null> {
   const { error } = await supabase
     .from("deal_files")
-    .upsert(record, { onConflict: "deal_id,drive_file_id" });
+    .upsert(record, { onConflict: "drive_file_id" });
 
   return error ? (error.message ?? "Unknown metadata error") : null;
 }

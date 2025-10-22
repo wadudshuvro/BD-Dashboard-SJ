@@ -664,13 +664,18 @@ export type Database = {
           checksum: string | null
           client_id: string | null
           created_at: string
-          deal_id: string
-          drive_file_id: string
-          drive_file_mime_type: string | null
-          drive_file_name: string
+          deal_id: string | null
+          drive_created_at: string | null
+          drive_file_id: string | null
+          drive_file_name: string | null
+          drive_file_type: string | null
+          drive_folder_id: string | null
+          drive_folder_url: string | null
           drive_last_modified_at: string | null
+          file_size: number | null
           id: string
           json_snapshot_path: string | null
+          metadata: Json | null
           storage_bucket_path: string | null
           updated_at: string
         }
@@ -678,13 +683,18 @@ export type Database = {
           checksum?: string | null
           client_id?: string | null
           created_at?: string
-          deal_id: string
-          drive_file_id: string
-          drive_file_mime_type?: string | null
-          drive_file_name: string
+          deal_id?: string | null
+          drive_created_at?: string | null
+          drive_file_id?: string | null
+          drive_file_name?: string | null
+          drive_file_type?: string | null
+          drive_folder_id?: string | null
+          drive_folder_url?: string | null
           drive_last_modified_at?: string | null
+          file_size?: number | null
           id?: string
           json_snapshot_path?: string | null
+          metadata?: Json | null
           storage_bucket_path?: string | null
           updated_at?: string
         }
@@ -692,13 +702,18 @@ export type Database = {
           checksum?: string | null
           client_id?: string | null
           created_at?: string
-          deal_id?: string
-          drive_file_id?: string
-          drive_file_mime_type?: string | null
-          drive_file_name?: string
+          deal_id?: string | null
+          drive_created_at?: string | null
+          drive_file_id?: string | null
+          drive_file_name?: string | null
+          drive_file_type?: string | null
+          drive_folder_id?: string | null
+          drive_folder_url?: string | null
           drive_last_modified_at?: string | null
+          file_size?: number | null
           id?: string
           json_snapshot_path?: string | null
+          metadata?: Json | null
           storage_bucket_path?: string | null
           updated_at?: string
         }
@@ -768,6 +783,8 @@ export type Database = {
           dealtype: string | null
           expected_closing_date: string | null
           external_links: Json | null
+          google_drive_folder_id: string | null
+          google_drive_folder_url: string | null
           hubspot_crm_deal_url: string | null
           hubspot_deal_id: string | null
           id: string
@@ -800,6 +817,8 @@ export type Database = {
           dealtype?: string | null
           expected_closing_date?: string | null
           external_links?: Json | null
+          google_drive_folder_id?: string | null
+          google_drive_folder_url?: string | null
           hubspot_crm_deal_url?: string | null
           hubspot_deal_id?: string | null
           id?: string
@@ -832,6 +851,8 @@ export type Database = {
           dealtype?: string | null
           expected_closing_date?: string | null
           external_links?: Json | null
+          google_drive_folder_id?: string | null
+          google_drive_folder_url?: string | null
           hubspot_crm_deal_url?: string | null
           hubspot_deal_id?: string | null
           id?: string
@@ -943,6 +964,66 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      google_drive_sync_log: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          deal_id: string | null
+          errors: Json | null
+          files_added: number | null
+          files_scanned: number | null
+          files_skipped: number | null
+          files_updated: number | null
+          id: string
+          started_at: string
+          sync_type: string
+          triggered_by: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          deal_id?: string | null
+          errors?: Json | null
+          files_added?: number | null
+          files_scanned?: number | null
+          files_skipped?: number | null
+          files_updated?: number | null
+          id?: string
+          started_at?: string
+          sync_type: string
+          triggered_by?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          deal_id?: string | null
+          errors?: Json | null
+          files_added?: number | null
+          files_scanned?: number | null
+          files_skipped?: number | null
+          files_updated?: number | null
+          id?: string
+          started_at?: string
+          sync_type?: string
+          triggered_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "google_drive_sync_log_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "google_drive_sync_log_triggered_by_fkey"
+            columns: ["triggered_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       integrations: {
         Row: {

@@ -9,12 +9,17 @@ export interface DealFile {
   deal_id: string;
   client_id?: string | null;
   drive_file_id: string;
+  drive_folder_id?: string | null;
   drive_file_name: string;
-  drive_file_mime_type?: string | null;
+  drive_file_type?: string | null;
   drive_last_modified_at?: string | null;
+  drive_created_at?: string | null;
   storage_bucket_path?: string | null;
   json_snapshot_path?: string | null;
+  file_size?: number | null;
   checksum?: string | null;
+  metadata?: any;
+  drive_folder_url?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -170,12 +175,17 @@ export function useDeals(options: UseDealsOptions = {}): UseDealsReturn {
             deal_id,
             client_id,
             drive_file_id,
+            drive_folder_id,
             drive_file_name,
-            drive_file_mime_type,
+            drive_file_type,
             drive_last_modified_at,
+            drive_created_at,
             storage_bucket_path,
             json_snapshot_path,
+            file_size,
             checksum,
+            metadata,
+            drive_folder_url,
             created_at,
             updated_at
           )
@@ -264,12 +274,17 @@ export function useDeals(options: UseDealsOptions = {}): UseDealsReturn {
           deal_id,
           client_id,
           drive_file_id,
+          drive_folder_id,
           drive_file_name,
-          drive_file_mime_type,
+          drive_file_type,
           drive_last_modified_at,
+          drive_created_at,
           storage_bucket_path,
           json_snapshot_path,
+          file_size,
           checksum,
+          metadata,
+          drive_folder_url,
           created_at,
           updated_at
         )
@@ -300,12 +315,17 @@ export function useDeals(options: UseDealsOptions = {}): UseDealsReturn {
           deal_id,
           client_id,
           drive_file_id,
+          drive_folder_id,
           drive_file_name,
-          drive_file_mime_type,
+          drive_file_type,
           drive_last_modified_at,
+          drive_created_at,
           storage_bucket_path,
           json_snapshot_path,
+          file_size,
           checksum,
+          metadata,
+          drive_folder_url,
           created_at,
           updated_at
         )
@@ -366,12 +386,17 @@ export function useDeals(options: UseDealsOptions = {}): UseDealsReturn {
           deal_id,
           client_id,
           drive_file_id,
+          drive_folder_id,
           drive_file_name,
-          drive_file_mime_type,
+          drive_file_type,
           drive_last_modified_at,
+          drive_created_at,
           storage_bucket_path,
           json_snapshot_path,
+          file_size,
           checksum,
+          metadata,
+          drive_folder_url,
           created_at,
           updated_at
         )
@@ -431,12 +456,17 @@ export function useLocalDealsByStage(
                 deal_id,
                 client_id,
                 drive_file_id,
+                drive_folder_id,
                 drive_file_name,
-                drive_file_mime_type,
+                drive_file_type,
                 drive_last_modified_at,
+                drive_created_at,
                 storage_bucket_path,
                 json_snapshot_path,
+                file_size,
                 checksum,
+                metadata,
+                drive_folder_url,
                 created_at,
                 updated_at
               )

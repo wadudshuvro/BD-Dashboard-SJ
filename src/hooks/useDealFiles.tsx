@@ -2,31 +2,22 @@ import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 
-export interface DealFileMetadata {
-  name?: string | null;
-  source?: string | null;
-  origin?: string | null;
-  local_json_path?: string | null;
-  local_path?: string | null;
-  storage_url?: string | null;
-  google_drive_url?: string | null;
-  drive_url?: string | null;
-  last_synced_at?: string | null;
-  [key: string]: unknown;
-}
-
 export interface DealFile {
   id: string;
   deal_id: string | null;
   client_id: string | null;
-  file_name: string | null;
-  file_source?: string | null;
-  file_type?: string | null;
-  storage_path?: string | null;
-  local_path?: string | null;
-  external_url?: string | null;
-  last_synced_at?: string | null;
-  metadata?: DealFileMetadata | null;
+  drive_file_id: string | null;
+  drive_folder_id: string | null;
+  drive_file_name: string | null;
+  drive_file_type: string | null;
+  storage_bucket_path: string | null;
+  json_snapshot_path: string | null;
+  file_size: number | null;
+  checksum: string | null;
+  drive_last_modified_at: string | null;
+  drive_created_at: string | null;
+  metadata: any;
+  drive_folder_url: string | null;
   created_at: string;
   updated_at: string;
 }

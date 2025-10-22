@@ -381,12 +381,17 @@ export default function DealDetail() {
               deal_id,
               client_id,
               drive_file_id,
+              drive_folder_id,
               drive_file_name,
-              drive_file_mime_type,
+              drive_file_type,
               drive_last_modified_at,
+              drive_created_at,
               storage_bucket_path,
               json_snapshot_path,
+              file_size,
               checksum,
+              metadata,
+              drive_folder_url,
               created_at,
               updated_at
             )
