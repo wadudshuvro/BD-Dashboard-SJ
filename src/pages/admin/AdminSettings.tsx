@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,8 +11,17 @@ import { ControlTowerConfig } from "@/components/admin/ControlTowerConfig";
 import AutomationSettings from "./AutomationSettings";
 
 const AdminSettings = () => {
+  const [searchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab');
+  const [activeTab, setActiveTab] = useState(tabParam || "control-tower");
   const [companyName, setCompanyName] = useState("Business Development Intelligence Co.");
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (tabParam) {
+      setActiveTab(tabParam);
+    }
+  }, [tabParam]);
 
   const handleSave = () => {
     toast({
@@ -30,7 +40,7 @@ const AdminSettings = () => {
         </p>
       </div>
 
-      <Tabs defaultValue="control-tower" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList>
           <TabsTrigger value="control-tower">Control Tower</TabsTrigger>
           <TabsTrigger value="automation">Automation</TabsTrigger>
