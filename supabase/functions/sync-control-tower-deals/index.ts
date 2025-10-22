@@ -394,7 +394,7 @@ async function performSync(
             collabai_agent_url: ctDeal.collabai_agent_url || null,
           },
           control_tower_metadata: ctDeal,
-          last_activity_at: ctDeal.updated_at || ctDeal.last_activity_at || new Date().toISOString(),
+          last_activity_date: ctDeal.updated_at?.split('T')[0] || ctDeal.last_activity_date || new Date().toISOString().split('T')[0],
 
           // Control Tower may not expose the user reference; store null until mappings exist.
           last_activity_by: null,

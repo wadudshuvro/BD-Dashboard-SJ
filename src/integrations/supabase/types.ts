@@ -550,7 +550,15 @@ export type Database = {
           synced_at?: string
           synced_by?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_sync_log_synced_by"
+            columns: ["synced_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       deal_checklist_items: {
         Row: {
