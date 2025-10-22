@@ -27,27 +27,37 @@ export interface TargetNiche {
   updated_at: string;
 }
 
-export const useTargetNiches = (podId?: string) => {
+export const useTargetNiches = (podId?: string, page: number = 1, limit: number = 12) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: niches, isLoading, error } = useQuery({
-    queryKey: ['target_niches', podId],
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['target_niches', podId, page, limit],
     queryFn: async () => {
+      const from = (page - 1) * limit;
+      const to = from + limit - 1;
+      
       let query = (supabase as any)
         .from('target_niches')
-        .select('*')
-        .order('name');
+        .select('*', { count: 'exact' })
+        .order('name')
+        .range(from, to);
       
       if (podId) {
         query = query.eq('pod_id', podId);
       }
       
-      const { data, error } = await query;
+      const { data, error, count } = await query;
       if (error) throw error;
-      return data as TargetNiche[];
+      
+      return {
+        data: data as TargetNiche[],
+        total: count || 0,
+      };
     },
   });
+  
+  const niches = data?.data || [];
 
   const createNiche = useMutation({
     mutationFn: async (niche: Partial<TargetNiche>) => {
@@ -130,7 +140,8 @@ export const useTargetNiches = (podId?: string) => {
   });
 
   return {
-    niches: niches || [],
+    niches,
+    total: data?.total || 0,
     isLoading,
     error,
     createNiche,

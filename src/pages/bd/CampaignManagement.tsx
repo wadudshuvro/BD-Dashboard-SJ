@@ -11,6 +11,15 @@ import {
   TrendingUp,
   Users,
 } from 'lucide-react';
+import { usePagination } from '@/hooks/usePagination';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from '@/components/ui/pagination';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -38,11 +47,14 @@ type AggregateStats = {
 };
 
 export default function CampaignManagement() {
-  const { campaigns, isLoading } = useBDCampaigns();
+  const pagination = usePagination(12);
+  const { campaigns, total, isLoading } = useBDCampaigns(undefined, pagination.currentPage, pagination.pageSize);
   const { niches } = useTargetNiches();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [, setDialogOpen] = useState(false);
+  
+  const totalPages = Math.ceil(total / pagination.pageSize);
 
   const filteredCampaigns = campaigns.filter((campaign) => {
     const matchesSearch = campaign.name.toLowerCase().includes(searchQuery.toLowerCase());
@@ -188,10 +200,57 @@ export default function CampaignManagement() {
         </Select>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-        {filteredCampaigns.map((campaign) => (
-          <CampaignCard key={campaign.id} campaign={campaign} niches={niches} />
-        ))}
+      <div className="space-y-6">
+        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+          {filteredCampaigns.map((campaign) => (
+            <CampaignCard key={campaign.id} campaign={campaign} niches={niches} />
+          ))}
+        </div>
+        
+        {totalPages > 1 && (
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious 
+                  onClick={() => pagination.currentPage > 1 && pagination.setCurrentPage(pagination.currentPage - 1)}
+                  className={pagination.currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                />
+              </PaginationItem>
+              
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                let pageNum: number;
+                if (totalPages <= 5) {
+                  pageNum = i + 1;
+                } else if (pagination.currentPage <= 3) {
+                  pageNum = i + 1;
+                } else if (pagination.currentPage >= totalPages - 2) {
+                  pageNum = totalPages - 4 + i;
+                } else {
+                  pageNum = pagination.currentPage - 2 + i;
+                }
+                
+                return (
+                  <PaginationItem key={pageNum}>
+                    <PaginationLink
+                      onClick={() => pagination.setCurrentPage(pageNum)}
+                      isActive={pagination.currentPage === pageNum}
+                      className="cursor-pointer"
+                    >
+                      {pageNum}
+                    </PaginationLink>
+                  </PaginationItem>
+                );
+              })}
+              
+              <PaginationItem>
+                <PaginationNext 
+                  onClick={() => pagination.currentPage < totalPages && pagination.setCurrentPage(pagination.currentPage + 1)}
+                  className={pagination.currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        )}
       </div>
     </div>
   );

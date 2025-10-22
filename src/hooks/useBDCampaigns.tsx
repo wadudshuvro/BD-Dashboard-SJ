@@ -47,27 +47,37 @@ export interface BDCampaign {
   updated_at: string;
 }
 
-export const useBDCampaigns = (nicheId?: string) => {
+export const useBDCampaigns = (nicheId?: string, page: number = 1, limit: number = 12) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: campaigns, isLoading, error } = useQuery({
-    queryKey: ['bd_campaigns', nicheId],
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['bd_campaigns', nicheId, page, limit],
     queryFn: async () => {
+      const from = (page - 1) * limit;
+      const to = from + limit - 1;
+      
       let query = supabase
         .from('bd_campaigns')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .select('*', { count: 'exact' })
+        .order('created_at', { ascending: false })
+        .range(from, to);
 
       if (nicheId) {
         query = query.eq('niche_id', nicheId);
       }
 
-      const { data, error } = await query;
+      const { data, error, count } = await query;
       if (error) throw error;
-      return data as BDCampaign[];
+      
+      return {
+        data: data as BDCampaign[],
+        total: count || 0,
+      };
     },
   });
+  
+  const campaigns = data?.data || [];
 
   const createCampaign = useMutation({
     mutationFn: async (campaign: Partial<BDCampaign>) => {
@@ -150,7 +160,8 @@ export const useBDCampaigns = (nicheId?: string) => {
   });
 
   return {
-    campaigns: campaigns || [],
+    campaigns,
+    total: data?.total || 0,
     isLoading,
     error,
     createCampaign,

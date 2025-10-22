@@ -89,27 +89,35 @@ export const useControlTowerDeals = () => {
 };
 
 // Hook for fetching clients
-export const useControlTowerClients = () => {
+export const useControlTowerClients = (page: number = 1, limit: number = 25) => {
   const { data: config } = useControlTowerConfig();
   
   return useQuery({
-    queryKey: ['control-tower-clients'],
-    queryFn: async (): Promise<ControlTowerClient[]> => {
+    queryKey: ['control-tower-clients', page, limit],
+    queryFn: async () => {
       if (!config?.url || !config?.anon_key) {
         throw new Error('Control Tower not configured');
       }
       
+      const from = (page - 1) * limit;
+      const to = from + limit - 1;
+      
       const client = createControlTowerClient(config.url, config.anon_key);
-      const { data, error } = await client
+      const { data, error, count } = await client
         .from('clients')
         .select(`
           *,
           projects:projects(count)
-        `)
-        .order('name', { ascending: true });
+        `, { count: 'exact' })
+        .order('name', { ascending: true })
+        .range(from, to);
       
       if (error) throw error;
-      return data || [];
+      
+      return {
+        data: (data || []) as ControlTowerClient[],
+        total: count || 0,
+      };
     },
     staleTime: 5 * 60 * 1000,
     enabled: !!config?.url && !!config?.anon_key && config?.is_active,
@@ -154,20 +162,25 @@ export const useControlTowerSummary = () => {
 
 // Hook for fetching deals by stage
 export const useControlTowerDealsByStage = (
-  stage: 'prospecting' | 'qualification' | 'proposal' | 'negotiation'
+  stage: 'prospecting' | 'qualification' | 'proposal' | 'negotiation',
+  page: number = 1,
+  limit: number = 25
 ) => {
   const { data: config } = useControlTowerConfig();
   
   return useQuery({
-    queryKey: ['control-tower-deals-by-stage', stage],
+    queryKey: ['control-tower-deals-by-stage', stage, page, limit],
     queryFn: async () => {
       if (!config?.url || !config?.anon_key) {
         throw new Error('Control Tower not configured');
       }
       
+      const from = (page - 1) * limit;
+      const to = from + limit - 1;
+      
       const client = createControlTowerClient(config.url, config.anon_key);
       
-      const { data, error } = await client
+      const { data, error, count } = await client
         .from('Deal')
         .select(`
           *,
@@ -181,14 +194,15 @@ export const useControlTowerDealsByStage = (
             industry,
             domain
           )
-        `)
+        `, { count: 'exact' })
         .eq('dealstage', stage)
-        .order('createdate', { ascending: false });
+        .order('createdate', { ascending: false })
+        .range(from, to);
       
       if (error) throw error;
       
       // Flatten client data into deal object
-      return (data || []).map((deal: any) => ({
+      const deals = (data || []).map((deal: any) => ({
         id: deal.id,
         deal_name: deal.dealname || '',
         client_id: deal.client_id,
@@ -221,6 +235,11 @@ export const useControlTowerDealsByStage = (
         expected_closing_date: deal.expected_closing_date,
         potential_amount: deal.potential_amount,
       }));
+      
+      return {
+        data: deals,
+        total: count || 0,
+      };
     },
     staleTime: 5 * 60 * 1000,
     enabled: !!config?.url && !!config?.anon_key && config?.is_active,

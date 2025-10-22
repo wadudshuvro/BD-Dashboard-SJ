@@ -8,15 +8,27 @@ import { usePods } from '@/hooks/usePods';
 import { useTargetNiches } from '@/hooks/useTargetNiches';
 import { NicheCard } from '@/components/bd/NicheCard';
 import { NicheDialog } from '@/components/bd/NicheDialog';
+import { usePagination } from '@/hooks/usePagination';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from '@/components/ui/pagination';
 
 export default function NicheManagement() {
   const { pods } = usePods();
-  const { niches, createNiche, updateNiche, deleteNiche } = useTargetNiches();
+  const pagination = usePagination(12);
+  const { niches, total, createNiche, updateNiche, deleteNiche } = useTargetNiches(undefined, pagination.currentPage, pagination.pageSize);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingNiche, setEditingNiche] = useState(null);
   const [selectedPod, setSelectedPod] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  
+  const totalPages = Math.ceil(total / pagination.pageSize);
 
   const filteredNiches = niches.filter((niche) => {
     const matchesPod = selectedPod === 'all' || niche.pod_id === selectedPod;
@@ -87,7 +99,7 @@ export default function NicheManagement() {
           <TabsTrigger value="pods">By POD</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="grid" className="mt-6">
+        <TabsContent value="grid" className="mt-6 space-y-6">
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {filteredNiches.map((niche) => (
               <NicheCard
@@ -98,6 +110,51 @@ export default function NicheManagement() {
               />
             ))}
           </div>
+          
+          {totalPages > 1 && (
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious 
+                    onClick={() => pagination.currentPage > 1 && pagination.setCurrentPage(pagination.currentPage - 1)}
+                    className={pagination.currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                  />
+                </PaginationItem>
+                
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let pageNum: number;
+                  if (totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (pagination.currentPage <= 3) {
+                    pageNum = i + 1;
+                  } else if (pagination.currentPage >= totalPages - 2) {
+                    pageNum = totalPages - 4 + i;
+                  } else {
+                    pageNum = pagination.currentPage - 2 + i;
+                  }
+                  
+                  return (
+                    <PaginationItem key={pageNum}>
+                      <PaginationLink
+                        onClick={() => pagination.setCurrentPage(pageNum)}
+                        isActive={pagination.currentPage === pageNum}
+                        className="cursor-pointer"
+                      >
+                        {pageNum}
+                      </PaginationLink>
+                    </PaginationItem>
+                  );
+                })}
+                
+                <PaginationItem>
+                  <PaginationNext 
+                    onClick={() => pagination.currentPage < totalPages && pagination.setCurrentPage(pagination.currentPage + 1)}
+                    className={pagination.currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          )}
         </TabsContent>
 
         <TabsContent value="pods" className="mt-6">

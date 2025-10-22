@@ -7,7 +7,9 @@ import { Link } from 'react-router-dom';
 export default function BDDashboard() {
   const { data: leads = [] } = useControlTowerLeads();
   const { data: deals = [] } = useControlTowerDeals();
-  const { data: clients = [] } = useControlTowerClients();
+  const { data: clientsData } = useControlTowerClients(1, 1000); // Get all for stats
+  
+  const clients = clientsData?.data || [];
   
   const newLeads = leads.filter((l: any) => 
     new Date(l.created_at).getMonth() === new Date().getMonth()

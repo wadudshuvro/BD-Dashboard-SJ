@@ -3,6 +3,15 @@ import { Loader2, Plus, RotateCcw, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { usePagination } from '@/hooks/usePagination';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from '@/components/ui/pagination';
 import {
   Select,
   SelectContent,
@@ -34,6 +43,7 @@ type StatusFilter = 'all' | 'active' | 'inactive';
 type TeamFilter = 'all' | string;
 
 export default function ProductManagement() {
+  const pagination = usePagination(12);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -56,6 +66,7 @@ export default function ProductManagement() {
 
   const {
     products,
+    total,
     isLoading,
     error,
     createProduct,
@@ -63,8 +74,10 @@ export default function ProductManagement() {
     deleteProduct,
     toggleProductStatus,
     isDeleting,
-  } = useProducts(filters);
+  } = useProducts(filters, pagination.currentPage, pagination.pageSize);
   const { pods } = usePods();
+  
+  const totalPages = Math.ceil(total / pagination.pageSize);
 
   const podNameMap = useMemo(() => new Map(pods.map((pod) => [pod.id, pod.name])), [pods]);
 
@@ -256,17 +269,64 @@ export default function ProductManagement() {
           </Button>
         </div>
       ) : (
-        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-          {products.map((product) => (
-            <ProductCard
-              key={product.id}
-              product={product}
-              ownerTeamName={product.owner_team ? podNameMap.get(product.owner_team) : undefined}
-              onEdit={handleEditProduct}
-              onDelete={handleDeleteRequest}
-              onToggleActive={handleToggleActive}
-            />
-          ))}
+        <div className="space-y-6">
+          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+            {products.map((product) => (
+              <ProductCard
+                key={product.id}
+                product={product}
+                ownerTeamName={product.owner_team ? podNameMap.get(product.owner_team) : undefined}
+                onEdit={handleEditProduct}
+                onDelete={handleDeleteRequest}
+                onToggleActive={handleToggleActive}
+              />
+            ))}
+          </div>
+          
+          {totalPages > 1 && (
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious 
+                    onClick={() => pagination.currentPage > 1 && pagination.setCurrentPage(pagination.currentPage - 1)}
+                    className={pagination.currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                  />
+                </PaginationItem>
+                
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let pageNum: number;
+                  if (totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (pagination.currentPage <= 3) {
+                    pageNum = i + 1;
+                  } else if (pagination.currentPage >= totalPages - 2) {
+                    pageNum = totalPages - 4 + i;
+                  } else {
+                    pageNum = pagination.currentPage - 2 + i;
+                  }
+                  
+                  return (
+                    <PaginationItem key={pageNum}>
+                      <PaginationLink
+                        onClick={() => pagination.setCurrentPage(pageNum)}
+                        isActive={pagination.currentPage === pageNum}
+                        className="cursor-pointer"
+                      >
+                        {pageNum}
+                      </PaginationLink>
+                    </PaginationItem>
+                  );
+                })}
+                
+                <PaginationItem>
+                  <PaginationNext 
+                    onClick={() => pagination.currentPage < totalPages && pagination.setCurrentPage(pagination.currentPage + 1)}
+                    className={pagination.currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          )}
         </div>
       )}
 

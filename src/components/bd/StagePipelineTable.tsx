@@ -2,6 +2,7 @@ import { PipelineDataTable } from '@/components/bd/PipelineDataTable';
 import { Badge } from '@/components/ui/badge';
 import { useControlTowerDealsByStage } from '@/hooks/useControlTowerData';
 import { format } from 'date-fns';
+import { usePagination } from '@/hooks/usePagination';
 
 interface StagePipelineTableProps {
   stage: 'prospecting' | 'qualification' | 'proposal' | 'negotiation';
@@ -10,7 +11,11 @@ interface StagePipelineTableProps {
 }
 
 export function StagePipelineTable({ stage, title, description }: StagePipelineTableProps) {
-  const { data: deals = [], isLoading } = useControlTowerDealsByStage(stage);
+  const pagination = usePagination(25);
+  const { data, isLoading } = useControlTowerDealsByStage(stage, pagination.currentPage, pagination.pageSize);
+  
+  const deals = data?.data || [];
+  const totalCount = data?.total || 0;
 
   const formatCurrency = (value: any) => {
     if (!value) return '-';
@@ -89,6 +94,14 @@ export function StagePipelineTable({ stage, title, description }: StagePipelineT
         emptyMessage={`No ${stage} deals found`}
         searchable
         externalLinkFn={(row) => row.hubspot_crm_deal_url}
+        totalCount={totalCount}
+        currentPage={pagination.currentPage}
+        pageSize={pagination.pageSize}
+        onPageChange={pagination.setCurrentPage}
+        onPageSizeChange={(size) => {
+          pagination.setPageSize(size);
+          pagination.reset();
+        }}
       />
     </div>
   );

@@ -38,22 +38,32 @@ const buildQuery = (filters: ProductFilters = {}) => {
   return query;
 };
 
-export const useProducts = (filters: ProductFilters = {}) => {
+export const useProducts = (filters: ProductFilters = {}, page: number = 1, limit: number = 12) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const {
-    data: products = [],
+    data,
     isLoading,
     error,
   } = useQuery({
-    queryKey: ['products', filters],
+    queryKey: ['products', filters, page, limit],
     queryFn: async () => {
-      const { data, error } = await buildQuery(filters);
+      const from = (page - 1) * limit;
+      const to = from + limit - 1;
+      
+      let query = buildQuery(filters);
+      const { data, error, count } = await query.select('*', { count: 'exact' }).range(from, to);
       if (error) throw error;
-      return (data || []) as Product[];
+      
+      return {
+        data: (data || []) as Product[],
+        total: count || 0,
+      };
     },
   });
+  
+  const products = data?.data || [];
 
   const createProductMutation = useMutation({
     mutationFn: async (payload: CreateProductData) => {
@@ -167,6 +177,7 @@ export const useProducts = (filters: ProductFilters = {}) => {
 
   return {
     products,
+    total: data?.total || 0,
     isLoading,
     error,
     createProduct: createProductMutation.mutateAsync,

@@ -1,9 +1,14 @@
 import { useControlTowerClients } from '@/hooks/useControlTowerData';
 import { PipelineDataTable } from '@/components/bd/PipelineDataTable';
 import { Badge } from '@/components/ui/badge';
+import { usePagination } from '@/hooks/usePagination';
 
 export default function Clients() {
-  const { data: clients = [], isLoading } = useControlTowerClients();
+  const pagination = usePagination(25);
+  const { data, isLoading } = useControlTowerClients(pagination.currentPage, pagination.pageSize);
+  
+  const clients = data?.data || [];
+  const totalCount = data?.total || 0;
 
   const columns = [
     { key: 'name' as const, label: 'Client Name' },
@@ -46,6 +51,14 @@ export default function Clients() {
         emptyMessage="No clients found"
         searchable
         externalLinkFn={(row) => `/clients/${row.id}`}
+        totalCount={totalCount}
+        currentPage={pagination.currentPage}
+        pageSize={pagination.pageSize}
+        onPageChange={pagination.setCurrentPage}
+        onPageSizeChange={(size) => {
+          pagination.setPageSize(size);
+          pagination.reset();
+        }}
       />
     </div>
   );
