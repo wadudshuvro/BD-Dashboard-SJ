@@ -1,26 +1,22 @@
-import { useControlTowerClients } from '@/hooks/useControlTowerData';
+import { useClients } from '@/hooks/useClients';
 import { PipelineDataTable } from '@/components/bd/PipelineDataTable';
 import { Badge } from '@/components/ui/badge';
 import { usePagination } from '@/hooks/usePagination';
 
 export default function Clients() {
   const pagination = usePagination(25);
-  const { data, isLoading } = useControlTowerClients(pagination.currentPage, pagination.pageSize);
-  
-  const clients = data?.data || [];
-  const totalCount = data?.total || 0;
+  const { clients, loading: isLoading, totalCount } = useClients({ 
+    page: pagination.currentPage, 
+    limit: pagination.pageSize 
+  });
 
   const columns = [
     { key: 'name' as const, label: 'Client Name' },
+    { key: 'company' as const, label: 'Company' },
     { key: 'industry' as const, label: 'Industry' },
-    { key: 'owner_name' as const, label: 'Owner' },
-    {
-      key: 'active_projects_count' as const,
-      label: 'Active Projects',
-      render: (value: number) => (
-        <Badge variant="secondary">{value || 0}</Badge>
-      ),
-    },
+    { key: 'contact_person' as const, label: 'Contact Person' },
+    { key: 'email' as const, label: 'Email' },
+    { key: 'phone' as const, label: 'Phone' },
     {
       key: 'status' as const,
       label: 'Status',

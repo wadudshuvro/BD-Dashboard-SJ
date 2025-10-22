@@ -135,7 +135,7 @@ async function performSync(
       control_tower_id: ctDeal.id,
       title: ctDeal.title || ctDeal.deal_name || ctDeal.name || 'Untitled Deal',
       amount: parseFloat(ctDeal.amount || ctDeal.value || 0),
-      stage: ctDeal.stage || ctDeal.status || 'new',
+      stage: ctDeal.dealstage || ctDeal.stage || 'new',
       close_date: ctDeal.close_date || ctDeal.closeDate || null,
       control_tower_client_id: ctDeal.client_id || ctDeal.clientId || null,
       control_tower_owner_id: ctDeal.owner_id || ctDeal.ownerId || null,

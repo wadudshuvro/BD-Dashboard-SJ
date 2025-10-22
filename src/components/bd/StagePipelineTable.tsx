@@ -1,6 +1,6 @@
 import { PipelineDataTable } from '@/components/bd/PipelineDataTable';
 import { Badge } from '@/components/ui/badge';
-import { useControlTowerDealsByStage } from '@/hooks/useControlTowerData';
+import { useLocalDealsByStage } from '@/hooks/useDeals';
 import { format } from 'date-fns';
 import { usePagination } from '@/hooks/usePagination';
 
@@ -12,7 +12,7 @@ interface StagePipelineTableProps {
 
 export function StagePipelineTable({ stage, title, description }: StagePipelineTableProps) {
   const pagination = usePagination(25);
-  const { data, isLoading } = useControlTowerDealsByStage(stage, pagination.currentPage, pagination.pageSize);
+  const { data, isLoading } = useLocalDealsByStage(stage, pagination.currentPage, pagination.pageSize);
   
   const deals = data?.data || [];
   const totalCount = data?.total || 0;
@@ -78,14 +78,16 @@ export function StagePipelineTable({ stage, title, description }: StagePipelineT
   ];
 
   return (
-    <div className="container mx-auto py-8">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold">{title}</h1>
-        <p className="text-muted-foreground">{description}</p>
-        <div className="mt-2">
-          <Badge variant="secondary">{deals.length} Active Deals</Badge>
+    <div>
+      {title && (
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold">{title}</h1>
+          <p className="text-muted-foreground">{description}</p>
+          <div className="mt-2">
+            <Badge variant="secondary">{deals.length} Active Deals</Badge>
+          </div>
         </div>
-      </div>
+      )}
 
       <PipelineDataTable
         data={deals}

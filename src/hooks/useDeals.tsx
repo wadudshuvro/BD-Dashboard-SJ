@@ -328,3 +328,92 @@ export function useDeals(options: UseDealsOptions = {}): UseDealsReturn {
 }
 
 export type { DealStage, DealStatus };
+
+// Hook for fetching local deals by stage (for pipeline pages)
+export function useLocalDealsByStage(
+  stage: 'prospecting' | 'qualification' | 'proposal' | 'negotiation' | 'new',
+  page: number = 1,
+  limit: number = 25
+) {
+  const { user } = useAuth();
+  const [data, setData] = useState<{ data: any[]; total: number }>({ data: [], total: 0 });
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const fetchData = async () => {
+      try {
+        setIsLoading(true);
+        const from = (page - 1) * limit;
+        const to = from + limit - 1;
+        
+        const { data: dealsData, error, count } = await supabase
+          .from('deals')
+          .select(`
+            *,
+            client:clients!client_id(
+              id,
+              name,
+              email,
+              phone,
+              contact_person,
+              company
+            ),
+            owner:users!owner_id(
+              id,
+              first_name,
+              last_name
+            ),
+            pm:users!pm_assigned_id(
+              id,
+              first_name,
+              last_name
+            )
+          `, { count: 'exact' })
+          .eq('stage', stage)
+          .order('created_at', { ascending: false })
+          .range(from, to);
+        
+        if (error) throw error;
+        
+        // Transform to match expected format
+        const deals = (dealsData || []).map((deal: any) => ({
+          id: deal.id,
+          deal_name: deal.title,
+          client_id: deal.client_id,
+          client_name: deal.client?.name || deal.client?.company || '-',
+          client_email: deal.client?.email || '-',
+          client_phone: deal.client?.phone || '-',
+          client_contact_person: deal.client?.contact_person || '-',
+          value: deal.amount,
+          owner_id: deal.owner_id,
+          owner_name: deal.owner ? `${deal.owner.first_name} ${deal.owner.last_name}` : '-',
+          pm_assigned_id: deal.pm_assigned_id,
+          pm_assigned_name: deal.pm ? `${deal.pm.first_name} ${deal.pm.last_name}` : '-',
+          stage: deal.stage,
+          close_date: deal.close_date,
+          created_at: deal.created_at,
+          control_tower_id: deal.control_tower_id,
+          synced_from_control_tower: deal.synced_from_control_tower,
+          lead_source: deal.control_tower_status || '-',
+          hubspot_crm_deal_url: deal.control_tower_id ? `https://app.hubspot.com/contacts/deal/${deal.control_tower_id}` : null,
+        }));
+        
+        setData({
+          data: deals,
+          total: count || 0,
+        });
+      } catch (error) {
+        console.error('Error fetching deals by stage:', error);
+        toast.error('Failed to load deals');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [user?.id, stage, page, limit]);
+
+  return { data, isLoading };
+}
