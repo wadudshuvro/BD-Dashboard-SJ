@@ -19,6 +19,14 @@ interface SyncLog {
   error_message: string | null;
   payload: Record<string, unknown> | null;
   synced_at: string | null;
+  synced_by: string | null;
+  entity_id: string | null;
+  control_tower_id: string | null;
+  synced_by_user?: {
+    email: string;
+    first_name: string | null;
+    last_name: string | null;
+  };
 }
 
 interface SyncConfig {
@@ -57,10 +65,13 @@ const ControlTowerSyncDashboard = () => {
   const fetchSummary = async () => {
     setLoading(true);
     try {
-      // Fetch sync logs
+      // Fetch sync logs with user information
       const logQuery: any = supabase
         .from('control_tower_sync_log' as any)
-        .select('*')
+        .select(`
+          *,
+          synced_by_user:synced_by(email, first_name, last_name)
+        `)
         .order('synced_at', { ascending: false })
         .limit(100);
       
@@ -76,6 +87,10 @@ const ControlTowerSyncDashboard = () => {
         error_message: log.error_message || null,
         payload: log.payload || null,
         synced_at: log.synced_at,
+        synced_by: log.synced_by || null,
+        entity_id: log.entity_id || null,
+        control_tower_id: log.control_tower_id || null,
+        synced_by_user: log.synced_by_user || undefined,
       }));
       
       setLogs(mappedLogs);
@@ -490,8 +505,9 @@ const ControlTowerSyncDashboard = () => {
                     <TableHead>Type</TableHead>
                     <TableHead>Entity</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Triggered By</TableHead>
                     <TableHead>Time</TableHead>
-                    <TableHead>Error</TableHead>
+                    <TableHead>Details</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -508,11 +524,38 @@ const ControlTowerSyncDashboard = () => {
                       </TableCell>
                       <TableCell className="capitalize">{log.entity_type.replace('_', ' ')}</TableCell>
                       <TableCell>{renderStatusBadge(log.status)}</TableCell>
-                      <TableCell>
+                      <TableCell className="text-sm">
+                        {log.synced_by_user ? (
+                          <div>
+                            <div className="font-medium">
+                              {log.synced_by_user.first_name && log.synced_by_user.last_name
+                                ? `${log.synced_by_user.first_name} ${log.synced_by_user.last_name}`
+                                : log.synced_by_user.email}
+                            </div>
+                            {log.synced_by_user.first_name && log.synced_by_user.last_name && (
+                              <div className="text-xs text-muted-foreground">{log.synced_by_user.email}</div>
+                            )}
+                          </div>
+                        ) : log.synced_by ? (
+                          <span className="text-muted-foreground">User ID: {log.synced_by.slice(0, 8)}...</span>
+                        ) : (
+                          <span className="text-muted-foreground">System</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-sm">
                         {log.synced_at ? format(new Date(log.synced_at), 'MMM dd, HH:mm') : 'N/A'}
                       </TableCell>
-                      <TableCell className="max-w-[300px] truncate text-xs text-muted-foreground">
-                        {log.error_message || '—'}
+                      <TableCell className="max-w-[300px]">
+                        {log.error_message ? (
+                          <span className="text-xs text-destructive">{log.error_message}</span>
+                        ) : log.payload ? (
+                          <span className="text-xs text-muted-foreground">
+                            {typeof log.payload.synced === 'number' && `${log.payload.synced} items`}
+                            {typeof log.payload.duration === 'number' && ` in ${(log.payload.duration / 1000).toFixed(1)}s`}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}

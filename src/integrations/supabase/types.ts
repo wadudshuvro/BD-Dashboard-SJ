@@ -512,7 +512,9 @@ export type Database = {
       }
       control_tower_sync_log: {
         Row: {
+          control_tower_id: string | null
           created_at: string
+          entity_id: string | null
           entity_type: string
           error_message: string | null
           id: string
@@ -520,9 +522,12 @@ export type Database = {
           status: string
           sync_type: string
           synced_at: string
+          synced_by: string | null
         }
         Insert: {
+          control_tower_id?: string | null
           created_at?: string
+          entity_id?: string | null
           entity_type: string
           error_message?: string | null
           id?: string
@@ -530,9 +535,12 @@ export type Database = {
           status: string
           sync_type: string
           synced_at?: string
+          synced_by?: string | null
         }
         Update: {
+          control_tower_id?: string | null
           created_at?: string
+          entity_id?: string | null
           entity_type?: string
           error_message?: string | null
           id?: string
@@ -540,6 +548,7 @@ export type Database = {
           status?: string
           sync_type?: string
           synced_at?: string
+          synced_by?: string | null
         }
         Relationships: []
       }
