@@ -9,10 +9,21 @@ const corsHeaders = {
 };
 
 interface SyncResult {
-  synced: number;
-  updated: number;
-  failed: number;
+  deals: {
+    new: number;
+    updated: number;
+    failed: number;
+  };
+  clients: {
+    new: number;
+    updated: number;
+  };
+  checklists: {
+    synced: number;
+    failed: number;
+  };
   errors: string[];
+  duration: number;
 }
 
 serve(async (req) => {
@@ -511,10 +522,21 @@ async function performSync(
     }
 
     const result: SyncResult = {
-      synced: syncedCount,
-      updated: syncedCount,
-      failed: 0,
-      errors: []
+      deals: {
+        new: 0,
+        updated: syncedCount,
+        failed: 0
+      },
+      clients: {
+        new: 0,
+        updated: 0
+      },
+      checklists: {
+        synced: 0,
+        failed: 0
+      },
+      errors: [],
+      duration: 0
     };
 
     return new Response(

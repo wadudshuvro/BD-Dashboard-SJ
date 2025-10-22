@@ -45,7 +45,8 @@ const ControlTowerSyncDashboard = () => {
   const [config, setConfig] = useState<SyncConfig>(defaultConfig);
   const [configLoading, setConfigLoading] = useState(true);
   const [configSaving, setConfigSaving] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
+  const [isPulling, setIsPulling] = useState(false);
+  const [isPushing, setIsPushing] = useState(false);
   const [filters, setFilters] = useState({ entityType: 'all', status: 'all' });
 
   useEffect(() => {
@@ -151,33 +152,65 @@ const ControlTowerSyncDashboard = () => {
   };
 
   const triggerPullSync = async () => {
-    setIsSyncing(true);
+    setIsPulling(true);
     try {
       const { data, error } = await supabase.functions.invoke('sync-control-tower-deals', { body: {} });
       if (error) throw error;
-      toast({ title: 'Pull triggered', description: `Pulled ${data?.synced ?? 0} deals from Control Tower.` });
-    } catch (error) {
-      console.error('Pull sync failed', error);
-      toast({ title: 'Error', description: 'Failed to trigger pull sync.', variant: 'destructive' });
+      
+      const summary = [
+        `✅ Deals: ${data.deals.new} new, ${data.deals.updated} updated`,
+        `👥 Clients: ${data.clients.new} new, ${data.clients.updated} updated`,
+        `📋 Checklists: ${data.checklists.synced} items synced`,
+        `⏱️ Completed in ${(data.duration / 1000).toFixed(1)}s`
+      ];
+      
+      const totalFailed = data.deals.failed + data.checklists.failed;
+      if (totalFailed > 0) {
+        summary.push(`⚠️ Failed: ${totalFailed} items`);
+      }
+      
+      toast({ 
+        title: totalFailed > 0 ? '⚠️ Pull Sync Completed with Issues' : '✅ Pull Sync Complete',
+        description: summary.join('\n'),
+        variant: totalFailed > 0 ? 'destructive' : 'default',
+        duration: 8000
+      });
+    } catch (error: any) {
+      toast({ title: '❌ Sync Failed', description: error.message, variant: 'destructive' });
     } finally {
-      setIsSyncing(false);
+      setIsPulling(false);
       fetchSummary();
     }
   };
 
   const triggerPushSync = async () => {
-    setIsSyncing(true);
+    setIsPushing(true);
     try {
       const { data, error } = await supabase.functions.invoke('push-to-control-tower', {
         body: { entity_type: 'all' },
       });
       if (error) throw error;
-      toast({ title: 'Push triggered', description: 'Push sync executed successfully.' });
-    } catch (error) {
-      console.error('Push sync failed', error);
-      toast({ title: 'Error', description: 'Failed to trigger push sync.', variant: 'destructive' });
+      
+      const summary = [
+        `💬 Comments: ${data?.comments_synced || 0} synced`,
+        `☑️ Checklists: ${data?.checklists_synced || 0} synced`,
+        `⏱️ Completed in ${(data?.duration / 1000 || 0).toFixed(1)}s`
+      ];
+      
+      if (data?.failed > 0) {
+        summary.push(`⚠️ Failed: ${data.failed} items`);
+      }
+      
+      toast({ 
+        title: data?.failed > 0 ? '⚠️ Push Sync Completed with Issues' : '✅ Push Sync Complete',
+        description: summary.join('\n'),
+        variant: data?.failed > 0 ? 'destructive' : 'default',
+        duration: 8000
+      });
+    } catch (error: any) {
+      toast({ title: '❌ Sync Failed', description: error.message, variant: 'destructive' });
     } finally {
-      setIsSyncing(false);
+      setIsPushing(false);
       fetchSummary();
     }
   };
@@ -284,13 +317,13 @@ const ControlTowerSyncDashboard = () => {
           <CardDescription>Trigger synchronization jobs outside of scheduled runs.</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-3">
-          <Button onClick={triggerPullSync} disabled={isSyncing || loading}>
-            {isSyncing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CloudDownload className="mr-2 h-4 w-4" />}
-            Pull Now
+          <Button onClick={triggerPullSync} disabled={isPulling || loading}>
+            {isPulling ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CloudDownload className="mr-2 h-4 w-4" />}
+            {isPulling ? 'Pulling...' : 'Pull Now'}
           </Button>
-          <Button variant="outline" onClick={triggerPushSync} disabled={isSyncing || loading}>
-            {isSyncing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CloudUpload className="mr-2 h-4 w-4" />}
-            Push Now
+          <Button variant="outline" onClick={triggerPushSync} disabled={isPushing || loading}>
+            {isPushing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CloudUpload className="mr-2 h-4 w-4" />}
+            {isPushing ? 'Pushing...' : 'Push Now'}
           </Button>
           <Button variant="ghost" onClick={fetchSummary} disabled={loading}>
             <RefreshCw className="mr-2 h-4 w-4" /> Refresh

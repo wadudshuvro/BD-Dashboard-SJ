@@ -91,10 +91,11 @@ function DataSyncSettings() {
       const result = await syncDeals();
       
       // Update last sync time
+      const totalFailed = result.deals.failed + result.checklists.failed;
       const updatedConfig: SyncConfig = {
         ...config,
         last_sync_at: new Date().toISOString(),
-        last_sync_status: (result.failed > 0 ? 'failed' : 'success') as 'success' | 'failed',
+        last_sync_status: (totalFailed > 0 ? 'failed' : 'success') as 'success' | 'failed',
       };
       
       setConfig(updatedConfig);
