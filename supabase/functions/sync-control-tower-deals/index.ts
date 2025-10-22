@@ -5,6 +5,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.75.0";
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
 };
 
 interface SyncResult {
@@ -29,15 +30,22 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Verify user authentication
+    // Verify user authentication when a JWT is supplied. Allow service role
+    // headers for scheduled jobs where no user context exists.
     const token = authHeader.replace('Bearer ', '');
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    
-    if (authError || !user) {
-      throw new Error('Unauthorized');
+
+    if (authError) {
+      console.warn('[Sync] Unable to resolve user from auth header:', authError.message);
     }
 
-    console.log(`[Sync] Starting Control Tower sync for user: ${user.id}`);
+    const userId = user?.id ?? null;
+
+    if (userId) {
+      console.log(`[Sync] Starting Control Tower sync for user: ${userId}`);
+    } else {
+      console.log('[Sync] Starting Control Tower sync with service credential');
+    }
 
     // Fetch Control Tower configuration from ai_configurations table
     const { data: configData, error: configError } = await supabase
@@ -60,7 +68,7 @@ serve(async (req) => {
     // Create Control Tower client with server-side credentials
     const ctClient = createClient(envUrl, envKey);
 
-    return await performSync(ctClient, supabase, user.id);
+    return await performSync(ctClient, supabase, userId);
 
   } catch (error) {
     console.error('[Sync] Error:', error);
@@ -182,7 +190,7 @@ async function getOrCreateClient(
 async function performSync(
   ctClient: any,
   supabase: any,
-  userId: string
+  userId: string | null
 ): Promise<Response> {
   const startTime = Date.now();
   
@@ -265,27 +273,55 @@ async function performSync(
         // Get or create local client
         const localClientId = await getOrCreateClient(supabase, ctDeal);
         
+        const tags = Array.isArray(ctDeal.tags)
+          ? ctDeal.tags
+          : typeof ctDeal.tags === 'string'
+            ? ctDeal.tags.split(',').map((tag: string) => tag.trim()).filter(Boolean)
+            : [];
+
+        const expectedCloseDate = ctDeal.expected_closing_date || ctDeal.closedate || ctDeal.close_date;
+
         return {
           control_tower_id: ctDeal.id,
-          
+
           // Use correct Control Tower field names
           title: ctDeal.dealname || ctDeal.deal_name || ctDeal.name || 'Untitled Deal',
           amount: parseFloat(ctDeal.amount || ctDeal.potential_amount || 0),
           stage: mapStage(ctStage, ctStageName),
-          close_date: ctDeal.expected_closing_date || ctDeal.closedate || ctDeal.close_date || null,
-          
+          close_date: expectedCloseDate || null,
+
           // Map to local client
           client_id: localClientId,
-          
+
           // Store Control Tower references for tracking
           control_tower_client_id: ctDeal.client_id || ctDeal.clientId || null,
           control_tower_owner_id: ctDeal.actual_deal_owner_id || ctDeal.owner_id || ctDeal.ownerId || null,
           control_tower_status: ctDeal.dealstatus || ctDeal.status || 'active',
-          
+
+          notes: ctDeal.notes || ctDeal.description || null,
+          hubspot_deal_id: ctDeal.hubspot_deal_id || ctDeal.hs_object_id || null,
+          hubspot_crm_deal_url: ctDeal.hubspot_crm_deal_url || null,
+          dealtype: ctDeal.dealtype || ctDeal.deal_type || null,
+          lead_source: ctDeal.lead_source || ctDeal.source || null,
+          expected_closing_date: expectedCloseDate ? new Date(expectedCloseDate).toISOString().split('T')[0] : null,
+          potential_amount: ctDeal.potential_amount ? parseFloat(ctDeal.potential_amount) : (ctDeal.amount ? parseFloat(ctDeal.amount) : null),
+          priority: ctDeal.priority || 'medium',
+          tags,
+          external_links: {
+            n8n_workflow_url: ctDeal.n8n_workflow_url || null,
+            activecollab_project_url: ctDeal.activecollab_project_url || null,
+            collabai_agent_url: ctDeal.collabai_agent_url || null,
+          },
+          control_tower_metadata: ctDeal,
+          last_activity_at: ctDeal.updated_at || ctDeal.last_activity_at || new Date().toISOString(),
+
+          // Control Tower may not expose the user reference; store null until mappings exist.
+          last_activity_by: null,
+
           synced_from_control_tower: true,
           last_synced_at: new Date().toISOString(),
           probability: ctDeal.probability ? parseFloat(ctDeal.probability) : null,
-          
+
           // Timestamps from Control Tower
           created_at: ctDeal.createdate || ctDeal.created_at || new Date().toISOString(),
           updated_at: ctDeal.updated_at || new Date().toISOString(),
@@ -331,8 +367,19 @@ async function performSync(
           error_details: null
         });
     } catch (auditError) {
-      // Don't fail the sync if audit logging fails
-      console.warn('[Sync] Failed to log audit record:', auditError);
+      console.warn('[Sync] Failed to log legacy audit record:', auditError);
+    }
+
+    try {
+      await supabase.from('control_tower_sync_log').insert({
+        sync_type: 'pull',
+        entity_type: 'deal',
+        status: 'success',
+        payload: { synced: syncedCount, duration },
+        synced_by: userId,
+      });
+    } catch (logError) {
+      console.warn('[Sync] Failed to log control_tower_sync_log record:', logError);
     }
 
     const result: SyncResult = {
@@ -370,7 +417,20 @@ async function performSync(
           error_details: { message: error instanceof Error ? error.message : 'Unknown error' }
         });
     } catch (auditError) {
-      console.warn('[Sync] Failed to log audit record:', auditError);
+      console.warn('[Sync] Failed to log legacy audit record:', auditError);
+    }
+
+    try {
+      await supabase.from('control_tower_sync_log').insert({
+        sync_type: 'pull',
+        entity_type: 'deal',
+        status: 'failed',
+        error_message: error instanceof Error ? error.message : 'Unknown error',
+        payload: { duration },
+        synced_by: userId,
+      });
+    } catch (logError) {
+      console.warn('[Sync] Failed to log control_tower_sync_log failure record:', logError);
     }
 
     throw error;

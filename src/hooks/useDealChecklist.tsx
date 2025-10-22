@@ -12,6 +12,7 @@ export interface ChecklistItem {
   order_index: number;
   created_at: string;
   updated_at: string;
+  control_tower_synced_at?: string | null;
   completed_user?: {
     id: string;
     first_name: string;

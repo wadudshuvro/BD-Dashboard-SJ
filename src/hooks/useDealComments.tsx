@@ -9,12 +9,22 @@ export interface DealComment {
   comment: string;
   created_at: string;
   updated_at: string;
+  synced_to_control_tower?: boolean;
+  control_tower_comment_id?: string | null;
+  mentioned_users?: string[] | null;
+  mentioned_user_emails?: string[] | null;
   user: {
     id: string;
     first_name: string;
     last_name: string;
     email: string;
   };
+}
+
+export interface AddCommentPayload {
+  comment: string;
+  mentioned_users?: string[];
+  mentioned_user_emails?: string[];
 }
 
 export const useDealComments = (dealId: string) => {
@@ -41,7 +51,7 @@ export const useAddComment = (dealId: string) => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (comment: string) => {
+    mutationFn: async ({ comment, mentioned_users, mentioned_user_emails }: AddCommentPayload) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("User not authenticated");
 
@@ -51,6 +61,8 @@ export const useAddComment = (dealId: string) => {
           deal_id: dealId,
           user_id: user.id,
           comment,
+          mentioned_users,
+          mentioned_user_emails,
         })
         .select()
         .single();
