@@ -237,13 +237,13 @@ async function syncGoHighLevel({
       close_date: parseDate(opportunity.closeDate || opportunity.expectedCloseDate || null),
       deal_type: "gohighlevel",
     } as Record<string, unknown>;
-  }).filter((deal): deal is Record<string, unknown> => Boolean(deal));
+  }).filter((deal: any): deal is Record<string, unknown> => Boolean(deal));
 
   if (dealRows.length > 0) {
     await client.from("deals").upsert(dealRows, { onConflict: "hubspot_id" });
   }
 
-  const pipelineValue = dealRows.reduce((sum, deal) => {
+  const pipelineValue = dealRows.reduce((sum: number, deal: any) => {
     const amount = typeof deal.amount === "number" ? deal.amount : Number(deal.amount ?? 0);
     return sum + (Number.isFinite(amount) ? amount : 0);
   }, 0);
@@ -269,7 +269,7 @@ async function syncGoHighLevel({
         },
         recorded_at: now,
       },
-    ], { returning: "minimal" });
+    ]);
 
   return {
     contactsSynced: contactsToInsert.length,
@@ -355,7 +355,7 @@ async function handleCreateIntegration(req: Request): Promise<Response> {
           triggeredBy: "manual",
         },
         recorded_at: now,
-      }, { returning: "minimal" });
+      });
 
     return new Response(JSON.stringify({ ok: true, integration: data }), { headers, status: 201 });
   } catch (error) {
@@ -411,7 +411,7 @@ async function handleSyncContacts(req: Request): Promise<Response> {
     }
 
     const { data: integration, error } = await client
-      .from<GHLIntegrationRow>("gohighlevel_integrations" as any)
+      .from("gohighlevel_integrations")
       .select("id, user_id, api_key_encrypted, location_id, is_active, created_at, updated_at")
       .eq("user_id", userId)
       .eq("is_active", true)
@@ -460,7 +460,7 @@ async function handleWebhook(req: Request): Promise<Response> {
 
     const client = await createSupabaseClient(undefined, true);
     const { data: integration } = await client
-      .from<GHLIntegrationRow>("gohighlevel_integrations" as any)
+      .from("gohighlevel_integrations")
       .select("id, user_id, api_key_encrypted, location_id, is_active, created_at, updated_at")
       .eq("location_id", locationId)
       .eq("is_active", true)

@@ -84,7 +84,7 @@ async function createSupabaseClient(req?: Request) {
 async function getHubSpotIntegration(client: SupabaseClient): Promise<{ integration: HubSpotIntegration; token: string }>
 {
   const { data, error } = await client
-    .from<HubSpotIntegration>("integrations" as any)
+    .from("integrations")
     .select("id, is_active, last_sync, config")
     .eq("type", "hubspot")
     .eq("is_active", true)
@@ -380,7 +380,7 @@ async function performHubSpotSync(options: {
         },
         recorded_at: now,
       },
-    ], { returning: "minimal" });
+    ]);
 
   return {
     companies: companies.length,

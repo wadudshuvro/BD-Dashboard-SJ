@@ -36,13 +36,13 @@ async function handleGetDashboard() {
     const supabase = await createSupabaseClient();
 
     const { data: hubspot } = await supabase
-      .from<HubSpotIntegration>("integrations" as any)
+      .from("integrations")
       .select("id, name, type, config, is_active, last_sync")
       .eq("type", "hubspot")
       .maybeSingle();
 
     const { data: gohighlevel } = await supabase
-      .from<GHLIntegration>("gohighlevel_integrations" as any)
+      .from("gohighlevel_integrations")
       .select("id, user_id, location_id, is_active, updated_at")
       .eq("is_active", true);
 
@@ -131,7 +131,7 @@ async function handleSecret(req: Request): Promise<Response> {
 
     if (type === "hubspot") {
       const { data } = await supabase
-        .from<HubSpotIntegration>("integrations" as any)
+        .from("integrations")
         .select("config")
         .eq("type", "hubspot")
         .maybeSingle();

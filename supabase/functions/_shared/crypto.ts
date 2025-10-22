@@ -65,9 +65,9 @@ export async function decryptSecret(value: string | null | undefined): Promise<s
     const iv = fromBase64(parsed.iv);
     const ciphertext = fromBase64(parsed.ciphertext);
     const plainBuffer = await crypto.subtle.decrypt(
-      { name: "AES-GCM", iv },
+      { name: "AES-GCM", iv: iv.buffer as ArrayBuffer },
       key,
-      ciphertext,
+      ciphertext.buffer as ArrayBuffer,
     );
     return decoder.decode(plainBuffer);
   } catch (error) {
