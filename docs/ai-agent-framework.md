@@ -14,11 +14,13 @@ Edge Functions expect the following environment variables to be configured:
 
 | Variable | Purpose |
 | --- | --- |
-| `OPENAI_API_KEY` | Primary OpenAI routing and fallback behaviour |
+| `OPENAI_API_KEY` | **Required** - Primary OpenAI routing and fallback behaviour. Must match this exact name. |
 | `GEMINI_API_KEY` | Optional Gemini provider support |
 | `PERPLEXITY_API_KEY` | Enables Perplexity research provider |
 | `ANTHROPIC_API_KEY` | Optional Claude routing |
 | `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | Supabase service authentication for Edge Functions |
+
+**Important**: The secret name must be exactly `OPENAI_API_KEY` (not `OPENAI_KEY` or any other variant) for both the Integration Hub test function and the AI agent framework to work correctly.
 
 ## Edge Functions
 - `run-ai-agent` now orchestrates provider selection, retries (primary → fallback → OpenAI mini → research), telemetry capture, and schema validation.

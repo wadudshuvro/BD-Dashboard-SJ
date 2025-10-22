@@ -13,10 +13,10 @@ serve(async (req) => {
   }
 
   try {
-    const OPENAI_API_KEY = Deno.env.get('OPENAI_KEY');
+    const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
     
     if (!OPENAI_API_KEY) {
-      console.error('OPENAI_KEY not found in environment variables');
+      console.error('OPENAI_API_KEY not found in environment variables');
       return new Response(
         JSON.stringify({ 
           ok: false, 

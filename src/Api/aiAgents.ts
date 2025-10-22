@@ -74,14 +74,12 @@ function handleError<T>(error: { message?: string } | null, fallbackMessage: str
 export async function listAgents(): Promise<AIAgent[]> {
   const { data, error } = await supabase
     .from("ai_agents")
-    .select("id, name, description, category, slug, config, is_enabled, created_by, created_at, updated_at")
+    .select("id, name, description, type, config, is_active, created_by, created_at, updated_at")
     .order("name", { ascending: true });
 
   handleError(error, "Unable to fetch AI agents");
   return (data ?? []).map((agent) => ({
     ...agent,
-    type: agent.type ?? agent.category ?? null,
-    is_active: agent.is_active ?? agent.is_enabled ?? true,
     config: (agent.config as AgentConfigurationEnvelope) || {},
   }));
 }

@@ -53,7 +53,7 @@ const AdminLayout = () => {
       {
         section: "AI & Automation",
         items: [
-          { name: "My AI Agents", href: "/bd/my-agents", icon: Bot },
+          { name: "AI Agent Management", href: "/adminpanel/linkedin-agent-config", icon: Bot },
           { name: "Automation Settings", href: "/adminpanel/settings?tab=automation", icon: Zap },
         ],
       },
