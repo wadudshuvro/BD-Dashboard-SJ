@@ -237,6 +237,65 @@ export type Database = {
           },
         ]
       }
+      checklist_template_items: {
+        Row: {
+          created_at: string
+          id: string
+          order_index: number
+          template_id: string
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          order_index?: number
+          template_id: string
+          title: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          order_index?: number
+          template_id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checklist_template_items_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "checklist_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      checklist_templates: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          stage: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          stage: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          stage?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       clients: {
         Row: {
           address: string | null
@@ -451,6 +510,39 @@ export type Database = {
           },
         ]
       }
+      control_tower_sync_log: {
+        Row: {
+          created_at: string
+          entity_type: string
+          error_message: string | null
+          id: string
+          payload: Json | null
+          status: string
+          sync_type: string
+          synced_at: string
+        }
+        Insert: {
+          created_at?: string
+          entity_type: string
+          error_message?: string | null
+          id?: string
+          payload?: Json | null
+          status: string
+          sync_type: string
+          synced_at?: string
+        }
+        Update: {
+          created_at?: string
+          entity_type?: string
+          error_message?: string | null
+          id?: string
+          payload?: Json | null
+          status?: string
+          sync_type?: string
+          synced_at?: string
+        }
+        Relationships: []
+      }
       deal_checklist_items: {
         Row: {
           completed_at: string | null
@@ -460,6 +552,7 @@ export type Database = {
           id: string
           is_completed: boolean
           order_index: number
+          synced_to_control_tower: boolean
           title: string
           updated_at: string
         }
@@ -471,6 +564,7 @@ export type Database = {
           id?: string
           is_completed?: boolean
           order_index?: number
+          synced_to_control_tower?: boolean
           title: string
           updated_at?: string
         }
@@ -482,6 +576,7 @@ export type Database = {
           id?: string
           is_completed?: boolean
           order_index?: number
+          synced_to_control_tower?: boolean
           title?: string
           updated_at?: string
         }
@@ -508,6 +603,7 @@ export type Database = {
           created_at: string
           deal_id: string
           id: string
+          synced_to_control_tower: boolean
           updated_at: string
           user_id: string
         }
@@ -516,6 +612,7 @@ export type Database = {
           created_at?: string
           deal_id: string
           id?: string
+          synced_to_control_tower?: boolean
           updated_at?: string
           user_id: string
         }
@@ -524,6 +621,7 @@ export type Database = {
           created_at?: string
           deal_id?: string
           id?: string
+          synced_to_control_tower?: boolean
           updated_at?: string
           user_id?: string
         }
@@ -586,6 +684,7 @@ export type Database = {
           close_date: string | null
           control_tower_client_id: string | null
           control_tower_id: string | null
+          control_tower_metadata: Json | null
           control_tower_owner_id: string | null
           control_tower_status: string | null
           created_at: string
@@ -605,6 +704,7 @@ export type Database = {
           close_date?: string | null
           control_tower_client_id?: string | null
           control_tower_id?: string | null
+          control_tower_metadata?: Json | null
           control_tower_owner_id?: string | null
           control_tower_status?: string | null
           created_at?: string
@@ -624,6 +724,7 @@ export type Database = {
           close_date?: string | null
           control_tower_client_id?: string | null
           control_tower_id?: string | null
+          control_tower_metadata?: Json | null
           control_tower_owner_id?: string | null
           control_tower_status?: string | null
           created_at?: string
