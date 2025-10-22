@@ -2,12 +2,14 @@ import { useClients } from '@/hooks/useClients';
 import { PipelineDataTable } from '@/components/bd/PipelineDataTable';
 import { Badge } from '@/components/ui/badge';
 import { usePagination } from '@/hooks/usePagination';
+import { useNavigate } from 'react-router-dom';
 
 export default function Clients() {
   const pagination = usePagination(25);
-  const { clients, loading: isLoading, totalCount } = useClients({ 
-    page: pagination.currentPage, 
-    limit: pagination.pageSize 
+  const navigate = useNavigate();
+  const { clients, loading: isLoading, totalCount } = useClients({
+    page: pagination.currentPage,
+    limit: pagination.pageSize
   });
 
   const columns = [
@@ -46,7 +48,7 @@ export default function Clients() {
         isLoading={isLoading}
         emptyMessage="No clients found"
         searchable
-        externalLinkFn={(row) => `/clients/${row.id}`}
+        onRowClick={(row) => navigate(`/bd/clients/${row.id}`)}
         totalCount={totalCount}
         currentPage={pagination.currentPage}
         pageSize={pagination.pageSize}
