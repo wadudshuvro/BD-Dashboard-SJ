@@ -26,7 +26,8 @@ import {
   ClipboardList,
   UserPlus,
   RefreshCw,
-  Package
+  Package,
+  ListChecks
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useMemo, useState } from "react";
@@ -61,10 +62,16 @@ const AdminLayout = () => {
         section: "System & Operations",
         items: [
           { name: "System Settings", href: "/adminpanel/settings", icon: Settings },
-          { name: "Integrations Hub", href: "/adminpanel/integrations", icon: Plug },
           { name: "Data Sync Settings", href: "/adminpanel/data-sync", icon: RefreshCw },
           { name: "EOD Management", href: "/adminpanel/eod-management", icon: Calendar },
           { name: "Documentation", href: "/adminpanel/documentation", icon: FileText },
+        ],
+      },
+      {
+        section: "Integrations",
+        items: [
+          { name: "Integration Manager", href: "/adminpanel/integrations", icon: Plug },
+          { name: "Control Tower Sync", href: "/adminpanel/integrations/control-tower-sync", icon: RefreshCw },
         ],
       },
       {
@@ -78,6 +85,7 @@ const AdminLayout = () => {
         items: [
           { name: "Products & Services", href: "/adminpanel/strategy/products", icon: Package },
           { name: "Target Niches", href: "/adminpanel/strategy/niches", icon: Crosshair },
+          { name: "Checklist Templates", href: "/adminpanel/strategy/checklist-templates", icon: ListChecks },
         ],
       },
       {

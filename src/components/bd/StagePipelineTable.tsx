@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { useLocalDealsByStage } from '@/hooks/useDeals';
 import { format } from 'date-fns';
 import { usePagination } from '@/hooks/usePagination';
+import { useNavigate } from 'react-router-dom';
 
 interface StagePipelineTableProps {
   stage: 'prospecting' | 'qualification' | 'proposal' | 'negotiation';
@@ -13,6 +14,7 @@ interface StagePipelineTableProps {
 export function StagePipelineTable({ stage, title, description }: StagePipelineTableProps) {
   const pagination = usePagination(25);
   const { data, isLoading } = useLocalDealsByStage(stage, pagination.currentPage, pagination.pageSize);
+  const navigate = useNavigate();
   
   const deals = data?.data || [];
   const totalCount = data?.total || 0;
@@ -41,7 +43,7 @@ export function StagePipelineTable({ stage, title, description }: StagePipelineT
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-|-$/g, '');
-    return `/bd/deals/${slug}-${dealId}`;
+    return `/pipeline/${stage}/${slug}-${dealId}`;
   };
 
   const columns = [
@@ -49,12 +51,12 @@ export function StagePipelineTable({ stage, title, description }: StagePipelineT
       key: 'deal_name' as const, 
       label: 'Deal Name',
       render: (value: string, row: any) => (
-        <a 
+        <a
           href={createDealSlug(value || 'untitled', row.id)}
           className="text-primary hover:underline font-medium"
           onClick={(e) => {
             e.preventDefault();
-            window.location.href = createDealSlug(value || 'untitled', row.id);
+            navigate(createDealSlug(value || 'untitled', row.id));
           }}
         >
           {value || 'Untitled Deal'}

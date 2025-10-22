@@ -1,4 +1,4 @@
-import { BookOpen, Database, Workflow, ArchiveRestore, ClipboardCheck, type LucideIcon } from "lucide-react";
+import { BookOpen, Database, Workflow, ArchiveRestore, ClipboardCheck, Plug, type LucideIcon } from "lucide-react";
 
 export interface DocCategory {
   id: string;
@@ -101,6 +101,41 @@ export const documentationIndex: DocCategory[] = [
         file: "review-checklist.md",
         tags: ["qa", "process"],
         lastUpdated: "2025-02-18"
+      }
+    ]
+  },
+  {
+    id: "integrations",
+    title: "Integrations & Modules",
+    icon: Plug,
+    description: "Modular features: Bug tracking, product catalog, Control Tower sync, and reusable components.",
+    items: [
+      {
+        id: "bug-tracking",
+        title: "Bug & Feature Tracking",
+        description: "Lightweight feedback system with admin triage workspace.",
+        category: "integrations",
+        file: "bug-tracking-integration.md",
+        tags: ["feedback", "bugs", "features", "support"],
+        lastUpdated: "2025-10-22"
+      },
+      {
+        id: "products-services",
+        title: "Products & Services Catalog",
+        description: "Manage SJ Innovation's service offerings and product portfolio.",
+        category: "integrations",
+        file: "products-and-services.md",
+        tags: ["products", "services", "catalog", "offerings"],
+        lastUpdated: "2025-10-22"
+      },
+      {
+        id: "control-tower-sync",
+        title: "Control Tower Synchronization",
+        description: "Bi-directional sync between BD Portal and Control Tower CRM.",
+        category: "integrations",
+        file: "control-tower-sync.md",
+        tags: ["sync", "control-tower", "crm", "integration"],
+        lastUpdated: "2025-10-22"
       }
     ]
   }

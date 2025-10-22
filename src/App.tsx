@@ -42,6 +42,8 @@ import UserSettings from "./pages/bd/UserSettings";
 import AutomationSettings from "./pages/admin/AutomationSettings";
 import LinkedInAgentConfig from "./pages/admin/LinkedInAgentConfig";
 import DealDetail from "./pages/bd/DealDetail";
+import ChecklistTemplateManager from "./pages/admin/ChecklistTemplateManager";
+import ControlTowerSyncDashboard from "./pages/admin/ControlTowerSyncDashboard";
 
 const queryClient = new QueryClient();
 
@@ -107,6 +109,7 @@ const App = () => (
               <Route path="users" element={<UserManagement />} />
               <Route path="users/:userId" element={<UserDetail />} />
               <Route path="integrations" element={<IntegrationManager />} />
+              <Route path="integrations/control-tower-sync" element={<ControlTowerSyncDashboard />} />
               <Route path="documentation" element={<React.Suspense fallback={<div>Loading...</div>}><Documentation /></React.Suspense>} />
               <Route path="settings" element={<AdminSettings />} />
               <Route path="eod-management" element={<EODManagement />} />
@@ -115,6 +118,7 @@ const App = () => (
               <Route path="data-sync" element={<DataSyncSettings />} />
               <Route path="strategy/products" element={<ProductManagement />} />
               <Route path="strategy/niches" element={<NicheManagement />} />
+              <Route path="strategy/checklist-templates" element={<ChecklistTemplateManager />} />
             </Route>
 
             {/* Feedback Module */}
@@ -148,9 +152,6 @@ const App = () => (
               <Route path="pipeline/negotiation" element={<Negotiation />} />
               <Route path="pipeline/clients" element={<Clients />} />
               
-              {/* Deal Detail */}
-              <Route path="deals/:slug" element={<DealDetail />} />
-              
               {/* Strategy - Campaigns only (Products & Niches moved to Admin Panel) */}
               <Route path="strategy/campaigns" element={<CampaignManagement />} />
               <Route path="strategy/campaigns/:campaignId" element={<CampaignDetail />} />
@@ -169,6 +170,17 @@ const App = () => (
               <Route path="admin/settings" element={<UserSettings />} />
             </Route>
             
+            <Route
+              path="/pipeline/:stage/:slug"
+              element={
+                <ProtectedRoute requiredMinimumRole="user">
+                  <Layout />
+                </ProtectedRoute>
+              }
+            >
+              <Route index element={<DealDetail />} />
+            </Route>
+
             {/* Catch-all route */}
             <Route path="*" element={<NotFound />} />
           </Routes>
