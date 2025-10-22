@@ -45,6 +45,7 @@ interface GlobalIntegration {
   category: string;
   is_enabled: boolean;
   icon: string;
+  metadata?: any;
 }
 
 interface CrmIntegrationEntry {
@@ -95,6 +96,15 @@ const IntegrationManager = () => {
       is_enabled: false,
       icon: "🤖",
     },
+    {
+      id: "google-drive",
+      name: "Google Drive",
+      description: "Sync deal documents from mapped Google Drive folders",
+      category: "Storage",
+      is_enabled: false,
+      icon: "📁",
+      metadata: null,
+    },
   ]);
   const [crmIntegrations, setCrmIntegrations] = useState<CrmIntegrationEntry[]>([]);
   const [isCrmLoading, setIsCrmLoading] = useState(false);
@@ -108,6 +118,8 @@ const IntegrationManager = () => {
   const [isLogsLoading, setIsLogsLoading] = useState(false);
   const [testingOpenAI, setTestingOpenAI] = useState(false);
   const [openAITestResult, setOpenAITestResult] = useState<any>(null);
+  const [testingGoogleDrive, setTestingGoogleDrive] = useState(false);
+  const [googleDriveTestResult, setGoogleDriveTestResult] = useState<any>(null);
 
   const hubspotIntegration = crmIntegrations.find((integration) => integration.type === "hubspot");
   const goHighLevelIntegration = crmIntegrations.find((integration) => integration.type === "gohighlevel");
@@ -153,6 +165,29 @@ const IntegrationManager = () => {
       nextGlobal[1] = { ...nextGlobal[1], is_enabled: openaiEnabled };
     } catch (error) {
       console.error("Failed to load OpenAI config", error);
+    }
+
+    try {
+      const { data, error } = await supabase.functions.invoke("sync-deal-files", {
+        body: { action: "test-connection" }
+      });
+      
+      const googleDriveConfigured = !error && data?.ok;
+      nextGlobal[2] = { ...nextGlobal[2], is_enabled: googleDriveConfigured };
+      
+      // Optionally fetch recent sync stats
+      const { data: syncStats } = await supabase
+        .from('google_drive_sync_log')
+        .select('files_added, files_updated, files_skipped, completed_at')
+        .order('completed_at', { ascending: false })
+        .limit(1)
+        .single();
+        
+      if (syncStats) {
+        nextGlobal[2].metadata = syncStats;
+      }
+    } catch (error) {
+      console.error("Failed to load Google Drive config", error);
     }
 
     setGlobalIntegrations(nextGlobal);
@@ -314,6 +349,43 @@ const IntegrationManager = () => {
     }
   };
 
+  const handleTestGoogleDrive = async () => {
+    setTestingGoogleDrive(true);
+    setGoogleDriveTestResult(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("sync-deal-files", {
+        body: { action: "test-connection" }
+      });
+      
+      if (error) throw error;
+      
+      setGoogleDriveTestResult(data);
+      
+      if (data?.ok) {
+        toast({
+          title: "Google Drive connection successful",
+          description: "Service account authenticated successfully.",
+        });
+      } else {
+        toast({
+          title: "Google Drive connection failed",
+          description: data?.error || "Unable to authenticate with Google Drive.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Google Drive test failed", error);
+      toast({
+        title: "Test failed",
+        description: error instanceof Error ? error.message : "Unable to test Google Drive connection.",
+        variant: "destructive",
+      });
+      setGoogleDriveTestResult({ ok: false, error: "Connection test failed" });
+    } finally {
+      setTestingGoogleDrive(false);
+    }
+  };
+
   return (
     <div className="space-y-8">
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
@@ -390,6 +462,52 @@ const IntegrationManager = () => {
                       </>
                     )}
                   </Button>
+                )}
+                {integration.id === "google-drive" && (
+                  <>
+                    {googleDriveTestResult && (
+                      <div className="text-sm">
+                        {googleDriveTestResult.ok && (
+                          <p className="text-green-600 dark:text-green-400">
+                            ✓ Service account authenticated
+                          </p>
+                        )}
+                        {!googleDriveTestResult.ok && (
+                          <p className="text-destructive flex items-center gap-1">
+                            <AlertCircle className="h-3 w-3" />
+                            {googleDriveTestResult.error}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                    {integration.metadata && (
+                      <div className="mt-2 pt-2 border-t text-xs text-muted-foreground">
+                        <p className="font-medium mb-1">Last Sync:</p>
+                        <p>✓ {integration.metadata.files_added || 0} files added</p>
+                        <p>↻ {integration.metadata.files_updated || 0} updated</p>
+                        <p>⊘ {integration.metadata.files_skipped || 0} skipped</p>
+                      </div>
+                    )}
+                    <Button
+                      onClick={handleTestGoogleDrive}
+                      disabled={testingGoogleDrive}
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                    >
+                      {testingGoogleDrive ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Testing connection...
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCw className="mr-2 h-4 w-4" />
+                          Test Connection
+                        </>
+                      )}
+                    </Button>
+                  </>
                 )}
               </CardContent>
             </Card>

@@ -103,7 +103,45 @@ serve(async (req) => {
 
     const serviceAccount = parseServiceAccount(googleJson);
 
-    const deals = await parseRequest(req);
+    // Handle test connection requests
+    const bodyText = await req.text();
+    if (bodyText) {
+      try {
+        const parsed = JSON.parse(bodyText);
+        if (parsed.action === 'test-connection') {
+          try {
+            await getGoogleAccessToken(serviceAccount);
+            return new Response(
+              JSON.stringify({ 
+                ok: true, 
+                message: "Service account authenticated successfully" 
+              }),
+              { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          } catch (error) {
+            return new Response(
+              JSON.stringify({ 
+                ok: false, 
+                error: error instanceof Error ? error.message : "Authentication failed"
+              }),
+              { 
+                status: 401,
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+              }
+            );
+          }
+        }
+      } catch (_parseError) {
+        // Not JSON or no action field, continue with normal processing
+      }
+    }
+
+    const deals = await parseRequest(new Request(req.url, {
+      method: req.method,
+      headers: req.headers,
+      body: bodyText || null,
+    }));
+
     if (deals.length === 0) {
       throw new Error("Request body must include at least one deal to sync");
     }
