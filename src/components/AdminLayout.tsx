@@ -68,6 +68,12 @@ const AdminLayout = () => {
         ],
       },
       {
+        section: "AI Operations",
+        items: [
+          { name: "AI Agents", href: "/adminpanel/ai/agents", icon: Bot },
+        ],
+      },
+      {
         section: "Strategy & Growth",
         items: [
           { name: "Products & Services", href: "/adminpanel/strategy/products", icon: Package },

@@ -40,6 +40,7 @@ import ProductManagement from "./pages/bd/ProductManagement";
 import FollowUps from "./pages/bd/FollowUps";
 import UserSettings from "./pages/bd/UserSettings";
 import AutomationSettings from "./pages/admin/AutomationSettings";
+import LinkedInAgentConfig from "./pages/admin/LinkedInAgentConfig";
 import DealDetail from "./pages/bd/DealDetail";
 
 const queryClient = new QueryClient();
@@ -110,6 +111,7 @@ const App = () => (
               <Route path="settings" element={<AdminSettings />} />
               <Route path="eod-management" element={<EODManagement />} />
               <Route path="pods" element={<PODManagement />} />
+              <Route path="ai/agents" element={<LinkedInAgentConfig />} />
               <Route path="data-sync" element={<DataSyncSettings />} />
               <Route path="strategy/products" element={<ProductManagement />} />
               <Route path="strategy/niches" element={<NicheManagement />} />
