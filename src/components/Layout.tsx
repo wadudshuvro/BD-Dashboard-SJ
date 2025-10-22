@@ -90,17 +90,7 @@ const Layout = ({ userRole }: LayoutProps) => {
           { name: "Clients", href: "/bd/pipeline/clients", icon: Building2, current: false },
         ]
       },
-      {
-        name: "Strategy",
-        href: "/bd/strategy/products",
-        icon: Crosshair,
-        current: false,
-        subItems: [
-          { name: "Products & Services", href: "/bd/strategy/products", icon: Package, current: false },
-          { name: "Target Niches", href: "/bd/strategy/niches", icon: Crosshair, current: false },
-          { name: "BD Campaigns", href: "/bd/strategy/campaigns", icon: Megaphone, current: false },
-        ]
-      },
+      { name: "BD Campaigns", href: "/bd/strategy/campaigns", icon: Megaphone, current: false },
       { 
         name: "Performance", 
         href: "/bd/performance/personal", 

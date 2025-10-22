@@ -126,6 +126,8 @@ const App = () => (
               <Route path="people" element={<People />} />
               <Route path="pods" element={<PODManagement />} />
               <Route path="data-sync" element={<DataSyncSettings />} />
+              <Route path="strategy/products" element={<ProductManagement />} />
+              <Route path="strategy/niches" element={<NicheManagement />} />
             </Route>
 
             {/* Feedback Module */}
@@ -159,9 +161,7 @@ const App = () => (
               <Route path="pipeline/negotiation" element={<Negotiation />} />
               <Route path="pipeline/clients" element={<Clients />} />
               
-              {/* Strategy - CRUD */}
-              <Route path="strategy/products" element={<ProductManagement />} />
-              <Route path="strategy/niches" element={<NicheManagement />} />
+              {/* Strategy - Campaigns only (Products & Niches moved to Admin Panel) */}
               <Route path="strategy/campaigns" element={<CampaignManagement />} />
               <Route path="strategy/campaigns/:campaignId" element={<CampaignDetail />} />
               
