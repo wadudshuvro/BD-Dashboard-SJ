@@ -68,3 +68,21 @@ export interface ControlTowerSummary {
   deals_value_total: number;
   active_clients_count: number;
 }
+
+export interface ControlTowerDealEnhanced extends ControlTowerDeal {
+  // Client contact info from clients table
+  client_email?: string;
+  client_phone?: string;
+  client_contact_person?: string;
+  client_address?: any; // JSONB
+  client_industry?: string;
+  client_domain?: string;
+  
+  // Additional deal fields from Control Tower
+  hubspot_deal_id?: string;
+  hubspot_crm_deal_url?: string;
+  dealtype?: string;
+  lead_source?: string;
+  expected_closing_date?: string;
+  potential_amount?: number;
+}

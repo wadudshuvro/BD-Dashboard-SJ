@@ -26,6 +26,9 @@ import {
   Trophy,
   FileDown,
   FileText,
+  UserSearch,
+  ClipboardCheck,
+  Handshake,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useState } from "react";
@@ -85,13 +88,14 @@ const Layout = ({ userRole }: LayoutProps) => {
           { name: "BD Dashboard", href: "/bd/dashboard", icon: LayoutDashboard, current: false },
           {
             name: "Pipeline",
-            href: "/bd/pipeline/leads",
+            href: "/bd/pipeline/prospecting",
             icon: Target,
             current: false,
             subItems: [
-              { name: "Lead Inbox", href: "/bd/pipeline/leads", icon: Users, current: false },
-              { name: "Warm Leads", href: "/bd/pipeline/warm-leads", icon: Zap, current: false },
-              { name: "Deals", href: "/bd/pipeline/deals", icon: TrendingUp, current: false },
+              { name: "Prospecting", href: "/bd/pipeline/prospecting", icon: UserSearch, current: false },
+              { name: "Qualification", href: "/bd/pipeline/qualification", icon: ClipboardCheck, current: false },
+              { name: "Proposal", href: "/bd/pipeline/proposal", icon: FileText, current: false },
+              { name: "Negotiation", href: "/bd/pipeline/negotiation", icon: Handshake, current: false },
               { name: "Clients", href: "/bd/pipeline/clients", icon: Building2, current: false },
             ]
           },
@@ -148,9 +152,10 @@ const Layout = ({ userRole }: LayoutProps) => {
             icon: Crosshair, 
             current: false,
             subItems: [
-              { name: "Lead Inbox", href: "/bd/pipeline/leads", icon: Users, current: false },
-              { name: "Warm Leads", href: "/bd/pipeline/warm-leads", icon: Zap, current: false },
-              { name: "Deals", href: "/bd/pipeline/deals", icon: TrendingUp, current: false },
+              { name: "Prospecting", href: "/bd/pipeline/prospecting", icon: UserSearch, current: false },
+              { name: "Qualification", href: "/bd/pipeline/qualification", icon: ClipboardCheck, current: false },
+              { name: "Proposal", href: "/bd/pipeline/proposal", icon: FileText, current: false },
+              { name: "Negotiation", href: "/bd/pipeline/negotiation", icon: Handshake, current: false },
               { name: "Clients", href: "/bd/pipeline/clients", icon: Building2, current: false },
               { name: "Target Niches", href: "/bd/niches", icon: Crosshair, current: false },
               { name: "BD Campaigns", href: "/bd/campaigns", icon: Megaphone, current: false },
@@ -183,9 +188,10 @@ const Layout = ({ userRole }: LayoutProps) => {
             icon: Crosshair, 
             current: false,
             subItems: [
-              { name: "Lead Inbox", href: "/bd/pipeline/leads", icon: Users, current: false },
-              { name: "Warm Leads", href: "/bd/pipeline/warm-leads", icon: Zap, current: false },
-              { name: "Deals", href: "/bd/pipeline/deals", icon: TrendingUp, current: false },
+              { name: "Prospecting", href: "/bd/pipeline/prospecting", icon: UserSearch, current: false },
+              { name: "Qualification", href: "/bd/pipeline/qualification", icon: ClipboardCheck, current: false },
+              { name: "Proposal", href: "/bd/pipeline/proposal", icon: FileText, current: false },
+              { name: "Negotiation", href: "/bd/pipeline/negotiation", icon: Handshake, current: false },
               { name: "Clients", href: "/bd/pipeline/clients", icon: Building2, current: false },
               { name: "Target Niches", href: "/bd/niches", icon: Crosshair, current: false },
               { name: "BD Campaigns", href: "/bd/campaigns", icon: Megaphone, current: false },
@@ -231,9 +237,10 @@ const Layout = ({ userRole }: LayoutProps) => {
             icon: Crosshair, 
             current: false,
             subItems: [
-              { name: "Lead Inbox", href: "/bd/pipeline/leads", icon: Users, current: false },
-              { name: "Warm Leads", href: "/bd/pipeline/warm-leads", icon: Zap, current: false },
-              { name: "Deals", href: "/bd/pipeline/deals", icon: TrendingUp, current: false },
+              { name: "Prospecting", href: "/bd/pipeline/prospecting", icon: UserSearch, current: false },
+              { name: "Qualification", href: "/bd/pipeline/qualification", icon: ClipboardCheck, current: false },
+              { name: "Proposal", href: "/bd/pipeline/proposal", icon: FileText, current: false },
+              { name: "Negotiation", href: "/bd/pipeline/negotiation", icon: Handshake, current: false },
               { name: "Clients", href: "/bd/pipeline/clients", icon: Building2, current: false },
               { name: "Target Niches", href: "/bd/niches", icon: Crosshair, current: false },
               { name: "BD Campaigns", href: "/bd/campaigns", icon: Megaphone, current: false },

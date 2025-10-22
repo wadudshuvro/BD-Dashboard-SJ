@@ -47,9 +47,10 @@ import NicheManagement from "./pages/bd/NicheManagement";
 import CampaignManagement from "./pages/bd/CampaignManagement";
 import CampaignDetail from "./pages/bd/CampaignDetail";
 import PODManagement from "./pages/admin/PODManagement";
-import LeadInbox from "./pages/bd/pipeline/LeadInbox";
-import WarmLeads from "./pages/bd/pipeline/WarmLeads";
-import Deals from "./pages/bd/pipeline/Deals";
+import Prospecting from "./pages/bd/pipeline/Prospecting";
+import Qualification from "./pages/bd/pipeline/Qualification";
+import Proposal from "./pages/bd/pipeline/Proposal";
+import Negotiation from "./pages/bd/pipeline/Negotiation";
 import Clients from "./pages/bd/pipeline/Clients";
 import BDDashboard from "./pages/bd/Dashboard";
 import ProductManagement from "./pages/bd/ProductManagement";
@@ -251,9 +252,10 @@ const App = () => (
               <Route path="my-agents" element={<MyAgentsPage />} />
               
               {/* Pipeline - Read-only from Control Tower */}
-              <Route path="pipeline/leads" element={<LeadInbox />} />
-              <Route path="pipeline/warm-leads" element={<WarmLeads />} />
-              <Route path="pipeline/deals" element={<Deals />} />
+              <Route path="pipeline/prospecting" element={<Prospecting />} />
+              <Route path="pipeline/qualification" element={<Qualification />} />
+              <Route path="pipeline/proposal" element={<Proposal />} />
+              <Route path="pipeline/negotiation" element={<Negotiation />} />
               <Route path="pipeline/clients" element={<Clients />} />
               
               {/* Strategy - CRUD */}

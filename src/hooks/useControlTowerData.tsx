@@ -151,3 +151,78 @@ export const useControlTowerSummary = () => {
     enabled: !!config?.url && !!config?.anon_key && config?.is_active,
   });
 };
+
+// Hook for fetching deals by stage
+export const useControlTowerDealsByStage = (
+  stage: 'prospecting' | 'qualification' | 'proposal' | 'negotiation'
+) => {
+  const { data: config } = useControlTowerConfig();
+  
+  return useQuery({
+    queryKey: ['control-tower-deals-by-stage', stage],
+    queryFn: async () => {
+      if (!config?.url || !config?.anon_key) {
+        throw new Error('Control Tower not configured');
+      }
+      
+      const client = createControlTowerClient(config.url, config.anon_key);
+      
+      const { data, error } = await client
+        .from('Deal')
+        .select(`
+          *,
+          client:clients!client_id (
+            id,
+            name,
+            contact_email,
+            contact_phone,
+            contact_person,
+            address,
+            industry,
+            domain
+          )
+        `)
+        .eq('dealstage', stage)
+        .order('createdate', { ascending: false });
+      
+      if (error) throw error;
+      
+      // Flatten client data into deal object
+      return (data || []).map((deal: any) => ({
+        id: deal.id,
+        deal_name: deal.dealname || '',
+        client_id: deal.client_id,
+        client_name: deal.client?.name || deal.clientCompanyName || '',
+        stage: deal.dealstage,
+        value: deal.amount || deal.potential_amount,
+        owner_id: deal.actual_deal_owner_id,
+        owner_name: deal.actual_deal_owner_name || `${deal.dealOwnerFirstName || ''} ${deal.dealOwnerLastName || ''}`.trim(),
+        pm_assigned_id: deal.pm_assigned_id,
+        pm_assigned_name: deal.pm_assigned_name,
+        status: 'active',
+        close_date: deal.expected_closing_date || deal.closedate,
+        created_at: deal.createdate || new Date().toISOString(),
+        updated_at: deal.updated_at || new Date().toISOString(),
+        project_id: deal.project_id,
+        
+        // Client contact info
+        client_email: deal.client?.contact_email || deal.clientEmail,
+        client_phone: deal.client?.contact_phone || deal.clientPhone,
+        client_contact_person: deal.client?.contact_person || `${deal.clientFirstName || ''} ${deal.clientLastName || ''}`.trim(),
+        client_address: deal.client?.address,
+        client_industry: deal.client?.industry,
+        client_domain: deal.client?.domain || deal.clientWebsite,
+        
+        // Additional deal fields
+        hubspot_deal_id: deal.hubspot_deal_id,
+        hubspot_crm_deal_url: deal.hubspot_crm_deal_url,
+        dealtype: deal.dealtype,
+        lead_source: deal.lead_source,
+        expected_closing_date: deal.expected_closing_date,
+        potential_amount: deal.potential_amount,
+      }));
+    },
+    staleTime: 5 * 60 * 1000,
+    enabled: !!config?.url && !!config?.anon_key && config?.is_active,
+  });
+};
