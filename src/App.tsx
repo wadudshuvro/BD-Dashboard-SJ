@@ -14,7 +14,6 @@ import Signup from "./pages/Signup";
 import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 import Unauthorized from "./pages/Unauthorized";
-import People from "./pages/People";
 import ActionsTasks from "./pages/ActionsTasks";
 import EODSubmission from "./pages/EODSubmission";
 import MyEODSubmissions from "./pages/MyEODSubmissions";
@@ -110,7 +109,6 @@ const App = () => (
               <Route path="documentation" element={<React.Suspense fallback={<div>Loading...</div>}><Documentation /></React.Suspense>} />
               <Route path="settings" element={<AdminSettings />} />
               <Route path="eod-management" element={<EODManagement />} />
-              <Route path="people" element={<People />} />
               <Route path="pods" element={<PODManagement />} />
               <Route path="data-sync" element={<DataSyncSettings />} />
               <Route path="strategy/products" element={<ProductManagement />} />
