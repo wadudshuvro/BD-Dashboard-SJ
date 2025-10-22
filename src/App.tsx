@@ -8,9 +8,7 @@ import { AuthProvider, useAuth } from "./hooks/useAuth";
 import Layout from "./components/Layout";
 import AdminLayout from "./components/AdminLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
-import Dashboard from "./pages/Dashboard";
 import PersonalDashboard from "./pages/PersonalDashboard";
-import Reports from "./pages/Reports";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import ResetPassword from "./pages/ResetPassword";
@@ -22,7 +20,6 @@ import EODSubmission from "./pages/EODSubmission";
 import MyEODSubmissions from "./pages/MyEODSubmissions";
 import UserManagement from "./pages/admin/UserManagement";
 import IntegrationManager from "./pages/admin/IntegrationManager";
-import LinkedInAgentConfig from "./pages/admin/LinkedInAgentConfig";
 import AdminSettings from "./pages/admin/AdminSettings";
 import EODManagement from "./pages/admin/EODManagement";
 import UserDetail from "./pages/admin/UserDetail";
@@ -95,15 +92,6 @@ const App = () => (
               <Route index element={<PersonalDashboard />} />
             </Route>
             
-            {/* Super Admin EOD/Accountability Dashboard */}
-            <Route path="/dashboard/*" element={
-              <ProtectedRoute requiredRole="super_admin">
-                <Layout userRole="super_admin" />
-              </ProtectedRoute>
-            }>
-              <Route index element={<Dashboard />} />
-            </Route>
-            
             {/* Admin Panel Routes - Super Admin Only */}
             <Route path="/adminpanel/*" element={
               <ProtectedRoute requiredRole="super_admin">
@@ -118,7 +106,6 @@ const App = () => (
               <Route path="users" element={<UserManagement />} />
               <Route path="users/:userId" element={<UserDetail />} />
               <Route path="integrations" element={<IntegrationManager />} />
-              <Route path="linkedin-agents" element={<LinkedInAgentConfig />} />
               <Route path="documentation" element={<React.Suspense fallback={<div>Loading...</div>}><Documentation /></React.Suspense>} />
               <Route path="settings" element={<AdminSettings />} />
               <Route path="eod-management" element={<EODManagement />} />
@@ -167,7 +154,6 @@ const App = () => (
               {/* Performance */}
               <Route path="performance/personal" element={<PersonalDashboard />} />
               <Route path="performance/followups" element={<FollowUps />} />
-              <Route path="performance/reports" element={<Reports />} />
               
               {/* Actions */}
               <Route path="actions/tasks" element={<ActionsTasks />} />
@@ -177,11 +163,6 @@ const App = () => (
               {/* Admin */}
               <Route path="admin/documentation" element={<React.Suspense fallback={<div>Loading...</div>}><Documentation /></React.Suspense>} />
               <Route path="admin/settings" element={<UserSettings />} />
-            </Route>
-            
-            {/* Legacy/Fallback Routes */}
-            <Route element={<Layout />}>
-              <Route path="reports" element={<Reports />} />
             </Route>
             
             {/* Catch-all route */}

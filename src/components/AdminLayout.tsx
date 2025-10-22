@@ -66,7 +66,6 @@ const AdminLayout = () => {
         items: [
           { name: "Products & Services", href: "/adminpanel/strategy/products", icon: Package },
           { name: "Target Niches", href: "/adminpanel/strategy/niches", icon: Crosshair },
-          { name: "LinkedIn AI Agents", href: "/adminpanel/linkedin-agents", icon: Bot },
         ],
       },
     ];
