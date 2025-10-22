@@ -24,7 +24,8 @@ import {
   Bug,
   Sparkles,
   ClipboardList,
-  UserPlus
+  UserPlus,
+  RefreshCw
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useMemo, useState } from "react";
@@ -67,6 +68,7 @@ const AdminLayout = () => {
         section: "Integrations & AI",
         items: [
           { name: "Integrations Hub", href: "/adminpanel/integrations", icon: Plug },
+          { name: "Data Sync Settings", href: "/adminpanel/data-sync", icon: RefreshCw },
           { name: "AI Dashboard", href: "/adminpanel/ai-dashboard", icon: Bot },
           { name: "AI Agents", href: "/adminpanel/ai-agents", icon: Zap },
         ],

@@ -47,6 +47,7 @@ import NicheManagement from "./pages/bd/NicheManagement";
 import CampaignManagement from "./pages/bd/CampaignManagement";
 import CampaignDetail from "./pages/bd/CampaignDetail";
 import PODManagement from "./pages/admin/PODManagement";
+import DataSyncSettings from "./pages/admin/DataSyncSettings";
 import Prospecting from "./pages/bd/pipeline/Prospecting";
 import Qualification from "./pages/bd/pipeline/Qualification";
 import Proposal from "./pages/bd/pipeline/Proposal";
@@ -225,6 +226,7 @@ const App = () => (
               <Route path="ai-agents" element={<AIAgentsPage />} />
               <Route path="ai-dashboard" element={<AIDashboard />} />
               <Route path="pods" element={<PODManagement />} />
+              <Route path="data-sync" element={<DataSyncSettings />} />
             </Route>
 
             {/* Feedback Module */}
