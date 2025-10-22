@@ -97,6 +97,9 @@ serve(async (req) => {
     const googleKey = Deno.env.get("GOOGLE_DRIVE_API_KEY") ?? undefined;
     const googleJson = Deno.env.get("GOOGLE_DRIVE_JSON");
 
+    console.log("[Deal Files] Checking for Google Drive credentials...");
+    console.log("[Deal Files] GOOGLE_DRIVE_JSON present:", !!googleJson);
+    
     if (!googleJson) {
       throw new Error("Google Drive service account JSON is not configured");
     }
@@ -173,7 +176,9 @@ serve(async (req) => {
       }
 
       try {
+        console.log(`[Deal Files] Listing files for deal ${deal.dealId}, folder ${deal.driveFolderId}`);
         const driveFiles = await listFolderFiles(deal.driveFolderId, accessToken, googleKey);
+        console.log(`[Deal Files] Found ${driveFiles.length} files in folder`);
         summary.filesProcessed = driveFiles.length;
 
         for (const file of driveFiles) {
