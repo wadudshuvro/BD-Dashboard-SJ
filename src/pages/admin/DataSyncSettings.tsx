@@ -69,14 +69,20 @@ function DataSyncSettings() {
 
       const { error } = await supabase
         .from('ai_configurations')
-        .upsert({
-          user_id: user.id,
-          configuration_type: 'sync_schedule',
-          configuration_data: config as any,
-        });
+        .upsert(
+          {
+            user_id: user.id,
+            configuration_type: 'sync_schedule',
+            configuration_data: config as any,
+          },
+          {
+            onConflict: 'user_id,configuration_type',
+          },
+        );
 
       if (error) throw error;
 
+      await loadConfig();
       toast.success('Sync settings saved successfully');
     } catch (error) {
       console.error('Failed to save config:', error);
@@ -102,16 +108,28 @@ function DataSyncSettings() {
       // Save updated config
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        await supabase
+        const { error } = await supabase
           .from('ai_configurations')
-          .upsert({
-            user_id: user.id,
-            configuration_type: 'sync_schedule',
-            configuration_data: updatedConfig as any,
-          });
+          .upsert(
+            {
+              user_id: user.id,
+              configuration_type: 'sync_schedule',
+              configuration_data: updatedConfig as any,
+            },
+            {
+              onConflict: 'user_id,configuration_type',
+            },
+          );
+
+        if (error) {
+          throw error;
+        }
+
+        await loadConfig();
       }
     } catch (error) {
       console.error('Manual sync failed:', error);
+      toast.error('Manual sync failed');
     }
   };
 
