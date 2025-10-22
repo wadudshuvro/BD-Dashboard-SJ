@@ -57,31 +57,51 @@ const ControlTowerSyncDashboard = () => {
   const fetchSummary = async () => {
     setLoading(true);
     try {
-      const { data: logData, error: logError } = await supabase
-        .from('control_tower_sync_log')
+      // Fetch sync logs
+      const logQuery: any = supabase
+        .from('control_tower_sync_log' as any)
         .select('*')
         .order('synced_at', { ascending: false })
         .limit(100);
+      
+      const logResult = await logQuery;
+      
+      if (logResult.error) throw logResult.error;
+      
+      const mappedLogs: SyncLog[] = (logResult.data || []).map((log: any) => ({
+        id: log.id,
+        sync_type: log.sync_type as 'pull' | 'push',
+        entity_type: log.entity_type,
+        status: log.status,
+        error_message: log.error_message || null,
+        payload: log.payload || null,
+        synced_at: log.synced_at,
+      }));
+      
+      setLogs(mappedLogs);
 
-      if (logError) throw logError;
-      setLogs((logData as SyncLog[]) || []);
-
-      const { count: commentCount, error: commentError } = await supabase
-        .from('deal_comments')
+      // Fetch pending comments count
+      const commentQuery: any = supabase
+        .from('deal_comments' as any)
         .select('id', { count: 'exact', head: true })
         .eq('synced_to_control_tower', false);
+      
+      const commentResult = await commentQuery;
+      
+      if (commentResult.error) throw commentResult.error;
+      setPendingComments(commentResult.count ?? 0);
 
-      if (commentError) throw commentError;
-      setPendingComments(commentCount ?? 0);
-
-      const { count: checklistCount, error: checklistError } = await supabase
-        .from('deal_checklist_items')
+      // Fetch pending checklist items count
+      const checklistQuery: any = supabase
+        .from('deal_checklist_items' as any)
         .select('id', { count: 'exact', head: true })
         .eq('is_completed', true)
-        .is('control_tower_synced_at', null);
-
-      if (checklistError) throw checklistError;
-      setPendingChecklist(checklistCount ?? 0);
+        .eq('synced_to_control_tower', false);
+      
+      const checklistResult = await checklistQuery;
+      
+      if (checklistResult.error) throw checklistResult.error;
+      setPendingChecklist(checklistResult.count ?? 0);
     } catch (error) {
       console.error('Failed to load sync dashboard', error);
       toast({ title: 'Error', description: 'Unable to load sync information.', variant: 'destructive' });
@@ -447,7 +467,7 @@ const ControlTowerSyncDashboard = () => {
                 <SelectItem value="all">All statuses</SelectItem>
                 <SelectItem value="success">Success</SelectItem>
                 <SelectItem value="failed">Failed</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="partial">Partial</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -455,37 +475,44 @@ const ControlTowerSyncDashboard = () => {
         <CardContent>
           {loading ? (
             <div className="flex items-center justify-center py-12 text-muted-foreground">
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading logs...
+              <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading sync logs...
             </div>
           ) : filteredLogs.length === 0 ? (
-            <div className="flex items-center justify-center py-12 text-muted-foreground">
-              No sync activity found for the selected filters.
+            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+              <AlertCircle className="mb-2 h-10 w-10" />
+              <p className="text-sm">No sync activity found. Try adjusting filters or trigger a manual sync.</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Timestamp</TableHead>
-                    <TableHead>Direction</TableHead>
+                    <TableHead>Type</TableHead>
                     <TableHead>Entity</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Details</TableHead>
+                    <TableHead>Time</TableHead>
+                    <TableHead>Error</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredLogs.map((log) => (
                     <TableRow key={log.id}>
                       <TableCell>
-                        {log.synced_at ? format(new Date(log.synced_at), 'MMM dd, yyyy HH:mm') : '—'}
+                        <Badge variant={log.sync_type === 'pull' ? 'default' : 'outline'}>
+                          {log.sync_type === 'pull' ? (
+                            <><CloudDownload className="mr-1 h-3 w-3" /> Pull</>
+                          ) : (
+                            <><CloudUpload className="mr-1 h-3 w-3" /> Push</>
+                          )}
+                        </Badge>
                       </TableCell>
-                      <TableCell className="capitalize">{log.sync_type}</TableCell>
-                      <TableCell className="capitalize">{log.entity_type || '—'}</TableCell>
+                      <TableCell className="capitalize">{log.entity_type.replace('_', ' ')}</TableCell>
                       <TableCell>{renderStatusBadge(log.status)}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {log.error_message || Object.keys(log.payload || {}).length === 0
-                          ? log.error_message ?? '—'
-                          : JSON.stringify(log.payload)}
+                      <TableCell>
+                        {log.synced_at ? format(new Date(log.synced_at), 'MMM dd, HH:mm') : 'N/A'}
+                      </TableCell>
+                      <TableCell className="max-w-[300px] truncate text-xs text-muted-foreground">
+                        {log.error_message || '—'}
                       </TableCell>
                     </TableRow>
                   ))}

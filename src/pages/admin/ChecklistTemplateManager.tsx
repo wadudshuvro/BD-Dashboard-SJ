@@ -77,27 +77,54 @@ const ChecklistTemplateManager = () => {
 
   const fetchTemplates = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('checklist_templates')
-      .select('*')
-      .order('updated_at', { ascending: false });
+    try {
+      // Fetch templates
+      const templatesQuery: any = supabase
+        .from('checklist_templates' as any)
+        .select('*')
+        .order('updated_at', { ascending: false });
+      
+      const templatesResult = await templatesQuery;
+      
+      if (templatesResult.error) {
+        throw templatesResult.error;
+      }
 
-    if (error) {
+      // Fetch template items
+      const itemsQuery: any = supabase
+        .from('checklist_template_items' as any)
+        .select('*')
+        .order('order_index', { ascending: true });
+      
+      const itemsResult = await itemsQuery;
+
+      if (itemsResult.error) {
+        console.error('Failed to load template items', itemsResult.error);
+      }
+
+      // Combine templates with their items
+      const parsed: ChecklistTemplate[] = (templatesResult.data || []).map((template: any) => ({
+        id: template.id,
+        name: template.name,
+        stage: template.stage,
+        is_active: template.is_active,
+        created_at: template.created_at,
+        updated_at: template.updated_at,
+        items: (itemsResult.data || [])
+          .filter((item: any) => item.template_id === template.id)
+          .map((item: any) => ({
+            title: item.title || '',
+            order_index: item.order_index || 0,
+          }))
+      }));
+
+      setTemplates(parsed);
+    } catch (error) {
       console.error('Failed to load templates', error);
       toast({ title: 'Error', description: 'Could not load checklist templates.', variant: 'destructive' });
-    } else if (data) {
-      const parsed = data.map((template) => ({
-        ...template,
-        items: Array.isArray(template.items) 
-          ? (template.items as any[]).map(item => ({
-              title: (item as any).title || '',
-              order_index: (item as any).order_index || 0,
-            }))
-          : [],
-      })) as ChecklistTemplate[];
-      setTemplates(parsed);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const openCreateDialog = () => {
@@ -184,36 +211,86 @@ const ChecklistTemplateManager = () => {
 
     setIsSaving(true);
 
-    const payload = {
-      name: formState.name.trim(),
-      stage: formState.stage ? formState.stage : null,
-      is_active: formState.is_active,
-      items: formState.items.map((item, index) => ({
-        title: item.title,
-        order_index: index,
-      })),
-    };
+    try {
+      if (editingTemplate) {
+        // Update template
+        const updateQuery: any = supabase
+          .from('checklist_templates' as any)
+          .update({
+            name: formState.name.trim(),
+            stage: formState.stage || null,
+            is_active: formState.is_active,
+          })
+          .eq('id', editingTemplate.id);
+        
+        const updateResult = await updateQuery;
+        if (updateResult.error) throw updateResult.error;
 
-    let error;
-    if (editingTemplate) {
-      ({ error } = await supabase
-        .from('checklist_templates')
-        .update(payload)
-        .eq('id', editingTemplate.id));
-    } else {
-      ({ error } = await supabase.from('checklist_templates').insert(payload));
-    }
+        // Delete old items
+        const deleteQuery: any = supabase
+          .from('checklist_template_items' as any)
+          .delete()
+          .eq('template_id', editingTemplate.id);
+        
+        await deleteQuery;
 
-    if (error) {
-      console.error('Failed to save template', error);
-      toast({ title: 'Error', description: 'Could not save template.', variant: 'destructive' });
-    } else {
+        // Insert new items
+        if (formState.items.length > 0) {
+          const insertQuery: any = supabase
+            .from('checklist_template_items' as any)
+            .insert(
+              formState.items.map((item, index) => ({
+                template_id: editingTemplate.id,
+                title: item.title,
+                order_index: index,
+              }))
+            );
+          
+          const insertResult = await insertQuery;
+          if (insertResult.error) throw insertResult.error;
+        }
+      } else {
+        // Create new template
+        const insertQuery: any = supabase
+          .from('checklist_templates' as any)
+          .insert({
+            name: formState.name.trim(),
+            stage: formState.stage || null,
+            is_active: formState.is_active,
+          })
+          .select()
+          .single();
+        
+        const insertResult = await insertQuery;
+        if (insertResult.error) throw insertResult.error;
+        const newTemplate = insertResult.data;
+
+        // Insert items
+        if (newTemplate && formState.items.length > 0) {
+          const itemsQuery: any = supabase
+            .from('checklist_template_items' as any)
+            .insert(
+              formState.items.map((item, index) => ({
+                template_id: newTemplate.id,
+                title: item.title,
+                order_index: index,
+              }))
+            );
+          
+          const itemsResult = await itemsQuery;
+          if (itemsResult.error) throw itemsResult.error;
+        }
+      }
+
       toast({ title: 'Template saved', description: 'Checklist template updated successfully.' });
       handleDialogOpenChange(false);
       fetchTemplates();
+    } catch (error) {
+      console.error('Failed to save template', error);
+      toast({ title: 'Error', description: 'Could not save template.', variant: 'destructive' });
+    } finally {
+      setIsSaving(false);
     }
-
-    setIsSaving(false);
   };
 
   const handleDeleteTemplate = (template: ChecklistTemplate) => {
@@ -224,21 +301,29 @@ const ChecklistTemplateManager = () => {
   const confirmDeleteTemplate = async () => {
     if (!templateToDelete) return;
     setIsDeleting(true);
-    const { error } = await supabase
-      .from('checklist_templates')
-      .delete()
-      .eq('id', templateToDelete.id);
-
-    if (error) {
-      console.error('Failed to delete template', error);
-      toast({ title: 'Error', description: 'Could not delete template.', variant: 'destructive' });
-    } else {
+    
+    try {
+      const deleteQuery: any = supabase
+        .from('checklist_templates' as any)
+        .delete()
+        .eq('id', templateToDelete.id);
+      
+      const result = await deleteQuery;
+      
+      if (result.error) {
+        throw result.error;
+      }
+      
       toast({ title: 'Template deleted', description: 'Checklist template removed.' });
       fetchTemplates();
+    } catch (error) {
+      console.error('Failed to delete template', error);
+      toast({ title: 'Error', description: 'Could not delete template.', variant: 'destructive' });
+    } finally {
+      setIsDeleting(false);
+      setDeleteDialogOpen(false);
+      setTemplateToDelete(null);
     }
-    setIsDeleting(false);
-    setDeleteDialogOpen(false);
-    setTemplateToDelete(null);
   };
 
   return (
@@ -290,7 +375,7 @@ const ChecklistTemplateManager = () => {
                           <Badge variant="secondary">All Stages</Badge>
                         )}
                       </TableCell>
-                      <TableCell>{template.items.length}</TableCell>
+                      <TableCell>{template.items?.length || 0}</TableCell>
                       <TableCell>
                         {template.is_active ? (
                           <Badge variant="outline" className="text-green-600">Active</Badge>
