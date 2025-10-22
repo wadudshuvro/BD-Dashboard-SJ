@@ -17,7 +17,7 @@ interface SyncConfig {
   last_sync_status?: 'success' | 'failed' | 'running';
 }
 
-export default function DataSyncSettings() {
+function DataSyncSettings() {
   const [config, setConfig] = useState<SyncConfig>({
     enabled: false,
     interval_minutes: 60,
@@ -246,3 +246,5 @@ export default function DataSyncSettings() {
     </div>
   );
 }
+
+export default DataSyncSettings;
