@@ -42,6 +42,7 @@ import UserSettings from "./pages/bd/UserSettings";
 import AutomationSettings from "./pages/admin/AutomationSettings";
 import LinkedInAgentConfig from "./pages/admin/LinkedInAgentConfig";
 import DealDetail from "./pages/bd/DealDetail";
+import ClientDetail from "./pages/bd/ClientDetail";
 import ChecklistTemplateManager from "./pages/admin/ChecklistTemplateManager";
 import ControlTowerSyncDashboard from "./pages/admin/ControlTowerSyncDashboard";
 
@@ -151,6 +152,7 @@ const App = () => (
               <Route path="pipeline/proposal" element={<Proposal />} />
               <Route path="pipeline/negotiation" element={<Negotiation />} />
               <Route path="pipeline/clients" element={<Clients />} />
+              <Route path="clients/:clientId" element={<ClientDetail />} />
               
               {/* Strategy - Campaigns only (Products & Niches moved to Admin Panel) */}
               <Route path="strategy/campaigns" element={<CampaignManagement />} />
