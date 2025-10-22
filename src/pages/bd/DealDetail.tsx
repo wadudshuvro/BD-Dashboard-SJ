@@ -42,6 +42,7 @@ import { useDealChecklist, useAddChecklistItem, useToggleChecklistItem, useDelet
 import { useDealSystemInfo } from '@/hooks/useDealSystemInfo';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import type { DealFile } from '@/hooks/useDeals';
 
 interface DealExternalLinks {
   n8n_workflow_url?: string | null;
@@ -79,6 +80,7 @@ interface Deal {
   priority?: string | null;
   tags?: string[] | null;
   external_links?: DealExternalLinks | null;
+  deal_files?: DealFile[];
 }
 
 interface Client {
@@ -372,7 +374,23 @@ export default function DealDetail() {
 
         const { data: dealData, error: dealError } = await supabase
           .from('deals')
-          .select('*')
+          .select(`
+            *,
+            deal_files:deal_files(
+              id,
+              deal_id,
+              client_id,
+              drive_file_id,
+              drive_file_name,
+              drive_file_mime_type,
+              drive_last_modified_at,
+              storage_bucket_path,
+              json_snapshot_path,
+              checksum,
+              created_at,
+              updated_at
+            )
+          `)
           .eq('id', extractedDealId)
           .single();
 
