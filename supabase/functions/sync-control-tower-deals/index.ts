@@ -86,7 +86,7 @@ serve(async (req) => {
     // Create Control Tower client with server-side credentials
     const ctClient = createClient(envUrl, envKey);
 
-    return await performSync(ctClient, supabase, userId);
+    return await performSync(ctClient, supabase, userId, supabaseKey);
 
   } catch (error) {
     console.error('[Sync] Error:', error);
@@ -124,7 +124,7 @@ const STAGE_MAPPING: Record<string, string> = {
 
 function mapStage(ctStage: any, stageName?: string): string {
   if (!ctStage) return 'prospecting';
-  
+
   // Log for debugging
   console.log('[Sync] Mapping stage:', { ctStage, stageName });
   
@@ -144,6 +144,42 @@ function mapStage(ctStage: any, stageName?: string): string {
   return mapped;
 }
 
+function extractDriveFolderId(ctDeal: any): string | null {
+  const candidates = [
+    ctDeal.drive_folder_id,
+    ctDeal.driveFolderId,
+    ctDeal.google_drive_folder_id,
+    ctDeal.googleDriveFolderId,
+    ctDeal.drive_folder,
+    ctDeal.google_drive_folder,
+    ctDeal.folder_id,
+    ctDeal.deal_folder_id,
+  ];
+
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    if (typeof candidate === 'string' && candidate.trim()) {
+      return candidate.trim();
+    }
+
+    if (typeof candidate === 'object') {
+      const nestedId = candidate.id ?? candidate.folder_id ?? candidate.folderId ?? null;
+      if (typeof nestedId === 'string' && nestedId.trim()) {
+        return nestedId.trim();
+      }
+    }
+  }
+
+  return null;
+}
+
+async function getOrCreateClient(
+  ctClient: any,
+  supabase: any,
+  ctDeal: any
+): Promise<string | null> {
+  const clientCompany = ctDeal.clientCompanyName || ctDeal.company_name || ctDeal.client_company;
+  const clientId = ctDeal.client_id || ctDeal.clientId;
 // Build a client lookup cache from company names
 async function buildClientCache(supabase: any): Promise<Map<string, string>> {
   console.log('[Sync] Building client lookup cache...');
@@ -200,7 +236,8 @@ function extractClientData(ctDeal: any): any {
 async function performSync(
   ctClient: any,
   supabase: any,
-  userId: string | null
+  userId: string | null,
+  serviceRoleKey: string,
 ): Promise<Response> {
   const startTime = Date.now();
   
@@ -258,6 +295,18 @@ async function performSync(
     }
 
     console.log(`[Sync] Found ${ctDeals.length} active deals to sync`);
+
+    const driveFolderMap = new Map<string, string>();
+    for (const ctDeal of ctDeals) {
+      const folderId = extractDriveFolderId(ctDeal);
+      if (folderId) {
+        driveFolderMap.set(String(ctDeal.id), folderId);
+      }
+    }
+
+    if (driveFolderMap.size > 0) {
+      console.log(`[Sync] Identified Drive folders for ${driveFolderMap.size} deals`);
+    }
 
     // Log sample deal structure for debugging
     if (ctDeals.length > 0) {
@@ -428,6 +477,36 @@ async function performSync(
 
     const syncedCount = upsertedDeals?.length || transformedDeals.length;
     console.log(`[Sync] Synced ${syncedCount} deals`);
+
+    type UpsertedDealReference = { id: string | number; control_tower_id: string | number | null };
+    const typedUpserts: UpsertedDealReference[] = (upsertedDeals || []) as UpsertedDealReference[];
+
+    const fileSyncPayload = typedUpserts
+      .map((deal) => {
+        if (!deal?.id || !deal.control_tower_id) return null;
+        const folderId = driveFolderMap.get(String(deal.control_tower_id));
+        if (!folderId) return null;
+        return {
+          dealId: String(deal.id),
+          controlTowerDealId: String(deal.control_tower_id),
+          driveFolderId: folderId,
+        };
+      })
+      .filter((value): value is { dealId: string; controlTowerDealId: string; driveFolderId: string } => Boolean(value));
+
+    if (fileSyncPayload.length > 0) {
+      console.log(`[Sync] Triggering Drive file sync for ${fileSyncPayload.length} deals`);
+      try {
+        await supabase.functions.invoke('sync-deal-files', {
+          body: { deals: fileSyncPayload },
+          headers: {
+            Authorization: `Bearer ${serviceRoleKey}`,
+          },
+        });
+      } catch (fileSyncError) {
+        console.warn('[Sync] Failed to trigger deal file sync:', fileSyncError);
+      }
+    }
 
     // Now sync checklist items for each deal
     console.log('[Sync] Syncing checklist items from Control Tower...');
