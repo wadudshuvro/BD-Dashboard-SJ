@@ -44,37 +44,29 @@ const AdminLayout = () => {
   const navigation = useMemo(() => {
     const sections = [
       {
-        section: "Quick Access",
+        section: "Core Administration",
         items: [
-          { name: "Back to Dashboard", href: "/dashboard", icon: ArrowLeft, isExternal: true },
-        ],
-      },
-      {
-        section: "Administration",
-        items: [
-          { name: "Admin Panel", href: "/adminpanel", icon: Home, exact: true },
           { name: "User Management", href: "/adminpanel/users", icon: Users },
-          { name: "POD Management", href: "/adminpanel/pods", icon: UserPlus },
           { name: "People Directory", href: "/adminpanel/people", icon: UserCheck },
-          { name: "EOD Management", href: "/adminpanel/eod-management", icon: Calendar },
-          { name: "Documentation", href: "/adminpanel/documentation", icon: FileText },
-          { name: "System Settings", href: "/adminpanel/settings", icon: Settings },
-          { name: "Automation Config", href: "/adminpanel/settings/automation", icon: Sparkles },
+          { name: "POD Management", href: "/adminpanel/pods", icon: UserPlus },
         ],
       },
       {
-        section: "Integrations & AI",
+        section: "System & Operations",
         items: [
+          { name: "System Settings", href: "/adminpanel/settings", icon: Settings },
           { name: "Integrations Hub", href: "/adminpanel/integrations", icon: Plug },
           { name: "Data Sync Settings", href: "/adminpanel/data-sync", icon: RefreshCw },
-          { name: "LinkedIn AI Agents", href: "/adminpanel/linkedin-agents", icon: Bot },
+          { name: "EOD Management", href: "/adminpanel/eod-management", icon: Calendar },
+          { name: "Documentation", href: "/adminpanel/documentation", icon: FileText },
         ],
       },
       {
-        section: "Strategy Management",
+        section: "Strategy & Growth",
         items: [
           { name: "Products & Services", href: "/adminpanel/strategy/products", icon: Package },
           { name: "Target Niches", href: "/adminpanel/strategy/niches", icon: Crosshair },
+          { name: "LinkedIn AI Agents", href: "/adminpanel/linkedin-agents", icon: Bot },
         ],
       },
     ];
@@ -146,33 +138,7 @@ const AdminLayout = () => {
                 </h3>
                 <div className="space-y-1">
                   {section.items.map((item) => {
-                    const isActive = !item.isExternal && isActiveRoute(item.href, item.exact);
-                    
-                    if (item.isExternal) {
-                      return (
-                        <NavLink
-                          key={item.name}
-                          to={item.href}
-                          className={cn(
-                            "group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors",
-                            item.name === 'Back to Dashboard'
-                              ? "bg-success text-success-foreground hover:bg-success/90"
-                              : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                          )}
-                          onClick={() => setSidebarOpen(false)}
-                        >
-                          <item.icon
-                            className={cn(
-                              "mr-3 h-5 w-5 flex-shrink-0",
-                              item.name === 'Back to Dashboard'
-                                ? "text-success-foreground"
-                                : "text-muted-foreground"
-                            )}
-                          />
-                          {item.name}
-                        </NavLink>
-                      );
-                    }
+                    const isActive = isActiveRoute(item.href);
                     
                     return (
                       <NavLink
@@ -237,16 +203,16 @@ const AdminLayout = () => {
           <div className="flex items-center gap-4">
             <div className="hidden lg:block">
               <h1 className="text-xl font-semibold text-foreground">
-                Business Dev AI - Administration
+                Admin Panel
               </h1>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" asChild>
-              <NavLink to="/dashboard" className="flex items-center gap-2">
-                <Home className="h-4 w-4" />
-                Dashboard
+              <NavLink to="/bd/dashboard" className="flex items-center gap-2">
+                <ArrowLeft className="h-4 w-4" />
+                BD Portal
               </NavLink>
             </Button>
             <Button variant="ghost" size="sm" title="Logout">

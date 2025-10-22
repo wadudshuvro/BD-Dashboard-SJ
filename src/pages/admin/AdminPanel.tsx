@@ -1,74 +1,19 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { 
   Users, 
-  Building2, 
-  Settings,
-  BarChart3,
-  Plug,
-  Bot,
-  Target,
-  ArrowRight,
   Shield,
-  TrendingUp
+  TrendingUp,
+  Activity,
+  CheckCircle2,
+  Clock,
+  Zap
 } from "lucide-react";
-import { NavLink } from "react-router-dom";
-import { useAuth } from "@/hooks/useAuth";
+import { useSystemStats } from "@/hooks/useSystemStats";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const AdminPanel = () => {
-  const { user } = useAuth();
-
-  const quickActions = [
-    {
-      title: "User Management",
-      description: "Manage user accounts, roles, and permissions",
-      icon: Users,
-      href: "/adminpanel/users",
-      color: "text-blue-500",
-      bgColor: "bg-blue-50 dark:bg-blue-950"
-    },
-    {
-      title: "Brand Management", 
-      description: "Configure brands, KPIs, and brand settings",
-      icon: Building2,
-      href: "/adminpanel/brands",
-      color: "text-green-500",
-      bgColor: "bg-green-50 dark:bg-green-950"
-    },
-    {
-      title: "Integration Hub",
-      description: "Manage AI integrations and external services",
-      icon: Plug,
-      href: "/adminpanel/integrations", 
-      color: "text-purple-500",
-      bgColor: "bg-purple-50 dark:bg-purple-950"
-    },
-    {
-      title: "KPI Configuration",
-      description: "Set up and monitor key performance indicators",
-      icon: TrendingUp,
-      href: "/adminpanel/kpis",
-      color: "text-orange-500", 
-      bgColor: "bg-orange-50 dark:bg-orange-950"
-    },
-    {
-      title: "AI Dashboard",
-      description: "Monitor AI agents and automation performance",
-      icon: Bot,
-      href: "/adminpanel/ai-dashboard",
-      color: "text-cyan-500",
-      bgColor: "bg-cyan-50 dark:bg-cyan-950"
-    },
-    {
-      title: "System Settings",
-      description: "Configure system-wide settings and preferences", 
-      icon: Settings,
-      href: "/adminpanel/settings",
-      color: "text-gray-500",
-      bgColor: "bg-gray-50 dark:bg-gray-950"
-    }
-  ];
+  const { data, isLoading } = useSystemStats();
 
 
   return (
@@ -76,100 +21,183 @@ const AdminPanel = () => {
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Admin Panel</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">Admin Dashboard</h1>
           <p className="text-muted-foreground">
-            Complete administrative control and system management
+            Real-time system overview and administrative metrics
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Badge variant="secondary" className="flex items-center gap-1">
-            <Shield className="h-3 w-3" />
-            Super Admin Access
-          </Badge>
-        </div>
+        <Badge variant="secondary" className="flex items-center gap-1">
+          <Shield className="h-3 w-3" />
+          Super Admin Access
+        </Badge>
       </div>
 
-      {/* Welcome Message */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground">
-              <Shield className="h-6 w-6" />
-            </div>
-            <div className="flex-1">
-              <h3 className="text-lg font-semibold text-foreground">
-                Welcome back, Super Admin!
-              </h3>
-              <p className="text-muted-foreground">
-                You have full administrative access to all system features and user data. 
-                Use the navigation menu or quick actions below to manage the platform.
-              </p>
-            </div>
-            <Button asChild variant="outline">
-              <NavLink to="/" className="flex items-center gap-2">
-                <ArrowRight className="h-4 w-4" />
-                Back to Dashboard
-              </NavLink>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      {/* System Health Cards */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <Skeleton className="h-8 w-16" />
+            ) : (
+              <>
+                <div className="text-2xl font-bold">{data?.stats.totalUsers || 0}</div>
+                <p className="text-xs text-muted-foreground">Active system users</p>
+              </>
+            )}
+          </CardContent>
+        </Card>
 
-      {/* Quick Actions */}
-      <div>
-        <h2 className="text-xl font-semibold mb-4 text-foreground">Administrative Functions</h2>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {quickActions.map((action) => (
-            <Card key={action.title} className="group hover:shadow-md transition-shadow cursor-pointer">
-              <NavLink to={action.href}>
-                <CardHeader className="pb-4">
-                  <div className="flex items-center justify-between">
-                    <div className={`p-2 rounded-md ${action.bgColor}`}>
-                      <action.icon className={`h-5 w-5 ${action.color}`} />
-                    </div>
-                    <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
-                  </div>
-                  <CardTitle className="text-base">{action.title}</CardTitle>
-                  <CardDescription className="text-sm">
-                    {action.description}
-                  </CardDescription>
-                </CardHeader>
-              </NavLink>
-            </Card>
-          ))}
-        </div>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Active Integrations</CardTitle>
+            <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <Skeleton className="h-8 w-16" />
+            ) : (
+              <>
+                <div className="text-2xl font-bold">{data?.stats.totalIntegrations || 0}</div>
+                <p className="text-xs text-muted-foreground">Connected services</p>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">EOD Submissions</CardTitle>
+            <Clock className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <Skeleton className="h-8 w-16" />
+            ) : (
+              <>
+                <div className="text-2xl font-bold">{data?.stats.todayEOD || 0}</div>
+                <p className="text-xs text-muted-foreground">Submitted today</p>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">AI Agent Runs</CardTitle>
+            <Zap className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <Skeleton className="h-8 w-16" />
+            ) : (
+              <>
+                <div className="text-2xl font-bold">{data?.stats.aiAgentRuns24h || 0}</div>
+                <p className="text-xs text-muted-foreground">Last 24 hours</p>
+              </>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
-
-      {/* System Status */}
+      {/* Recent Activity */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <BarChart3 className="h-5 w-5" />
-            System Status
+            <Activity className="h-5 w-5" />
+            Recent Activity
           </CardTitle>
+          <CardDescription>Latest administrative actions and system events</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 md:grid-cols-4">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-success">Active</div>
-              <div className="text-sm text-muted-foreground">System Status</div>
+          {isLoading ? (
+            <div className="space-y-2">
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
+              <Skeleton className="h-12 w-full" />
             </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-primary">All Users</div>
-              <div className="text-sm text-muted-foreground">Access Level</div>
+          ) : data?.recentActivity && data.recentActivity.length > 0 ? (
+            <div className="space-y-4">
+              {data.recentActivity.map((activity) => (
+                <div key={activity.id} className="flex items-start gap-3 pb-3 border-b last:border-0">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
+                    <Activity className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <div className="flex-1 space-y-1">
+                    <p className="text-sm font-medium">{activity.action}</p>
+                    {activity.user && (
+                      <p className="text-xs text-muted-foreground">User: {activity.user}</p>
+                    )}
+                    <p className="text-xs text-muted-foreground">{activity.time}</p>
+                  </div>
+                  <Badge variant={activity.type === 'system' ? 'secondary' : 'outline'}>
+                    {activity.type}
+                  </Badge>
+                </div>
+              ))}
             </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-accent">Latest</div>
-              <div className="text-sm text-muted-foreground">Version</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-warning">24/7</div>
-              <div className="text-sm text-muted-foreground">Monitoring</div>
-            </div>
-          </div>
+          ) : (
+            <p className="text-sm text-muted-foreground text-center py-8">No recent activity</p>
+          )}
         </CardContent>
       </Card>
+
+      {/* Quick Metrics Grid */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium">Total PODs</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <Skeleton className="h-8 w-16" />
+            ) : (
+              <div className="text-2xl font-bold">{data?.stats.totalPods || 0}</div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium">Target Niches</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <Skeleton className="h-8 w-16" />
+            ) : (
+              <div className="text-2xl font-bold">{data?.stats.totalNiches || 0}</div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium">Products/Services</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <Skeleton className="h-8 w-16" />
+            ) : (
+              <div className="text-2xl font-bold">{data?.stats.totalProducts || 0}</div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium">System Status</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-2">
+              <div className="h-2 w-2 rounded-full bg-success animate-pulse" />
+              <span className="text-sm font-medium">Operational</span>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 };

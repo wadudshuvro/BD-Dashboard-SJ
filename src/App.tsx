@@ -121,7 +121,6 @@ const App = () => (
               <Route path="linkedin-agents" element={<LinkedInAgentConfig />} />
               <Route path="documentation" element={<React.Suspense fallback={<div>Loading...</div>}><Documentation /></React.Suspense>} />
               <Route path="settings" element={<AdminSettings />} />
-              <Route path="settings/automation" element={<AutomationSettings />} />
               <Route path="eod-management" element={<EODManagement />} />
               <Route path="people" element={<People />} />
               <Route path="pods" element={<PODManagement />} />
