@@ -35,7 +35,6 @@ import { useState } from "react";
 import ProfileDropdown from "./ProfileDropdown";
 import logo from "@/assets/logo-sji.png";
 import { useFeatureFlag } from "@/hooks/useFeatureFlag";
-import { FeedbackWidget } from "@/features/feedback/components/FeedbackWidget";
 
 interface LayoutProps {
   userRole?: 'super_admin' | 'manager' | 'pm' | 'user';
@@ -130,21 +129,21 @@ const Layout = ({ userRole }: LayoutProps) => {
   };
 
   const { enabled: feedbackEnabled } = useFeatureFlag("feedback_enabled", true);
-  const { enabled: feedbackWidgetEnabled } = useFeatureFlag("feedback_widget", true);
 
   const navigation = getNavigation(currentRole);
 
-  // Always show Support section
-  navigation.push({
-    name: "Support",
-    href: "/feedback",
-    icon: Wrench,
-    current: false,
-    subItems: [
-      { name: "Submit Bug", href: "/feedback/submit?type=bug", icon: Wrench, current: false },
-      { name: "Submit Feature", href: "/feedback/submit?type=feature", icon: Sparkles, current: false },
-    ],
-  });
+  if (feedbackEnabled) {
+    navigation.push({
+      name: "Support",
+      href: "/feedback",
+      icon: Wrench,
+      current: false,
+      subItems: [
+        { name: "Submit Bug", href: "/feedback/submit?type=bug", icon: Wrench, current: false },
+        { name: "Submit Feature", href: "/feedback/submit?type=feature", icon: Sparkles, current: false },
+      ],
+    });
+  }
 
   const handleLogout = () => {
     logout();
@@ -309,7 +308,6 @@ const Layout = ({ userRole }: LayoutProps) => {
         </main>
       </div>
 
-      {feedbackEnabled && feedbackWidgetEnabled ? <FeedbackWidget /> : null}
     </div>
   );
 };

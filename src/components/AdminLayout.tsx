@@ -34,13 +34,11 @@ import { useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import logo from "@/assets/logo-sji.png";
 import { useFeatureFlag } from "@/hooks/useFeatureFlag";
-import { FeedbackWidget } from "@/features/feedback/components/FeedbackWidget";
 
 const AdminLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
   const { enabled: feedbackEnabled } = useFeatureFlag("feedback_enabled", true);
-  const { enabled: feedbackWidgetEnabled } = useFeatureFlag("feedback_widget", true);
 
   const navigation = useMemo(() => {
     const sections = [
@@ -88,18 +86,21 @@ const AdminLayout = () => {
           { name: "Checklist Templates", href: "/adminpanel/strategy/checklist-templates", icon: ListChecks },
         ],
       },
-      {
+    ];
+
+    if (feedbackEnabled) {
+      sections.push({
         section: "Support",
         items: [
           { name: "Feedback Manager", href: "/adminpanel/feedback", icon: ClipboardList },
           { name: "Submit Bug", href: "/feedback/submit?type=bug", icon: Bug },
           { name: "Submit Feature", href: "/feedback/submit?type=feature", icon: Sparkles },
         ],
-      },
-    ];
+      });
+    }
 
     return sections;
-  }, []);
+  }, [feedbackEnabled]);
 
   const isActiveRoute = (href: string, exact = false) => {
     const sanitizedHref = href.split("?")[0];
@@ -243,7 +244,6 @@ const AdminLayout = () => {
         </main>
       </div>
 
-      {feedbackEnabled && feedbackWidgetEnabled ? <FeedbackWidget /> : null}
     </div>
   );
 };
