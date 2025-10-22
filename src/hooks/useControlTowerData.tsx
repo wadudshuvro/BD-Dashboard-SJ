@@ -22,7 +22,7 @@ export const useControlTowerLeads = () => {
       
       const client = createControlTowerClient(config.url, config.anon_key);
       const { data, error } = await client
-        .from('leads')
+        .from('Lead')
         .select('*')
         .order('created_at', { ascending: false });
       
@@ -47,7 +47,7 @@ export const useControlTowerWarmLeads = () => {
       
       const client = createControlTowerClient(config.url, config.anon_key);
       const { data, error } = await client
-        .from('hubspot_leads')
+        .from('HubSpot_Leads')
         .select('*')
         .order('created_at', { ascending: false });
       
@@ -72,13 +72,12 @@ export const useControlTowerDeals = () => {
       
       const client = createControlTowerClient(config.url, config.anon_key);
       const { data, error } = await client
-        .from('deals')
+        .from('Deal')
         .select(`
           *,
-          client:clients(name),
-          project:projects(id, name)
+          client:clients!client_id(name)
         `)
-        .order('created_at', { ascending: false });
+        .order('createdate', { ascending: false });
       
       if (error) throw error;
       return data || [];
@@ -105,10 +104,7 @@ export const useControlTowerClients = (page: number = 1, limit: number = 25) => 
       const client = createControlTowerClient(config.url, config.anon_key);
       const { data, error, count } = await client
         .from('clients')
-        .select(`
-          *,
-          projects:projects(count)
-        `, { count: 'exact' })
+        .select('*', { count: 'exact' })
         .order('name', { ascending: true })
         .range(from, to);
       
@@ -139,13 +135,13 @@ export const useControlTowerSummary = () => {
       
       // Fetch counts from multiple tables
       const [leadsResult, warmLeadsResult, dealsResult, clientsResult] = await Promise.all([
-        client.from('leads').select('id', { count: 'exact', head: true }),
-        client.from('hubspot_leads').select('id', { count: 'exact', head: true }),
-        client.from('deals').select('id, value').eq('status', 'active'),
+        client.from('Lead').select('id', { count: 'exact', head: true }),
+        client.from('HubSpot_Leads').select('id', { count: 'exact', head: true }),
+        client.from('Deal').select('id, amount').eq('dealstatus', 'active'),
         client.from('clients').select('id', { count: 'exact', head: true }).eq('status', 'active'),
       ]);
 
-      const dealsValue = dealsResult.data?.reduce((sum, deal) => sum + (deal.value || 0), 0) || 0;
+      const dealsValue = dealsResult.data?.reduce((sum, deal) => sum + (deal.amount || 0), 0) || 0;
 
       return {
         new_leads_count: leadsResult.count || 0,
