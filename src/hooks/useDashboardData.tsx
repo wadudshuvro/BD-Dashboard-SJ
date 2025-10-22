@@ -8,13 +8,7 @@ export function useDashboardData() {
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["dashboard-data", user?.id],
     queryFn: async () => {
-      // Fetch active brands
-      const { data: brandsData, error: brandsError } = await supabase
-        .from("brands")
-        .select("*")
-        .eq("is_active", true);
-
-      if (brandsError) throw brandsError;
+      // Brands table removed - no brand data to fetch
 
       // Fetch team members from profiles
       const { data: profilesData, error: profilesError } = await supabase
@@ -23,23 +17,8 @@ export function useDashboardData() {
 
       if (profilesError) throw profilesError;
 
-      // Transform brand data
-      const brandPerformance = (brandsData || []).map((brand) => ({
-        id: brand.id,
-        name: brand.name || "Unnamed Brand",
-        description: brand.description || "",
-        type: brand.industry || "internal",
-        status: brand.is_active ? "growing" : "inactive",
-        owner_id: brand.owner_id,
-        owner_name: "Owner",
-        is_active: brand.is_active,
-        revenue: 0,
-        growth: 0,
-        monthly_budget: 0,
-        activeTasks: 0,
-        active_integrations: brand.active_integrations || [],
-        kpis: [] as any[],
-      }));
+      // Brand data removed - return empty array
+      const brandPerformance: any[] = [];
 
       // Transform team member data
       const teamMembers = (profilesData || []).map((profile) => ({

@@ -18,26 +18,20 @@ import Signup from "./pages/Signup";
 import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 import Unauthorized from "./pages/Unauthorized";
-import ClientManagement from "@/pages/ClientManagement";
-import ClientDetail from "@/pages/ClientDetail";
-import HubSpotImport from "@/pages/HubSpotImport";
-import ProjectManagement from "@/pages/ProjectManagement";
-import ProjectDetail from "@/pages/ProjectDetail";
-import ClientsProjects from "./pages/ClientsProjects";
+// Clients, Projects, and HubSpot - Removed from standalone pages
 import People from "./pages/People";
 import ActionsTasks from "./pages/ActionsTasks";
 import EODSubmission from "./pages/EODSubmission";
 import MyEODSubmissions from "./pages/MyEODSubmissions";
 import UserManagement from "./pages/admin/UserManagement";
-import BrandManagement from "./pages/admin/BrandManagement";
-import BrandDetail from "./pages/admin/BrandDetail";
+// Brand management - Removed
 import IntegrationManager from "./pages/admin/IntegrationManager";
 import LinkedInAgentConfig from "./pages/admin/LinkedInAgentConfig";
 import AdminSettings from "./pages/admin/AdminSettings";
 import EODManagement from "./pages/admin/EODManagement";
 import UserDetail from "./pages/admin/UserDetail";
 import AdminPanel from "./pages/admin/AdminPanel";
-import UserBrands from "./pages/UserBrands";
+// User brands - Removed
 import AIAgentsPage from "./pages/ai-agents";
 import MyAgentsPage from "./pages/my-agents";
 import PeopleReviewDashboard from "./pages/PeopleReviewDashboard";
@@ -124,10 +118,7 @@ const App = () => (
               <Route path="dashboard" element={<UserDashboard />} />
               <Route path="reports" element={<Reports />} />
               <Route path="people/my-dashboard" element={<React.Suspense fallback={<div>Loading...</div>}><MyDashboard /></React.Suspense>} />
-              <Route path="brands" element={<UserBrands />} />
-              <Route path="brands/:brandId" element={<BrandDetail />} />
               <Route path="my-agents" element={<MyAgentsPage />} />
-              <Route path="hubspot-import" element={<HubSpotImport />} />
             </Route>
             
             {/* PM Role Routes */}
@@ -138,13 +129,9 @@ const App = () => (
             }>
               <Route path="dashboard" element={<PMDashboard />} />
               <Route path="reports" element={<Reports />} />
-              <Route path="clients" element={<ClientManagement />} />
-              <Route path="clients/:clientId" element={<ClientDetail />} />
-              <Route path="hubspot-import" element={<HubSpotImport />} />
-              <Route path="projects" element={<ProjectManagement />} />
-              <Route path="projects/:projectId" element={<ProjectDetail />} />
-              <Route path="tasks" element={<ActionsTasks />} />
+              <Route path="actions-tasks" element={<ActionsTasks />} />
               <Route path="eod-submission" element={<EODSubmission />} />
+              <Route path="my-eod-submissions" element={<MyEODSubmissions />} />
               <Route path="my-agents" element={<MyAgentsPage />} />
             </Route>
             
@@ -155,14 +142,6 @@ const App = () => (
               </ProtectedRoute>
             }>
               <Route index element={<Dashboard />} />
-              <Route path="clients-projects" element={<ClientsProjects />} />
-              <Route path="clients" element={<ClientManagement />} />
-              <Route path="clients/:clientId" element={<ClientDetail />} />
-              <Route path="hubspot-import" element={<HubSpotImport />} />
-              <Route path="projects" element={<ProjectManagement />} />
-              <Route path="projects/:projectId" element={<ProjectDetail />} />
-              <Route path="brands" element={<BrandManagement />} />
-              <Route path="brands/:brandId" element={<BrandDetail />} />
               <Route path="actions-tasks" element={<ActionsTasks />} />
               <Route path="eod-submission" element={<EODSubmission />} />
               <Route path="my-eod-submissions" element={<MyEODSubmissions />} />
@@ -176,14 +155,6 @@ const App = () => (
               </ProtectedRoute>
             }>
               <Route path="dashboard" element={<ManagerDashboard />} />
-              <Route path="clients-projects" element={<ClientsProjects />} />
-              <Route path="clients" element={<ClientManagement />} />
-              <Route path="clients/:clientId" element={<ClientDetail />} />
-              <Route path="hubspot-import" element={<HubSpotImport />} />
-              <Route path="projects" element={<ProjectManagement />} />
-              <Route path="projects/:projectId" element={<ProjectDetail />} />
-              <Route path="brands" element={<BrandManagement />} />
-              <Route path="brands/:brandId" element={<BrandDetail />} />
               <Route path="actions-tasks" element={<ActionsTasks />} />
               <Route path="eod-submission" element={<EODSubmission />} />
               <Route path="my-eod-submissions" element={<MyEODSubmissions />} />
@@ -206,15 +177,8 @@ const App = () => (
                 path="feedback"
                 element={<React.Suspense fallback={<div>Loading...</div>}><AdminFeedbackManager /></React.Suspense>}
               />
-              <Route path="brands" element={<BrandManagement />} />
-              <Route path="brands/:brandId" element={<BrandDetail />} />
               <Route path="users" element={<UserManagement />} />
               <Route path="users/:userId" element={<UserDetail />} />
-              <Route path="clients" element={<ClientManagement />} />
-              <Route path="clients/:clientId" element={<ClientDetail />} />
-              <Route path="hubspot-import" element={<HubSpotImport />} />
-              <Route path="projects" element={<ProjectManagement />} />
-              <Route path="projects/:projectId" element={<ProjectDetail />} />
               <Route path="integrations" element={<IntegrationManager />} />
               <Route path="linkedin-agents" element={<LinkedInAgentConfig />} />
               <Route path="documentation" element={<React.Suspense fallback={<div>Loading...</div>}><Documentation /></React.Suspense>} />

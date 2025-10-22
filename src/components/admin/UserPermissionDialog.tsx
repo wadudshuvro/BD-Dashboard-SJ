@@ -19,7 +19,7 @@ import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { AdminUser, BrandAssignment } from "@/hooks/useAdminUsers";
-import { useAdminBrands } from "@/hooks/useAdminBrands";
+// Brand assignments removed
 
 interface UserPermissionDialogProps {
   user: any;
@@ -93,7 +93,9 @@ export const UserPermissionDialog = ({
   onClose,
   onSave,
 }: UserPermissionDialogProps) => {
-  const { brands, loading: brandsLoading } = useAdminBrands();
+  // Brand assignments removed - no brands to manage
+  const brands: any[] = [];
+  const brandsLoading = false;
   const [formState, setFormState] = useState<FormState>(() => getInitialState(user));
   const [saving, setSaving] = useState(false);
 

@@ -15,7 +15,7 @@ import { useAdminUsers, type AdminUser, type BrandAssignment, type CreateUserDat
 import { useToast } from '@/hooks/use-toast';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useAdminBrands } from '@/hooks/useAdminBrands';
+// Brand assignments removed
 
 // Extended interface for UI purposes
 interface User extends AdminUser {
@@ -37,7 +37,9 @@ interface NewUserForm {
 
 const UserManagement = () => {
   const { users: rawUsers, loading, total, error, fetchUsers, createUser, updateUser, deleteUser } = useAdminUsers();
-  const { brands, loading: brandsLoading } = useAdminBrands();
+  // Brand assignments removed
+  const brands: any[] = [];
+  const brandsLoading = false;
   const [searchTerm, setSearchTerm] = useState("");
   const [filterRole, setFilterRole] = useState<string>("all");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);

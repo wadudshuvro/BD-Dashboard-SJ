@@ -31,13 +31,8 @@ export function useSystemStats() {
       const recentActivity: RecentActivity[] = [];
 
       try {
-        // Fetch brands
-        const { data: brands } = await supabase
-          .from('brands')
-          .select('id')
-          .eq('is_active', true);
-        
-        stats.totalBrands = brands?.length || 0;
+        // Brands table removed
+        stats.totalBrands = 0;
 
         // Fetch collabai integrations
         const { data: collabIntegrations } = await supabase
@@ -47,25 +42,7 @@ export function useSystemStats() {
         
         stats.totalIntegrations = collabIntegrations?.length || 0;
 
-        // Fetch recent brands (last 24 hours)
-        const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-        
-        const { data: recentBrands } = await supabase
-          .from('brands')
-          .select('id, name, created_at')
-          .gte('created_at', oneDayAgo)
-          .order('created_at', { ascending: false })
-          .limit(5);
-
-        recentBrands?.forEach((brand) => {
-          recentActivity.push({
-            id: `brand-${brand.id}`,
-            action: 'New brand created',
-            brand: brand.name,
-            time: new Date(brand.created_at).toLocaleString(),
-            type: 'brand'
-          });
-        });
+        // Brands removed - no recent activity to fetch
 
         if (stats.totalIntegrations > 0) {
           recentActivity.push({

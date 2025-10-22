@@ -258,14 +258,8 @@ const IntegrationManager = () => {
     setIsLogsDialogOpen(true);
     setIsLogsLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("analytics_data")
-        .select("id, source, metric_name, metric_value, dimensions, recorded_at")
-        .eq("source", source)
-        .order("recorded_at", { ascending: false })
-        .limit(25);
-      if (error) throw error;
-      setLogEntries(data ?? []);
+      // Analytics data table removed - no logs to fetch
+      setLogEntries([]);
     } catch (error) {
       console.error("Failed to load integration logs", error);
       toast({

@@ -53,7 +53,6 @@ const AdminLayout = () => {
         items: [
           { name: "Admin Panel", href: "/adminpanel", icon: Home, exact: true },
           { name: "User Management", href: "/adminpanel/users", icon: Users },
-          { name: "Brand Management", href: "/adminpanel/brands", icon: Building2 },
           { name: "POD Management", href: "/adminpanel/pods", icon: UserPlus },
           { name: "People Directory", href: "/adminpanel/people", icon: UserCheck },
           { name: "People Review", href: "/adminpanel/people/review", icon: Target },

@@ -122,9 +122,6 @@ const Layout = ({ userRole }: LayoutProps) => {
               { name: "Reports & Exports", href: "/bd/performance/reports", icon: FileDown, current: false },
             ]
           },
-          { name: "Brands", href: `${basePath}/brands`, icon: Building2, current: false },
-          { name: "Clients", href: `${basePath}/clients`, icon: Users, current: false },
-          { name: "Projects", href: `${basePath}/projects`, icon: FolderOpen, current: false },
           { 
             name: "Actions", 
             href: "/bd/actions/tasks", 
@@ -162,9 +159,6 @@ const Layout = ({ userRole }: LayoutProps) => {
               { name: "Lead Automation", href: "/automation/leads", icon: Sparkles, current: false },
             ]
           },
-          { name: "Clients", href: `${basePath}/clients`, icon: Users, current: false },
-          { name: "Projects", href: `${basePath}/projects`, icon: FolderOpen, current: false },
-          { name: "Brands", href: `${basePath}/brands`, icon: Building2, current: false },
           { 
             name: "Tasks & EOD", 
             href: `${basePath}/actions-tasks`, 
@@ -198,8 +192,6 @@ const Layout = ({ userRole }: LayoutProps) => {
               { name: "Lead Automation", href: "/automation/leads", icon: Sparkles, current: false },
             ]
           },
-          { name: "Clients", href: `${basePath}/clients`, icon: Users, current: false },
-          { name: "Projects", href: `${basePath}/projects`, icon: FolderOpen, current: false },
           { 
             name: "Tasks & EOD", 
             href: `${basePath}/actions-tasks`, 
@@ -230,7 +222,7 @@ const Layout = ({ userRole }: LayoutProps) => {
               { name: "My Dashboard", href: `${basePath}/people/my-dashboard`, icon: LayoutDashboard, current: false },
             ]
           },
-          { name: "Brands", href: `${basePath}/brands`, icon: Building2, current: false },
+          
           { 
             name: "Business Development", 
             href: "/bd/niches", 
