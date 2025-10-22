@@ -21,7 +21,22 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Loader2, RefreshCcw, Sparkles, ShieldAlert, CheckCircle2 } from "lucide-react";
 
-type LeadAutomationLog = Database["public"]["Tables"]["lead_automation_logs"]["Row"];
+// Lead automation logs table doesn't exist - using custom type
+type LeadAutomationLog = {
+  id: string;
+  created_at: string;
+  status: string | null;
+  raw_subject: string | null;
+  raw_sender: string | null;
+  raw_body: string | null;
+  email_message_id: string | null;
+  client_id: string | null;
+  confidence: number | null;
+  ai_confidence: number | null;
+  parsed_data: unknown;
+  hubspot_status: string | null;
+  ghl_status: string | null;
+};
 
 type LeadAutomationLogWithClient = LeadAutomationLog & {
   client?: {
@@ -101,15 +116,8 @@ export default function LeadAutomationPage() {
   const fetchLogs = useCallback(async () => {
     setRefreshing(true);
     try {
-      const { data, error } = await supabase
-        .from("lead_automation_logs")
-        .select("*, client:clients(id, name, company, email)")
-        .order("created_at", { ascending: false })
-        .limit(200);
-
-      if (error) throw error;
-
-      setLogs((data ?? []) as LeadAutomationLogWithClient[]);
+      // Lead automation logs table doesn't exist - return empty data
+      setLogs([]);
     } catch (error) {
       console.error("Failed to load lead automation logs", error);
       toast.error("Unable to load automation logs");
@@ -164,20 +172,15 @@ export default function LeadAutomationPage() {
   const updateStatus = useCallback(async (log: LeadAutomationLogWithClient, status: string) => {
     setActionLoading(log.id);
     try {
-      const { error } = await supabase
-        .from("lead_automation_logs")
-        .update({ status })
-        .eq("id", log.id);
-      if (error) throw error;
-      toast.success("Log status updated");
-      await fetchLogs();
+      // Lead automation logs table doesn't exist - skip update
+      toast.info("Automation logs table not configured");
     } catch (error) {
       console.error("Status update failed", error);
       toast.error("Failed to update status");
     } finally {
       setActionLoading(null);
     }
-  }, [fetchLogs]);
+  }, []);
 
   const handleManualSubmit = useCallback(async () => {
     if (!manualBody.trim()) {

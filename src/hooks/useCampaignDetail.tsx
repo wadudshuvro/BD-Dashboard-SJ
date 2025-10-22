@@ -76,48 +76,28 @@ export const useCampaignDetail = (campaignId?: string) => {
     },
   });
 
+  // Campaign contacts, activities, and tasks tables don't exist - returning empty data
   const contactsQuery = useQuery({
     queryKey: ['campaign-contacts', campaignId],
-    enabled: Boolean(campaignId),
+    enabled: false, // Table doesn't exist
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('campaign_contacts')
-        .select('*')
-        .eq('campaign_id', campaignId)
-        .order('created_at', { ascending: true });
-
-      if (error) throw error;
-      return (data || []) as CampaignContact[];
+      return [] as CampaignContact[];
     },
   });
 
   const activitiesQuery = useQuery({
     queryKey: ['campaign-activities', campaignId],
-    enabled: Boolean(campaignId),
+    enabled: false, // Table doesn't exist
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('campaign_activities')
-        .select('*')
-        .eq('campaign_id', campaignId)
-        .order('performed_at', { ascending: false });
-
-      if (error) throw error;
-      return (data || []) as CampaignActivity[];
+      return [] as CampaignActivity[];
     },
   });
 
   const tasksQuery = useQuery({
     queryKey: ['campaign-ai-tasks', campaignId],
-    enabled: Boolean(campaignId),
+    enabled: false, // Table doesn't exist
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('campaign_ai_tasks')
-        .select('*')
-        .eq('campaign_id', campaignId)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      return (data || []) as CampaignAITask[];
+      return [] as CampaignAITask[];
     },
   });
 
