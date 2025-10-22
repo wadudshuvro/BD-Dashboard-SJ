@@ -80,6 +80,105 @@ serve(async (req) => {
   }
 });
 
+// Stage mapping from Control Tower to local pipeline stages
+const STAGE_MAPPING: Record<string, string> = {
+  'appointmentscheduled': 'prospecting',
+  'qualifiedtobuy': 'qualification',
+  'presentationscheduled': 'proposal',
+  'decisionmakerboughtin': 'proposal',
+  'contractsent': 'negotiation',
+  'closedwon': 'closed_won',
+  'closedlost': 'closed_lost',
+  // Numeric ID mappings (from Control Tower)
+  '960993642': 'prospecting',
+  '960993643': 'qualification',
+  '960993644': 'proposal',
+  '960993645': 'negotiation',
+};
+
+function mapStage(ctStage: any, stageName?: string): string {
+  if (!ctStage) return 'prospecting';
+  
+  // Log for debugging
+  console.log('[Sync] Mapping stage:', { ctStage, stageName });
+  
+  // If we have a stage name, use it
+  if (stageName) {
+    const nameStr = String(stageName).toLowerCase().replace(/\s+/g, '');
+    if (STAGE_MAPPING[nameStr]) {
+      console.log('[Sync] Mapped by name:', nameStr, '->', STAGE_MAPPING[nameStr]);
+      return STAGE_MAPPING[nameStr];
+    }
+  }
+  
+  // Try mapping the stage ID/value
+  const stageStr = String(ctStage).toLowerCase().replace(/\s+/g, '');
+  const mapped = STAGE_MAPPING[stageStr] || 'prospecting';
+  console.log('[Sync] Mapped by ID:', stageStr, '->', mapped);
+  return mapped;
+}
+
+async function getOrCreateClient(
+  supabase: any,
+  ctDeal: any
+): Promise<string | null> {
+  const clientCompany = ctDeal.clientCompanyName || ctDeal.company_name || ctDeal.client_company;
+  const clientId = ctDeal.client_id || ctDeal.clientId;
+  
+  if (!clientId && !clientCompany) {
+    console.log('[Sync] No client info for deal:', ctDeal.id);
+    return null;
+  }
+
+  console.log('[Sync] Looking up client:', { clientId, clientCompany });
+
+  // Try to find existing client by Control Tower ID (stored as hubspot_id)
+  if (clientId) {
+    const { data: existingClient } = await supabase
+      .from('clients')
+      .select('id')
+      .eq('hubspot_id', String(clientId))
+      .maybeSingle();
+    
+    if (existingClient) {
+      console.log('[Sync] Found existing client:', existingClient.id);
+      return existingClient.id;
+    }
+  }
+
+  // Create new client if not found
+  const clientData = {
+    hubspot_id: clientId ? String(clientId) : null,
+    name: clientCompany || 'Unknown Client',
+    company: clientCompany || 'Unknown Client',
+    email: ctDeal.clientEmail || ctDeal.client_email || null,
+    phone: ctDeal.clientPhone || ctDeal.client_phone || null,
+    contact_person: ctDeal.clientContactName || 
+                   `${ctDeal.clientFirstName || ''} ${ctDeal.clientLastName || ''}`.trim() || null,
+    website: ctDeal.clientWebsite || ctDeal.client_website || null,
+    status: 'active',
+  };
+
+  console.log('[Sync] Creating new client:', clientData);
+
+  const { data: newClient, error } = await supabase
+    .from('clients')
+    .upsert(clientData, {
+      onConflict: 'hubspot_id',
+      ignoreDuplicates: false
+    })
+    .select('id')
+    .single();
+
+  if (error) {
+    console.error('[Sync] Error creating client:', error);
+    return null;
+  }
+
+  console.log('[Sync] Created new client:', newClient?.id);
+  return newClient?.id || null;
+}
+
 async function performSync(
   ctClient: any,
   supabase: any,
@@ -88,6 +187,29 @@ async function performSync(
   const startTime = Date.now();
   
   try {
+    // First, try to fetch pipeline/stage definitions from Control Tower
+    console.log('[Sync] Fetching pipeline stages from Control Tower...');
+    const { data: pipelineStages, error: pipelineError } = await ctClient
+      .from('DealStage')
+      .select('*');
+    
+    if (!pipelineError && pipelineStages && pipelineStages.length > 0) {
+      console.log('[Sync] Found pipeline stages:', pipelineStages);
+      // Update stage mapping based on pipeline definitions
+      pipelineStages.forEach((stage: any) => {
+        const stageId = String(stage.id || stage.stage_id);
+        const stageName = String(stage.name || stage.label || '').toLowerCase().replace(/\s+/g, '');
+        if (stageName && !STAGE_MAPPING[stageId]) {
+          STAGE_MAPPING[stageId] = mapStage(stageName, stageName);
+        }
+      });
+      console.log('[Sync] Active stage mapping:', STAGE_MAPPING);
+    } else {
+      console.log('[Sync] No pipeline stages table found, using default mapping');
+    }
+    
+    console.log('[Sync] Final stage mapping:', STAGE_MAPPING);
+
     // Fetch all deals from Control Tower in one query
     console.log('[Sync] Fetching deals from Control Tower...');
     const { data: ctDeals, error: fetchError } = await ctClient
@@ -123,27 +245,55 @@ async function performSync(
     if (ctDeals.length > 0) {
       console.log('[Sync] Sample deal structure:', {
         id: ctDeals[0].id,
-        hasTitle: !!ctDeals[0].title,
-        hasAmount: !!ctDeals[0].amount,
-        hasStage: !!ctDeals[0].stage,
-        keys: Object.keys(ctDeals[0]).slice(0, 10)
+        dealname: ctDeals[0].dealname,
+        potential_amount: ctDeals[0].potential_amount,
+        amount: ctDeals[0].amount,
+        dealstage: ctDeals[0].dealstage,
+        clientCompanyName: ctDeals[0].clientCompanyName,
+        expected_closing_date: ctDeals[0].expected_closing_date,
+        keys: Object.keys(ctDeals[0]).slice(0, 15)
       });
     }
 
     // Transform deals for bulk upsert with flexible field mapping
-    const transformedDeals = ctDeals.map((ctDeal: any) => ({
-      control_tower_id: ctDeal.id,
-      title: ctDeal.title || ctDeal.deal_name || ctDeal.name || 'Untitled Deal',
-      amount: parseFloat(ctDeal.amount || ctDeal.value || 0),
-      stage: ctDeal.stage || ctDeal.status || 'new',
-      close_date: ctDeal.close_date || ctDeal.closeDate || null,
-      control_tower_client_id: ctDeal.client_id || ctDeal.clientId || null,
-      control_tower_owner_id: ctDeal.owner_id || ctDeal.ownerId || null,
-      control_tower_status: ctDeal.status || 'active',
-      synced_from_control_tower: true,
-      last_synced_at: new Date().toISOString(),
-      probability: ctDeal.probability ? parseFloat(ctDeal.probability) : null
-    }));
+    console.log('[Sync] Transforming deals with client lookup...');
+    const transformedDeals = await Promise.all(
+      ctDeals.map(async (ctDeal: any) => {
+        const ctStage = ctDeal.dealstage || ctDeal.stage;
+        const ctStageName = ctDeal.dealstage_name || ctDeal.stage_name;
+        
+        // Get or create local client
+        const localClientId = await getOrCreateClient(supabase, ctDeal);
+        
+        return {
+          control_tower_id: ctDeal.id,
+          
+          // Use correct Control Tower field names
+          title: ctDeal.dealname || ctDeal.deal_name || ctDeal.name || 'Untitled Deal',
+          amount: parseFloat(ctDeal.amount || ctDeal.potential_amount || 0),
+          stage: mapStage(ctStage, ctStageName),
+          close_date: ctDeal.expected_closing_date || ctDeal.closedate || ctDeal.close_date || null,
+          
+          // Map to local client
+          client_id: localClientId,
+          
+          // Store Control Tower references for tracking
+          control_tower_client_id: ctDeal.client_id || ctDeal.clientId || null,
+          control_tower_owner_id: ctDeal.actual_deal_owner_id || ctDeal.owner_id || ctDeal.ownerId || null,
+          control_tower_status: ctDeal.dealstatus || ctDeal.status || 'active',
+          
+          synced_from_control_tower: true,
+          last_synced_at: new Date().toISOString(),
+          probability: ctDeal.probability ? parseFloat(ctDeal.probability) : null,
+          
+          // Timestamps from Control Tower
+          created_at: ctDeal.createdate || ctDeal.created_at || new Date().toISOString(),
+          updated_at: ctDeal.updated_at || new Date().toISOString(),
+        };
+      })
+    );
+    
+    console.log('[Sync] Transformed', transformedDeals.length, 'deals');
 
     // Perform bulk upsert
     console.log('[Sync] Performing bulk upsert...');

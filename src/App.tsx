@@ -14,7 +14,6 @@ import Signup from "./pages/Signup";
 import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 import Unauthorized from "./pages/Unauthorized";
-import People from "./pages/People";
 import ActionsTasks from "./pages/ActionsTasks";
 import EODSubmission from "./pages/EODSubmission";
 import MyEODSubmissions from "./pages/MyEODSubmissions";
@@ -42,6 +41,7 @@ import FollowUps from "./pages/bd/FollowUps";
 import UserSettings from "./pages/bd/UserSettings";
 import AutomationSettings from "./pages/admin/AutomationSettings";
 import LinkedInAgentConfig from "./pages/admin/LinkedInAgentConfig";
+import DealDetail from "./pages/bd/DealDetail";
 
 const queryClient = new QueryClient();
 
@@ -110,7 +110,6 @@ const App = () => (
               <Route path="documentation" element={<React.Suspense fallback={<div>Loading...</div>}><Documentation /></React.Suspense>} />
               <Route path="settings" element={<AdminSettings />} />
               <Route path="eod-management" element={<EODManagement />} />
-              <Route path="people" element={<People />} />
               <Route path="pods" element={<PODManagement />} />
               <Route path="ai/agents" element={<LinkedInAgentConfig />} />
               <Route path="data-sync" element={<DataSyncSettings />} />
@@ -148,6 +147,9 @@ const App = () => (
               <Route path="pipeline/proposal" element={<Proposal />} />
               <Route path="pipeline/negotiation" element={<Negotiation />} />
               <Route path="pipeline/clients" element={<Clients />} />
+              
+              {/* Deal Detail */}
+              <Route path="deals/:slug" element={<DealDetail />} />
               
               {/* Strategy - Campaigns only (Products & Niches moved to Admin Panel) */}
               <Route path="strategy/campaigns" element={<CampaignManagement />} />

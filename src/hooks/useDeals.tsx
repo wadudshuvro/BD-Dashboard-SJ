@@ -328,3 +328,109 @@ export function useDeals(options: UseDealsOptions = {}): UseDealsReturn {
 }
 
 export type { DealStage, DealStatus };
+
+// Hook for fetching local deals by stage (for pipeline pages)
+export function useLocalDealsByStage(
+  stage: 'prospecting' | 'qualification' | 'proposal' | 'negotiation' | 'new',
+  page: number = 1,
+  limit: number = 25
+) {
+  const { user } = useAuth();
+  const [data, setData] = useState<{ data: any[]; total: number }>({ data: [], total: 0 });
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const fetchData = async () => {
+      try {
+        setIsLoading(true);
+        const from = (page - 1) * limit;
+        const to = from + limit - 1;
+        
+        // Fetch deals without resource embedding to avoid foreign key cache issues
+        const { data: dealsData, error, count } = await supabase
+          .from('deals')
+          .select('*', { count: 'exact' })
+          .eq('stage', stage)
+          .order('created_at', { ascending: false })
+          .range(from, to);
+        
+        if (error) throw error;
+        
+        if (!dealsData || dealsData.length === 0) {
+          setData({ data: [], total: count || 0 });
+          setIsLoading(false);
+          return;
+        }
+
+        // Fetch related data separately
+        const clientIds = [...new Set(dealsData.map(d => d.client_id).filter(Boolean))];
+        const ownerIds = [...new Set(dealsData.map(d => d.owner_id).filter(Boolean))];
+        const pmIds = [...new Set(dealsData.map(d => d.pm_assigned_id).filter(Boolean))];
+
+        const [clientsRes, ownersRes, pmsRes] = await Promise.all([
+          clientIds.length > 0 
+            ? supabase.from('clients').select('id, name, email, phone, contact_person, company').in('id', clientIds)
+            : Promise.resolve({ data: [] }),
+          ownerIds.length > 0
+            ? supabase.from('users').select('id, first_name, last_name').in('id', ownerIds)
+            : Promise.resolve({ data: [] }),
+          pmIds.length > 0
+            ? supabase.from('users').select('id, first_name, last_name').in('id', pmIds)
+            : Promise.resolve({ data: [] })
+        ]);
+
+        // Create lookup maps
+        const clientsMap = new Map<string, any>(clientsRes.data?.map(c => [c.id, c] as [string, any]) || []);
+        const usersMap = new Map<string, any>([
+          ...(ownersRes.data?.map(u => [u.id, u] as [string, any]) || []),
+          ...(pmsRes.data?.map(u => [u.id, u] as [string, any]) || [])
+        ]);
+        
+        // Transform to match expected format with related data
+        const deals = dealsData.map((deal: any) => {
+          const client = deal.client_id ? clientsMap.get(deal.client_id) : null;
+          const owner = deal.owner_id ? usersMap.get(deal.owner_id) : null;
+          const pm = deal.pm_assigned_id ? usersMap.get(deal.pm_assigned_id) : null;
+
+          return {
+            id: deal.id,
+            deal_name: deal.title,
+            client_id: deal.client_id,
+            client_name: (client as any)?.name || (client as any)?.company || '-',
+            client_email: (client as any)?.email || '-',
+            client_phone: (client as any)?.phone || '-',
+            client_contact_person: (client as any)?.contact_person || '-',
+            value: deal.amount,
+            owner_id: deal.owner_id,
+            owner_name: owner ? `${(owner as any).first_name} ${(owner as any).last_name}` : '-',
+            pm_assigned_id: deal.pm_assigned_id,
+            pm_assigned_name: pm ? `${(pm as any).first_name} ${(pm as any).last_name}` : '-',
+            stage: deal.stage,
+            close_date: deal.close_date,
+            created_at: deal.created_at,
+            control_tower_id: deal.control_tower_id,
+            synced_from_control_tower: deal.synced_from_control_tower,
+            lead_source: deal.control_tower_status || '-',
+            hubspot_crm_deal_url: deal.control_tower_id ? `https://app.hubspot.com/contacts/deal/${deal.control_tower_id}` : null,
+          };
+        });
+        
+        setData({
+          data: deals,
+          total: count || 0,
+        });
+      } catch (error) {
+        console.error('Error fetching deals by stage:', error);
+        toast.error('Failed to load deals');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [user?.id, stage, page, limit]);
+
+  return { data, isLoading };
+}

@@ -47,8 +47,14 @@ const AdminLayout = () => {
         section: "Core Administration",
         items: [
           { name: "User Management", href: "/adminpanel/users", icon: Users },
-          { name: "People Directory", href: "/adminpanel/people", icon: UserCheck },
           { name: "POD Management", href: "/adminpanel/pods", icon: UserPlus },
+        ],
+      },
+      {
+        section: "AI & Automation",
+        items: [
+          { name: "My AI Agents", href: "/bd/my-agents", icon: Bot },
+          { name: "Automation Settings", href: "/adminpanel/settings?tab=automation", icon: Zap },
         ],
       },
       {
