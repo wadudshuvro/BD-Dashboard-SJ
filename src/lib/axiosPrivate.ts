@@ -14,27 +14,49 @@ export interface AxiosResponse<T> {
   data: T;
 }
 
-const baseURL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
+const sanitizeSupabaseUrl = (url: string) => url.trim().replace(/\/+$/, "");
 
-const buildUrl = (url: string, params?: RequestParams) => {
-  if (!params) {
-    return `${baseURL}${url}`;
+export const createUrlBuilder = (rawSupabaseUrl: string) => {
+  const sanitizedSupabaseUrl = sanitizeSupabaseUrl(rawSupabaseUrl);
+  if (!sanitizedSupabaseUrl) {
+    throw new Error("Supabase URL is not configured");
   }
 
-  const query = Object.entries(params)
-    .filter(([, value]) => value !== undefined && value !== null)
-    .map(([key, value]) =>
-      `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`
-    )
-    .join("&");
+  const basePath = `${sanitizedSupabaseUrl}/functions/v1`;
+  const baseForUrl = basePath.endsWith("/") ? basePath : `${basePath}/`;
 
-  if (!query) {
-    return `${baseURL}${url}`;
-  }
+  return (path: string, params?: RequestParams) => {
+    const normalizedPath = path.trim().replace(/^\/+/, "");
+    const url = new URL(normalizedPath, baseForUrl);
 
-  const separator = url.includes("?") ? "&" : "?";
-  return `${baseURL}${url}${separator}${query}`;
+    if (!params) {
+      return url.toString();
+    }
+
+    for (const [key, value] of Object.entries(params)) {
+      if (value === undefined || value === null) {
+        continue;
+      }
+      url.searchParams.set(key, String(value));
+    }
+
+    return url.toString();
+  };
 };
+
+let cachedBuilder: ReturnType<typeof createUrlBuilder> | null = null;
+
+const resolveBuilder = () => {
+  if (!cachedBuilder) {
+    const rawSupabaseUrl = import.meta.env?.VITE_SUPABASE_URL ?? "";
+    cachedBuilder = createUrlBuilder(rawSupabaseUrl);
+  }
+
+  return cachedBuilder;
+};
+
+const buildUrl = (path: string, params?: RequestParams) =>
+  resolveBuilder()(path, params);
 
 async function request<T>(
   method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE",

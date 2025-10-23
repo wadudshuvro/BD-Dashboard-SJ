@@ -264,12 +264,13 @@ async function requireUser(client: SupabaseClient) {
 }
 
 function parseRoute(url: URL) {
-  const basePath = "/functions/v1/admin-campaigns";
-  const pathname = url.pathname.startsWith(basePath)
-    ? url.pathname.slice(basePath.length)
-    : url.pathname;
-  const segments = pathname.split("/").filter(Boolean);
-  return segments;
+  const segments = url.pathname.split("/").filter(Boolean);
+  const anchorIndex = segments.indexOf("admin-campaigns");
+  if (anchorIndex === -1) {
+    return segments;
+  }
+
+  return segments.slice(anchorIndex + 1);
 }
 
 async function fetchRelatedMaps(client: SupabaseClient, campaigns: CampaignDatabaseRow[]) {
