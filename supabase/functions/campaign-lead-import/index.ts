@@ -179,37 +179,37 @@ async function fetchExaWebset(
   const url = `${EXA_API_BASE_URL}${WEBSETS_ENDPOINT}`;
   const reqHeaders: HeadersInit = {
     "Content-Type": "application/json",
-    Authorization: `Bearer ${apiKey}`,
+    "x-api-key": apiKey,
   };
 
-  // Build criteria description from filters
-  const criteriaDescriptions: string[] = [];
+  // Build enhanced query string with filters
+  let enhancedQuery = query;
+  const queryParts: string[] = [];
+  
   if (filters?.industries && filters.industries.length > 0) {
-    criteriaDescriptions.push(`Industry: ${filters.industries.join(" OR ")}`);
+    queryParts.push(filters.industries.join(" OR "));
   }
   if (filters?.locations && filters.locations.length > 0) {
-    criteriaDescriptions.push(`Location: ${filters.locations.join(" OR ")}`);
+    queryParts.push(filters.locations.join(" OR "));
   }
   if (filters?.companySize) {
-    criteriaDescriptions.push(`Company size: ${filters.companySize}`);
+    queryParts.push(`company size ${filters.companySize}`);
+  }
+  
+  if (queryParts.length > 0) {
+    enhancedQuery = `${query} ${queryParts.join(" ")}`;
   }
 
   // Construct proper Exa Websets API payload
   const payload: JsonRecord = {
     search: {
-      query,
+      query: enhancedQuery,
       count: maxResults,
     },
+    entity: {
+      type: "people",
+    },
   };
-
-  // Add criteria if we have filters
-  if (criteriaDescriptions.length > 0) {
-    payload.criteria = [
-      {
-        description: criteriaDescriptions.join("; "),
-      },
-    ];
-  }
 
   // Add enrichments to get LinkedIn URLs and other data
   payload.enrichments = [
