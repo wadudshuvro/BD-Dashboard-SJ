@@ -136,6 +136,15 @@ export const documentationIndex: DocCategory[] = [
         file: "control-tower-sync.md",
         tags: ["sync", "control-tower", "crm", "integration"],
         lastUpdated: "2025-10-22"
+      },
+      {
+        id: "exa-integration",
+        title: "Exa Search Integration",
+        description: "Connect Exa research, configure secrets, and manage module permissions.",
+        category: "integrations",
+        file: "exa-integration.md",
+        tags: ["exa", "research", "ai", "integration"],
+        lastUpdated: "2025-10-22"
       }
     ]
   }
