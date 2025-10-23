@@ -54,6 +54,7 @@ interface PendingChecklistRow {
   title: string;
   is_completed: boolean;
   completed_at: string | null;
+  control_tower_item_id: string | null;
   deal: {
     control_tower_id: string | null;
   } | null;
@@ -237,17 +238,38 @@ serve(async (req) => {
             throw new Error("Deal is missing Control Tower ID");
           }
 
-          const { error: insertError } = await controlTowerClient
-            .from("deal_checklist_updates")
-            .insert({
-              deal_id: controlTowerDealId,
-              item_title: item.title,
-              is_completed: item.is_completed,
-              completed_at: item.completed_at,
-            });
+          // If item has Control Tower ID, update the original item; otherwise insert update
+          if (item.control_tower_item_id) {
+            // Update the original checklist item in Control Tower
+            const { error: updateError } = await controlTowerClient
+              .from("deal_checklist_items")
+              .update({
+                is_completed: item.is_completed,
+                completed_at: item.completed_at,
+              })
+              .eq("id", item.control_tower_item_id);
 
-          if (insertError) {
-            throw insertError;
+            if (updateError) {
+              throw updateError;
+            }
+
+            console.log(`[Push] Updated Control Tower checklist item ${item.control_tower_item_id}`);
+          } else {
+            // Item created in BD Portal - insert as update record
+            const { error: insertError } = await controlTowerClient
+              .from("deal_checklist_updates")
+              .insert({
+                deal_id: controlTowerDealId,
+                item_title: item.title,
+                is_completed: item.is_completed,
+                completed_at: item.completed_at,
+              });
+
+            if (insertError) {
+              throw insertError;
+            }
+
+            console.log(`[Push] Created checklist update in Control Tower for "${item.title}"`);
           }
 
           await supabase

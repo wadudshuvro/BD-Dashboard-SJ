@@ -526,30 +526,71 @@ async function performSync(
         if (ctChecklistItems && ctChecklistItems.length > 0) {
           console.log(`[Sync] Found ${ctChecklistItems.length} checklist items for deal ${deal.id}`);
 
-          // Map Control Tower checklist items to BD Portal format
-          const checklistItemsToUpsert = ctChecklistItems.map((item: any, index: number) => ({
-            deal_id: deal.id, // BD Portal deal ID
-            title: item.title || `Checklist Item ${index + 1}`,
-            is_completed: item.is_completed || false,
-            completed_by: null, // User mapping not available cross-system
-            completed_at: item.completed_at || null,
-            order_index: item.order_index ?? index,
-          }));
-
-          // Upsert checklist items
-          const { error: upsertChecklistError } = await supabase
+          // Fetch existing checklist items for conflict resolution
+          const { data: existingItems } = await supabase
             .from('deal_checklist_items')
-            .upsert(checklistItemsToUpsert, {
-              onConflict: 'deal_id,order_index',
-              ignoreDuplicates: false
-            });
+            .select('id, control_tower_item_id, is_completed, completed_at, completed_by')
+            .eq('deal_id', deal.id);
 
-          if (upsertChecklistError) {
-            console.error(`[Sync] Error upserting checklist for deal ${deal.id}:`, upsertChecklistError);
-            checklistFailedCount++;
-          } else {
-            checklistSyncedCount++;
+          const existingItemsMap = new Map(
+            (existingItems || []).map((item: any) => [item.control_tower_item_id, item])
+          );
+
+          // Map Control Tower checklist items to BD Portal format with conflict resolution
+          const checklistItemsToUpsert = ctChecklistItems.map((item: any, index: number) => {
+            const existingItem = existingItemsMap.get(item.id) as any;
+            
+            // Conflict resolution: if both systems have completion status, use most recent
+            let isCompleted = item.is_completed || false;
+            let completedAt = item.completed_at || null;
+            let completedBy = null;
+
+            if (existingItem?.is_completed && item.is_completed) {
+              // Both completed - use most recent timestamp
+              const existingDate = existingItem.completed_at ? new Date(existingItem.completed_at) : new Date(0);
+              const ctDate = item.completed_at ? new Date(item.completed_at) : new Date(0);
+              
+              if (existingDate > ctDate) {
+                isCompleted = existingItem.is_completed;
+                completedAt = existingItem.completed_at;
+                completedBy = existingItem.completed_by || null;
+                console.log(`[Sync] Preserving local completion for item "${item.title}" (local newer)`);
+              }
+            } else if (existingItem?.is_completed && !item.is_completed) {
+              // Local completed but Control Tower not - preserve local
+              isCompleted = existingItem.is_completed;
+              completedAt = existingItem.completed_at;
+              completedBy = existingItem.completed_by || null;
+              console.log(`[Sync] Preserving local completion for item "${item.title}"`);
+            }
+
+            return {
+              deal_id: deal.id,
+              control_tower_item_id: item.id, // Store Control Tower item ID
+              title: item.title || `Checklist Item ${index + 1}`,
+              is_completed: isCompleted,
+              completed_by: completedBy,
+              completed_at: completedAt,
+              order_index: item.order_index ?? index,
+            };
+          });
+
+          // Upsert checklist items using control_tower_item_id for matching
+          for (const item of checklistItemsToUpsert) {
+            const { error: upsertError } = await supabase
+              .from('deal_checklist_items')
+              .upsert(item, {
+                onConflict: 'deal_id,control_tower_item_id',
+                ignoreDuplicates: false
+              });
+
+            if (upsertError) {
+              console.error(`[Sync] Error upserting checklist item "${item.title}":`, upsertError);
+              checklistFailedCount++;
+            }
           }
+
+          checklistSyncedCount++;
         } else {
           // No checklist in Control Tower, apply default template as fallback
           console.log(`[Sync] No checklist in Control Tower for deal ${deal.id}, applying template...`);

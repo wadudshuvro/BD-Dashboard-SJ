@@ -564,6 +564,7 @@ export type Database = {
         Row: {
           completed_at: string | null
           completed_by: string | null
+          control_tower_item_id: string | null
           created_at: string
           deal_id: string
           id: string
@@ -576,6 +577,7 @@ export type Database = {
         Insert: {
           completed_at?: string | null
           completed_by?: string | null
+          control_tower_item_id?: string | null
           created_at?: string
           deal_id: string
           id?: string
@@ -588,6 +590,7 @@ export type Database = {
         Update: {
           completed_at?: string | null
           completed_by?: string | null
+          control_tower_item_id?: string | null
           created_at?: string
           deal_id?: string
           id?: string
