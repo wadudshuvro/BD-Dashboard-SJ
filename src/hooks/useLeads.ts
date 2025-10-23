@@ -46,7 +46,9 @@ export const useLeadList = (params: LeadListParams = {}) => {
   return useQuery({
     queryKey: [EXA_LEADS_QUERY_KEY, params],
     queryFn: async () => {
-      const { data } = await axiosPrivate.get<LeadListResponse>("/exa/leads", { params });
+      const { data } = await axiosPrivate.get<LeadListResponse>("/exa/leads", { 
+        params: params as Record<string, string | number | boolean | undefined>
+      });
       return {
         leads: data.leads ?? [],
         total: data.total ?? data.leads?.length ?? 0,
@@ -63,8 +65,8 @@ export const useLeadDetail = (leadId?: string) => {
     enabled: Boolean(leadId),
     queryFn: async () => {
       const { data } = await axiosPrivate.get<LeadDetailResponse>(`/exa/leads/${leadId}`);
-      if ((data as LeadRecord).id) {
-        return data as LeadRecord;
+      if ('id' in data && data.id) {
+        return data as unknown as LeadRecord;
       }
       return data.lead;
     },
