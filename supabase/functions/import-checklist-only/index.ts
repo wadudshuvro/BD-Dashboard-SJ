@@ -140,6 +140,20 @@ Deno.serve(async (req) => {
             }
           }
 
+          // Validate completed_by user exists in local database
+          if (completedBy) {
+            const { data: userExists } = await supabase
+              .from('users')
+              .select('id')
+              .eq('id', completedBy)
+              .maybeSingle();
+            
+            if (!userExists) {
+              console.warn(`[Import] User ${completedBy} does not exist locally, setting completed_by to NULL for item ${ctItem.id}`);
+              completedBy = null;
+            }
+          }
+
           // Handle NULL titles from Control Tower with default value
           const title = ctItem.title || `Checklist Item ${ctItem.order_index || 'Untitled'}`;
           
