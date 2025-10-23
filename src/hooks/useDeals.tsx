@@ -8,6 +8,7 @@ export interface DealFile {
   id: string;
   deal_id: string;
   client_id?: string | null;
+  category?: string | null;
   drive_file_id: string;
   drive_folder_id?: string | null;
   drive_file_name: string;
@@ -174,6 +175,7 @@ export function useDeals(options: UseDealsOptions = {}): UseDealsReturn {
             id,
             deal_id,
             client_id,
+            category,
             drive_file_id,
             drive_folder_id,
             drive_file_name,
@@ -273,6 +275,7 @@ export function useDeals(options: UseDealsOptions = {}): UseDealsReturn {
           id,
           deal_id,
           client_id,
+          category,
           drive_file_id,
           drive_folder_id,
           drive_file_name,
@@ -314,6 +317,7 @@ export function useDeals(options: UseDealsOptions = {}): UseDealsReturn {
           id,
           deal_id,
           client_id,
+          category,
           drive_file_id,
           drive_folder_id,
           drive_file_name,
@@ -385,6 +389,7 @@ export function useDeals(options: UseDealsOptions = {}): UseDealsReturn {
           id,
           deal_id,
           client_id,
+          category,
           drive_file_id,
           drive_folder_id,
           drive_file_name,
@@ -455,6 +460,7 @@ export function useLocalDealsByStage(
                 id,
                 deal_id,
                 client_id,
+                category,
                 drive_file_id,
                 drive_folder_id,
                 drive_file_name,

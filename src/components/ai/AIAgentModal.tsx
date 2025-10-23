@@ -305,9 +305,14 @@ export function AIAgentModal({
                           <p className="text-sm font-medium truncate">
                             {file.drive_file_name || 'Untitled'}
                           </p>
-                          <p className="text-xs text-muted-foreground">
-                            {file.drive_file_type || 'Unknown type'}
-                          </p>
+                          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                            <span>{file.drive_file_type || 'Unknown type'}</span>
+                            {file.category ? (
+                              <Badge variant="outline">{file.category}</Badge>
+                            ) : (
+                              <span className="italic">Uncategorized</span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     ))}

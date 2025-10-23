@@ -521,6 +521,7 @@ export default function DealDetail() {
               id,
               deal_id,
               client_id,
+              category,
               drive_file_id,
               drive_folder_id,
               drive_file_name,
@@ -1253,6 +1254,11 @@ export default function DealDetail() {
                             <div key={file.id} className="flex items-center gap-3 p-2 hover:bg-muted rounded-md">
                               <FileText className="h-4 w-4 text-muted-foreground" />
                               <span className="text-sm flex-1 truncate">{file.drive_file_name}</span>
+                              {file.category ? (
+                                <Badge variant="outline" className="text-xs">
+                                  {file.category}
+                                </Badge>
+                              ) : null}
                               {isAIReady && (
                                 <Badge variant="secondary" className="text-xs">
                                   <FileCheck className="h-3 w-3 mr-1" />
