@@ -1,4 +1,4 @@
-import { useMemo, type ComponentType } from 'react';
+import { useMemo, useState, type ComponentType } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   Archive,
@@ -26,6 +26,7 @@ import { useCampaignDetail } from '@/hooks/useCampaignDetail';
 import type { CampaignContactStatus } from '@/hooks/useCampaignDetail';
 import { useExaIntegration } from '@/hooks/useExaIntegration';
 import { useUserPermissions } from '@/hooks/useUserPermissions';
+import { CampaignLeadImportDialog } from '@/components/bd/CampaignLeadImportDialog';
 
 const PIPELINE_STAGES: { status: CampaignContactStatus; title: string; description: string }[] = [
   { status: 'identified', title: 'Identified', description: 'Contacts imported into the campaign' },
@@ -75,6 +76,7 @@ export default function CampaignDetail() {
   } = useCampaignDetail(campaignId);
   const { runCampaignResearch, isRunningResearch } = useExaIntegration();
   const { hasPermission } = useUserPermissions();
+  const [leadImportDialogOpen, setLeadImportDialogOpen] = useState(false);
 
   const linkedinStats = (campaign?.linkedin_stats as Record<string, number | undefined>) || {};
   const ghlStats = (campaign?.ghl_stats as Record<string, number | undefined>) || {};
@@ -243,6 +245,14 @@ export default function CampaignDetail() {
               Run R&D
             </Button>
           )}
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={() => setLeadImportDialogOpen(true)}
+          >
+            <Users className="h-4 w-4" />
+            Add Leads
+          </Button>
           <Button
             variant="outline"
             className="gap-2"
@@ -417,6 +427,20 @@ export default function CampaignDetail() {
           <AIInsightPanel summary={aiSummary} postMortem={aiPostMortem} aiAgentRuns={aiAgentRuns} aiTasks={tasks} />
         </div>
       </div>
+
+      {campaign && (
+        <CampaignLeadImportDialog
+          open={leadImportDialogOpen}
+          onOpenChange={setLeadImportDialogOpen}
+          campaign={campaign}
+          onImportComplete={() => {
+            toast({
+              title: "Leads imported",
+              description: "New contacts added to campaign pipeline",
+            });
+          }}
+        />
+      )}
     </div>
   );
 }

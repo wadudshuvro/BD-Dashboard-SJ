@@ -40,6 +40,22 @@ export interface CampaignResearchResponse {
   message?: string;
 }
 
+export interface CampaignLeadImportVariables {
+  campaignId: string;
+  keywords: string[];
+  maxResults: number;
+  filters?: Record<string, unknown>;
+}
+
+export interface CampaignLeadImportResponse {
+  success: boolean;
+  imported: number;
+  updated: number;
+  skipped: number;
+  estimatedCost: number;
+  message: string;
+}
+
 const LEAD_DETAIL_KEY = "lead-detail";
 
 export const useExaIntegration = () => {
@@ -140,6 +156,32 @@ export const useExaIntegration = () => {
     },
   });
 
+  const importCampaignLeadsMutation = useMutation({
+    mutationFn: async (variables: CampaignLeadImportVariables) => {
+      const { data } = await axiosPrivate.post<CampaignLeadImportResponse>(
+        `/exa/campaign-lead-import`,
+        variables,
+      );
+      return data;
+    },
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["admin-campaign-detail", variables.campaignId] });
+      toast({
+        title: "Import complete",
+        description: `Imported ${data.imported} new contacts, updated ${data.updated} existing`,
+      });
+    },
+    onError: (error: unknown) => {
+      const message = error instanceof Error ? error.message : "Lead import failed";
+      toast({
+        title: "Import failed",
+        description: message,
+        variant: "destructive",
+      });
+      throw error;
+    },
+  });
+
   return {
     importFromExa: importMutation.mutateAsync,
     isImporting: importMutation.isPending,
@@ -147,6 +189,8 @@ export const useExaIntegration = () => {
     isEnriching: enrichMutation.isPending,
     runCampaignResearch: researchMutation.mutateAsync,
     isRunningResearch: researchMutation.isPending,
+    importCampaignLeads: importCampaignLeadsMutation.mutateAsync,
+    isImportingCampaignLeads: importCampaignLeadsMutation.isPending,
   };
 };
 
