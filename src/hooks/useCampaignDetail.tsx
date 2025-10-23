@@ -1,139 +1,127 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import type { BDCampaign } from './useBDCampaigns';
+import axiosPrivate from '@/lib/axiosPrivate';
+import type {
+  CampaignAITask,
+  CampaignActivity,
+  CampaignAnalyticsPoint,
+  CampaignAIAgentRun,
+  CampaignContact,
+  CampaignContactStatus,
+  CampaignDetailIntegrations,
+  CampaignDetailResponse,
+  CampaignKpi,
+  CampaignProjectTask,
+  UpdateCampaignPayload,
+} from '@/features/campaign-detail/types';
 
-export type CampaignContactStatus =
-  | 'identified'
-  | 'researched'
-  | 'contacted_linkedin'
-  | 'connected'
-  | 'messaged'
-  | 'contacted_email'
-  | 'responded'
-  | 'meeting_booked';
+const defaultContactByStatus = (): Record<CampaignContactStatus, CampaignContact[]> => ({
+  identified: [],
+  researched: [],
+  contacted_linkedin: [],
+  connected: [],
+  messaged: [],
+  contacted_email: [],
+  responded: [],
+  meeting_booked: [],
+});
 
-export interface CampaignContact {
-  id: string;
-  campaign_id: string;
-  contact_name: string;
-  contact_email?: string | null;
-  contact_linkedin_url?: string | null;
-  contact_company?: string | null;
-  status: CampaignContactStatus;
-  linkedin_request_sent_at?: string | null;
-  linkedin_accepted_at?: string | null;
-  linkedin_message_sent_at?: string | null;
-  email_sent_at?: string | null;
-  last_activity_at?: string | null;
-  research_summary?: Record<string, unknown> | null;
-  personalization_notes?: string | null;
-  assigned_to?: string | null;
-  created_by?: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface CampaignActivity {
-  id: string;
-  campaign_id: string;
-  contact_id?: string | null;
-  activity_type: 'linkedin_request' | 'linkedin_message' | 'email_sent' | 'response_received' | 'meeting_booked';
-  activity_data?: Record<string, unknown> | null;
-  performed_by?: string | null;
-  performed_at: string;
-  ai_generated?: boolean | null;
-  created_at: string;
-}
-
-export interface CampaignAITask {
-  id: string;
-  campaign_id: string;
-  contact_id?: string | null;
-  task_type: 'research' | 'email_generation' | 'message_generation' | 'personalization';
-  agent_id?: string | null;
-  input_data?: Record<string, unknown> | null;
-  output_data?: Record<string, unknown> | null;
-  status: 'pending' | 'running' | 'completed' | 'failed';
-  created_at: string;
-  updated_at: string;
-  completed_at?: string | null;
-}
+const buildIntegrationFallback = (
+  integrations?: CampaignDetailIntegrations,
+): CampaignDetailIntegrations => ({
+  n8n: integrations?.n8n ?? { status: 'pending', message: 'Waiting for first sync run.' },
+  hubspot: integrations?.hubspot ?? { status: 'not_configured', message: 'HubSpot sync not configured yet.' },
+  ghl: integrations?.ghl ?? { status: 'pending', message: 'Waiting for GoHighLevel sync.' },
+});
 
 export const useCampaignDetail = (campaignId?: string) => {
+  const queryClient = useQueryClient();
+
   const campaignQuery = useQuery({
     queryKey: ['campaign-detail', campaignId],
     enabled: Boolean(campaignId),
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('bd_campaigns')
-        .select('*')
-        .eq('id', campaignId)
-        .single();
-
-      if (error) throw error;
-      return data as BDCampaign;
+      const { data } = await axiosPrivate.get<CampaignDetailResponse>(`/admin-campaigns/${campaignId}`);
+      return data;
     },
   });
 
-  // Campaign contacts, activities, and tasks tables don't exist - returning empty data
-  const contactsQuery = useQuery({
-    queryKey: ['campaign-contacts', campaignId],
-    enabled: false, // Table doesn't exist
-    queryFn: async () => {
-      return [] as CampaignContact[];
+  const updateMutation = useMutation({
+    mutationFn: async (payload: UpdateCampaignPayload) => {
+      if (!campaignId) {
+        throw new Error('Campaign ID is required to update campaign');
+      }
+
+      const { data } = await axiosPrivate.put<CampaignDetailResponse>(`/admin-campaigns/${campaignId}`, payload);
+      return data;
+    },
+    onSuccess: () => {
+      if (!campaignId) return;
+      queryClient.invalidateQueries({ queryKey: ['campaign-detail', campaignId] });
     },
   });
 
-  const activitiesQuery = useQuery({
-    queryKey: ['campaign-activities', campaignId],
-    enabled: false, // Table doesn't exist
-    queryFn: async () => {
-      return [] as CampaignActivity[];
-    },
-  });
+  const detail = campaignQuery.data;
 
-  const tasksQuery = useQuery({
-    queryKey: ['campaign-ai-tasks', campaignId],
-    enabled: false, // Table doesn't exist
-    queryFn: async () => {
-      return [] as CampaignAITask[];
-    },
-  });
-
+  const contacts = detail?.contacts ?? [];
   const contactByStatus = useMemo(() => {
-    const counts: Record<CampaignContactStatus, CampaignContact[]> = {
-      identified: [],
-      researched: [],
-      contacted_linkedin: [],
-      connected: [],
-      messaged: [],
-      contacted_email: [],
-      responded: [],
-      meeting_booked: [],
-    };
+    const buckets = defaultContactByStatus();
 
-    (contactsQuery.data || []).forEach((contact) => {
-      counts[contact.status].push(contact);
+    contacts.forEach((contact) => {
+      if (buckets[contact.status]) {
+        buckets[contact.status].push(contact);
+      }
     });
 
-    return counts;
-  }, [contactsQuery.data]);
+    return buckets;
+  }, [contacts]);
+
+  const integrations: CampaignDetailIntegrations = buildIntegrationFallback(detail?.integrations);
+
+  const analytics: CampaignAnalyticsPoint[] = detail?.analytics_data ?? [];
+  const kpis: CampaignKpi[] = detail?.linked_kpis ?? [];
+  const projectTasks: CampaignProjectTask[] = detail?.project_tasks ?? [];
+  const aiAgentRuns: CampaignAIAgentRun[] = detail?.ai_agent_runs ?? [];
+  const aiTasks: CampaignAITask[] = detail?.ai_tasks ?? [];
+
+  const markCompleted = async () =>
+    updateMutation.mutateAsync({ status: 'completed', trigger_ai_summary: true });
+
+  const softArchive = async () => updateMutation.mutateAsync({ status: 'archived', archived: true });
 
   return {
-    campaign: campaignQuery.data,
-    contacts: contactsQuery.data || [],
-    activities: activitiesQuery.data || [],
-    tasks: tasksQuery.data || [],
+    campaign: detail?.campaign,
+    contacts,
+    activities: detail?.activities ?? [],
+    tasks: aiTasks,
+    analytics,
+    kpis,
+    projectTasks,
+    aiAgentRuns,
+    integrations,
+    aiSummary: detail?.campaign?.ai_summary ?? detail?.campaign?.insights_summary ?? null,
+    aiPostMortem: detail?.campaign?.ai_post_mortem ?? null,
     contactByStatus,
-    isLoading:
-      campaignQuery.isLoading || contactsQuery.isLoading || activitiesQuery.isLoading || tasksQuery.isLoading,
-    isError: campaignQuery.isError || contactsQuery.isError || activitiesQuery.isError || tasksQuery.isError,
-    error:
-      campaignQuery.error ||
-      contactsQuery.error ||
-      activitiesQuery.error ||
-      tasksQuery.error ||
-      null,
+    refetch: campaignQuery.refetch,
+    updateCampaign: updateMutation.mutateAsync,
+    markCompleted,
+    softArchive,
+    isUpdating: updateMutation.isPending,
+    isLoading: campaignQuery.isLoading,
+    isError: campaignQuery.isError,
+    error: campaignQuery.error ?? null,
   };
 };
+
+export type {
+  CampaignAITask,
+  CampaignActivity,
+  CampaignAnalyticsPoint,
+  CampaignAIAgentRun,
+  CampaignContact,
+  CampaignContactStatus,
+  CampaignDetailIntegrations,
+  CampaignKpi,
+  CampaignProjectTask,
+  UpdateCampaignPayload,
+} from '@/features/campaign-detail/types';

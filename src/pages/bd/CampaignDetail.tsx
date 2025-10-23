@@ -1,15 +1,28 @@
 import { useMemo, type ComponentType } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Brain, Calendar, Linkedin, Mail, MessageCircle, Rocket, Users } from 'lucide-react';
+import {
+  Archive,
+  ArrowLeft,
+  Brain,
+  Calendar,
+  CheckCircle2,
+  Linkedin,
+  Loader2,
+  Mail,
+  MessageCircle,
+  Rocket,
+  Users,
+} from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { useToast } from '@/components/ui/use-toast';
+import { AnalyticsCard, AIInsightPanel, ExecutionTimeline, IntegrationStatusList } from '@/features/campaign-detail/components';
 import { useCampaignDetail } from '@/hooks/useCampaignDetail';
 import type { CampaignContactStatus } from '@/hooks/useCampaignDetail';
-import { formatDistanceToNow } from 'date-fns';
 
 const PIPELINE_STAGES: { status: CampaignContactStatus; title: string; description: string }[] = [
   { status: 'identified', title: 'Identified', description: 'Contacts imported into the campaign' },
@@ -37,7 +50,26 @@ const STAGE_BADGE_CLASSES: Record<CampaignContactStatus, string> = {
 export default function CampaignDetail() {
   const { campaignId } = useParams();
   const navigate = useNavigate();
-  const { campaign, contactByStatus, activities, tasks, isLoading, isError, error } = useCampaignDetail(campaignId);
+  const { toast } = useToast();
+  const {
+    campaign,
+    contactByStatus,
+    activities,
+    tasks,
+    analytics,
+    kpis,
+    projectTasks,
+    aiAgentRuns,
+    integrations,
+    aiSummary,
+    aiPostMortem,
+    markCompleted,
+    softArchive,
+    isUpdating,
+    isLoading,
+    isError,
+    error,
+  } = useCampaignDetail(campaignId);
 
   const linkedinStats = campaign?.linkedin_stats || {};
   const ghlStats = campaign?.ghl_stats || {};
@@ -50,14 +82,75 @@ export default function CampaignDetail() {
   const responseTotal =
     (linkedinStats.responses_received || 0) + (ghlStats.replies || 0) + (campaign?.responses_received || 0);
 
-  const activityWithTime = useMemo(
-    () =>
-      activities.map((activity) => ({
-        ...activity,
-        relativeTime: formatDistanceToNow(new Date(activity.performed_at), { addSuffix: true }),
-      })),
-    [activities],
-  );
+  const analyticsCards = useMemo(() => {
+    const numberFormatter = new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 });
+
+    const kpiCards = kpis.map((kpi) => ({
+      key: `kpi-${kpi.id}`,
+      title: kpi.label,
+      value:
+        kpi.current_value === null || kpi.current_value === undefined
+          ? '—'
+          : numberFormatter.format(kpi.current_value),
+      suffix: kpi.unit ?? undefined,
+      description:
+        kpi.target_value !== null && kpi.target_value !== undefined
+          ? `Target ${numberFormatter.format(kpi.target_value)}${kpi.unit ? ` ${kpi.unit}` : ''}`
+          : kpi.source ?? null,
+      delta: kpi.trend ?? null,
+      timestamp: kpi.updated_at ?? null,
+    }));
+
+    const metricCards = analytics.map((point) => {
+      let delta: number | null = null;
+      if (point.comparison_value !== null && point.comparison_value !== undefined && point.comparison_value !== 0) {
+        delta = ((point.value - point.comparison_value) / point.comparison_value) * 100;
+      }
+
+      return {
+        key: `metric-${point.id}`,
+        title: point.metric,
+        value: numberFormatter.format(point.value),
+        description: point.source ? `Source: ${point.source}` : null,
+        delta,
+        timestamp: point.recorded_at,
+      };
+    });
+
+    return [...kpiCards, ...metricCards];
+  }, [analytics, kpis]);
+
+  const handleMarkCompleted = async () => {
+    try {
+      await markCompleted();
+      toast({
+        title: 'Campaign marked completed',
+        description: 'AI summary generation queued successfully.',
+      });
+    } catch (updateError) {
+      toast({
+        title: 'Unable to mark as completed',
+        description: updateError instanceof Error ? updateError.message : 'Unexpected error',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleArchive = async () => {
+    try {
+      await softArchive();
+      toast({
+        title: 'Campaign archived',
+        description: 'The campaign has been archived and dependent views refreshed.',
+      });
+    } catch (updateError) {
+      toast({
+        title: 'Unable to archive campaign',
+        description: updateError instanceof Error ? updateError.message : 'Unexpected error',
+        variant: 'destructive',
+      });
+    }
+  };
 
   if (isLoading) {
     return <div className="container mx-auto py-10">Loading campaign...</div>;
@@ -89,165 +182,165 @@ export default function CampaignDetail() {
         <Button variant="ghost" onClick={() => navigate(-1)} className="gap-2">
           <ArrowLeft className="h-4 w-4" /> Back to campaigns
         </Button>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button variant="outline" className="gap-2" disabled={!campaign.ghl_campaign_id}>
             <Mail className="h-4 w-4" /> GoHighLevel Campaign
           </Button>
           <Button variant="outline" className="gap-2" disabled={!campaign.linkedin_campaign_id}>
             <Linkedin className="h-4 w-4" /> LinkedIn Tracker
           </Button>
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={handleArchive}
+            disabled={campaign.status === 'archived' || isUpdating}
+          >
+            {isUpdating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Archive className="h-4 w-4" />}
+            Archive
+          </Button>
+          <Button
+            className="gap-2"
+            onClick={handleMarkCompleted}
+            disabled={campaign.status === 'completed' || isUpdating}
+          >
+            {isUpdating ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+            Mark Completed
+          </Button>
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[320px_1fr_340px]">
-        <Card>
-          <CardHeader>
-            <CardTitle>{campaign.name}</CardTitle>
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <Badge variant="outline" className="capitalize">
-                {campaign.campaign_type?.replace('_', ' ')}
-              </Badge>
-              <Badge className="capitalize">{campaign.status}</Badge>
-              {campaign.ai_agent_id ? (
-                <Badge variant="secondary" className="flex items-center gap-1">
-                  <Brain className="h-3 w-3" /> AI Agent Assigned
+      <div className="grid gap-6 xl:grid-cols-[320px_1fr_360px]">
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>{campaign.name}</CardTitle>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <Badge variant="outline" className="capitalize">
+                  {campaign.campaign_type?.replace('_', ' ')}
                 </Badge>
-              ) : null}
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4 text-sm">
-            <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-              <span>
-                {campaign.start_date ? new Date(campaign.start_date).toLocaleDateString() : 'No start date'} –{' '}
-                {campaign.end_date ? new Date(campaign.end_date).toLocaleDateString() : 'No end date'}
-              </span>
-            </div>
-            <Separator />
-            <div className="space-y-2">
-              <Metric label="Target Contacts" value={totalContacts} icon={Users} />
-              <Metric label="Researched" value={researchedCount} icon={Brain} />
-              <Metric label="LinkedIn Requests" value={linkedinStats.requests_sent || 0} icon={Linkedin} />
-              <Metric label="LinkedIn Acceptance Rate" value={`${acceptanceRate}%`} icon={Rocket} />
-              <Metric label="Emails Sent" value={ghlStats.emails_sent || 0} icon={Mail} />
-              <Metric label="Responses" value={responseTotal} icon={MessageCircle} />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="lg:col-span-1">
-          <CardHeader>
-            <CardTitle>Contact Pipeline</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ScrollArea className="h-[600px]">
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                {PIPELINE_STAGES.map((stage) => {
-                  const contacts = contactByStatus[stage.status] || [];
-                  return (
-                    <div key={stage.status} className="rounded-lg border bg-card p-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-semibold">{stage.title}</p>
-                          <p className="text-sm text-muted-foreground">{stage.description}</p>
-                        </div>
-                        <Badge variant="secondary" className={stageBadgeClass(stage.status)}>
-                          {contacts.length}
-                        </Badge>
-                      </div>
-                      <Separator className="my-3" />
-                      <div className="space-y-3">
-                        {contacts.length === 0 ? (
-                          <p className="text-sm text-muted-foreground">No contacts yet</p>
-                        ) : (
-                          contacts.slice(0, 5).map((contact) => (
-                            <div key={contact.id} className="rounded-md border bg-background p-3 text-sm">
-                              <div className="flex items-center gap-3">
-                                <Avatar className="h-8 w-8">
-                                  <AvatarFallback>{contact.contact_name.slice(0, 2).toUpperCase()}</AvatarFallback>
-                                </Avatar>
-                                <div>
-                                  <p className="font-medium leading-none">{contact.contact_name}</p>
-                                  <p className="text-xs text-muted-foreground">{contact.contact_company}</p>
-                                </div>
-                              </div>
-                              {contact.research_summary ? (
-                                <p className="mt-2 line-clamp-3 text-xs text-muted-foreground">
-                                  {(contact.research_summary as any)?.summary || 'Research available'}
-                                </p>
-                              ) : null}
-                            </div>
-                          ))
-                        )}
-                        {contacts.length > 5 ? (
-                          <Button variant="link" className="px-0 text-xs">
-                            View all {contacts.length} contacts
-                          </Button>
-                        ) : null}
-                      </div>
-                    </div>
-                  );
-                })}
+                <Badge className="capitalize">{campaign.status}</Badge>
+                {campaign.ai_agent_id ? (
+                  <Badge variant="secondary" className="flex items-center gap-1">
+                    <Brain className="h-3 w-3" /> AI Agent Assigned
+                  </Badge>
+                ) : null}
               </div>
-            </ScrollArea>
-          </CardContent>
-        </Card>
+            </CardHeader>
+            <CardContent className="space-y-4 text-sm">
+              <div className="flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-muted-foreground" />
+                <span>
+                  {campaign.start_date ? new Date(campaign.start_date).toLocaleDateString() : 'No start date'} –{' '}
+                  {campaign.end_date ? new Date(campaign.end_date).toLocaleDateString() : 'No end date'}
+                </span>
+              </div>
+              <Separator />
+              <div className="space-y-2">
+                <Metric label="Target Contacts" value={totalContacts} icon={Users} />
+                <Metric label="Researched" value={researchedCount} icon={Brain} />
+                <Metric label="LinkedIn Requests" value={linkedinStats.requests_sent || 0} icon={Linkedin} />
+                <Metric label="LinkedIn Acceptance Rate" value={`${acceptanceRate}%`} icon={Rocket} />
+                <Metric label="Emails Sent" value={ghlStats.emails_sent || 0} icon={Mail} />
+                <Metric label="Responses" value={responseTotal} icon={MessageCircle} />
+              </div>
+            </CardContent>
+          </Card>
+          <IntegrationStatusList integrations={integrations} isLoading={isLoading} />
+        </div>
 
         <div className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Activity Feed</CardTitle>
+              <CardTitle>Analytics Overview</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {activityWithTime.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No activity recorded yet.</p>
+            <CardContent>
+              {analyticsCards.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  We have not ingested analytics data for this campaign yet. Once integrations sync you'll see charts here.
+                </p>
               ) : (
-                activityWithTime.map((activity) => (
-                  <div key={activity.id} className="rounded-lg border p-3 text-sm">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <p className="font-medium capitalize">{activity.activity_type.replace('_', ' ')}</p>
-                        {activity.activity_data?.note ? (
-                          <p className="text-muted-foreground">{activity.activity_data.note as string}</p>
-                        ) : null}
-                      </div>
-                      <span className="text-xs text-muted-foreground">{activity.relativeTime}</span>
-                    </div>
-                  </div>
-                ))
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                  {analyticsCards.map((card) => (
+                    <AnalyticsCard
+                      key={card.key}
+                      title={card.title}
+                      value={card.value}
+                      suffix={card.suffix}
+                      description={card.description}
+                      delta={card.delta}
+                      timestamp={card.timestamp}
+                    />
+                  ))}
+                </div>
               )}
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
-              <CardTitle>AI Task Queue</CardTitle>
+              <CardTitle>Contact Pipeline</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3 text-sm">
-              {tasks.length === 0 ? (
-                <p className="text-muted-foreground">No AI tasks queued for this campaign.</p>
-              ) : (
-                tasks.slice(0, 10).map((task) => (
-                  <div key={task.id} className="rounded-lg border p-3">
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium capitalize">{task.task_type.replace('_', ' ')}</span>
-                      <Badge variant={task.status === 'completed' ? 'default' : 'outline'} className="capitalize">
-                        {task.status.replace('_', ' ')}
-                      </Badge>
-                    </div>
-                    <p className="mt-2 text-xs text-muted-foreground">
-                      Created {formatDistanceToNow(new Date(task.created_at), { addSuffix: true })}
-                    </p>
-                  </div>
-                ))
-              )}
-              {tasks.length > 10 ? (
-                <Button variant="link" className="px-0 text-xs">
-                  View all tasks
-                </Button>
-              ) : null}
+            <CardContent>
+              <ScrollArea className="h-[420px]">
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                  {PIPELINE_STAGES.map((stage) => {
+                    const contacts = contactByStatus[stage.status] || [];
+                    return (
+                      <div key={stage.status} className="rounded-lg border bg-card p-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-semibold">{stage.title}</p>
+                            <p className="text-sm text-muted-foreground">{stage.description}</p>
+                          </div>
+                          <Badge variant="secondary" className={stageBadgeClass(stage.status)}>
+                            {contacts.length}
+                          </Badge>
+                        </div>
+                        <Separator className="my-3" />
+                        <div className="space-y-3">
+                          {contacts.length === 0 ? (
+                            <p className="text-sm text-muted-foreground">No contacts yet</p>
+                          ) : (
+                            contacts.slice(0, 5).map((contact) => (
+                              <div key={contact.id} className="rounded-md border bg-background p-3 text-sm">
+                                <div className="flex items-center gap-3">
+                                  <Avatar className="h-8 w-8">
+                                    <AvatarFallback>
+                                      {contact.contact_name.slice(0, 2).toUpperCase()}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <div>
+                                    <p className="font-medium leading-none">{contact.contact_name}</p>
+                                    <p className="text-xs text-muted-foreground">{contact.contact_company}</p>
+                                  </div>
+                                </div>
+                                {contact.research_summary ? (
+                                  <p className="mt-2 line-clamp-3 text-xs text-muted-foreground">
+                                    {(contact.research_summary as any)?.summary || 'Research available'}
+                                  </p>
+                                ) : null}
+                              </div>
+                            ))
+                          )}
+                          {contacts.length > 5 ? (
+                            <Button variant="link" className="px-0 text-xs">
+                              View all {contacts.length} contacts
+                            </Button>
+                          ) : null}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </ScrollArea>
             </CardContent>
           </Card>
+
+          <ExecutionTimeline activities={activities} tasks={projectTasks} aiAgentRuns={aiAgentRuns} />
+        </div>
+
+        <div className="space-y-6">
+          <AIInsightPanel summary={aiSummary} postMortem={aiPostMortem} aiAgentRuns={aiAgentRuns} aiTasks={tasks} />
         </div>
       </div>
     </div>
