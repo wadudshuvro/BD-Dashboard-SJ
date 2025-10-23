@@ -87,11 +87,11 @@ interface AgentConfigModalProps {
   onSuccess?: (agent: AIAgent) => void;
 }
 
-const providerDefaults = {
+const providerDefaults: Record<string, AgentProviderConfig> = {
   primary: { ...DEFAULT_PROVIDER },
   fallback: { ...DEFAULT_PROVIDER },
-  research: { provider: "perplexity", model: "sonar-small" },
-} as const;
+  research: { provider: "perplexity", model: "sonar-small", temperature: 0.7, maxTokens: 2000 },
+};
 
 export function AgentConfigModal({ agent, open, onClose, onSuccess }: AgentConfigModalProps) {
   const { toast } = useToast();

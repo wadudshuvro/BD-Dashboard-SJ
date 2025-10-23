@@ -72,7 +72,6 @@ export interface AIAgent {
   created_by?: string | null;
   created_at?: string;
   updated_at?: string;
-  system_prompt?: string | null;
   prompt_template?: string | null;
   data_source_config?: AgentDataSourceConfig | null;
   output_actions?: AgentOutputActions | null;
@@ -225,5 +224,54 @@ export async function fetchAgentRunHistory(agentId: string, limit = 20): Promise
     .limit(limit);
 
   handleError(error, "Unable to fetch agent run history");
+  return data ?? [];
+}
+
+// Export type aliases for hooks
+export type CreateAgentPayload = AgentDetailsPayload;
+export type UpdateAgentDetailsPayload = Partial<AgentDetailsPayload>;
+
+// Additional helper functions
+export async function fetchAgentDashboardMetrics(agentId: string): Promise<AgentDashboardMetrics> {
+  const { data, error } = await supabase
+    .from("ai_agent_runs")
+    .select("id, created_at, status")
+    .eq("agent_id", agentId);
+
+  handleError(error, "Unable to fetch agent metrics");
+
+  const runs = data ?? [];
+  const totalRuns = runs.length;
+  const successfulRuns = runs.filter(r => r.status === "completed").length;
+  const failedRuns = runs.filter(r => r.status === "failed").length;
+  const lastRunAt = runs.length > 0 ? runs[0].created_at : null;
+
+  return {
+    agentId,
+    totalRuns,
+    successfulRuns,
+    failedRuns,
+    lastRunAt,
+  };
+}
+
+export async function listAgentTemplates() {
+  const { data, error } = await supabase
+    .from("ai_agent_templates")
+    .select("*")
+    .order("name", { ascending: true });
+
+  handleError(error, "Unable to fetch agent templates");
+  return data ?? [];
+}
+
+export async function listBusinessContexts() {
+  const { data, error } = await supabase
+    .from("ai_business_context")
+    .select("*")
+    .eq("is_active", true)
+    .order("name", { ascending: true });
+
+  handleError(error, "Unable to fetch business contexts");
   return data ?? [];
 }

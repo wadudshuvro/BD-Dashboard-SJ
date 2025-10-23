@@ -25,7 +25,6 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -52,7 +51,6 @@ type AggregateStats = {
 
 export default function CampaignManagement() {
   const pagination = usePagination(12);
-  const { campaigns, total, isLoading, error, refetch } = useBDCampaigns(
   const queryClient = useQueryClient();
   const { campaigns, total, isLoading, error } = useBDCampaigns(
     undefined,
@@ -189,7 +187,7 @@ export default function CampaignManagement() {
             <AlertTitle>Unable to load campaigns</AlertTitle>
             <AlertDescription>
               <p className="mb-4">{errorMessage}</p>
-              <Button variant="outline" onClick={() => refetch()}>
+              <Button variant="outline" onClick={() => queryClient.invalidateQueries({ queryKey: ['bd-campaigns'] })}>
                 Try again
               </Button>
             </AlertDescription>
