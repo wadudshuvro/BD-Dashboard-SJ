@@ -39,6 +39,7 @@ _Last Updated: 2025-02-18_
 | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | Supabase CLI / Edge | Required for local edge function execution, migrations, and server-side Supabase clients. |
 | `OPENAI_API_KEY`, `GEMINI_API_KEY` | Edge functions | Provider keys consumed by AI edge functions (`run-ai-agent`, `generate-code`, `gemini-veo-manager`). |
 | `EXA_API_KEY`, `VITE_EXA_API_KEY` | Edge functions / Vite client | **New.** Powers the Exa research proxy and (optionally) local client-side previews documented in [Exa Search Integration](exa-integration.md). |
+| `OPENAI_API_KEY`, `GEMINI_API_KEY`, `EXA_API_KEY` | Edge functions | Provider keys consumed by AI edge functions (`run-ai-agent`, `generate-code`, `gemini-veo-manager`, Exa research utilities). |
 | `HUBSPOT_PRIVATE_APP_TOKEN`, `GHL_API_KEY` | Edge functions secrets | CRM integration tokens decrypted by `integrations-dashboard` and related sync functions. |
 
 ### Permissions Modules Snapshot
