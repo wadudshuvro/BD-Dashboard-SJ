@@ -79,7 +79,8 @@ export default function LinkedInAgentConfig() {
   const runMutation = useRunAIAgent();
 
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
-  const [configAgent, setConfigAgent] = useState<AIAgent | null>(null);
+  const [editingAgent, setEditingAgent] = useState<AIAgent | null>(null);
+  const [isEditorOpen, setIsEditorOpen] = useState(false);
 
   useEffect(() => {
     if (!selectedAgentId && agents.length > 0) {
@@ -144,10 +145,19 @@ export default function LinkedInAgentConfig() {
             Manage provider routing, execute agents on demand, and review telemetry-rich run history.
           </p>
         </div>
-        <Button variant="outline" onClick={() => refetch()} disabled={isRefetching} className="flex items-center gap-2">
-          {isRefetching ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-          Refresh
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={() => {
+            setEditingAgent(null);
+            setIsEditorOpen(true);
+          }} className="flex items-center gap-2">
+            <Bot className="h-4 w-4" />
+            Create agent
+          </Button>
+          <Button variant="outline" onClick={() => refetch()} disabled={isRefetching} className="flex items-center gap-2">
+            {isRefetching ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+            Refresh
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[2fr,1fr]">
@@ -255,7 +265,10 @@ export default function LinkedInAgentConfig() {
                   </Button>
                   <Button
                     variant="outline"
-                    onClick={() => setConfigAgent(selectedAgent)}
+                    onClick={() => {
+                      setEditingAgent(selectedAgent);
+                      setIsEditorOpen(true);
+                    }}
                     className="flex items-center gap-2"
                   >
                     <Settings className="h-4 w-4" />
@@ -271,9 +284,14 @@ export default function LinkedInAgentConfig() {
       </div>
 
       <AgentConfigModal
-        agent={configAgent}
-        open={Boolean(configAgent)}
-        onClose={() => setConfigAgent(null)}
+        agent={editingAgent}
+        open={isEditorOpen}
+        onClose={() => setIsEditorOpen(false)}
+        onSuccess={(savedAgent) => {
+          setSelectedAgentId(savedAgent.id);
+          setIsEditorOpen(false);
+          setEditingAgent(savedAgent);
+        }}
       />
     </div>
   );
