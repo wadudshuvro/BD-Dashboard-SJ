@@ -111,19 +111,19 @@ const callExaResearch = async (
     } catch (error) {
       lastError = error;
 
-    if (attempt > MAX_EXA_RETRIES) {
-      const errorDetails = {
-        message: error instanceof Error ? error.message : "Unknown Exa API error",
-        name: error instanceof Error ? error.name : "ExaApiError",
-        attempts: attempt,
-        cause: error instanceof Error && "cause" in error 
-          ? (error as Error).cause 
-          : error,
-        stack: error instanceof Error ? error.stack : undefined
-      };
-      
-      throw errorDetails;
-    }
+      if (attempt > MAX_EXA_RETRIES) {
+        const errorDetails = {
+          message: error instanceof Error ? error.message : "Unknown Exa API error",
+          name: error instanceof Error ? error.name : "ExaApiError",
+          attempts: attempt,
+          cause: error instanceof Error && "cause" in error 
+            ? (error as Error).cause 
+            : error,
+          stack: error instanceof Error ? error.stack : undefined
+        };
+        
+        throw errorDetails;
+      }
 
       await sleep(500 * attempt);
     } finally {
