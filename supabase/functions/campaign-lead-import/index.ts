@@ -101,109 +101,56 @@ serve(async (req) => {
   }
 
   try {
-    // Call Exa.ai API
-    const query = payload.keywords.join(" OR ");
-    const webset = await fetchExaWebset(exaApiKey, query, payload.maxResults, payload.filters);
-    const normalizedLeads = dedupeLeads(normalizeLeads(webset.items));
-
-    if (normalizedLeads.length === 0) {
-      return jsonResponse({
-        success: true,
-        imported: 0,
-        updated: 0,
-        skipped: 0,
-        estimatedCost: 0,
-        message: "No leads found for the provided keywords",
-      });
-    }
-
-    // Store contacts data in campaign metadata
-    // Get current campaign
-    const { data: currentCampaign, error: fetchError } = await supabase
-      .from("bd_campaigns")
-      .select("contacts_summary")
-      .eq("id", payload.campaignId)
+    // Create job record immediately
+    const { data: job, error: jobError } = await supabase
+      .from("lead_import_jobs")
+      .insert({
+        user_id: user.id,
+        campaign_id: payload.campaignId,
+        job_type: "campaign",
+        status: "queued",
+        notify_email: user.email,
+        criteria: {
+          keywords: payload.keywords,
+          max_results: payload.maxResults,
+          filters: payload.filters,
+        },
+        created_at: new Date().toISOString(),
+      })
+      .select("id")
       .single();
 
-    if (fetchError) {
-      throw new Error(`Failed to fetch campaign: ${fetchError.message}`);
+    if (jobError || !job) {
+      console.error("[campaign-lead-import] Failed to create job:", jobError);
+      return jsonResponse({ error: "Failed to create import job" }, 500);
     }
 
-    // Build contacts array
-    const existingContacts = Array.isArray(currentCampaign.contacts_summary) 
-      ? currentCampaign.contacts_summary as Array<Record<string, unknown>>
-      : [];
+    // Process in background (non-blocking) - fire and forget
+    processLeadImportJob(job.id, exaApiKey, supabase, payload, user.id)
+      .catch((err) => {
+        console.error(`[campaign-lead-import] Background job ${job.id} failed:`, err);
+        supabase
+          .from("lead_import_jobs")
+          .update({
+            status: "failed",
+            completed_at: new Date().toISOString(),
+            error_details: err instanceof Error ? err.message : "Unknown error",
+          })
+          .eq("id", job.id)
+          .then(() => console.log(`[campaign-lead-import] Job ${job.id} marked as failed`));
+      });
 
-    const newContacts = normalizedLeads.map(lead => ({
-      id: crypto.randomUUID(),
-      contact_name: lead.contactName || "Unknown",
-      contact_email: lead.email || null,
-      contact_linkedin_url: lead.linkedinUrl || null,
-      contact_company: lead.companyName || null,
-      contact_title: lead.title || null,
-      status: "identified",
-      metadata: {
-        exa_enrichment: lead.metadata,
-        exa_item_id: lead.exaItemId,
-        exa_score: lead.score,
-        imported_at: new Date().toISOString(),
-      },
-      last_enriched_at: new Date().toISOString(),
-      exa_item_id: lead.exaItemId,
-      created_at: new Date().toISOString(),
-    }));
-
-    // Deduplicate: update existing or add new
-    let imported = 0;
-    let updated = 0;
-
-    for (const newContact of newContacts) {
-      const existingIndex = existingContacts.findIndex(c => 
-        (c.contact_email && newContact.contact_email && c.contact_email === newContact.contact_email) ||
-        (c.contact_linkedin_url && newContact.contact_linkedin_url && c.contact_linkedin_url === newContact.contact_linkedin_url) ||
-        (c.exa_item_id && newContact.exa_item_id && c.exa_item_id === newContact.exa_item_id)
-      );
-
-      if (existingIndex >= 0) {
-        // Update existing contact
-        existingContacts[existingIndex] = {
-          ...existingContacts[existingIndex],
-          ...newContact,
-          id: existingContacts[existingIndex].id, // Keep original ID
-          created_at: existingContacts[existingIndex].created_at, // Keep original created_at
-          updated_at: new Date().toISOString(),
-        };
-        updated++;
-      } else {
-        // Add new contact
-        existingContacts.push(newContact);
-        imported++;
-      }
-    }
-
-    // Update campaign with new contacts
-    const { error: updateError } = await supabase
-      .from("bd_campaigns")
-      .update({ 
-        contacts_summary: existingContacts,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", payload.campaignId);
-
-    if (updateError) {
-      throw new Error(`Failed to update campaign contacts: ${updateError.message}`);
-    }
-
-    const estimatedCost = payload.maxResults * EXA_COST_PER_LEAD;
-
-    return jsonResponse({
-      success: true,
-      imported,
-      updated,
-      skipped: newContacts.length - imported - updated,
-      estimatedCost,
-      message: `Successfully imported ${imported} new contacts and updated ${updated} existing contacts`,
-    });
+    // Return immediately with job_id
+    return new Response(
+      JSON.stringify({
+        success: true,
+        job_id: job.id,
+        status: "queued",
+        message: "Lead import started. You will be notified via email when complete.",
+        estimated_time: "2-5 minutes",
+      }),
+      { status: 202, headers }
+    );
   } catch (error) {
     console.error("[campaign-lead-import]", error);
     const message = error instanceof Error ? error.message : "Unknown error";
@@ -467,4 +414,169 @@ function toJsonRecord(val: unknown): JsonRecord {
     return val as JsonRecord;
   }
   return {};
+}
+
+async function processLeadImportJob(
+  jobId: string,
+  exaApiKey: string,
+  supabase: any,
+  payload: {
+    campaignId: string;
+    keywords: string[];
+    maxResults: number;
+    filters?: { industries?: string[]; locations?: string[]; companySize?: string };
+  },
+  userId: string
+) {
+  try {
+    // Update status to processing
+    await supabase
+      .from("lead_import_jobs")
+      .update({ status: "processing", started_at: new Date().toISOString() })
+      .eq("id", jobId);
+
+    console.log(`[processLeadImportJob] Starting job ${jobId} for campaign ${payload.campaignId}`);
+
+    // Call Exa.ai API
+    const query = payload.keywords.join(" OR ");
+    const webset = await fetchExaWebset(exaApiKey, query, payload.maxResults, payload.filters);
+
+    console.log(`[processLeadImportJob] Received ${webset.items.length} items from Exa`);
+
+    // Store webset_id for tracking
+    await supabase
+      .from("lead_import_jobs")
+      .update({
+        criteria: {
+          ...payload,
+          webset_id: webset.websetId,
+          webset_status: webset.status,
+        },
+      })
+      .eq("id", jobId);
+
+    const normalizedLeads = dedupeLeads(normalizeLeads(webset.items));
+
+    if (normalizedLeads.length === 0) {
+      await supabase
+        .from("lead_import_jobs")
+        .update({
+          status: "completed",
+          completed_at: new Date().toISOString(),
+          imported_count: 0,
+        })
+        .eq("id", jobId);
+      return;
+    }
+
+    // Get current campaign
+    const { data: currentCampaign, error: fetchError } = await supabase
+      .from("bd_campaigns")
+      .select("contacts_summary")
+      .eq("id", payload.campaignId)
+      .single();
+
+    if (fetchError) {
+      throw new Error(`Failed to fetch campaign: ${fetchError.message}`);
+    }
+
+    // Build contacts array
+    const existingContacts = Array.isArray(currentCampaign.contacts_summary)
+      ? (currentCampaign.contacts_summary as Array<Record<string, unknown>>)
+      : [];
+
+    const newContacts = normalizedLeads.map((lead) => ({
+      id: crypto.randomUUID(),
+      contact_name: lead.contactName || "Unknown",
+      contact_email: lead.email || null,
+      contact_linkedin_url: lead.linkedinUrl || null,
+      contact_company: lead.companyName || null,
+      contact_title: lead.title || null,
+      status: "identified",
+      metadata: {
+        exa_enrichment: lead.metadata,
+        exa_item_id: lead.exaItemId,
+        exa_score: lead.score,
+        imported_at: new Date().toISOString(),
+        import_job_id: jobId,
+      },
+      last_enriched_at: new Date().toISOString(),
+      exa_item_id: lead.exaItemId,
+      created_at: new Date().toISOString(),
+    }));
+
+    // Deduplicate: update existing or add new
+    let imported = 0;
+    let updated = 0;
+
+    for (const newContact of newContacts) {
+      const existingIndex = existingContacts.findIndex(
+        (c) =>
+          (c.exa_item_id && newContact.exa_item_id && c.exa_item_id === newContact.exa_item_id) ||
+          (c.contact_email && newContact.contact_email && c.contact_email === newContact.contact_email) ||
+          (c.contact_linkedin_url &&
+            newContact.contact_linkedin_url &&
+            c.contact_linkedin_url === newContact.contact_linkedin_url)
+      );
+
+      if (existingIndex >= 0) {
+        // Update existing contact (merge data)
+        existingContacts[existingIndex] = {
+          ...existingContacts[existingIndex],
+          ...newContact,
+          id: existingContacts[existingIndex].id, // Keep original ID
+          created_at: existingContacts[existingIndex].created_at, // Keep original created_at
+          status: existingContacts[existingIndex].status, // Keep existing status
+          updated_at: new Date().toISOString(),
+        };
+        updated++;
+      } else {
+        // Add new contact
+        existingContacts.push(newContact);
+        imported++;
+      }
+    }
+
+    // Update campaign with new contacts
+    const { error: updateError } = await supabase
+      .from("bd_campaigns")
+      .update({
+        contacts_summary: existingContacts,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", payload.campaignId);
+
+    if (updateError) {
+      throw new Error(`Failed to update campaign contacts: ${updateError.message}`);
+    }
+
+    // Update job as completed
+    await supabase
+      .from("lead_import_jobs")
+      .update({
+        status: "completed",
+        completed_at: new Date().toISOString(),
+        imported_count: imported,
+      })
+      .eq("id", jobId);
+
+    console.log(`[processLeadImportJob] Job ${jobId} completed: ${imported} new, ${updated} updated`);
+
+    // Send email notification
+    try {
+      await supabase.functions.invoke("send-lead-import-notification", {
+        body: {
+          jobId,
+          campaignId: payload.campaignId,
+          results: { imported, updated, total: normalizedLeads.length },
+        },
+      });
+    } catch (emailError) {
+      console.error("[processLeadImportJob] Email notification failed:", emailError);
+      // Don't fail the whole job if email fails
+    }
+  } catch (error) {
+    console.error(`[processLeadImportJob] Job ${jobId} failed:`, error);
+    throw error;
+  }
 }

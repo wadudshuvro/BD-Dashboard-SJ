@@ -30,6 +30,12 @@ export function CampaignLeadImportDialog({
   const [customKeywords, setCustomKeywords] = useState("");
   const [maxResults, setMaxResults] = useState(25);
   const [isImporting, setIsImporting] = useState(false);
+  const [jobStatus, setJobStatus] = useState<{
+    id: string;
+    status: "queued" | "processing" | "completed" | "failed";
+    progress?: string;
+    result?: { imported: number; updated: number };
+  } | null>(null);
 
   // Generate keyword suggestions from campaign data
   useEffect(() => {
@@ -94,13 +100,54 @@ export function CampaignLeadImportDialog({
 
       if (error) throw error;
 
-      onImportComplete();
-      onOpenChange(false);
+      // Store job info and start polling
+      setJobStatus({ id: data.job_id, status: "queued" });
+      startPollingJobStatus(data.job_id);
     } catch (error) {
       console.error("Lead import failed:", error);
-    } finally {
       setIsImporting(false);
     }
+  };
+
+  const startPollingJobStatus = (jobId: string) => {
+    let pollCount = 0;
+    const maxPolls = 150; // 5 minutes max (150 * 2s)
+
+    const pollInterval = setInterval(async () => {
+      pollCount++;
+
+      const { data: job } = await supabase
+        .from("lead_import_jobs")
+        .select("status, imported_count")
+        .eq("id", jobId)
+        .single();
+
+      if (!job) return;
+
+      const statusMap: Record<string, string> = {
+        queued: "Queued for processing...",
+        processing: "Searching for leads...",
+        completed: "Import complete!",
+        failed: "Import failed",
+      };
+
+      setJobStatus({
+        id: jobId,
+        status: job.status as any,
+        progress: statusMap[job.status] || job.status,
+        result: job.status === "completed" ? { imported: job.imported_count, updated: 0 } : undefined,
+      });
+
+      if (job.status === "completed" || job.status === "failed" || pollCount >= maxPolls) {
+        clearInterval(pollInterval);
+        setIsImporting(false);
+
+        if (job.status === "completed") {
+          onImportComplete();
+          setTimeout(() => onOpenChange(false), 2000);
+        }
+      }
+    }, 2000);
   };
 
   return (
@@ -190,17 +237,40 @@ export function CampaignLeadImportDialog({
             </div>
           )}
 
+          {/* Job Status */}
+          {jobStatus && (
+            <Alert variant={jobStatus.status === "failed" ? "destructive" : "default"}>
+              <Loader2 className={`h-4 w-4 ${jobStatus.status === "processing" || jobStatus.status === "queued" ? "animate-spin" : ""}`} />
+              <AlertTitle>
+                {jobStatus.status === "completed" && "Import Complete!"}
+                {jobStatus.status === "failed" && "Import Failed"}
+                {jobStatus.status === "processing" && "Import in Progress"}
+                {jobStatus.status === "queued" && "Queued for Processing"}
+              </AlertTitle>
+              <AlertDescription>
+                {jobStatus.progress}
+                {jobStatus.result && (
+                  <div className="mt-2 text-sm">
+                    Imported <strong>{jobStatus.result.imported}</strong> new contacts
+                  </div>
+                )}
+              </AlertDescription>
+            </Alert>
+          )}
+
           {/* Cost Estimate */}
-          <Alert>
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Cost Estimate</AlertTitle>
-            <AlertDescription>
-              This import will cost approximately{" "}
-              <strong className="text-primary">${estimatedCost.toFixed(2)}</strong> in
-              Exa.ai credits ({maxResults} leads × ${EXA_COST_PER_LEAD.toFixed(2)} per
-              lead)
-            </AlertDescription>
-          </Alert>
+          {!jobStatus && (
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Cost Estimate</AlertTitle>
+              <AlertDescription>
+                This import will cost approximately{" "}
+                <strong className="text-primary">${estimatedCost.toFixed(2)}</strong> in
+                Exa.ai credits ({maxResults} leads × ${EXA_COST_PER_LEAD.toFixed(2)} per
+                lead)
+              </AlertDescription>
+            </Alert>
+          )}
         </div>
 
         <DialogFooter>

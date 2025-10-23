@@ -1342,6 +1342,7 @@ export type Database = {
       }
       lead_import_jobs: {
         Row: {
+          campaign_id: string | null
           completed_at: string | null
           created_at: string
           criteria: Json
@@ -1349,11 +1350,16 @@ export type Database = {
           id: string
           imported_count: number
           initiated_by: string | null
+          job_type: string | null
+          notification_sent_at: string | null
+          notify_email: string | null
           started_at: string | null
           status: string
           updated_at: string
+          user_id: string | null
         }
         Insert: {
+          campaign_id?: string | null
           completed_at?: string | null
           created_at?: string
           criteria?: Json
@@ -1361,11 +1367,16 @@ export type Database = {
           id?: string
           imported_count?: number
           initiated_by?: string | null
+          job_type?: string | null
+          notification_sent_at?: string | null
+          notify_email?: string | null
           started_at?: string | null
           status?: string
           updated_at?: string
+          user_id?: string | null
         }
         Update: {
+          campaign_id?: string | null
           completed_at?: string | null
           created_at?: string
           criteria?: Json
@@ -1373,11 +1384,23 @@ export type Database = {
           id?: string
           imported_count?: number
           initiated_by?: string | null
+          job_type?: string | null
+          notification_sent_at?: string | null
+          notify_email?: string | null
           started_at?: string | null
           status?: string
           updated_at?: string
+          user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "lead_import_jobs_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "bd_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       leads: {
         Row: {

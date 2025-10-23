@@ -17,3 +17,6 @@ verify_jwt = true
 
 [functions.campaign-lead-import]
 verify_jwt = true
+
+[functions.send-lead-import-notification]
+verify_jwt = false
