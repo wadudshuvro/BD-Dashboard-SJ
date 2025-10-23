@@ -410,10 +410,15 @@ serve(async (req) => {
 
     for (const providerConfig of providerChain) {
       const result = await invokeProvider(providerConfig, messages);
-      telemetry.push(buildProviderTelemetry(result));
+      const telemetryEntry = buildProviderTelemetry(result);
+      telemetry.push(telemetryEntry);
       rawOutputs.push(result.rawResponse);
 
       if (!result.content) {
+        console.error(`Provider ${providerConfig.provider}/${providerConfig.model} failed:`, {
+          error: telemetryEntry.error,
+          rawResponse: result.rawResponse,
+        });
         continue;
       }
 
