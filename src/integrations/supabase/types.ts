@@ -286,76 +286,119 @@ export type Database = {
         }
         Relationships: []
       }
-      bd_campaigns: {
+      campaign_channels: {
         Row: {
-          actual_contacts_reached: number | null
-          brand_id: string | null
-          campaign_type: string
-          created_at: string
-          created_by: string | null
-          deals_generated: number | null
-          end_date: string | null
-          id: string
-          meetings_booked: number | null
-          name: string
-          niche_id: string
-          owned_by: string | null
-          responses_received: number | null
-          start_date: string | null
-          status: string
-          target_contacts: string[] | null
-          target_contacts_count: number | null
-          target_regions: string[] | null
-          updated_at: string
+          code: string
+          label: string
         }
         Insert: {
-          actual_contacts_reached?: number | null
-          brand_id?: string | null
-          campaign_type: string
-          created_at?: string
-          created_by?: string | null
-          deals_generated?: number | null
-          end_date?: string | null
-          id?: string
-          meetings_booked?: number | null
-          name: string
-          niche_id: string
-          owned_by?: string | null
-          responses_received?: number | null
-          start_date?: string | null
-          status?: string
-          target_contacts?: string[] | null
-          target_contacts_count?: number | null
-          target_regions?: string[] | null
-          updated_at?: string
+          code: string
+          label: string
         }
         Update: {
-          actual_contacts_reached?: number | null
-          brand_id?: string | null
-          campaign_type?: string
+          code?: string
+          label?: string
+        }
+        Relationships: []
+      }
+      campaigns: {
+        Row: {
+          archived_at: string | null
+          brand_id: string
+          budget: number | null
+          created_at: string
+          created_by: string | null
+          end_date: string | null
+          id: string
+          metadata: Json
+          metrics: Json
+          name: string
+          objective: string | null
+          owner_id: string | null
+          primary_channel: string
+          spend_to_date: number | null
+          start_date: string | null
+          status: string
+          target_audience: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          archived_at?: string | null
+          brand_id: string
+          budget?: number | null
           created_at?: string
           created_by?: string | null
-          deals_generated?: number | null
           end_date?: string | null
           id?: string
-          meetings_booked?: number | null
-          name?: string
-          niche_id?: string
-          owned_by?: string | null
-          responses_received?: number | null
+          metadata?: Json
+          metrics?: Json
+          name: string
+          objective?: string | null
+          owner_id?: string | null
+          primary_channel: string
+          spend_to_date?: number | null
           start_date?: string | null
           status?: string
-          target_contacts?: string[] | null
-          target_contacts_count?: number | null
-          target_regions?: string[] | null
+          target_audience?: string | null
           updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          archived_at?: string | null
+          brand_id?: string
+          budget?: number | null
+          created_at?: string
+          created_by?: string | null
+          end_date?: string | null
+          id?: string
+          metadata?: Json
+          metrics?: Json
+          name?: string
+          objective?: string | null
+          owner_id?: string | null
+          primary_channel?: string
+          spend_to_date?: number | null
+          start_date?: string | null
+          status?: string
+          target_audience?: string | null
+          updated_at?: string
+          updated_by?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "bd_campaigns_niche_id_fkey"
-            columns: ["niche_id"]
+            foreignKeyName: "campaigns_brand_id_fkey"
+            columns: ["brand_id"]
             isOneToOne: false
-            referencedRelation: "target_niches"
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaigns_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaigns_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaigns_primary_channel_fkey"
+            columns: ["primary_channel"]
+            isOneToOne: false
+            referencedRelation: "campaign_channels"
+            referencedColumns: ["code"]
+          },
+          {
+            foreignKeyName: "campaigns_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
