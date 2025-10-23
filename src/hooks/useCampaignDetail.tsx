@@ -80,8 +80,11 @@ export const useCampaignDetail = (campaignId?: string) => {
       return aiTaskList;
     }
 
-    const projectTaskRecords = detail?.project_tasks as Array<Record<string, unknown>> | undefined;
-    return mapProjectTasksToAITasks(projectTaskRecords ?? [], campaignId);
+    const projectTaskRecords = detail?.project_tasks as CampaignProjectTask[] | undefined;
+    if (!projectTaskRecords || projectTaskRecords.length === 0) {
+      return [];
+    }
+    return mapProjectTasksToAITasks(projectTaskRecords as unknown as Array<Record<string, unknown>>, campaignId);
   }, [detail?.ai_tasks, detail?.project_tasks, campaignId]);
 
   const contactByStatus = useMemo(() => {

@@ -150,6 +150,7 @@ export interface CampaignListParams {
   brandId?: string;
   search?: string;
   includeArchived?: boolean;
+  [key: string]: string | number | boolean | undefined;
 }
 
 export async function listCampaigns(params: CampaignListParams = {}): Promise<CampaignListResponse> {

@@ -487,7 +487,7 @@ async function handleGet(client: SupabaseClient, campaignId: string) {
         "id, project_id, title, description, status, priority, assigned_to, due_date, created_at, updated_at, completed_at, estimated_hours, actual_hours",
       )
       .eq("project_id", campaignId)
-      .order("due_date", { ascending: true, nullsLast: false });
+      .order("due_date", { ascending: true, nullsFirst: false });
     if (!taskError && taskRows) {
       tasks = taskRows as ProjectTaskRow[];
     }

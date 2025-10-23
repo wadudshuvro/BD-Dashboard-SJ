@@ -294,6 +294,7 @@ function CampaignCard({ campaign, niches }: { campaign: BDCampaign; niches: Targ
     active: 'default',
     paused: 'outline',
     completed: 'default',
+    archived: 'outline',
   };
 
   return (

@@ -84,7 +84,7 @@ const campaignFormSchema = z
     name: z.string().min(1, 'Campaign name is required'),
     nicheId: z.string().uuid('Please select a niche'),
     brandId: optionalUuid,
-    campaignType: z.enum(CAMPAIGN_TYPES, {
+    campaignType: z.enum(['email_outbound', 'linkedin_outbound', 'cold_calling', 'abm', 'other'] as const, {
       required_error: 'Select a campaign type',
     }),
     startDate: optionalDate,
@@ -140,7 +140,7 @@ export function CampaignDialog({ open, onOpenChange, niches }: CampaignDialogPro
   const { data: brands = [], isLoading: brandsLoading } = useQuery<BrandOption[]>({
     queryKey: ['bd-brands'],
     queryFn: async () => {
-      const { data, error } = await supabase.from('brands').select('id, name').order('name');
+      const { data, error } = await supabase.from('pods').select('id, name').order('name');
       if (error) {
         throw new Error(error.message);
       }
@@ -163,7 +163,7 @@ export function CampaignDialog({ open, onOpenChange, niches }: CampaignDialogPro
       name: values.name,
       niche_id: values.nicheId,
       brand_id: values.brandId ?? null,
-      campaign_type: values.campaignType,
+      campaign_type: values.campaignType as CampaignType,
       start_date: values.startDate ?? null,
       end_date: values.endDate ?? null,
       target_contacts_count: typeof values.targetContactsCount === 'number' ? values.targetContactsCount : null,

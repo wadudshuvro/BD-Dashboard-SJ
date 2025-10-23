@@ -71,11 +71,11 @@ export default function CampaignDetail() {
     error,
   } = useCampaignDetail(campaignId);
 
-  const linkedinStats = campaign?.linkedin_stats || {};
-  const ghlStats = campaign?.ghl_stats || {};
+  const linkedinStats = (campaign?.linkedin_stats as Record<string, number | undefined>) || {};
+  const ghlStats = (campaign?.ghl_stats as Record<string, number | undefined>) || {};
 
   const totalContacts = campaign?.target_contacts_count || 0;
-  const researchedCount = Number(campaign?.research_data?.contacts_researched ?? 0);
+  const researchedCount = Number((campaign?.research_data as Record<string, unknown>)?.contacts_researched ?? 0);
   const acceptanceRate = linkedinStats.requests_sent
     ? Math.round(((linkedinStats.connections_accepted || 0) / linkedinStats.requests_sent) * 100)
     : 0;
@@ -92,13 +92,13 @@ export default function CampaignDetail() {
         kpi.current_value === null || kpi.current_value === undefined
           ? '—'
           : numberFormatter.format(kpi.current_value),
-      suffix: kpi.unit ?? undefined,
+      suffix: kpi.unit ?? '',
       description:
         kpi.target_value !== null && kpi.target_value !== undefined
           ? `Target ${numberFormatter.format(kpi.target_value)}${kpi.unit ? ` ${kpi.unit}` : ''}`
-          : kpi.source ?? null,
-      delta: kpi.trend ?? null,
-      timestamp: kpi.updated_at ?? null,
+          : kpi.source ?? '',
+      delta: kpi.trend ?? 0,
+      timestamp: kpi.updated_at ?? '',
     }));
 
     const metricCards = analytics.map((point) => {
@@ -111,9 +111,10 @@ export default function CampaignDetail() {
         key: `metric-${point.id}`,
         title: point.metric,
         value: numberFormatter.format(point.value),
-        description: point.source ? `Source: ${point.source}` : null,
-        delta,
-        timestamp: point.recorded_at,
+        suffix: '',
+        description: point.source ? `Source: ${point.source}` : '',
+        delta: delta ?? 0,
+        timestamp: point.recorded_at ?? '',
       };
     });
 
