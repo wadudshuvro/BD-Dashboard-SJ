@@ -360,6 +360,68 @@ export type Database = {
           },
         ]
       }
+      campaign_research: {
+        Row: {
+          campaign_id: string
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          error_message: string | null
+          id: string
+          payload: Json
+          provider: string | null
+          query: string | null
+          requested_at: string
+          research_type: string
+          results: Json
+          status: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          campaign_id: string
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          error_message?: string | null
+          id?: string
+          payload?: Json
+          provider?: string | null
+          query?: string | null
+          requested_at?: string
+          research_type: string
+          results?: Json
+          status?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          campaign_id?: string
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          error_message?: string | null
+          id?: string
+          payload?: Json
+          provider?: string | null
+          query?: string | null
+          requested_at?: string
+          research_type?: string
+          results?: Json
+          status?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_research_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "bd_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       checklist_template_items: {
         Row: {
           created_at: string
@@ -1274,6 +1336,116 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lead_import_jobs: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          criteria: Json
+          error_details: string | null
+          id: string
+          imported_count: number
+          initiated_by: string | null
+          started_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          criteria?: Json
+          error_details?: string | null
+          id?: string
+          imported_count?: number
+          initiated_by?: string | null
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          criteria?: Json
+          error_details?: string | null
+          id?: string
+          imported_count?: number
+          initiated_by?: string | null
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      leads: {
+        Row: {
+          campaign_id: string | null
+          company_name: string | null
+          contact_name: string | null
+          created_at: string
+          created_by: string | null
+          email: string | null
+          enrichment_status: string | null
+          exa_item_id: string | null
+          id: string
+          imported_via_exa: boolean | null
+          industry: string | null
+          last_enriched_at: string | null
+          lead_score_exa: number | null
+          metadata: Json | null
+          phone: string | null
+          status: string | null
+          updated_at: string
+          website: string | null
+        }
+        Insert: {
+          campaign_id?: string | null
+          company_name?: string | null
+          contact_name?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          enrichment_status?: string | null
+          exa_item_id?: string | null
+          id?: string
+          imported_via_exa?: boolean | null
+          industry?: string | null
+          last_enriched_at?: string | null
+          lead_score_exa?: number | null
+          metadata?: Json | null
+          phone?: string | null
+          status?: string | null
+          updated_at?: string
+          website?: string | null
+        }
+        Update: {
+          campaign_id?: string | null
+          company_name?: string | null
+          contact_name?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          enrichment_status?: string | null
+          exa_item_id?: string | null
+          id?: string
+          imported_via_exa?: boolean | null
+          industry?: string | null
+          last_enriched_at?: string | null
+          lead_score_exa?: number | null
+          metadata?: Json | null
+          phone?: string | null
+          status?: string | null
+          updated_at?: string
+          website?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leads_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "bd_campaigns"
             referencedColumns: ["id"]
           },
         ]
