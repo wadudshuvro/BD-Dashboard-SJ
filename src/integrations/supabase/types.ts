@@ -560,6 +560,44 @@ export type Database = {
           },
         ]
       }
+      control_tower_user_mappings: {
+        Row: {
+          control_tower_email: string
+          control_tower_name: string | null
+          control_tower_user_id: string
+          created_at: string | null
+          id: string
+          local_user_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          control_tower_email: string
+          control_tower_name?: string | null
+          control_tower_user_id: string
+          created_at?: string | null
+          id?: string
+          local_user_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          control_tower_email?: string
+          control_tower_name?: string | null
+          control_tower_user_id?: string
+          created_at?: string | null
+          id?: string
+          local_user_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "control_tower_user_mappings_local_user_id_fkey"
+            columns: ["local_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deal_checklist_items: {
         Row: {
           completed_at: string | null

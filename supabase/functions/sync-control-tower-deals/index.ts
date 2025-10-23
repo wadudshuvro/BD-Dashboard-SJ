@@ -51,11 +51,15 @@ serve(async (req) => {
     }
 
     const userId = user?.id ?? null;
+    
+    // Parse request body for optional dealId filter
+    const body = req.method === 'POST' ? await req.json() : {};
+    const dealId = body.dealId || null;
 
     if (userId) {
-      console.log(`[Sync] Starting Control Tower sync for user: ${userId}`);
+      console.log(`[Sync] Starting Control Tower sync for user: ${userId}${dealId ? ` (single deal: ${dealId})` : ''}`);
     } else {
-      console.log('[Sync] Starting Control Tower sync with service credential');
+      console.log(`[Sync] Starting Control Tower sync with service credential${dealId ? ` (single deal: ${dealId})` : ''}`);
     }
 
     // Fetch Control Tower configuration from ai_configurations table (if user authenticated)
@@ -86,7 +90,7 @@ serve(async (req) => {
     // Create Control Tower client with server-side credentials
     const ctClient = createClient(envUrl, envKey);
 
-    return await performSync(ctClient, supabase, userId, supabaseKey);
+    return await performSync(ctClient, supabase, userId, supabaseKey, dealId);
 
   } catch (error) {
     console.error('[Sync] Error:', error);
@@ -226,11 +230,35 @@ function extractClientData(ctDeal: any): any {
   };
 }
 
+// Build user mapping cache by email
+async function buildUserMappingCache(supabase: any): Promise<Map<string, string>> {
+  console.log('[Sync] Building user mapping cache...');
+  const { data: localUsers, error } = await supabase
+    .from('users')
+    .select('id, email');
+  
+  if (error) {
+    console.warn('[Sync] Could not load users:', error);
+    return new Map();
+  }
+  
+  const cache = new Map<string, string>();
+  localUsers?.forEach((user: any) => {
+    if (user.email) {
+      cache.set(user.email.toLowerCase().trim(), user.id);
+    }
+  });
+  
+  console.log(`[Sync] Cached ${cache.size} user email mappings`);
+  return cache;
+}
+
 async function performSync(
   ctClient: any,
   supabase: any,
   userId: string | null,
   serviceRoleKey: string,
+  singleDealId?: string | null
 ): Promise<Response> {
   const startTime = Date.now();
   
@@ -258,11 +286,27 @@ async function performSync(
     
     console.log('[Sync] Final stage mapping:', STAGE_MAPPING);
 
-    // Fetch all deals from Control Tower in one query
-    console.log('[Sync] Fetching deals from Control Tower...');
-    const { data: ctDeals, error: fetchError } = await ctClient
-      .from('Deal')  // Capitalized to match Control Tower schema
-      .select('*');
+    // Fetch deals from Control Tower (all or single)
+    console.log(`[Sync] Fetching deals from Control Tower${singleDealId ? ` (single: ${singleDealId})` : ''}...`);
+    
+    let ctDealsQuery = ctClient.from('Deal').select('*');
+    
+    if (singleDealId) {
+      // For single deal sync, fetch by control_tower_id
+      const { data: localDeal } = await supabase
+        .from('deals')
+        .select('control_tower_id')
+        .eq('id', singleDealId)
+        .maybeSingle();
+      
+      if (localDeal?.control_tower_id) {
+        ctDealsQuery = ctDealsQuery.eq('id', localDeal.control_tower_id);
+      } else {
+        throw new Error('Deal not found or has no Control Tower ID');
+      }
+    }
+    
+    const { data: ctDeals, error: fetchError } = await ctDealsQuery;
 
     if (fetchError) {
       console.error('[Sync] Error fetching deals from Control Tower:', {
@@ -318,6 +362,9 @@ async function performSync(
     // Build client lookup cache for fast lookups
     const clientCache = await buildClientCache(supabase);
     
+    // Build user mapping cache
+    const userMappingCache = await buildUserMappingCache(supabase);
+    
     // Step 1: Collect all unique clients from deals
     console.log('[Sync] Extracting clients from deals...');
     const clientsMap = new Map<string, any>();
@@ -371,8 +418,10 @@ async function performSync(
       }
     }
     
-    // Step 3: Transform deals for bulk upsert using cached client IDs
-    console.log('[Sync] Transforming deals with cached client references...');
+    // Step 3: Transform deals for bulk upsert using cached client IDs and user mappings
+    console.log('[Sync] Transforming deals with cached client and user references...');
+    const unmappedOwners: Array<{ email: string | null; name: string | null }> = [];
+    
     const transformedDeals = ctDeals.map((ctDeal: any) => {
         const ctStage = ctDeal.dealstage || ctDeal.stage;
         const ctStageName = ctDeal.dealstage_name || ctDeal.stage_name;
@@ -396,6 +445,31 @@ async function performSync(
           }
         }
         
+        // Map owner via email
+        const ownerEmail = 
+          ctDeal.actual_deal_owner_email || 
+          ctDeal.dealOwnerEmail || 
+          ctDeal.owner_email;
+        
+        let localOwnerId = null;
+        if (ownerEmail) {
+          localOwnerId = userMappingCache.get(ownerEmail.toLowerCase().trim()) || null;
+          if (!localOwnerId) {
+            console.warn(`[Sync] No local user found for owner email: ${ownerEmail}`);
+            unmappedOwners.push({
+              email: ownerEmail,
+              name: ctDeal.actual_deal_owner_name || ctDeal.dealOwnerName || null
+            });
+          }
+        }
+        
+        // Map PM via email
+        const pmEmail = ctDeal.pm_email || ctDeal.pm_assigned_email;
+        let localPmId = null;
+        if (pmEmail) {
+          localPmId = userMappingCache.get(pmEmail.toLowerCase().trim()) || null;
+        }
+        
         const tags = Array.isArray(ctDeal.tags)
           ? ctDeal.tags
           : typeof ctDeal.tags === 'string'
@@ -413,8 +487,10 @@ async function performSync(
           stage: mapStage(ctStage, ctStageName),
           close_date: expectedCloseDate || null,
 
-          // Map to local client
+          // Map to local client and users
           client_id: localClientId,
+          owner_id: localOwnerId,
+          pm_assigned_id: localPmId,
 
           // Store Control Tower references for tracking
           control_tower_client_id: ctDeal.client_id || ctDeal.clientId || null,
@@ -450,6 +526,11 @@ async function performSync(
           updated_at: ctDeal.updated_at || new Date().toISOString(),
         };
       });
+    
+    // Log unmapped owners
+    if (unmappedOwners.length > 0) {
+      console.warn(`[Sync] ${unmappedOwners.length} deals have unmapped owners:`, unmappedOwners.slice(0, 5));
+    }
     
     console.log('[Sync] Transformed', transformedDeals.length, 'deals with cached client references');
 

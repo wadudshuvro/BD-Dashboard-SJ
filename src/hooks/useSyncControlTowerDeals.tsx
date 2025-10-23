@@ -20,12 +20,14 @@ export interface SyncResult {
   duration: number;
 }
 
-export const useSyncControlTowerDeals = () => {
+export const useSyncControlTowerDeals = (dealId?: string) => {
   const queryClient = useQueryClient();
 
   const syncDeals = useMutation({
     mutationFn: async (): Promise<SyncResult> => {
-      const { data, error } = await supabase.functions.invoke('sync-control-tower-deals');
+      const { data, error } = await supabase.functions.invoke('sync-control-tower-deals', {
+        body: dealId ? { dealId } : undefined,
+      });
 
       if (error) {
         throw new Error(error.message || 'Failed to sync deals');
@@ -35,13 +37,23 @@ export const useSyncControlTowerDeals = () => {
     },
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['deals'] });
+      if (dealId) {
+        queryClient.invalidateQueries({ queryKey: ['deal-checklist', dealId] });
+        queryClient.invalidateQueries({ queryKey: ['deal-comments', dealId] });
+      }
       
-      const summary = [
-        `✅ Deals: ${result.deals.new} new, ${result.deals.updated} updated`,
-        `👥 Clients: ${result.clients.new} new, ${result.clients.updated} updated`,
-        `📋 Checklists: ${result.checklists.synced} items synced`,
-        `⏱️ Completed in ${(result.duration / 1000).toFixed(1)}s`
-      ];
+      const summary = dealId
+        ? [
+            `✅ Deal synced successfully`,
+            `📋 Checklists: ${result.checklists.synced} items synced`,
+            `⏱️ Completed in ${(result.duration / 1000).toFixed(1)}s`
+          ]
+        : [
+            `✅ Deals: ${result.deals.new} new, ${result.deals.updated} updated`,
+            `👥 Clients: ${result.clients.new} new, ${result.clients.updated} updated`,
+            `📋 Checklists: ${result.checklists.synced} items synced`,
+            `⏱️ Completed in ${(result.duration / 1000).toFixed(1)}s`
+          ];
       
       const totalFailed = result.deals.failed + result.checklists.failed;
       
@@ -51,7 +63,7 @@ export const useSyncControlTowerDeals = () => {
           description: summary.join('\n')
         });
       } else {
-        toast.success('Pull sync completed successfully', {
+        toast.success(dealId ? 'Deal synced successfully' : 'Pull sync completed successfully', {
           description: summary.join('\n')
         });
       }

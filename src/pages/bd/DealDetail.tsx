@@ -47,6 +47,7 @@ import { useDealComments, useAddComment, useDeleteComment, AddCommentPayload } f
 import { useDealChecklist, useAddChecklistItem, useToggleChecklistItem, useDeleteChecklistItem } from '@/hooks/useDealChecklist';
 import { useDealSystemInfo } from '@/hooks/useDealSystemInfo';
 import { useDealFiles } from '@/hooks/useDealFiles';
+import { useSyncControlTowerDeals } from '@/hooks/useSyncControlTowerDeals';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import type { DealFile } from '@/hooks/useDeals';
@@ -371,6 +372,7 @@ export default function DealDetail() {
   const addChecklistMutation = useAddChecklistItem(dealId);
   const toggleChecklistMutation = useToggleChecklistItem(dealId);
   const deleteChecklistMutation = useDeleteChecklistItem(dealId);
+  const { syncDeals: syncSingleDeal, isSyncing: isSyncingSingle } = useSyncControlTowerDeals(dealId);
 
   useEffect(() => {
     async function fetchDeal() {
