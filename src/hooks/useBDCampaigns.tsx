@@ -72,7 +72,7 @@ export const useBDCampaigns = (nicheId?: string, page: number = 1, limit: number
 
   const queryKey = ['admin-campaigns', { nicheId, page, limit }];
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey,
     queryFn: async () => {
       const response = await listCampaigns({ nicheId, page, pageSize: limit });
@@ -228,5 +228,6 @@ export const useBDCampaigns = (nicheId?: string, page: number = 1, limit: number
     createCampaign,
     updateCampaign,
     deleteCampaign,
+    refetch,
   };
 };

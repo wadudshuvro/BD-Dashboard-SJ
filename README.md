@@ -71,3 +71,16 @@ Yes, you can!
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+
+## Testing instructions
+
+Run the Bun-powered test suite before shipping changes, especially for Business Development flows:
+
+```sh
+npm run test
+```
+
+Key specs to watch:
+
+- `tests/useBDCampaigns.test.tsx` validates the `useBDCampaigns` data contract and error handling.
+- `tests/CampaignManagement.test.tsx` ensures `/bd/strategy/campaigns` renders metrics and the error-retry state correctly.

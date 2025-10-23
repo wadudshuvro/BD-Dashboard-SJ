@@ -25,6 +25,7 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -51,6 +52,7 @@ type AggregateStats = {
 
 export default function CampaignManagement() {
   const pagination = usePagination(12);
+  const { campaigns, total, isLoading, error, refetch } = useBDCampaigns(
   const queryClient = useQueryClient();
   const { campaigns, total, isLoading, error } = useBDCampaigns(
     undefined,
@@ -164,6 +166,38 @@ export default function CampaignManagement() {
   ];
 
   if (isLoading) return <div>Loading campaigns...</div>;
+
+  if (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unable to load campaigns.';
+
+    return (
+      <>
+        <CampaignDialog open={dialogOpen} onOpenChange={setDialogOpen} niches={niches} />
+        <div className="container mx-auto py-8 space-y-6">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-3xl font-bold">Campaign Management</h1>
+              <p className="text-muted-foreground">Track and manage your outbound campaigns</p>
+            </div>
+            <Button onClick={() => setDialogOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Create Campaign
+            </Button>
+          </div>
+
+          <Alert variant="destructive">
+            <AlertTitle>Unable to load campaigns</AlertTitle>
+            <AlertDescription>
+              <p className="mb-4">{errorMessage}</p>
+              <Button variant="outline" onClick={() => refetch()}>
+                Try again
+              </Button>
+            </AlertDescription>
+          </Alert>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
