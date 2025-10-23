@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { getCampaignDetail } from '@/Api/adminCampaigns';
 import type { BDCampaign } from './useBDCampaigns';
 
 export type CampaignContactStatus =
@@ -62,44 +62,30 @@ export interface CampaignAITask {
 
 export const useCampaignDetail = (campaignId?: string) => {
   const campaignQuery = useQuery({
-    queryKey: ['campaign-detail', campaignId],
+    queryKey: ['admin-campaign-detail', campaignId],
     enabled: Boolean(campaignId),
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('bd_campaigns')
-        .select('*')
-        .eq('id', campaignId)
-        .single();
+      if (!campaignId) {
+        throw new Error('Campaign ID is required');
+      }
 
-      if (error) throw error;
-      return data as BDCampaign;
+      const response = await getCampaignDetail(campaignId);
+      return response;
     },
   });
 
-  // Campaign contacts, activities, and tasks tables don't exist - returning empty data
-  const contactsQuery = useQuery({
-    queryKey: ['campaign-contacts', campaignId],
-    enabled: false, // Table doesn't exist
-    queryFn: async () => {
-      return [] as CampaignContact[];
-    },
-  });
-
-  const activitiesQuery = useQuery({
-    queryKey: ['campaign-activities', campaignId],
-    enabled: false, // Table doesn't exist
-    queryFn: async () => {
-      return [] as CampaignActivity[];
-    },
-  });
-
-  const tasksQuery = useQuery({
-    queryKey: ['campaign-ai-tasks', campaignId],
-    enabled: false, // Table doesn't exist
-    queryFn: async () => {
-      return [] as CampaignAITask[];
-    },
-  });
+  const contacts = useMemo(
+    () => (campaignQuery.data?.contacts as CampaignContact[] | undefined) ?? [],
+    [campaignQuery.data?.contacts],
+  );
+  const activities = useMemo(
+    () => (campaignQuery.data?.activities as CampaignActivity[] | undefined) ?? [],
+    [campaignQuery.data?.activities],
+  );
+  const tasks = useMemo(() => {
+    const projectTasks = campaignQuery.data?.tasks as Array<Record<string, unknown>> | undefined;
+    return mapProjectTasksToAITasks(projectTasks ?? [], campaignId);
+  }, [campaignQuery.data?.tasks, campaignId]);
 
   const contactByStatus = useMemo(() => {
     const counts: Record<CampaignContactStatus, CampaignContact[]> = {
@@ -113,27 +99,72 @@ export const useCampaignDetail = (campaignId?: string) => {
       meeting_booked: [],
     };
 
-    (contactsQuery.data || []).forEach((contact) => {
+    contacts.forEach((contact) => {
       counts[contact.status].push(contact);
     });
 
     return counts;
-  }, [contactsQuery.data]);
+  }, [contacts]);
 
   return {
-    campaign: campaignQuery.data,
-    contacts: contactsQuery.data || [],
-    activities: activitiesQuery.data || [],
-    tasks: tasksQuery.data || [],
+    campaign: campaignQuery.data?.campaign as BDCampaign | undefined,
+    contacts,
+    activities,
+    tasks,
     contactByStatus,
-    isLoading:
-      campaignQuery.isLoading || contactsQuery.isLoading || activitiesQuery.isLoading || tasksQuery.isLoading,
-    isError: campaignQuery.isError || contactsQuery.isError || activitiesQuery.isError || tasksQuery.isError,
-    error:
-      campaignQuery.error ||
-      contactsQuery.error ||
-      activitiesQuery.error ||
-      tasksQuery.error ||
-      null,
+    isLoading: campaignQuery.isLoading,
+    isError: campaignQuery.isError,
+    error: campaignQuery.error ?? null,
   };
 };
+
+function mapProjectTasksToAITasks(
+  projectTasks: Array<Record<string, unknown>>,
+  campaignId?: string,
+): CampaignAITask[] {
+  if (!projectTasks || projectTasks.length === 0) {
+    return [];
+  }
+
+  return projectTasks.map((task) => {
+    const status = normalizeTaskStatus(task.status);
+    const createdAt = typeof task.created_at === 'string' ? task.created_at : new Date().toISOString();
+    const updatedAt = typeof task.updated_at === 'string' ? task.updated_at : createdAt;
+
+    return {
+      id: String(task.id ?? `task-${Math.random().toString(36).slice(2)}`),
+      campaign_id: campaignId ?? String(task.project_id ?? ''),
+      contact_id: null,
+      task_type: 'personalization',
+      agent_id: null,
+      input_data: {
+        title: task.title,
+        description: task.description,
+        priority: task.priority,
+      },
+      output_data: null,
+      status,
+      created_at: createdAt,
+      updated_at: updatedAt,
+      completed_at: typeof task.completed_at === 'string' ? task.completed_at : null,
+    };
+  });
+}
+
+function normalizeTaskStatus(status: unknown): CampaignAITask['status'] {
+  if (typeof status !== 'string') {
+    return 'pending';
+  }
+
+  const lower = status.toLowerCase();
+  if (lower.includes('progress') || lower === 'in_progress') {
+    return 'running';
+  }
+  if (lower === 'done' || lower === 'completed' || lower === 'complete') {
+    return 'completed';
+  }
+  if (lower === 'failed') {
+    return 'failed';
+  }
+  return 'pending';
+}

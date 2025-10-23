@@ -1,167 +1,228 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import {
+  listCampaigns,
+  createCampaign as createCampaignApi,
+  updateCampaign as updateCampaignApi,
+  archiveCampaign,
+  type CampaignSummary,
+  type CampaignUpdateRequest,
+  type CampaignListResponse,
+  type CampaignPayload,
+  type CampaignCreateOptions,
+} from '@/Api/adminCampaigns';
 
-export interface BDCampaign {
+export type BDCampaign = CampaignSummary;
+
+interface CreateVariables {
+  campaign: CampaignPayload;
+  options?: CampaignCreateOptions;
+}
+
+interface UpdateVariables {
   id: string;
-  name: string;
-  niche_id: string;
-  brand_id?: string;
-  campaign_type: 'email_outbound' | 'linkedin_outbound' | 'cold_calling' | 'abm' | 'other';
-  status: 'planning' | 'active' | 'paused' | 'completed';
-  ghl_campaign_id?: string | null;
-  linkedin_campaign_id?: string | null;
-  ai_agent_id?: string | null;
-  content_template?: any | null;
-  research_data?: any | null;
-  linkedin_stats?: {
-    requests_sent?: number;
-    connections_accepted?: number;
-    messages_sent?: number;
-    responses_received?: number;
-    last_synced_at?: string;
-  } | null;
-  ghl_stats?: {
-    emails_sent?: number;
-    emails_delivered?: number;
-    opens?: number;
-    clicks?: number;
-    replies?: number;
-    bounces?: number;
-    last_synced_at?: string;
-  } | null;
-  linkedin_research_summary?: any | null;
-  contacts_summary?: any | null;
-  start_date?: string;
-  end_date?: string;
-  target_contacts?: string[];
-  target_regions?: string[];
-  target_contacts_count?: number;
-  actual_contacts_reached: number;
-  responses_received: number;
-  meetings_booked: number;
-  deals_generated: number;
-  owned_by?: string;
-  created_by?: string;
-  created_at: string;
-  updated_at: string;
+  campaign?: CampaignUpdateRequest['campaign'];
+  metrics?: CampaignUpdateRequest['metrics'];
+  options?: CampaignCreateOptions;
+}
+
+type DeleteVariables = { id: string } | string;
+
+function buildOptimisticCampaign(id: string, payload: CampaignPayload): CampaignSummary {
+  const now = new Date().toISOString();
+  return {
+    id,
+    name: payload.name,
+    niche_id: payload.niche_id,
+    brand_id: payload.brand_id ?? null,
+    campaign_type: payload.campaign_type,
+    status: payload.status ?? 'planning',
+    ghl_campaign_id: payload.ghl_campaign_id ?? null,
+    linkedin_campaign_id: payload.linkedin_campaign_id ?? null,
+    ai_agent_id: payload.ai_agent_id ?? null,
+    content_template: payload.content_template ?? null,
+    research_data: payload.research_data ?? null,
+    linkedin_stats: payload.linkedin_stats ?? null,
+    ghl_stats: payload.ghl_stats ?? null,
+    contacts_summary: payload.contacts_summary ?? null,
+    start_date: payload.start_date ?? null,
+    end_date: payload.end_date ?? null,
+    target_contacts: payload.target_contacts ?? null,
+    target_regions: payload.target_regions ?? null,
+    target_contacts_count: payload.target_contacts_count ?? null,
+    actual_contacts_reached: payload.actual_contacts_reached ?? null,
+    responses_received: payload.responses_received ?? null,
+    meetings_booked: payload.meetings_booked ?? null,
+    deals_generated: payload.deals_generated ?? null,
+    owned_by: payload.owned_by ?? null,
+    created_by: payload.created_by ?? null,
+    created_at: now,
+    updated_at: now,
+    brand: null,
+    owner: null,
+    creator: null,
+    kpis: [],
+    analytics_summary: [],
+  };
 }
 
 export const useBDCampaigns = (nicheId?: string, page: number = 1, limit: number = 12) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  const queryKey = ['admin-campaigns', { nicheId, page, limit }];
+
   const { data, isLoading, error } = useQuery({
-    queryKey: ['bd_campaigns', nicheId, page, limit],
+    queryKey,
     queryFn: async () => {
-      const from = (page - 1) * limit;
-      const to = from + limit - 1;
-      
-      let query = supabase
-        .from('bd_campaigns')
-        .select('*', { count: 'exact' })
-        .order('created_at', { ascending: false })
-        .range(from, to);
-
-      if (nicheId) {
-        query = query.eq('niche_id', nicheId);
-      }
-
-      const { data, error, count } = await query;
-      if (error) throw error;
-      
-      return {
-        data: data as BDCampaign[],
-        total: count || 0,
-      };
+      const response = await listCampaigns({ nicheId, page, pageSize: limit });
+      return response;
     },
   });
-  
-  const campaigns = data?.data || [];
+
+  const campaigns = data?.data ?? [];
 
   const createCampaign = useMutation({
-    mutationFn: async (campaign: Partial<BDCampaign>) => {
-      const { data, error } = await supabase
-        .from('bd_campaigns')
-        .insert([campaign as any])
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
+    mutationFn: async (variables: CreateVariables) => {
+      return await createCampaignApi({ campaign: variables.campaign, options: variables.options });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['bd_campaigns'] });
+    onMutate: async (variables) => {
+      await queryClient.cancelQueries({ queryKey });
+      const previous = queryClient.getQueryData<CampaignListResponse>(queryKey);
+
+      if (previous) {
+        const optimistic = buildOptimisticCampaign(`temp-${Date.now()}`, variables.campaign);
+        queryClient.setQueryData<CampaignListResponse>(queryKey, {
+          ...previous,
+          data: [optimistic, ...previous.data],
+          total: previous.total + 1,
+        });
+      }
+
+      return { previous };
+    },
+    onSuccess: (campaign) => {
+      queryClient.setQueryData<CampaignListResponse>(queryKey, (current) => {
+        if (!current) return current;
+        const filtered = current.data.filter((item) => !item.id.startsWith('temp-'));
+        return {
+          ...current,
+          data: [campaign, ...filtered],
+          total: Math.max(current.total, filtered.length + 1),
+        };
+      });
       toast({
         title: 'Success',
         description: 'Campaign created successfully',
       });
     },
-    onError: (error: Error) => {
+    onError: (error: Error, _variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(queryKey, context.previous);
+      }
       toast({
         title: 'Error',
         description: error.message,
         variant: 'destructive',
       });
     },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey });
+    },
   });
 
   const updateCampaign = useMutation({
-    mutationFn: async ({ id, ...updates }: Partial<BDCampaign> & { id: string }) => {
-      const { data, error } = await supabase
-        .from('bd_campaigns')
-        .update(updates as any)
-        .eq('id', id)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return data;
+    mutationFn: async (variables: UpdateVariables) => {
+      const { id, campaign, metrics, options } = variables;
+      return await updateCampaignApi(id, { campaign, metrics, options });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['bd_campaigns'] });
+    onMutate: async (variables) => {
+      await queryClient.cancelQueries({ queryKey });
+      const previous = queryClient.getQueryData<CampaignListResponse>(queryKey);
+
+      if (previous && variables.campaign) {
+        queryClient.setQueryData<CampaignListResponse>(queryKey, {
+          ...previous,
+          data: previous.data.map((item) =>
+            item.id === variables.id ? { ...item, ...variables.campaign, updated_at: new Date().toISOString() } : item
+          ),
+        });
+      }
+
+      return { previous };
+    },
+    onSuccess: (campaign) => {
+      queryClient.setQueryData<CampaignListResponse>(queryKey, (current) => {
+        if (!current) return current;
+        return {
+          ...current,
+          data: current.data.map((item) => (item.id === campaign.id ? campaign : item)),
+        };
+      });
       toast({
         title: 'Success',
         description: 'Campaign updated successfully',
       });
     },
-    onError: (error: Error) => {
+    onError: (error: Error, _variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(queryKey, context.previous);
+      }
       toast({
         title: 'Error',
         description: error.message,
         variant: 'destructive',
       });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey });
     },
   });
 
   const deleteCampaign = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('bd_campaigns')
-        .delete()
-        .eq('id', id);
+    mutationFn: async (variables: DeleteVariables) => {
+      const id = typeof variables === 'string' ? variables : variables.id;
+      await archiveCampaign(id);
+    },
+    onMutate: async (variables) => {
+      const id = typeof variables === 'string' ? variables : variables.id;
+      await queryClient.cancelQueries({ queryKey });
+      const previous = queryClient.getQueryData<CampaignListResponse>(queryKey);
 
-      if (error) throw error;
+      if (previous) {
+        queryClient.setQueryData<CampaignListResponse>(queryKey, {
+          ...previous,
+          data: previous.data.filter((item) => item.id !== id),
+          total: Math.max(previous.total - 1, 0),
+        });
+      }
+
+      return { previous };
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['bd_campaigns'] });
       toast({
         title: 'Success',
-        description: 'Campaign deleted successfully',
+        description: 'Campaign archived successfully',
       });
     },
-    onError: (error: Error) => {
+    onError: (error: Error, _variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(queryKey, context.previous);
+      }
       toast({
         title: 'Error',
         description: error.message,
         variant: 'destructive',
       });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey });
     },
   });
 
   return {
     campaigns,
-    total: data?.total || 0,
+    total: data?.total ?? campaigns.length,
     isLoading,
     error,
     createCampaign,
