@@ -52,6 +52,7 @@ export type Database = {
           completed_at: string | null
           created_at: string
           error: string | null
+          error_message: string | null
           generated_tasks: Json | null
           id: string
           input: Json | null
@@ -70,6 +71,7 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           error?: string | null
+          error_message?: string | null
           generated_tasks?: Json | null
           id?: string
           input?: Json | null
@@ -88,6 +90,7 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           error?: string | null
+          error_message?: string | null
           generated_tasks?: Json | null
           id?: string
           input?: Json | null
@@ -109,45 +112,150 @@ export type Database = {
           },
         ]
       }
+      ai_agent_templates: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          id: string
+          is_public: boolean | null
+          model: string | null
+          name: string
+          provider: string
+          template_config: Json
+          updated_at: string | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_public?: boolean | null
+          model?: string | null
+          name: string
+          provider: string
+          template_config: Json
+          updated_at?: string | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_public?: boolean | null
+          model?: string | null
+          name?: string
+          provider?: string
+          template_config?: Json
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       ai_agents: {
         Row: {
+          category: string | null
           config: Json | null
           created_at: string
           created_by: string | null
+          data_source_config: Json | null
           description: string | null
           file_selection_config: Json | null
           id: string
           is_active: boolean | null
+          is_enabled: boolean | null
+          last_run_at: string | null
           name: string
+          output_actions: Json | null
           prompt_template: string | null
+          schedule_config: Json | null
+          slug: string | null
+          success_rate: number | null
+          system_prompt: string | null
           type: string
           updated_at: string
         }
         Insert: {
+          category?: string | null
           config?: Json | null
           created_at?: string
           created_by?: string | null
+          data_source_config?: Json | null
           description?: string | null
           file_selection_config?: Json | null
           id?: string
           is_active?: boolean | null
+          is_enabled?: boolean | null
+          last_run_at?: string | null
           name: string
+          output_actions?: Json | null
           prompt_template?: string | null
+          schedule_config?: Json | null
+          slug?: string | null
+          success_rate?: number | null
+          system_prompt?: string | null
           type: string
           updated_at?: string
         }
         Update: {
+          category?: string | null
           config?: Json | null
           created_at?: string
           created_by?: string | null
+          data_source_config?: Json | null
           description?: string | null
           file_selection_config?: Json | null
           id?: string
           is_active?: boolean | null
+          is_enabled?: boolean | null
+          last_run_at?: string | null
           name?: string
+          output_actions?: Json | null
           prompt_template?: string | null
+          schedule_config?: Json | null
+          slug?: string | null
+          success_rate?: number | null
+          system_prompt?: string | null
           type?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      ai_business_context: {
+        Row: {
+          context_type: string
+          created_at: string | null
+          created_by: string | null
+          data: Json
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          context_type: string
+          created_at?: string | null
+          created_by?: string | null
+          data: Json
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          context_type?: string
+          created_at?: string | null
+          created_by?: string | null
+          data?: Json
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -717,7 +825,6 @@ export type Database = {
       }
       deal_files: {
         Row: {
-          category: string | null
           checksum: string | null
           client_id: string | null
           created_at: string
@@ -737,7 +844,6 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          category?: string | null
           checksum?: string | null
           client_id?: string | null
           created_at?: string
@@ -757,7 +863,6 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          category?: string | null
           checksum?: string | null
           client_id?: string | null
           created_at?: string
