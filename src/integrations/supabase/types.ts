@@ -52,6 +52,7 @@ export type Database = {
           completed_at: string | null
           created_at: string
           error: string | null
+          error_message: string | null
           generated_tasks: Json | null
           id: string
           input: Json | null
@@ -70,6 +71,7 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           error?: string | null
+          error_message?: string | null
           generated_tasks?: Json | null
           id?: string
           input?: Json | null
@@ -88,6 +90,7 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           error?: string | null
+          error_message?: string | null
           generated_tasks?: Json | null
           id?: string
           input?: Json | null
@@ -109,45 +112,150 @@ export type Database = {
           },
         ]
       }
+      ai_agent_templates: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          id: string
+          is_public: boolean | null
+          model: string | null
+          name: string
+          provider: string
+          template_config: Json
+          updated_at: string | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_public?: boolean | null
+          model?: string | null
+          name: string
+          provider: string
+          template_config: Json
+          updated_at?: string | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_public?: boolean | null
+          model?: string | null
+          name?: string
+          provider?: string
+          template_config?: Json
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       ai_agents: {
         Row: {
+          category: string | null
           config: Json | null
           created_at: string
           created_by: string | null
+          data_source_config: Json | null
           description: string | null
           file_selection_config: Json | null
           id: string
           is_active: boolean | null
+          is_enabled: boolean | null
+          last_run_at: string | null
           name: string
+          output_actions: Json | null
           prompt_template: string | null
+          schedule_config: Json | null
+          slug: string | null
+          success_rate: number | null
+          system_prompt: string | null
           type: string
           updated_at: string
         }
         Insert: {
+          category?: string | null
           config?: Json | null
           created_at?: string
           created_by?: string | null
+          data_source_config?: Json | null
           description?: string | null
           file_selection_config?: Json | null
           id?: string
           is_active?: boolean | null
+          is_enabled?: boolean | null
+          last_run_at?: string | null
           name: string
+          output_actions?: Json | null
           prompt_template?: string | null
+          schedule_config?: Json | null
+          slug?: string | null
+          success_rate?: number | null
+          system_prompt?: string | null
           type: string
           updated_at?: string
         }
         Update: {
+          category?: string | null
           config?: Json | null
           created_at?: string
           created_by?: string | null
+          data_source_config?: Json | null
           description?: string | null
           file_selection_config?: Json | null
           id?: string
           is_active?: boolean | null
+          is_enabled?: boolean | null
+          last_run_at?: string | null
           name?: string
+          output_actions?: Json | null
           prompt_template?: string | null
+          schedule_config?: Json | null
+          slug?: string | null
+          success_rate?: number | null
+          system_prompt?: string | null
           type?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      ai_business_context: {
+        Row: {
+          context_type: string
+          created_at: string | null
+          created_by: string | null
+          data: Json
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          context_type: string
+          created_at?: string | null
+          created_by?: string | null
+          data: Json
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          context_type?: string
+          created_at?: string | null
+          created_by?: string | null
+          data?: Json
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -178,76 +286,119 @@ export type Database = {
         }
         Relationships: []
       }
-      bd_campaigns: {
+      campaign_channels: {
         Row: {
-          actual_contacts_reached: number | null
-          brand_id: string | null
-          campaign_type: string
-          created_at: string
-          created_by: string | null
-          deals_generated: number | null
-          end_date: string | null
-          id: string
-          meetings_booked: number | null
-          name: string
-          niche_id: string
-          owned_by: string | null
-          responses_received: number | null
-          start_date: string | null
-          status: string
-          target_contacts: string[] | null
-          target_contacts_count: number | null
-          target_regions: string[] | null
-          updated_at: string
+          code: string
+          label: string
         }
         Insert: {
-          actual_contacts_reached?: number | null
-          brand_id?: string | null
-          campaign_type: string
-          created_at?: string
-          created_by?: string | null
-          deals_generated?: number | null
-          end_date?: string | null
-          id?: string
-          meetings_booked?: number | null
-          name: string
-          niche_id: string
-          owned_by?: string | null
-          responses_received?: number | null
-          start_date?: string | null
-          status?: string
-          target_contacts?: string[] | null
-          target_contacts_count?: number | null
-          target_regions?: string[] | null
-          updated_at?: string
+          code: string
+          label: string
         }
         Update: {
-          actual_contacts_reached?: number | null
-          brand_id?: string | null
-          campaign_type?: string
+          code?: string
+          label?: string
+        }
+        Relationships: []
+      }
+      campaigns: {
+        Row: {
+          archived_at: string | null
+          brand_id: string
+          budget: number | null
+          created_at: string
+          created_by: string | null
+          end_date: string | null
+          id: string
+          metadata: Json
+          metrics: Json
+          name: string
+          objective: string | null
+          owner_id: string | null
+          primary_channel: string
+          spend_to_date: number | null
+          start_date: string | null
+          status: string
+          target_audience: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          archived_at?: string | null
+          brand_id: string
+          budget?: number | null
           created_at?: string
           created_by?: string | null
-          deals_generated?: number | null
           end_date?: string | null
           id?: string
-          meetings_booked?: number | null
-          name?: string
-          niche_id?: string
-          owned_by?: string | null
-          responses_received?: number | null
+          metadata?: Json
+          metrics?: Json
+          name: string
+          objective?: string | null
+          owner_id?: string | null
+          primary_channel: string
+          spend_to_date?: number | null
           start_date?: string | null
           status?: string
-          target_contacts?: string[] | null
-          target_contacts_count?: number | null
-          target_regions?: string[] | null
+          target_audience?: string | null
           updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          archived_at?: string | null
+          brand_id?: string
+          budget?: number | null
+          created_at?: string
+          created_by?: string | null
+          end_date?: string | null
+          id?: string
+          metadata?: Json
+          metrics?: Json
+          name?: string
+          objective?: string | null
+          owner_id?: string | null
+          primary_channel?: string
+          spend_to_date?: number | null
+          start_date?: string | null
+          status?: string
+          target_audience?: string | null
+          updated_at?: string
+          updated_by?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "bd_campaigns_niche_id_fkey"
-            columns: ["niche_id"]
+            foreignKeyName: "campaigns_brand_id_fkey"
+            columns: ["brand_id"]
             isOneToOne: false
-            referencedRelation: "target_niches"
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaigns_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaigns_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaigns_primary_channel_fkey"
+            columns: ["primary_channel"]
+            isOneToOne: false
+            referencedRelation: "campaign_channels"
+            referencedColumns: ["code"]
+          },
+          {
+            foreignKeyName: "campaigns_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -717,7 +868,6 @@ export type Database = {
       }
       deal_files: {
         Row: {
-          category: string | null
           checksum: string | null
           client_id: string | null
           created_at: string
@@ -737,7 +887,6 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          category?: string | null
           checksum?: string | null
           client_id?: string | null
           created_at?: string
@@ -757,7 +906,6 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          category?: string | null
           checksum?: string | null
           client_id?: string | null
           created_at?: string
