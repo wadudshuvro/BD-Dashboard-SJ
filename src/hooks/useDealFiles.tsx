@@ -48,7 +48,7 @@ export function useDealFiles({ clientId, dealId, enabled = true }: UseDealFilesP
     setError(null);
 
     try {
-      let query = supabase.from('deal_files').select('*').order('last_synced_at', { ascending: false });
+      let query = supabase.from('deal_files').select('*').order('updated_at', { ascending: false });
 
       if (clientId) {
         query = query.eq('client_id', clientId);

@@ -476,18 +476,28 @@ async function listFolderFiles(folderId: string, accessToken: string, apiKey?: s
 
 async function downloadDriveFile(fileId: string, mimeType: string, accessToken: string, apiKey?: string): Promise<Uint8Array> {
   // Map Google Editor types to export formats (TEXT/CSV for AI)
-  const googleExportFormats: Record<string, string> = {
+  // null = skip these file types (not exportable as text)
+  const googleExportFormats: Record<string, string | null> = {
     'application/vnd.google-apps.document': 'text/plain',       // Docs → Plain text
     'application/vnd.google-apps.spreadsheet': 'text/csv',      // Sheets → CSV
-    'application/vnd.google-apps.presentation': 'text/plain'    // Slides → Plain text
+    'application/vnd.google-apps.presentation': 'text/plain',   // Slides → Plain text
+    'application/vnd.google-apps.form': null,                   // Forms → Skip (not exportable)
+    'application/vnd.google-apps.shortcut': null,               // Shortcuts → Skip
+    'application/vnd.google-apps.folder': null,                 // Folders → Skip
   };
 
   let url: string;
   const keyParam = apiKey ? `&key=${apiKey}` : "";
   
   // Check if it's a Google Editor file that needs export
-  if (googleExportFormats[mimeType]) {
+  if (googleExportFormats[mimeType] !== undefined) {
     const exportMimeType = googleExportFormats[mimeType];
+    
+    // Skip files that can't be exported as text
+    if (exportMimeType === null) {
+      throw new Error(`File type ${mimeType} cannot be exported (shortcut, folder, or form)`);
+    }
+    
     url = `https://www.googleapis.com/drive/v3/files/${fileId}/export?mimeType=${encodeURIComponent(exportMimeType)}${keyParam}`;
     console.log(`[Deal Files] Exporting Google Editor file ${fileId} as ${exportMimeType}`);
   } else {
