@@ -43,7 +43,7 @@ _Last Updated: 2025-02-18_
 ## Major Components & Responsibilities
 - **Admin Shell (`src/components/AdminLayout.tsx`):** Builds sidebar navigation, permission-aware routes, and feature hubs (documentation, KPIs, integrations, AI tooling).
 - **Authentication (`src/features/auth`):** Context providers, Supabase session management, and route guards enforced in `src/App.tsx`.
-- **Business Development Workflows (`src/pages/bd/*`):** POD management, target niche research, outbound campaign tracking, and control-tower synchronisation widgets.
+- **Business Development Workflows (`src/pages/bd/*`):** POD management, target niche research, the new campaign strategy board at `/bd/strategy/campaigns`, and control-tower synchronisation widgets.
 - **AI Automation (`src/pages/ai-agents`, `src/components/ai`):** Interfaces for configuring, executing, and auditing AI agents with streaming output.
 - **Feedback & Integrations (`src/pages/admin/IntegrationManager.tsx`, `supabase/functions/manage-feedback`):** Manage CRM connectors, handle product feedback pipelines, and review aggregated insights.
 - **Reporting & Video Studio (`src/pages/EODSubmission.tsx`, `src/pages/video/GeminiVideoStudioPage.tsx`):** Capture daily updates, orchestrate Gemini Veo renders, and present analytics snapshots.

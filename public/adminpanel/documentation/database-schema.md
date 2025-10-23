@@ -1229,7 +1229,68 @@ The Supabase Postgres database underpins authentication, CRM records, automation
 
 ---
 
-### Table: bd_campaigns
+### Table: campaigns
+
+| Field | Type | Default | Nullable | Description |
+| --- | --- | --- | --- | --- |
+| id | UUID | `gen_random_uuid()` | No | Primary key. |
+| pod_id | UUID | — | No | References `pods.id`. |
+| niche_id | UUID | — | No | References `target_niches.id` with cascade delete. |
+| name | Text | — | No | Campaign identifier shown in the strategy board. |
+| objective | Text | — | Yes | Strategic objective summary. |
+| channel_mix | Text[] | `{}` | Yes | Ordered list of channels (`linkedin`, `email`, `events`, etc.). |
+| status | campaign_status enum | `'planning'` | No | Board column (`planning`, `scheduled`, `active`, `cooldown`, `completed`, `archived`). |
+| launch_date | Date | — | Yes | Planned go-live date. |
+| end_date | Date | — | Yes | Planned wrap date. |
+| target_accounts | Integer | `0` | Yes | Accounts to engage in the cycle. |
+| owner_user_id | UUID | — | Yes | References primary owner in `users`. |
+| qa_reviewer_id | UUID | — | Yes | References QA reviewer in `users`. |
+| ai_brief_id | UUID | — | Yes | References `campaign_ai_briefs.id`. |
+| budget_usd | Numeric | — | Yes | Optional paid spend placeholder. |
+| created_by | UUID | — | No | References creator in `users`. |
+| created_at | Timestamptz | `now()` | No | Creation timestamp. |
+| updated_at | Timestamptz | `now()` | No | Auto-managed trigger. |
+
+**Sample Data**
+```json
+{
+  "id": "cf7d5b1d-90db-4d73-86bb-3b6e2c3064a9",
+  "pod_id": "06e7b3ed-e627-41e6-b267-4b5abfbead8d",
+  "niche_id": "a1111111-1111-1111-1111-111111111111",
+  "name": "Fintech Expansion Q2",
+  "objective": "Land 3 enterprise discovery calls in fintech infrastructure",
+  "channel_mix": ["linkedin", "email", "events"],
+  "status": "scheduled",
+  "launch_date": "2025-04-01",
+  "end_date": "2025-06-30",
+  "target_accounts": 120,
+  "owner_user_id": "06e7b3ed-e627-41e6-b267-4b5abfbead8d",
+  "qa_reviewer_id": "b3d5a68c-1f2a-4e71-8abf-27e2d5f0c123",
+  "ai_brief_id": "41c7c4f0-52d1-4ad4-a02b-6990a8a0dc3f",
+  "budget_usd": 2500,
+  "created_by": "06e7b3ed-e627-41e6-b267-4b5abfbead8d",
+  "created_at": "2025-03-01T08:00:00.000Z",
+  "updated_at": "2025-03-01T08:00:00.000Z"
+}
+```
+
+**RLS Policies:**
+- Owners, creators, and admins can **SELECT/UPDATE** rows tied to their POD.
+- Only admins and POD leads can **INSERT** new campaigns (validated via edge function guardrails).
+- `qa_reviewer_id` must match the QA reviewer role list to set status `scheduled` or `active`.
+- Deletions restricted to admins; archiving is preferred (status `archived`).
+
+#### Supporting Tables
+- **campaign_briefs** — Text brief + attachments per campaign (`campaign_id`, `brief`, `guardrails`, `updated_by`).
+- **campaign_ai_briefs** — AI prompt/response storage with version history (`campaign_id`, `prompt`, `response`, `model`, `created_by`).
+- **campaign_milestones** — Timeline checkpoints with `due_at`, `completed_at`, `owner_user_id`.
+- **campaign_channels** — Per-channel settings (`campaign_id`, `channel`, `cadence_json`, `integration_payload`, `status`).
+- **campaign_metrics_daily** — Daily aggregates for analytics dashboards (`campaign_id`, `date`, `contacts`, `responses`, `meetings`, `deals`, `influenced_pipeline_usd`).
+- **campaign_review_logs** — QA approvals (`campaign_id`, `reviewer_id`, `status`, `notes`, `reviewed_at`).
+
+---
+
+### Table: bd_campaigns (Legacy)
 
 | Field | Type | Default | Nullable | Description |
 | --- | --- | --- | --- | --- |
@@ -1279,10 +1340,10 @@ The Supabase Postgres database underpins authentication, CRM records, automation
 ```
 
 **RLS Policies:**
-- All authenticated users can **SELECT** (view all campaigns)
-- Authenticated users can **INSERT** their own campaigns (where `created_by = auth.uid()`)
-- Creators, owners, and admins can **UPDATE** campaigns
-- Creators and admins can **DELETE** campaigns
+- Table is read-only. All authenticated users can **SELECT** for historical reporting.
+- No **INSERT/UPDATE/DELETE** operations after the 2025-03 migration; enforced by triggers.
+
+**Migration Note:** Records migrated to `campaigns` include a `legacy_bd_campaign_id` column for traceability. The legacy view remains until Q3 2025 dashboards are updated.
 
 ---
 
