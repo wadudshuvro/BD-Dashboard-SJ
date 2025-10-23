@@ -219,7 +219,7 @@ serve(async (req) => {
           deal:deals!inner(control_tower_id)
         `)
         .eq("is_completed", true)
-        .is("control_tower_synced_at", null)
+        .eq("synced_to_control_tower", false)
         .order("completed_at", { ascending: true });
 
       if (entityIds?.length) {
@@ -274,7 +274,7 @@ serve(async (req) => {
 
           await supabase
             .from("deal_checklist_items")
-            .update({ control_tower_synced_at: new Date().toISOString() })
+            .update({ synced_to_control_tower: true })
             .eq("id", item.id);
 
           await supabase.from("control_tower_sync_log").insert({
