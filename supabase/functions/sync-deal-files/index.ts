@@ -73,7 +73,7 @@ interface GoogleServiceAccount {
 
 type ConversionResult = {
   payload: Record<string, unknown>;
-  parser: "pdfjs-dist" | "base64";
+  parser: "pdfjs-dist" | "base64" | "google-docs-text-export" | "google-sheets-csv-export" | "google-slides-text-export";
 };
 
 serve(async (req) => {
@@ -183,7 +183,7 @@ serve(async (req) => {
 
         for (const file of driveFiles) {
           try {
-            const fileBytes = await downloadDriveFile(file.id, accessToken, googleKey);
+            const fileBytes = await downloadDriveFile(file.id, file.mimeType, accessToken, googleKey);
             const conversion = await convertFileToJson(file, fileBytes);
             const storagePath = createStoragePath(deal.dealId, file);
 
@@ -474,13 +474,28 @@ async function listFolderFiles(folderId: string, accessToken: string, apiKey?: s
   return files;
 }
 
-async function downloadDriveFile(fileId: string, accessToken: string, apiKey?: string): Promise<Uint8Array> {
-  const params = new URLSearchParams({ alt: "media" });
-  if (apiKey) {
-    params.set("key", apiKey);
+async function downloadDriveFile(fileId: string, mimeType: string, accessToken: string, apiKey?: string): Promise<Uint8Array> {
+  // Map Google Editor types to export formats (TEXT/CSV for AI)
+  const googleExportFormats: Record<string, string> = {
+    'application/vnd.google-apps.document': 'text/plain',       // Docs → Plain text
+    'application/vnd.google-apps.spreadsheet': 'text/csv',      // Sheets → CSV
+    'application/vnd.google-apps.presentation': 'text/plain'    // Slides → Plain text
+  };
+
+  let url: string;
+  const keyParam = apiKey ? `&key=${apiKey}` : "";
+  
+  // Check if it's a Google Editor file that needs export
+  if (googleExportFormats[mimeType]) {
+    const exportMimeType = googleExportFormats[mimeType];
+    url = `https://www.googleapis.com/drive/v3/files/${fileId}/export?mimeType=${encodeURIComponent(exportMimeType)}${keyParam}`;
+    console.log(`[Deal Files] Exporting Google Editor file ${fileId} as ${exportMimeType}`);
+  } else {
+    // Regular binary files (PDFs, images, etc.)
+    url = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media${keyParam}`;
   }
 
-  const response = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?${params.toString()}`, {
+  const response = await fetch(url, {
     headers: {
       Authorization: `Bearer ${accessToken}`,
     },
@@ -488,7 +503,7 @@ async function downloadDriveFile(fileId: string, accessToken: string, apiKey?: s
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(`Failed to download Drive file ${fileId}: ${response.status} ${text}`);
+    throw new Error(`Failed to download/export Drive file ${fileId}: ${response.status} ${text}`);
   }
 
   const buffer = await response.arrayBuffer();
@@ -496,6 +511,68 @@ async function downloadDriveFile(fileId: string, accessToken: string, apiKey?: s
 }
 
 async function convertFileToJson(file: DriveFile, data: Uint8Array): Promise<ConversionResult> {
+  const textDecoder = new TextDecoder('utf-8');
+  
+  // Handle Google Docs (exported as plain text)
+  if (file.mimeType === 'application/vnd.google-apps.document') {
+    const textContent = textDecoder.decode(data);
+    return {
+      parser: "google-docs-text-export",
+      payload: {
+        type: "text",
+        source: "google_docs",
+        content: textContent,
+        characterCount: textContent.length,
+        wordCount: textContent.split(/\s+/).filter(w => w.length > 0).length,
+        metadata: {
+          originalName: file.name,
+          exportFormat: "text/plain",
+          modifiedTime: file.modifiedTime
+        }
+      }
+    };
+  }
+  
+  // Handle Google Sheets (exported as CSV)
+  if (file.mimeType === 'application/vnd.google-apps.spreadsheet') {
+    const csvContent = textDecoder.decode(data);
+    const rows = csvContent.split('\n').filter(row => row.trim().length > 0);
+    return {
+      parser: "google-sheets-csv-export",
+      payload: {
+        type: "csv",
+        source: "google_sheets",
+        content: csvContent,
+        rowCount: rows.length,
+        columnCount: rows[0]?.split(',').length || 0,
+        metadata: {
+          originalName: file.name,
+          exportFormat: "text/csv",
+          modifiedTime: file.modifiedTime
+        }
+      }
+    };
+  }
+  
+  // Handle Google Slides (exported as plain text)
+  if (file.mimeType === 'application/vnd.google-apps.presentation') {
+    const textContent = textDecoder.decode(data);
+    return {
+      parser: "google-slides-text-export",
+      payload: {
+        type: "text",
+        source: "google_slides",
+        content: textContent,
+        characterCount: textContent.length,
+        metadata: {
+          originalName: file.name,
+          exportFormat: "text/plain",
+          modifiedTime: file.modifiedTime
+        }
+      }
+    };
+  }
+
   if (file.mimeType === "application/pdf" && pdfjsLib?.getDocument) {
     try {
       const pdf = await pdfjsLib.getDocument({ data }).promise;
