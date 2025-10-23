@@ -20,7 +20,7 @@ const RequestSchema = z.object({
 type JsonRecord = Record<string, unknown>;
 
 const EXA_API_BASE_URL = "https://api.exa.ai";
-const WEBSETS_ENDPOINT = "/websets";
+const WEBSETS_ENDPOINT = "/websets/v0/websets";
 const MAX_POLL_DURATION_MS = 3 * 60 * 1000;
 const POLL_INTERVAL_MS = 2000;
 const RETRY_ATTEMPTS = 3;
@@ -173,7 +173,8 @@ async function fetchExaWebset(
   apiKey: string,
   query: string,
   maxResults: number,
-  filters?: { industries?: string[]; locations?: string[]; companySize?: string }
+  filters?: { industries?: string[]; locations?: string[]; companySize?: string },
+  externalId?: string
 ): Promise<{ websetId: string | null; status: string | null; items: unknown[] }> {
   const url = `${EXA_API_BASE_URL}${WEBSETS_ENDPOINT}`;
   const reqHeaders: HeadersInit = {
@@ -181,14 +182,57 @@ async function fetchExaWebset(
     Authorization: `Bearer ${apiKey}`,
   };
 
+  // Build criteria description from filters
+  const criteriaDescriptions: string[] = [];
+  if (filters?.industries && filters.industries.length > 0) {
+    criteriaDescriptions.push(`Industry: ${filters.industries.join(" OR ")}`);
+  }
+  if (filters?.locations && filters.locations.length > 0) {
+    criteriaDescriptions.push(`Location: ${filters.locations.join(" OR ")}`);
+  }
+  if (filters?.companySize) {
+    criteriaDescriptions.push(`Company size: ${filters.companySize}`);
+  }
+
+  // Construct proper Exa Websets API payload
   const payload: JsonRecord = {
-    query,
-    max_results: maxResults,
+    search: {
+      query,
+      count: maxResults,
+    },
   };
 
-  if (filters) {
-    payload.filters = filters;
+  // Add criteria if we have filters
+  if (criteriaDescriptions.length > 0) {
+    payload.criteria = [
+      {
+        description: criteriaDescriptions.join("; "),
+      },
+    ];
   }
+
+  // Add enrichments to get LinkedIn URLs and other data
+  payload.enrichments = [
+    {
+      description: "LinkedIn profile URL",
+      format: "text",
+    },
+    {
+      description: "Email address",
+      format: "text",
+    },
+    {
+      description: "Job title and company name",
+      format: "text",
+    },
+  ];
+
+  // Add external ID for tracking
+  if (externalId) {
+    payload.externalId = externalId;
+  }
+
+  console.log("[fetchExaWebset] Sending Websets API request:", JSON.stringify(payload, null, 2));
 
   const createResponse = await fetchWithRetry(() =>
     fetch(url, { method: "POST", headers: reqHeaders, body: JSON.stringify(payload) })
@@ -437,9 +481,10 @@ async function processLeadImportJob(
 
     console.log(`[processLeadImportJob] Starting job ${jobId} for campaign ${payload.campaignId}`);
 
-    // Call Exa.ai API
+    // Call Exa.ai Websets API with proper format
     const query = payload.keywords.join(" OR ");
-    const webset = await fetchExaWebset(exaApiKey, query, payload.maxResults, payload.filters);
+    const externalId = `campaign-${payload.campaignId}-import-${Date.now()}`;
+    const webset = await fetchExaWebset(exaApiKey, query, payload.maxResults, payload.filters, externalId);
 
     console.log(`[processLeadImportJob] Received ${webset.items.length} items from Exa`);
 
