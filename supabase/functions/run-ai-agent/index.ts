@@ -17,8 +17,14 @@ const AgentRunRequestSchema = z.object({
     timeframe: z.string().optional(),
     filters: z.record(z.any()).optional(),
     office_ids: z.array(z.string()).optional(),
-    user_id: z.string().uuid(),
-  }).default({ user_id: "" }),
+    user_id: z.string().uuid().optional(),
+    deal_id: z.string().uuid().optional(),
+    deal_title: z.string().optional(),
+    client_name: z.string().optional(),
+    deal_stage: z.string().optional(),
+  }).optional(),
+  file_ids: z.array(z.string().uuid()).optional(),
+  user_context: z.string().optional(),
 });
 
 const MetricsSchema = z.object({
@@ -61,6 +67,7 @@ interface DatabaseAgent {
   category: string;
   system_prompt: string;
   config?: AgentConfig;
+  prompt_template?: string;
 }
 
 interface SharedResourceRow {
@@ -131,12 +138,53 @@ async function fetchSharedResources(client: SupabaseClient, agentId: string): Pr
   return (data as SharedResourceRow[] | null) ?? [];
 }
 
+async function fetchFileContents(client: SupabaseClient, fileIds: string[]): Promise<string> {
+  if (!fileIds || fileIds.length === 0) return "";
+
+  const { data: files, error } = await client
+    .from("deal_files")
+    .select("id, drive_file_name, drive_file_type, storage_bucket_path, json_snapshot_path")
+    .in("id", fileIds);
+
+  if (error || !files || files.length === 0) return "";
+
+  const fileContents: string[] = [];
+  for (const file of files) {
+    const fileName = (file as any).drive_file_name || "Untitled Document";
+    const fileType = (file as any).drive_file_type || "unknown";
+    
+    fileContents.push(`\n### Document: ${fileName} (${fileType})\n`);
+    
+    const jsonPath = (file as any).json_snapshot_path;
+    if (jsonPath) {
+      try {
+        const { data: content } = await client.storage
+          .from("deal-files")
+          .download(jsonPath);
+        
+        if (content) {
+          const text = await content.text();
+          fileContents.push(text.substring(0, 10000)); // Limit to 10k chars per file
+        }
+      } catch (err) {
+        fileContents.push("[Could not retrieve file content]");
+      }
+    } else {
+      fileContents.push("[File preview not available]");
+    }
+  }
+
+  return fileContents.join("\n\n");
+}
+
 function assemblePrompt(
   agent: DatabaseAgent,
   businessContext: Record<string, unknown>,
   prompts: ConfigurationPayload["prompts"],
   executionContext: Record<string, unknown>,
   sharedResources: SharedResourceRow[],
+  fileContents?: string,
+  userContext?: string,
 ) {
   let systemPrompt: string = agent.system_prompt;
 
@@ -200,11 +248,22 @@ function assemblePrompt(
     confidence_score: 0.8
   }, null, 2);
 
-  const userPrompt = `You are executing the ${agent.name} agent.\n\n` +
-    `Contextual Filters: ${serializedContext}\n` +
-    `Primary Objective: ${defaultPrompt}\n\n` +
-    `Provide the result as JSON matching this schema:\n${responseTemplate}\n` +
-    `Only return valid JSON.`;
+  let userPrompt: string;
+  
+  if (agent.prompt_template) {
+    userPrompt = agent.prompt_template
+      .replace(/\{\{deal_title\}\}/g, executionContext.deal_title as string || "N/A")
+      .replace(/\{\{deal_stage\}\}/g, executionContext.deal_stage as string || "N/A")
+      .replace(/\{\{client_name\}\}/g, executionContext.client_name as string || "N/A")
+      .replace(/\{\{file_contents\}\}/g, fileContents || "[No documents provided]")
+      .replace(/\{\{user_context\}\}/g, userContext || "[No additional context]");
+  } else {
+    userPrompt = `You are executing the ${agent.name} agent.\n\n` +
+      `Contextual Filters: ${serializedContext}\n` +
+      `Primary Objective: ${defaultPrompt}\n\n` +
+      `Provide the result as JSON matching this schema:\n${responseTemplate}\n` +
+      `Only return valid JSON.`;
+  }
 
   return {
     systemPrompt,
@@ -261,6 +320,9 @@ async function persistRun(
     response: AgentResponse;
     providerTelemetry: ProviderTelemetry[];
     providerRawOutputs: unknown[];
+    selectedFileIds?: string[];
+    userContext?: string;
+    structuredOutput?: any;
   },
 ) {
   const { data, error } = await (client as any)
@@ -280,6 +342,9 @@ async function persistRun(
         rawOutputs: payload.providerRawOutputs,
       },
       provider_chain: payload.providerTelemetry,
+      selected_file_ids: payload.selectedFileIds || [],
+      user_context: payload.userContext,
+      structured_output: payload.structuredOutput || payload.response,
     })
     .select()
     .single();
@@ -309,11 +374,11 @@ serve(async (req) => {
     const json = await req.json();
     const payload = AgentRunRequestSchema.parse(json);
 
-    const { agent_id: agentId, execution_context: executionContext } = payload;
+    const { agent_id: agentId, execution_context: executionContext, file_ids: fileIds, user_context: userContext } = payload;
 
     const { data: agent, error: agentError } = await client
       .from("ai_agents")
-      .select("*, config")
+      .select("*, config, prompt_template")
       .eq("id", agentId)
       .single();
 
@@ -323,12 +388,17 @@ serve(async (req) => {
 
     const configs = await fetchConfigurations(client);
     const sharedResources = await fetchSharedResources(client, agentId);
+    
+    const fileContents = fileIds ? await fetchFileContents(client, fileIds) : "";
+    
     const { systemPrompt, userPrompt } = assemblePrompt(
       agent,
       configs.businessContext,
       configs.prompts,
-      executionContext,
+      executionContext || {},
       sharedResources,
+      fileContents,
+      userContext,
     );
 
     const providerChain = buildProviderChain((agent.config as any) || {}, configs.modelSettings?.default_model || "google/gemini-2.5-flash");
@@ -372,10 +442,13 @@ serve(async (req) => {
       agentId,
       userId,
       agentCategory: (agent as any).category ?? null,
-      executionContext,
+      executionContext: executionContext || {},
       response: parsedResponse,
       providerTelemetry: telemetry,
       providerRawOutputs: rawOutputs,
+      selectedFileIds: fileIds,
+      userContext,
+      structuredOutput: parsedResponse,
     });
 
     return new Response(
@@ -386,6 +459,7 @@ serve(async (req) => {
         findings: parsedResponse.findings,
         recommendations: parsedResponse.recommendations,
         action_items: parsedResponse.action_items,
+        structured_output: parsedResponse,
         telemetry,
       }),
       {

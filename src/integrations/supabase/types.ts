@@ -56,9 +56,12 @@ export type Database = {
           id: string
           input: Json | null
           output: Json | null
+          selected_file_ids: string[] | null
           started_at: string
           status: string | null
+          structured_output: Json | null
           title: string | null
+          user_context: string | null
         }
         Insert: {
           agent_id?: string | null
@@ -71,9 +74,12 @@ export type Database = {
           id?: string
           input?: Json | null
           output?: Json | null
+          selected_file_ids?: string[] | null
           started_at?: string
           status?: string | null
+          structured_output?: Json | null
           title?: string | null
+          user_context?: string | null
         }
         Update: {
           agent_id?: string | null
@@ -86,9 +92,12 @@ export type Database = {
           id?: string
           input?: Json | null
           output?: Json | null
+          selected_file_ids?: string[] | null
           started_at?: string
           status?: string | null
+          structured_output?: Json | null
           title?: string | null
+          user_context?: string | null
         }
         Relationships: [
           {
@@ -106,9 +115,11 @@ export type Database = {
           created_at: string
           created_by: string | null
           description: string | null
+          file_selection_config: Json | null
           id: string
           is_active: boolean | null
           name: string
+          prompt_template: string | null
           type: string
           updated_at: string
         }
@@ -117,9 +128,11 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           description?: string | null
+          file_selection_config?: Json | null
           id?: string
           is_active?: boolean | null
           name: string
+          prompt_template?: string | null
           type: string
           updated_at?: string
         }
@@ -128,9 +141,11 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           description?: string | null
+          file_selection_config?: Json | null
           id?: string
           is_active?: boolean | null
           name?: string
+          prompt_template?: string | null
           type?: string
           updated_at?: string
         }

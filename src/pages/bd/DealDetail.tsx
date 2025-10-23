@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { format, formatDistanceToNow } from 'date-fns';
 import {
   ArrowLeft,
@@ -48,8 +48,10 @@ import { useDealChecklist, useAddChecklistItem, useToggleChecklistItem, useDelet
 import { useDealSystemInfo } from '@/hooks/useDealSystemInfo';
 import { useDealFiles } from '@/hooks/useDealFiles';
 import { useSyncControlTowerDeals } from '@/hooks/useSyncControlTowerDeals';
+import { useRunBDAgent } from '@/hooks/useRunBDAgent';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import { AIAgentModal } from '@/components/ai/AIAgentModal';
 import type { DealFile } from '@/hooks/useDeals';
 
 interface DealExternalLinks {
@@ -156,8 +158,42 @@ const actionItems = [
   },
 ];
 
-const QuickActionsPanel = ({ dealId: _dealId, controlTowerId: _controlTowerId, externalLinks: _externalLinks }: QuickActionsPanelProps) => {
+const QuickActionsPanel = ({ dealId, controlTowerId: _controlTowerId, externalLinks: _externalLinks }: QuickActionsPanelProps) => {
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
+  const [activeAgent, setActiveAgent] = useState<{ id: string; name: string; description: string } | null>(null);
+  const [agentResult, setAgentResult] = useState<any>(null);
+  const { user } = useAuth();
+  
+  const { data: agents, isLoading: agentsLoading } = useQuery({
+    queryKey: ['bd-ai-agents'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('ai_agents')
+        .select('id, name, description')
+        .in('type', ['deal_analysis', 'proposal_review', 'objection_handling'])
+        .eq('is_active', true)
+        .order('name');
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: deal } = useQuery({
+    queryKey: ['deal', dealId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('deals')
+        .select('*, clients(*)')
+        .eq('id', dealId)
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const runAgent = useRunBDAgent();
 
   const handleAction = async (actionId: string) => {
     setLoadingAction(actionId);
@@ -166,33 +202,117 @@ const QuickActionsPanel = ({ dealId: _dealId, controlTowerId: _controlTowerId, e
     setLoadingAction(null);
   };
 
+  const handleAgentClick = (agent: { id: string; name: string; description: string }) => {
+    setActiveAgent(agent);
+    setAgentResult(null);
+  };
+
+  const handleAgentExecute = async (fileIds: string[], userContext: string) => {
+    if (!activeAgent || !deal) return;
+
+    try {
+      const result = await runAgent.mutateAsync({
+        agentId: activeAgent.id,
+        dealId: deal.id,
+        dealTitle: deal.title,
+        clientName: (deal as any).clients?.name,
+        dealStage: deal.stage || undefined,
+        fileIds,
+        userContext,
+      });
+
+      setAgentResult(result);
+    } catch (error) {
+      console.error('Agent execution error:', error);
+    }
+  };
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-          <Zap className="h-4 w-4" />
-          Quick Actions
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
-        {actionItems.map((action) => (
-          <Tooltip key={action.id}>
-            <TooltipTrigger asChild>
-              <Button
-                variant="outline"
-                className="w-full justify-start gap-2"
-                disabled
-                onClick={() => handleAction(action.id)}
-              >
-                <action.icon className="h-4 w-4" />
-                {loadingAction === action.id ? 'Loading…' : action.label}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{action.tooltip}</TooltipContent>
-          </Tooltip>
-        ))}
-      </CardContent>
-    </Card>
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+            <Zap className="h-4 w-4" />
+            Quick Actions
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* AI Agents Section */}
+          <div>
+            <h4 className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1">
+              <Bot className="h-3 w-3" />
+              AI Agents
+            </h4>
+            <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
+              {agentsLoading ? (
+                <div className="col-span-full flex items-center justify-center py-4">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : agents && agents.length > 0 ? (
+                agents.map((agent) => (
+                  <Button
+                    key={agent.id}
+                    variant="outline"
+                    className="w-full justify-start gap-2"
+                    onClick={() => handleAgentClick(agent)}
+                  >
+                    <Bot className="h-4 w-4" />
+                    {agent.name}
+                  </Button>
+                ))
+              ) : (
+                <p className="col-span-full text-xs text-muted-foreground">No agents available</p>
+              )}
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Other Actions */}
+          <div>
+            <h4 className="text-xs font-semibold text-muted-foreground mb-2">Other Actions</h4>
+            <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
+              {actionItems.map((action) => (
+                <Tooltip key={action.id}>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start gap-2"
+                      disabled
+                      onClick={() => handleAction(action.id)}
+                    >
+                      <action.icon className="h-4 w-4" />
+                      {loadingAction === action.id ? 'Loading…' : action.label}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{action.tooltip}</TooltipContent>
+                </Tooltip>
+              ))}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {activeAgent && (
+        <AIAgentModal
+          open={!!activeAgent}
+          onOpenChange={(open) => {
+            if (!open) {
+              setActiveAgent(null);
+              setAgentResult(null);
+            }
+          }}
+          agentId={activeAgent.id}
+          agentName={activeAgent.name}
+          agentDescription={activeAgent.description}
+          dealId={dealId}
+          dealTitle={deal?.title || ''}
+          onExecute={handleAgentExecute}
+          isLoading={runAgent.isPending}
+          result={agentResult}
+        />
+      )}
+    </>
   );
 };
 
