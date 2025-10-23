@@ -12,7 +12,5 @@ verify_jwt = true
 [functions.push-to-control-tower]
 verify_jwt = true
 
-[functions.admin-leads-exa-enrich]
-verify_jwt = true
-[functions.admin-leads-exa-import]
+[functions.admin-campaigns-exa-research]
 verify_jwt = true
