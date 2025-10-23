@@ -140,12 +140,20 @@ Deno.serve(async (req) => {
             }
           }
 
+          // Handle NULL titles from Control Tower with default value
+          const title = ctItem.title || `Checklist Item ${ctItem.order_index || 'Untitled'}`;
+          
+          // Log if we're using a default title
+          if (!ctItem.title) {
+            console.warn(`[Import] Item ${ctItem.id} has NULL title, using default: "${title}"`);
+          }
+
           const { error: upsertError } = await supabase
             .from('deal_checklist_items')
             .upsert({
               deal_id: deal.id,
               control_tower_item_id: ctItem.id,
-              title: ctItem.title,
+              title: title,
               is_completed: isCompleted,
               completed_at: completedAt,
               completed_by: completedBy,
