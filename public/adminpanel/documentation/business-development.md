@@ -114,7 +114,7 @@ Outbound campaign execution with conversion tracking.
 
 ### 3. Launching a Campaign
 
-**Navigation:** `/bd/campaigns`
+**Navigation:** `/bd/strategy/campaigns`
 
 **Steps:**
 1. Click "Create New Campaign"
@@ -137,7 +137,7 @@ Outbound campaign execution with conversion tracking.
 
 ### 4. Tracking Campaign Metrics
 
-**Navigation:** `/bd/campaigns` → Select campaign
+**Navigation:** `/bd/strategy/campaigns` → Select campaign card (legacy data still available under `/bd/campaigns` as read-only)
 
 **Update Metrics:**
 1. Edit campaign
