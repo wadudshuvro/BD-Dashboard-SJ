@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 
 export interface AgentConfigFeatures {
   enableResearch?: boolean;
@@ -21,20 +22,41 @@ export interface AgentConfigurationEnvelope {
   features?: AgentConfigFeatures;
 }
 
-export type AgentOutputAction = Record<string, unknown> & {
-  type?: string;
-  label?: string;
-};
-
-export type AgentOutputActions = AgentOutputAction[];
-
-export type AgentDataSourceConfig = Record<string, unknown>;
-
-export type AgentScheduleConfig = {
-  frequency?: string;
-  next_run_at?: string | null;
+export interface AgentDataSourceConfig {
+  tables?: string[];
+  documents?: string[];
   [key: string]: unknown;
-};
+}
+
+export interface AgentOutputActions {
+  create_tasks?: boolean;
+  send_alerts?: boolean;
+  [key: string]: unknown;
+}
+
+export interface AgentScheduleConfig {
+  schedule?: string;
+  frequency?: string;
+  run_at?: string;
+  timezone?: string;
+  [key: string]: unknown;
+}
+
+export interface AgentDetailsPayload {
+  name: string;
+  description?: string | null;
+  slug?: string | null;
+  category?: string | null;
+  type: string;
+  config: AgentConfigurationEnvelope;
+  is_active?: boolean | null;
+  is_enabled?: boolean | null;
+  system_prompt?: string | null;
+  prompt_template?: string | null;
+  data_source_config?: AgentDataSourceConfig | null;
+  output_actions?: AgentOutputActions | null;
+  schedule_config?: AgentScheduleConfig | null;
+}
 
 export interface AIAgent {
   id: string;
@@ -45,16 +67,16 @@ export interface AIAgent {
   type?: string | null;
   system_prompt?: string | null;
   config: AgentConfigurationEnvelope;
-  output_actions: AgentOutputActions;
-  data_source_config?: AgentDataSourceConfig | null;
-  schedule_config?: AgentScheduleConfig | null;
-  last_run_at?: string | null;
-  success_rate?: number | null;
-  is_active?: boolean;
-  is_enabled?: boolean;
+  is_active?: boolean | null;
+  is_enabled?: boolean | null;
   created_by?: string | null;
   created_at?: string;
   updated_at?: string;
+  system_prompt?: string | null;
+  prompt_template?: string | null;
+  data_source_config?: AgentDataSourceConfig | null;
+  output_actions?: AgentOutputActions | null;
+  schedule_config?: AgentScheduleConfig | null;
 }
 
 export interface AgentDashboardMetrics {
@@ -104,26 +126,7 @@ export async function listAgents(): Promise<AIAgent[]> {
   const { data, error } = await supabase
     .from("ai_agents")
     .select(
-      [
-        "id",
-        "name",
-        "description",
-        "slug",
-        "category",
-        "type",
-        "config",
-        "system_prompt",
-        "output_actions",
-        "data_source_config",
-        "schedule_config",
-        "last_run_at",
-        "success_rate",
-        "is_active",
-        "is_enabled",
-        "created_by",
-        "created_at",
-        "updated_at",
-      ].join(", "),
+      "id, name, description, slug, category, type, config, is_active, is_enabled, created_by, created_at, updated_at, system_prompt, prompt_template, data_source_config, output_actions, schedule_config",
     )
     .order("name", { ascending: true });
 
@@ -131,150 +134,32 @@ export async function listAgents(): Promise<AIAgent[]> {
   return (data ?? []).map((agent: any) => ({
     ...agent,
     config: (agent.config as AgentConfigurationEnvelope) || {},
-    output_actions: (agent.output_actions as AgentOutputActions) || [],
     data_source_config: (agent.data_source_config as AgentDataSourceConfig) || null,
+    output_actions: (agent.output_actions as AgentOutputActions) || null,
     schedule_config: (agent.schedule_config as AgentScheduleConfig) || null,
   }));
 }
 
-export async function updateAgentConfig(
-  agentId: string,
-  config: AgentConfigurationEnvelope,
-): Promise<AIAgent> {
-  const { data, error } = await supabase
-    .from("ai_agents")
-    .update({ config: config as any })
-    .eq("id", agentId)
-    .select(
-      "id, name, description, slug, category, type, config, system_prompt, output_actions, data_source_config, schedule_config, last_run_at, success_rate, is_active, is_enabled, created_by, created_at, updated_at",
-    )
-    .single();
-
-  handleError(error, "Unable to update agent configuration");
-  return {
-    ...data!,
-    config: (data?.config as AgentConfigurationEnvelope) || {},
-    output_actions: (data?.output_actions as AgentOutputActions) || [],
-    data_source_config: (data?.data_source_config as AgentDataSourceConfig) || null,
-    schedule_config: (data?.schedule_config as AgentScheduleConfig) || null,
-  };
-}
-
-export async function fetchAgentDashboardMetrics(agentId: string): Promise<AgentDashboardMetrics> {
-  const { data, error } = await supabase
-    .from("ai_agent_runs")
-    .select("status, created_at")
-    .eq("agent_id", agentId)
-    .order("created_at", { ascending: false });
-
-  handleError(error, "Unable to fetch agent metrics");
-  const runs = data ?? [];
-  const successfulStatuses = new Set(["completed", "success", "succeeded"]);
-  const failedStatuses = new Set(["failed", "error"]);
-
-  return {
-    agentId,
-    totalRuns: runs.length,
-    successfulRuns: runs.filter((run) => (run.status ? successfulStatuses.has(run.status) : false)).length,
-    failedRuns: runs.filter((run) => (run.status ? failedStatuses.has(run.status) : false)).length,
-    lastRunAt: runs.length > 0 ? runs[0].created_at : null,
-  };
-}
-
-export interface AgentTemplate {
-  id: string;
-  name: string;
-  description?: string | null;
-  category?: string | null;
-  provider: string;
-  model?: string | null;
-  template_config: Record<string, unknown>;
-  is_public?: boolean | null;
-  created_by?: string | null;
-  created_at?: string | null;
-  updated_at?: string | null;
-}
-
-export async function listAgentTemplates(): Promise<AgentTemplate[]> {
-  const { data, error } = await supabase
-    .from("ai_agent_templates")
-    .select(
-      "id, name, description, category, provider, model, template_config, is_public, created_by, created_at, updated_at",
-    )
-    .order("name", { ascending: true });
-
-  handleError(error, "Unable to fetch agent templates");
-  return (data ?? []).map((template) => ({
-    ...template,
-    template_config: (template.template_config as Record<string, unknown>) || {},
-  }));
-}
-
-export interface BusinessContext {
-  id: string;
-  name: string;
-  description?: string | null;
-  context_type: string;
-  data: Record<string, unknown>;
-  is_active?: boolean | null;
-  created_by?: string | null;
-  created_at?: string | null;
-  updated_at?: string | null;
-}
-
-export async function listBusinessContexts(): Promise<BusinessContext[]> {
-  const { data, error } = await supabase
-    .from("ai_business_context")
-    .select("id, name, description, context_type, data, is_active, created_by, created_at, updated_at")
-    .order("name", { ascending: true });
-
-  handleError(error, "Unable to fetch business contexts");
-  return (data ?? []).map((context) => ({
-    ...context,
-    data: (context.data as Record<string, unknown>) || {},
-  }));
-}
-
-export interface CreateAgentPayload {
-  name: string;
-  type: string;
-  description?: string | null;
-  slug?: string | null;
-  category?: string | null;
-  system_prompt?: string | null;
-  config?: AgentConfigurationEnvelope;
-  output_actions?: AgentOutputActions;
-  data_source_config?: AgentDataSourceConfig | null;
-  schedule_config?: AgentScheduleConfig | null;
-  last_run_at?: string | null;
-  success_rate?: number | null;
-  is_active?: boolean | null;
-  is_enabled?: boolean | null;
-  created_by?: string | null;
-}
-
-export async function createAgent(payload: CreateAgentPayload): Promise<AIAgent> {
+export async function createAgent(payload: AgentDetailsPayload): Promise<AIAgent> {
   const { data, error } = await supabase
     .from("ai_agents")
     .insert({
       name: payload.name,
-      type: payload.type,
       description: payload.description ?? null,
       slug: payload.slug ?? null,
       category: payload.category ?? null,
-      system_prompt: payload.system_prompt ?? null,
-      config: (payload.config ?? {}) as any,
-      output_actions: (payload.output_actions ?? []) as any,
-      data_source_config: (payload.data_source_config ?? null) as any,
-      schedule_config: (payload.schedule_config ?? null) as any,
-      last_run_at: payload.last_run_at ?? null,
-      success_rate: payload.success_rate ?? null,
+      type: payload.type,
+      config: (payload.config || {}) as Json,
       is_active: payload.is_active ?? null,
       is_enabled: payload.is_enabled ?? null,
-      created_by: payload.created_by ?? null,
-    } as any)
+      system_prompt: payload.system_prompt ?? null,
+      prompt_template: payload.prompt_template ?? null,
+      data_source_config: (payload.data_source_config ?? null) as Json,
+      output_actions: (payload.output_actions ?? null) as Json,
+      schedule_config: (payload.schedule_config ?? null) as Json,
+    })
     .select(
-      "id, name, description, slug, category, type, config, system_prompt, output_actions, data_source_config, schedule_config, last_run_at, success_rate, is_active, is_enabled, created_by, created_at, updated_at",
+      "id, name, description, slug, category, type, config, is_active, is_enabled, created_by, created_at, updated_at, system_prompt, prompt_template, data_source_config, output_actions, schedule_config",
     )
     .single();
 
@@ -282,93 +167,42 @@ export async function createAgent(payload: CreateAgentPayload): Promise<AIAgent>
   return {
     ...data!,
     config: (data?.config as AgentConfigurationEnvelope) || {},
-    output_actions: (data?.output_actions as AgentOutputActions) || [],
     data_source_config: (data?.data_source_config as AgentDataSourceConfig) || null,
+    output_actions: (data?.output_actions as AgentOutputActions) || null,
     schedule_config: (data?.schedule_config as AgentScheduleConfig) || null,
   };
 }
 
-export interface UpdateAgentDetailsPayload {
-  name?: string;
-  type?: string;
-  description?: string | null;
-  slug?: string | null;
-  category?: string | null;
-  system_prompt?: string | null;
-  output_actions?: AgentOutputActions;
-  data_source_config?: AgentDataSourceConfig | null;
-  schedule_config?: AgentScheduleConfig | null;
-  last_run_at?: string | null;
-  success_rate?: number | null;
-  is_active?: boolean | null;
-  is_enabled?: boolean | null;
-}
-
-export async function updateAgentDetails(
-  agentId: string,
-  payload: UpdateAgentDetailsPayload,
-): Promise<AIAgent> {
-  const updates: Record<string, unknown> = {};
-
-  if (payload.name !== undefined) {
-    updates.name = payload.name;
-  }
-  if (payload.type !== undefined) {
-    updates.type = payload.type;
-  }
-  if (payload.description !== undefined) {
-    updates.description = payload.description ?? null;
-  }
-  if (payload.slug !== undefined) {
-    updates.slug = payload.slug ?? null;
-  }
-  if (payload.category !== undefined) {
-    updates.category = payload.category ?? null;
-  }
-  if (payload.system_prompt !== undefined) {
-    updates.system_prompt = payload.system_prompt ?? null;
-  }
-  if (payload.output_actions !== undefined) {
-    updates.output_actions = payload.output_actions ?? [];
-  }
-  if (payload.data_source_config !== undefined) {
-    updates.data_source_config = payload.data_source_config ?? null;
-  }
-  if (payload.schedule_config !== undefined) {
-    updates.schedule_config = payload.schedule_config ?? null;
-  }
-  if (payload.last_run_at !== undefined) {
-    updates.last_run_at = payload.last_run_at ?? null;
-  }
-  if (payload.success_rate !== undefined) {
-    updates.success_rate = payload.success_rate ?? null;
-  }
-  if (payload.is_active !== undefined) {
-    updates.is_active = payload.is_active;
-  }
-  if (payload.is_enabled !== undefined) {
-    updates.is_enabled = payload.is_enabled;
-  }
-
-  if (Object.keys(updates).length === 0) {
-    throw new Error("No updates provided");
-  }
-
+export async function updateAgentDetails(agentId: string, payload: Partial<AgentDetailsPayload>): Promise<AIAgent> {
   const { data, error } = await supabase
     .from("ai_agents")
-    .update(updates)
+    .update({
+      name: payload.name,
+      description: payload.description,
+      slug: payload.slug,
+      category: payload.category,
+      type: payload.type,
+      config: (payload.config || {}) as Json,
+      is_active: payload.is_active,
+      is_enabled: payload.is_enabled,
+      system_prompt: payload.system_prompt,
+      prompt_template: payload.prompt_template,
+      data_source_config: payload.data_source_config as Json | null | undefined,
+      output_actions: payload.output_actions as Json | null | undefined,
+      schedule_config: payload.schedule_config as Json | null | undefined,
+    })
     .eq("id", agentId)
     .select(
-      "id, name, description, slug, category, type, config, system_prompt, output_actions, data_source_config, schedule_config, last_run_at, success_rate, is_active, is_enabled, created_by, created_at, updated_at",
+      "id, name, description, slug, category, type, config, is_active, is_enabled, created_by, created_at, updated_at, system_prompt, prompt_template, data_source_config, output_actions, schedule_config",
     )
     .single();
 
-  handleError(error, "Unable to update agent details");
+  handleError(error, "Unable to update agent");
   return {
     ...data!,
     config: (data?.config as AgentConfigurationEnvelope) || {},
-    output_actions: (data?.output_actions as AgentOutputActions) || [],
     data_source_config: (data?.data_source_config as AgentDataSourceConfig) || null,
+    output_actions: (data?.output_actions as AgentOutputActions) || null,
     schedule_config: (data?.schedule_config as AgentScheduleConfig) || null,
   };
 }
