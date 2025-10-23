@@ -18,6 +18,7 @@ Edge Functions expect the following environment variables to be configured:
 | `GEMINI_API_KEY` | Optional Gemini provider support |
 | `PERPLEXITY_API_KEY` | Enables Perplexity research provider |
 | `ANTHROPIC_API_KEY` | Optional Claude routing |
+| `EXA_API_KEY` | Required for Exa-powered research and enrichment edge functions |
 | `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | Supabase service authentication for Edge Functions |
 
 **Important**: The secret name must be exactly `OPENAI_API_KEY` (not `OPENAI_KEY` or any other variant) for both the Integration Hub test function and the AI agent framework to work correctly.
@@ -41,5 +42,8 @@ Edge Functions expect the following environment variables to be configured:
 ## Deployment checklist
 1. Run Supabase migrations: `supabase db push`.
 2. Deploy Edge Functions: `supabase functions deploy run-ai-agent create-company-vector-store linkedin-upload-file-to-openai`.
-3. Update environment variables for OpenAI, Gemini, Perplexity, and Anthropic providers.
+3. Update environment variables for OpenAI, Gemini, Perplexity, Anthropic, and Exa providers. For Exa, run:
+   ```bash
+   supabase functions secrets set EXA_API_KEY=<value>
+   ```
 4. Rebuild the frontend (`npm run build`) to surface the LinkedIn configuration dashboard.
