@@ -14,7 +14,7 @@ export interface AxiosResponse<T> {
   data: T;
 }
 
-const baseURL = import.meta.env.VITE_API_BASE_URL ?? "";
+const baseURL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
 
 const buildUrl = (url: string, params?: RequestParams) => {
   if (!params) {
