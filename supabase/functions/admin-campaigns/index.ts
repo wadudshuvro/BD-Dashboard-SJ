@@ -720,8 +720,12 @@ async function handleDelete(client: SupabaseClient, campaignId: string) {
 }
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, {
+      status: 204,
+      headers: corsHeaders,
+    });
   }
 
   try {
@@ -763,9 +767,15 @@ serve(async (req) => {
 
     return jsonResponse({ error: "Not found" }, 404);
   } catch (error) {
-    const status = error instanceof Error && error.message === "Unauthorized" ? 401 : 400;
-    console.error("[admin-campaigns]", error);
-    return jsonResponse({ error: error instanceof Error ? error.message : "Unknown error" }, status);
+    const status = error instanceof Error && error.message === "Unauthorized" ? 401 : 
+                   error instanceof Error && error.message === "Campaign not found" ? 404 : 400;
+    console.error("[admin-campaigns] Error:", error);
+    return new Response(JSON.stringify({ 
+      error: error instanceof Error ? error.message : "Unknown error" 
+    }), {
+      status,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });
 
