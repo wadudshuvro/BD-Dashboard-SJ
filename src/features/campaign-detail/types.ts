@@ -1,0 +1,154 @@
+import type { BDCampaign } from "@/hooks/useBDCampaigns";
+
+export type CampaignContactStatus =
+  | "identified"
+  | "researched"
+  | "contacted_linkedin"
+  | "connected"
+  | "messaged"
+  | "contacted_email"
+  | "responded"
+  | "meeting_booked";
+
+export interface CampaignContact {
+  id: string;
+  campaign_id: string;
+  contact_name: string;
+  contact_email?: string | null;
+  contact_linkedin_url?: string | null;
+  contact_company?: string | null;
+  status: CampaignContactStatus;
+  linkedin_request_sent_at?: string | null;
+  linkedin_accepted_at?: string | null;
+  linkedin_message_sent_at?: string | null;
+  email_sent_at?: string | null;
+  last_activity_at?: string | null;
+  research_summary?: Record<string, unknown> | null;
+  personalization_notes?: string | null;
+  assigned_to?: string | null;
+  created_by?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CampaignActivity {
+  id: string;
+  campaign_id: string;
+  contact_id?: string | null;
+  activity_type:
+    | "linkedin_request"
+    | "linkedin_message"
+    | "email_sent"
+    | "response_received"
+    | "meeting_booked"
+    | "task_updated"
+    | "ai_summary_created";
+  activity_data?: Record<string, unknown> | null;
+  performed_by?: string | null;
+  performed_at: string;
+  ai_generated?: boolean | null;
+  created_at: string;
+}
+
+export interface CampaignAITask {
+  id: string;
+  campaign_id: string;
+  contact_id?: string | null;
+  task_type:
+    | "research"
+    | "email_generation"
+    | "message_generation"
+    | "personalization"
+    | "summary"
+    | "analysis";
+  agent_id?: string | null;
+  input_data?: Record<string, unknown> | null;
+  output_data?: Record<string, unknown> | null;
+  status: "pending" | "running" | "completed" | "failed";
+  created_at: string;
+  updated_at: string;
+  completed_at?: string | null;
+}
+
+export interface CampaignKpi {
+  id: string;
+  label: string;
+  target_value?: number | null;
+  current_value?: number | null;
+  unit?: string | null;
+  trend?: number | null;
+  updated_at?: string | null;
+  source?: string | null;
+}
+
+export interface CampaignAnalyticsPoint {
+  id: string;
+  metric: string;
+  value: number;
+  recorded_at: string;
+  comparison_value?: number | null;
+  source?: string | null;
+}
+
+export interface CampaignProjectTask {
+  id: string;
+  name: string;
+  status: "todo" | "in_progress" | "blocked" | "complete" | "archived";
+  due_date?: string | null;
+  completed_at?: string | null;
+  assignee?: string | null;
+  ai_summary?: string | null;
+  last_activity_at?: string | null;
+  created_at?: string | null;
+}
+
+export interface CampaignAIAgentRun {
+  id: string;
+  agent_id?: string | null;
+  agent_name?: string | null;
+  status: "pending" | "running" | "completed" | "failed";
+  started_at: string;
+  completed_at?: string | null;
+  output_summary?: string | null;
+}
+
+export type IntegrationStatusValue =
+  | "synced"
+  | "pending"
+  | "error"
+  | "not_configured"
+  | "disabled";
+
+export interface CampaignIntegrationStatus {
+  status: IntegrationStatusValue;
+  last_synced_at?: string | null;
+  message?: string | null;
+}
+
+export interface CampaignDetailIntegrations {
+  n8n?: CampaignIntegrationStatus;
+  hubspot?: CampaignIntegrationStatus;
+  ghl?: CampaignIntegrationStatus;
+}
+
+export interface CampaignDetailResponse {
+  campaign: BDCampaign & {
+    ai_summary?: string | null;
+    ai_post_mortem?: string | null;
+    insights_summary?: string | null;
+  };
+  contacts?: CampaignContact[];
+  activities?: CampaignActivity[];
+  ai_tasks?: CampaignAITask[];
+  linked_kpis?: CampaignKpi[];
+  analytics_data?: CampaignAnalyticsPoint[];
+  project_tasks?: CampaignProjectTask[];
+  ai_agent_runs?: CampaignAIAgentRun[];
+  integrations?: CampaignDetailIntegrations;
+}
+
+export interface UpdateCampaignPayload {
+  status?: string;
+  trigger_ai_summary?: boolean;
+  archived?: boolean;
+}
