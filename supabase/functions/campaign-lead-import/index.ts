@@ -108,7 +108,7 @@ serve(async (req) => {
         user_id: user.id,
         campaign_id: payload.campaignId,
         job_type: "campaign",
-        status: "queued",
+        status: "pending",
         notify_email: user.email,
         criteria: {
           keywords: payload.keywords,
@@ -145,7 +145,7 @@ serve(async (req) => {
       JSON.stringify({
         success: true,
         job_id: job.id,
-        status: "queued",
+        status: "pending",
         message: "Lead import started. You will be notified via email when complete.",
         estimated_time: "2-5 minutes",
       }),
@@ -473,10 +473,10 @@ async function processLeadImportJob(
   userId: string
 ) {
   try {
-    // Update status to processing
+    // Update status to running
     await supabase
       .from("lead_import_jobs")
-      .update({ status: "processing", started_at: new Date().toISOString() })
+      .update({ status: "running", started_at: new Date().toISOString() })
       .eq("id", jobId);
 
     console.log(`[processLeadImportJob] Starting job ${jobId} for campaign ${payload.campaignId}`);

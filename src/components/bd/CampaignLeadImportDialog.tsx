@@ -32,7 +32,7 @@ export function CampaignLeadImportDialog({
   const [isImporting, setIsImporting] = useState(false);
   const [jobStatus, setJobStatus] = useState<{
     id: string;
-    status: "queued" | "processing" | "completed" | "failed";
+    status: "pending" | "running" | "completed" | "failed";
     progress?: string;
     result?: { imported: number; updated: number };
   } | null>(null);
@@ -101,7 +101,7 @@ export function CampaignLeadImportDialog({
       if (error) throw error;
 
       // Store job info and start polling
-      setJobStatus({ id: data.job_id, status: "queued" });
+      setJobStatus({ id: data.job_id, status: "pending" });
       startPollingJobStatus(data.job_id);
     } catch (error) {
       console.error("Lead import failed:", error);
@@ -125,8 +125,8 @@ export function CampaignLeadImportDialog({
       if (!job) return;
 
       const statusMap: Record<string, string> = {
-        queued: "Queued for processing...",
-        processing: "Searching for leads...",
+        pending: "Queued for processing...",
+        running: "Searching for leads...",
         completed: "Import complete!",
         failed: "Import failed",
       };
@@ -240,12 +240,12 @@ export function CampaignLeadImportDialog({
           {/* Job Status */}
           {jobStatus && (
             <Alert variant={jobStatus.status === "failed" ? "destructive" : "default"}>
-              <Loader2 className={`h-4 w-4 ${jobStatus.status === "processing" || jobStatus.status === "queued" ? "animate-spin" : ""}`} />
+              <Loader2 className={`h-4 w-4 ${jobStatus.status === "running" || jobStatus.status === "pending" ? "animate-spin" : ""}`} />
               <AlertTitle>
                 {jobStatus.status === "completed" && "Import Complete!"}
                 {jobStatus.status === "failed" && "Import Failed"}
-                {jobStatus.status === "processing" && "Import in Progress"}
-                {jobStatus.status === "queued" && "Queued for Processing"}
+                {jobStatus.status === "running" && "Import in Progress"}
+                {jobStatus.status === "pending" && "Queued for Processing"}
               </AlertTitle>
               <AlertDescription>
                 {jobStatus.progress}
