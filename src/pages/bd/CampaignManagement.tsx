@@ -32,6 +32,7 @@ import { useBDCampaigns } from '@/hooks/useBDCampaigns';
 import type { BDCampaign } from '@/hooks/useBDCampaigns';
 import { useTargetNiches } from '@/hooks/useTargetNiches';
 import type { TargetNiche } from '@/hooks/useTargetNiches';
+import { CampaignDialog } from '@/components/bd/CampaignDialog';
 
 type AggregateStats = {
   totalContacts: number;
@@ -48,11 +49,15 @@ type AggregateStats = {
 
 export default function CampaignManagement() {
   const pagination = usePagination(12);
-  const { campaigns, total, isLoading } = useBDCampaigns(undefined, pagination.currentPage, pagination.pageSize);
+  const { campaigns, total, isLoading } = useBDCampaigns(
+    undefined,
+    pagination.currentPage,
+    pagination.pageSize,
+  );
   const { niches } = useTargetNiches();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [, setDialogOpen] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
   
   const totalPages = Math.ceil(total / pagination.pageSize);
 
@@ -150,7 +155,9 @@ export default function CampaignManagement() {
   if (isLoading) return <div>Loading campaigns...</div>;
 
   return (
-    <div className="container mx-auto py-8">
+    <>
+      <CampaignDialog open={dialogOpen} onOpenChange={setDialogOpen} niches={niches} />
+      <div className="container mx-auto py-8">
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-3xl font-bold">Campaign Management</h1>
@@ -252,7 +259,8 @@ export default function CampaignManagement() {
           </Pagination>
         )}
       </div>
-    </div>
+      </div>
+    </>
   );
 }
 
