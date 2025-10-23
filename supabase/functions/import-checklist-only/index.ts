@@ -44,24 +44,18 @@ Deno.serve(async (req) => {
       throw new Error('Unauthorized');
     }
 
-    // Get Control Tower configuration
-    const { data: integrationConfig, error: configError } = await supabase
-      .from('integrations')
-      .select('config')
-      .eq('name', 'control_tower')
-      .maybeSingle();
+    // Get Control Tower credentials from edge secrets (matching sync-control-tower-deals pattern)
+    const envUrl = Deno.env.get('Controltowerurl');
+    const envKey = Deno.env.get('CONTROLTOWERAPIKEY');
 
-    if (configError || !integrationConfig?.config) {
-      throw new Error('Control Tower not configured. Please configure Control Tower in Admin Settings.');
+    if (!envUrl || !envKey) {
+      throw new Error('Control Tower credentials not configured in edge secrets');
     }
 
-    const ctConfig = integrationConfig.config as { url?: string; anon_key?: string };
-    if (!ctConfig.url || !ctConfig.anon_key) {
-      throw new Error('Invalid Control Tower configuration');
-    }
+    console.log('[Import] Using Control Tower credentials from edge secrets');
 
     // Initialize Control Tower client
-    const controlTowerClient = createClient(ctConfig.url, ctConfig.anon_key);
+    const controlTowerClient = createClient(envUrl, envKey);
 
     // Parse optional dealId from body
     const body = await req.json().catch(() => ({}));
