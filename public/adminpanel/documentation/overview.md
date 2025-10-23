@@ -37,8 +37,16 @@ _Last Updated: 2025-02-18_
 | `VITE_CONTROL_TOWER_URL` | Vite client | Control Tower Supabase instance used for deal synchronization (`src/hooks/useControlTowerConfig.ts`). |
 | `VITE_CONTROL_TOWER_ANON_KEY` | Vite client | Public anon key for Control Tower Supabase access. |
 | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | Supabase CLI / Edge | Required for local edge function execution, migrations, and server-side Supabase clients. |
+| `OPENAI_API_KEY`, `GEMINI_API_KEY` | Edge functions | Provider keys consumed by AI edge functions (`run-ai-agent`, `generate-code`, `gemini-veo-manager`). |
+| `EXA_API_KEY`, `VITE_EXA_API_KEY` | Edge functions / Vite client | **New.** Powers the Exa research proxy and (optionally) local client-side previews documented in [Exa Search Integration](exa-integration.md). |
 | `OPENAI_API_KEY`, `GEMINI_API_KEY`, `EXA_API_KEY` | Edge functions | Provider keys consumed by AI edge functions (`run-ai-agent`, `generate-code`, `gemini-veo-manager`, Exa research utilities). |
 | `HUBSPOT_PRIVATE_APP_TOKEN`, `GHL_API_KEY` | Edge functions secrets | CRM integration tokens decrypted by `integrations-dashboard` and related sync functions. |
+
+### Permissions Modules Snapshot
+- `user_permissions.modules.aiResearch` — Grants access to the Exa Research Workbench surface.
+- `user_permissions.modules.intelBriefings` — Unlocks the intelligence briefings generated from Exa snapshots.
+
+Assign these modules alongside existing `dashboard`, `taskHub`, `reports`, `settings`, and `adminPanel` toggles to keep access synchronized across admin roles.
 
 ## Major Components & Responsibilities
 - **Admin Shell (`src/components/AdminLayout.tsx`):** Builds sidebar navigation, permission-aware routes, and feature hubs (documentation, KPIs, integrations, AI tooling).
