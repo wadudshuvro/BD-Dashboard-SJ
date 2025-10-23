@@ -128,7 +128,7 @@ export async function listAgents(): Promise<AIAgent[]> {
     .order("name", { ascending: true });
 
   handleError(error, "Unable to fetch AI agents");
-  return (data ?? []).map((agent) => ({
+  return (data ?? []).map((agent: any) => ({
     ...agent,
     config: (agent.config as AgentConfigurationEnvelope) || {},
     output_actions: (agent.output_actions as AgentOutputActions) || [],
@@ -143,7 +143,7 @@ export async function updateAgentConfig(
 ): Promise<AIAgent> {
   const { data, error } = await supabase
     .from("ai_agents")
-    .update({ config: config as unknown as Record<string, unknown> })
+    .update({ config: config as any })
     .eq("id", agentId)
     .select(
       "id, name, description, slug, category, type, config, system_prompt, output_actions, data_source_config, schedule_config, last_run_at, success_rate, is_active, is_enabled, created_by, created_at, updated_at",
@@ -263,16 +263,16 @@ export async function createAgent(payload: CreateAgentPayload): Promise<AIAgent>
       slug: payload.slug ?? null,
       category: payload.category ?? null,
       system_prompt: payload.system_prompt ?? null,
-      config: (payload.config ?? {}) as Record<string, unknown>,
-      output_actions: payload.output_actions ?? [],
-      data_source_config: payload.data_source_config ?? null,
-      schedule_config: payload.schedule_config ?? null,
+      config: (payload.config ?? {}) as any,
+      output_actions: (payload.output_actions ?? []) as any,
+      data_source_config: (payload.data_source_config ?? null) as any,
+      schedule_config: (payload.schedule_config ?? null) as any,
       last_run_at: payload.last_run_at ?? null,
       success_rate: payload.success_rate ?? null,
       is_active: payload.is_active ?? null,
       is_enabled: payload.is_enabled ?? null,
       created_by: payload.created_by ?? null,
-    })
+    } as any)
     .select(
       "id, name, description, slug, category, type, config, system_prompt, output_actions, data_source_config, schedule_config, last_run_at, success_rate, is_active, is_enabled, created_by, created_at, updated_at",
     )
