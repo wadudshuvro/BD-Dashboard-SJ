@@ -48,6 +48,7 @@ export interface CampaignSummary {
   linkedin_stats: Record<string, unknown> | null;
   ghl_stats: Record<string, unknown> | null;
   contacts_summary: unknown;
+  metadata?: Record<string, unknown> | null;
   start_date: string | null;
   end_date: string | null;
   target_contacts: string[] | null;
@@ -82,6 +83,7 @@ export interface CampaignPayload {
   linkedin_stats?: Record<string, unknown> | null;
   ghl_stats?: Record<string, unknown> | null;
   contacts_summary?: unknown;
+  metadata?: Record<string, unknown> | null;
   start_date?: string | null;
   end_date?: string | null;
   target_contacts?: string[] | null;
