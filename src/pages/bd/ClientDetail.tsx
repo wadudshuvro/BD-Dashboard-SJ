@@ -309,6 +309,7 @@ export default function ClientDetail() {
                   <TableRow>
                     <TableHead>File Name</TableHead>
                     <TableHead>Source</TableHead>
+                    <TableHead>Category</TableHead>
                     <TableHead>Last Sync</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
@@ -323,6 +324,13 @@ export default function ClientDetail() {
                       <TableRow key={file.id}>
                         <TableCell className="font-medium">{file.drive_file_name || 'Untitled File'}</TableCell>
                         <TableCell>Google Drive</TableCell>
+                        <TableCell>
+                          {file.category ? (
+                            <Badge variant="outline">{file.category}</Badge>
+                          ) : (
+                            <span className="text-sm text-muted-foreground">Uncategorized</span>
+                          )}
+                        </TableCell>
                         <TableCell>
                           <div className="flex flex-col">
                             <span>{formatDate(lastSync, true)}</span>

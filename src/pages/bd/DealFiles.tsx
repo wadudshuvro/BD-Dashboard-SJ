@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,9 +10,8 @@ import {
   RefreshCw,
   Loader2,
   FileCheck,
-  Download,
 } from "lucide-react";
-import { useDealFiles } from "@/hooks/useDealFiles";
+import { useDealFiles, type DealFile } from "@/hooks/useDealFiles";
 import { useDealSystemInfo } from "@/hooks/useDealSystemInfo";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -23,6 +22,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { formatDistance } from "date-fns";
 
 interface Deal {
@@ -32,12 +38,17 @@ interface Deal {
   google_drive_folder_id: string | null;
 }
 
+const CATEGORY_OPTIONS = ["Proposal", "Meeting Files", "User Story", "Other"] as const;
+const UNCATEGORIZED_VALUE = "uncategorized";
+
 export default function DealFiles() {
   const { stage, slug } = useParams();
   const { toast } = useToast();
   const [deal, setDeal] = useState<Deal | null>(null);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [localFiles, setLocalFiles] = useState<DealFile[]>([]);
+  const [updatingFileId, setUpdatingFileId] = useState<string | null>(null);
 
   // Extract deal ID from slug (last segment after last dash)
   const dealIdMatch = slug?.match(/([a-f0-9-]{36})$/);
@@ -49,6 +60,10 @@ export default function DealFiles() {
   });
 
   const { data: systemInfo } = useDealSystemInfo(dealId || "", deal?.title);
+
+  useEffect(() => {
+    setLocalFiles(files);
+  }, [files]);
 
   // Fetch deal info
   useState(() => {
@@ -117,6 +132,46 @@ export default function DealFiles() {
     }
   };
 
+  const handleCategoryChange = async (file: DealFile, value: string) => {
+    const nextCategory = value === UNCATEGORIZED_VALUE ? null : value;
+    const previousCategory = file.category ?? null;
+
+    setLocalFiles((prev) =>
+      prev.map((current) =>
+        current.id === file.id ? { ...current, category: nextCategory } : current
+      )
+    );
+    setUpdatingFileId(file.id);
+
+    const { error } = await supabase
+      .from("deal_files")
+      .update({ category: nextCategory })
+      .eq("id", file.id);
+
+    setUpdatingFileId(null);
+
+    if (error) {
+      setLocalFiles((prev) =>
+        prev.map((current) =>
+          current.id === file.id ? { ...current, category: previousCategory } : current
+        )
+      );
+      toast({
+        title: "Failed to update category",
+        description: error.message ?? "Unable to update file category",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    toast({
+      title: "Category updated",
+      description: nextCategory ? `Marked as ${nextCategory}` : "Category cleared",
+    });
+
+    await refetchFiles();
+  };
+
   const formatFileSize = (bytes: number | null) => {
     if (!bytes) return "—";
     const kb = bytes / 1024;
@@ -180,7 +235,7 @@ export default function DealFiles() {
       <div className="container mx-auto px-4 py-8">
         <Card>
           <CardHeader>
-            <CardTitle>Synced Files ({files.length})</CardTitle>
+            <CardTitle>Synced Files ({localFiles.length})</CardTitle>
             <CardDescription>
               Files automatically synced from the linked Google Drive folder
             </CardDescription>
@@ -190,7 +245,7 @@ export default function DealFiles() {
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
-            ) : files.length === 0 ? (
+            ) : localFiles.length === 0 ? (
               <div className="text-center py-12">
                 <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                 <p className="text-sm text-muted-foreground mb-4">
@@ -209,13 +264,14 @@ export default function DealFiles() {
                   <TableRow>
                     <TableHead>Name</TableHead>
                     <TableHead>Type</TableHead>
+                    <TableHead>Category</TableHead>
                     <TableHead>Size</TableHead>
                     <TableHead>Last Modified</TableHead>
                     <TableHead>AI-Ready</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {files.map((file) => {
+                  {localFiles.map((file) => {
                     const isAIReady = file.metadata?.parser === 'pdfjs' || file.json_snapshot_path;
                     return (
                       <TableRow key={file.id}>
@@ -227,6 +283,27 @@ export default function DealFiles() {
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline">{file.drive_file_type}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Select
+                            value={file.category ?? UNCATEGORIZED_VALUE}
+                            onValueChange={(value) => handleCategoryChange(file, value)}
+                          >
+                            <SelectTrigger
+                              className="w-[180px]"
+                              disabled={updatingFileId === file.id}
+                            >
+                              <SelectValue placeholder="Select category" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value={UNCATEGORIZED_VALUE}>Uncategorized</SelectItem>
+                              {CATEGORY_OPTIONS.map((option) => (
+                                <SelectItem key={option} value={option}>
+                                  {option}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </TableCell>
                         <TableCell className="text-muted-foreground">
                           {formatFileSize(file.file_size)}

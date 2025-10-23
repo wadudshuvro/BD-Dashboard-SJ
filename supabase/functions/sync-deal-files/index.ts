@@ -663,9 +663,35 @@ async function upsertMetadata(
   supabase: any,
   record: any,
 ): Promise<string | null> {
+  const upsertRecord = { ...record };
+
+  if (record.drive_file_id) {
+    const { data: existing, error: existingError } = await supabase
+      .from("deal_files")
+      .select("id, category")
+      .eq("drive_file_id", record.drive_file_id)
+      .maybeSingle();
+
+    if (existingError) {
+      console.warn(
+        `[Deal Files] Unable to fetch existing metadata for ${record.drive_file_id}:`,
+        existingError,
+      );
+    }
+
+    if (existing) {
+      if (upsertRecord.category === undefined) {
+        upsertRecord.category = existing.category ?? null;
+      }
+      if (existing.id) {
+        upsertRecord.id = existing.id;
+      }
+    }
+  }
+
   const { error } = await supabase
     .from("deal_files")
-    .upsert(record, { onConflict: "drive_file_id" });
+    .upsert(upsertRecord, { onConflict: "drive_file_id" });
 
   return error ? (error.message ?? "Unknown metadata error") : null;
 }

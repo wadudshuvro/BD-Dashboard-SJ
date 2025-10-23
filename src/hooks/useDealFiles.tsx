@@ -6,6 +6,7 @@ export interface DealFile {
   id: string;
   deal_id: string | null;
   client_id: string | null;
+  category: string | null;
   drive_file_id: string | null;
   drive_folder_id: string | null;
   drive_file_name: string | null;

@@ -717,6 +717,7 @@ export type Database = {
       }
       deal_files: {
         Row: {
+          category: string | null
           checksum: string | null
           client_id: string | null
           created_at: string
@@ -736,6 +737,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          category?: string | null
           checksum?: string | null
           client_id?: string | null
           created_at?: string
@@ -755,6 +757,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          category?: string | null
           checksum?: string | null
           client_id?: string | null
           created_at?: string
