@@ -20,9 +20,12 @@ import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/components/ui/use-toast';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AnalyticsCard, AIInsightPanel, ExecutionTimeline, IntegrationStatusList } from '@/features/campaign-detail/components';
 import { useCampaignDetail } from '@/hooks/useCampaignDetail';
 import type { CampaignContactStatus } from '@/hooks/useCampaignDetail';
+import { useExaIntegration } from '@/hooks/useExaIntegration';
+import { useUserPermissions } from '@/hooks/useUserPermissions';
 
 const PIPELINE_STAGES: { status: CampaignContactStatus; title: string; description: string }[] = [
   { status: 'identified', title: 'Identified', description: 'Contacts imported into the campaign' },
@@ -70,6 +73,8 @@ export default function CampaignDetail() {
     isError,
     error,
   } = useCampaignDetail(campaignId);
+  const { runCampaignResearch, isRunningResearch } = useExaIntegration();
+  const { hasPermission } = useUserPermissions();
 
   const linkedinStats = (campaign?.linkedin_stats as Record<string, number | undefined>) || {};
   const ghlStats = (campaign?.ghl_stats as Record<string, number | undefined>) || {};
@@ -81,6 +86,34 @@ export default function CampaignDetail() {
     : 0;
   const responseTotal =
     (linkedinStats.responses_received || 0) + (ghlStats.replies || 0) + (campaign?.responses_received || 0);
+
+  const campaignMetadata = (campaign?.metadata as Record<string, unknown>) ?? {};
+  const researchReportUrl = typeof campaignMetadata["research_report_url"] === "string"
+    ? (campaignMetadata["research_report_url"] as string)
+    : typeof (campaignMetadata["latest_research_report"] as { url?: string } | undefined)?.url === "string"
+      ? ((campaignMetadata["latest_research_report"] as { url?: string }).url as string)
+      : undefined;
+  const rawMetadataStatus = campaignMetadata["research_status"];
+  const nestedMetadataStatus = (campaignMetadata["research"] as { status?: string } | undefined)?.status;
+  const rawResearchDataStatus = (campaign?.research_data as Record<string, unknown> | undefined)?.["status"];
+  const researchStatus =
+    typeof rawMetadataStatus === "string"
+      ? rawMetadataStatus
+      : typeof nestedMetadataStatus === "string"
+        ? nestedMetadataStatus
+        : typeof rawResearchDataStatus === "string"
+          ? (rawResearchDataStatus as string)
+          : null;
+  const rawMetadataUpdated = campaignMetadata["research_updated_at"];
+  const nestedMetadataUpdated = (campaignMetadata["research"] as { updated_at?: string } | undefined)?.updated_at;
+  const researchUpdatedAt =
+    typeof rawMetadataUpdated === "string"
+      ? rawMetadataUpdated
+      : typeof nestedMetadataUpdated === "string"
+        ? nestedMetadataUpdated
+        : null;
+  const canRunResearch = hasPermission(["campaigns", "campaign_research", "research", "exa"], "edit")
+    || hasPermission(/research/i, "edit");
 
   const analyticsCards = useMemo(() => {
     const numberFormatter = new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 });
@@ -153,6 +186,15 @@ export default function CampaignDetail() {
     }
   };
 
+  const handleRunResearch = async () => {
+    if (!campaign?.id) return;
+    try {
+      await runCampaignResearch({ campaignId: campaign.id });
+    } catch (error) {
+      console.error('Unable to trigger campaign research', error);
+    }
+  };
+
   if (isLoading) {
     return <div className="container mx-auto py-10">Loading campaign...</div>;
   }
@@ -190,6 +232,17 @@ export default function CampaignDetail() {
           <Button variant="outline" className="gap-2" disabled={!campaign.linkedin_campaign_id}>
             <Linkedin className="h-4 w-4" /> LinkedIn Tracker
           </Button>
+          {canRunResearch && (
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={handleRunResearch}
+              disabled={isRunningResearch}
+            >
+              {isRunningResearch ? <Loader2 className="h-4 w-4 animate-spin" /> : <Rocket className="h-4 w-4" />}
+              Run R&D
+            </Button>
+          )}
           <Button
             variant="outline"
             className="gap-2"
@@ -209,6 +262,26 @@ export default function CampaignDetail() {
           </Button>
         </div>
       </div>
+
+      {(researchReportUrl || researchStatus) && (
+        <Alert>
+          <Rocket className="h-4 w-4" />
+          <AlertTitle>Campaign research</AlertTitle>
+          <AlertDescription className="space-y-2">
+            <p className="text-sm text-muted-foreground">
+              Status: {researchStatus ? researchStatus.toString().replace(/_/g, ' ') : 'Complete'}
+              {researchUpdatedAt && ` • Updated ${new Date(researchUpdatedAt).toLocaleString()}`}
+            </p>
+            {researchReportUrl && (
+              <Button asChild variant="link" className="px-0 text-sm">
+                <a href={researchReportUrl} target="_blank" rel="noreferrer">
+                  View research report
+                </a>
+              </Button>
+            )}
+          </AlertDescription>
+        </Alert>
+      )}
 
       <div className="grid gap-6 xl:grid-cols-[320px_1fr_360px]">
         <div className="space-y-6">
