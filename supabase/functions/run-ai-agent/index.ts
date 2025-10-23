@@ -129,13 +129,9 @@ async function fetchConfigurations(client: SupabaseClient): Promise<Configuratio
 }
 
 async function fetchSharedResources(client: SupabaseClient, agentId: string): Promise<SharedResourceRow[]> {
-  const { data, error } = await client
-    .from("ai_shared_resources")
-    .select("resource_type, resource_identifier, metadata")
-    .eq("agent_id", agentId);
-
-  if (error) throw error;
-  return (data as SharedResourceRow[] | null) ?? [];
+  // TODO: Implement shared resources when ai_shared_resources table is created
+  // For now, return empty array to allow BD agents to work with deal files
+  return [];
 }
 
 async function fetchFileContents(client: SupabaseClient, fileIds: string[]): Promise<string> {
