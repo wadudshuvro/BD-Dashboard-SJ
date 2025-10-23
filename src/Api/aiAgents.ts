@@ -65,6 +65,7 @@ export interface AIAgent {
   slug?: string | null;
   category?: string | null;
   type?: string | null;
+  system_prompt?: string | null;
   config: AgentConfigurationEnvelope;
   is_active?: boolean | null;
   is_enabled?: boolean | null;
@@ -76,6 +77,14 @@ export interface AIAgent {
   data_source_config?: AgentDataSourceConfig | null;
   output_actions?: AgentOutputActions | null;
   schedule_config?: AgentScheduleConfig | null;
+}
+
+export interface AgentDashboardMetrics {
+  agentId: string;
+  totalRuns: number;
+  successfulRuns: number;
+  failedRuns: number;
+  lastRunAt: string | null;
 }
 
 export interface AgentRunPayload {
@@ -122,7 +131,7 @@ export async function listAgents(): Promise<AIAgent[]> {
     .order("name", { ascending: true });
 
   handleError(error, "Unable to fetch AI agents");
-  return (data ?? []).map((agent) => ({
+  return (data ?? []).map((agent: any) => ({
     ...agent,
     config: (agent.config as AgentConfigurationEnvelope) || {},
     data_source_config: (agent.data_source_config as AgentDataSourceConfig) || null,
