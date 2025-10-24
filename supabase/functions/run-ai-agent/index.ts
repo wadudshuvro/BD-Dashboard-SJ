@@ -689,7 +689,7 @@ serve(async (req) => {
       agentId: agentId as string,
       userId,
       agentCategory: (agent as any).category ?? null,
-      executionContext: runExecutionContext,
+      executionContext: executionContext,
       response: parsedResponse,
       providerTelemetry: telemetry,
       providerRawOutputs: rawOutputs,
