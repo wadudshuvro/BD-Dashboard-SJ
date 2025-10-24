@@ -1,9 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.75.0';
 import { corsHeaders } from '../_shared/cors.ts';
 
-const CONTROL_TOWER_BASE_URL = Deno.env.get('CONTROL_TOWER_BASE_URL');
-const CONTROL_TOWER_API_KEY = Deno.env.get('CONTROL_TOWER_API_KEY');
-
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -12,66 +9,86 @@ Deno.serve(async (req) => {
   try {
     console.log('[sync-control-tower-pods] Starting POD import from Control Tower...');
 
-    // Verify Control Tower credentials
-    if (!CONTROL_TOWER_BASE_URL || !CONTROL_TOWER_API_KEY) {
-      throw new Error('Control Tower credentials not configured');
-    }
-
     // Initialize Supabase client
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Fetch all active deals from Control Tower
-    console.log('[sync-control-tower-pods] Fetching deals from Control Tower...');
-    const ctResponse = await fetch(`${CONTROL_TOWER_BASE_URL}/api/deals?status=active`, {
-      headers: {
-        'Authorization': `Bearer ${CONTROL_TOWER_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-    });
+    // Fetch Control Tower credentials from integrations table
+    const { data: integrationConfig, error: configError } = await supabaseClient
+      .from('integrations')
+      .select('config')
+      .eq('type', 'control_tower')
+      .eq('is_active', true)
+      .single();
 
-    if (!ctResponse.ok) {
-      throw new Error(`Control Tower API error: ${ctResponse.status} ${ctResponse.statusText}`);
+    if (configError || !integrationConfig) {
+      throw new Error('Control Tower integration not configured');
     }
 
-    const ctDeals = await ctResponse.json();
-    console.log(`[sync-control-tower-pods] Fetched ${ctDeals.length} deals from Control Tower`);
+    const ctConfig = integrationConfig.config as any;
+    const CONTROL_TOWER_URL = ctConfig.url || Deno.env.get('Controltowerurl');
+    const CONTROL_TOWER_ANON_KEY = ctConfig.anon_key || Deno.env.get('CONTROLTOWERAPIKEY');
 
-    // Extract unique POD names from Control Tower deals
-    const podNamesSet = new Set<string>();
-    ctDeals.forEach((deal: any) => {
-      const podName = deal.pod || deal.pod_name || deal.team;
-      if (podName && typeof podName === 'string' && podName.trim()) {
-        podNamesSet.add(podName.trim());
-      }
-    });
+    if (!CONTROL_TOWER_URL || !CONTROL_TOWER_ANON_KEY) {
+      throw new Error('Control Tower credentials not configured');
+    }
 
-    const podNames = Array.from(podNamesSet).sort();
-    console.log(`[sync-control-tower-pods] Found ${podNames.length} unique PODs:`, podNames);
+    console.log('[sync-control-tower-pods] Fetching PODs from Control Tower...');
 
-    // Delete all existing PODs
-    console.log('[sync-control-tower-pods] Deleting existing PODs...');
-    const { error: deleteError } = await supabaseClient
+    // Create Control Tower Supabase client
+    const ctClient = createClient(CONTROL_TOWER_URL, CONTROL_TOWER_ANON_KEY);
+
+    // Fetch all pods from Control Tower
+    const { data: ctPods, error: ctError } = await ctClient
       .from('pods')
-      .delete()
-      .neq('id', '00000000-0000-0000-0000-000000000000');
+      .select('*')
+      .eq('is_active', true);
 
-    if (deleteError) {
-      console.error('[sync-control-tower-pods] Error deleting PODs:', deleteError);
-      throw deleteError;
+    if (ctError) {
+      console.error('[sync-control-tower-pods] Error fetching PODs from Control Tower:', ctError);
+      throw new Error(`Failed to fetch PODs: ${ctError.message}`);
     }
 
-    // Insert new PODs from Control Tower
-    if (podNames.length > 0) {
-      console.log('[sync-control-tower-pods] Creating new PODs...');
-      const podsToInsert = podNames.map(name => ({
-        name,
-        description: `Imported from Control Tower`,
+    console.log(`[sync-control-tower-pods] Fetched ${ctPods?.length || 0} PODs from Control Tower`);
+
+    if (!ctPods || ctPods.length === 0) {
+      console.log('[sync-control-tower-pods] No active PODs found in Control Tower');
+      return new Response(
+        JSON.stringify({
+          success: true,
+          podsImported: 0,
+          podNames: [],
+          message: 'No active PODs found in Control Tower',
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Get existing PODs
+    const { data: existingPods } = await supabaseClient
+      .from('pods')
+      .select('id, name');
+
+    const existingPodNames = new Set(existingPods?.map(p => p.name) || []);
+
+    // Prepare PODs to insert (only new ones)
+    const podsToInsert = ctPods
+      .filter(pod => !existingPodNames.has(pod.name))
+      .map(pod => ({
+        name: pod.name,
+        description: pod.description || 'Imported from Control Tower',
         is_active: true,
+        lead_user_id: null,
       }));
 
+    let insertedCount = 0;
+    let updatedCount = 0;
+
+    // Insert new PODs
+    if (podsToInsert.length > 0) {
+      console.log(`[sync-control-tower-pods] Inserting ${podsToInsert.length} new PODs...`);
       const { data: insertedPods, error: insertError } = await supabaseClient
         .from('pods')
         .insert(podsToInsert)
@@ -82,29 +99,48 @@ Deno.serve(async (req) => {
         throw insertError;
       }
 
-      console.log(`[sync-control-tower-pods] Successfully imported ${insertedPods?.length || 0} PODs`);
-
-      return new Response(
-        JSON.stringify({
-          success: true,
-          podsImported: insertedPods?.length || 0,
-          podNames: podNames,
-          message: `Successfully imported ${insertedPods?.length || 0} PODs from Control Tower`,
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    } else {
-      console.log('[sync-control-tower-pods] No PODs found in Control Tower deals');
-      return new Response(
-        JSON.stringify({
-          success: true,
-          podsImported: 0,
-          podNames: [],
-          message: 'No PODs found in Control Tower deals',
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      insertedCount = insertedPods?.length || 0;
+      console.log(`[sync-control-tower-pods] Successfully inserted ${insertedCount} PODs`);
     }
+
+    // Update existing PODs
+    const podsToUpdate = ctPods.filter(pod => existingPodNames.has(pod.name));
+    if (podsToUpdate.length > 0) {
+      console.log(`[sync-control-tower-pods] Updating ${podsToUpdate.length} existing PODs...`);
+      
+      for (const ctPod of podsToUpdate) {
+        const { error: updateError } = await supabaseClient
+          .from('pods')
+          .update({
+            description: ctPod.description || 'Imported from Control Tower',
+            is_active: ctPod.is_active ?? true,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('name', ctPod.name);
+
+        if (updateError) {
+          console.error(`[sync-control-tower-pods] Error updating POD ${ctPod.name}:`, updateError);
+        } else {
+          updatedCount++;
+        }
+      }
+      
+      console.log(`[sync-control-tower-pods] Successfully updated ${updatedCount} PODs`);
+    }
+
+    const podNames = ctPods.map(p => p.name).sort();
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        podsInserted: insertedCount,
+        podsUpdated: updatedCount,
+        totalPods: ctPods.length,
+        podNames: podNames,
+        message: `Successfully synced ${ctPods.length} PODs from Control Tower (${insertedCount} new, ${updatedCount} updated)`,
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
 
   } catch (error) {
     console.error('[sync-control-tower-pods] Error:', error);
