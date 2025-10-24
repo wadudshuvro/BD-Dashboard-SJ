@@ -19,6 +19,7 @@ import EODSubmission from "./pages/EODSubmission";
 import MyEODSubmissions from "./pages/MyEODSubmissions";
 import UserManagement from "./pages/admin/UserManagement";
 import IntegrationManager from "./pages/admin/IntegrationManager";
+import PerplexityIntegration from "./pages/admin/PerplexityIntegration";
 import AdminSettings from "./pages/admin/AdminSettings";
 import EODManagement from "./pages/admin/EODManagement";
 import UserDetail from "./pages/admin/UserDetail";
@@ -112,6 +113,7 @@ const App = () => (
               <Route path="users" element={<UserManagement />} />
               <Route path="users/:userId" element={<UserDetail />} />
               <Route path="integrations" element={<IntegrationManager />} />
+              <Route path="integrations/perplexity" element={<PerplexityIntegration />} />
               <Route path="integrations/control-tower-sync" element={<ControlTowerSyncDashboard />} />
               <Route path="documentation" element={<React.Suspense fallback={<div>Loading...</div>}><Documentation /></React.Suspense>} />
               <Route path="settings" element={<AdminSettings />} />
