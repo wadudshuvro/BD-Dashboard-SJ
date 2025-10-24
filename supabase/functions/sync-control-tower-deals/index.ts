@@ -52,9 +52,10 @@ serve(async (req) => {
 
     const userId = user?.id ?? null;
     
-    // Parse request body for optional dealId filter
+    // Parse request body for optional dealId filter and forceFullSync flag
     const body = req.method === 'POST' ? await req.json() : {};
     const dealId = body.dealId || null;
+    const forceFullSync = body.forceFullSync || false;
 
     if (userId) {
       console.log(`[Sync] Starting Control Tower sync for user: ${userId}${dealId ? ` (single deal: ${dealId})` : ''}`);
@@ -90,7 +91,7 @@ serve(async (req) => {
     // Create Control Tower client with server-side credentials
     const ctClient = createClient(envUrl, envKey);
 
-    return await performSync(ctClient, supabase, userId, supabaseKey, dealId);
+    return await performSync(ctClient, supabase, userId, supabaseKey, dealId, forceFullSync);
 
   } catch (error) {
     console.error('[Sync] Error:', error);
@@ -272,7 +273,8 @@ async function performSync(
   supabase: any,
   userId: string | null,
   serviceRoleKey: string,
-  singleDealId?: string | null
+  singleDealId?: string | null,
+  forceFullSync?: boolean
 ): Promise<Response> {
   const startTime = Date.now();
   
@@ -301,18 +303,11 @@ async function performSync(
     console.log('[Sync] Final stage mapping:', STAGE_MAPPING);
 
     // Fetch deals from Control Tower (all or single)
-    console.log(`[Sync] Fetching deals from Control Tower${singleDealId ? ` (single: ${singleDealId})` : ''}...`);
+    console.log(`[Sync] Fetching deals from Control Tower${singleDealId ? ` (single: ${singleDealId})` : forceFullSync ? ' (FULL SYNC - all statuses)' : ' (active only)'}...`);
     
     let ctDealsQuery = ctClient.from('Deal').select('*');
     
-    // Exclude only closed won/lost deals unless syncing a single deal
-    if (!singleDealId) {
-      // Fetch all deals except those that are fully closed
-      ctDealsQuery = ctDealsQuery
-        .not('dealstage', 'eq', 'closedwon')
-        .not('dealstage', 'eq', 'closedlost');
-    }
-    
+    // Apply filters based on sync mode
     if (singleDealId) {
       // For single deal sync, fetch by control_tower_id
       const { data: localDeal } = await supabase
@@ -326,7 +321,13 @@ async function performSync(
       } else {
         throw new Error('Deal not found or has no Control Tower ID');
       }
+    } else if (!forceFullSync) {
+      // Default mode: only fetch active deals (exclude closed won/lost)
+      ctDealsQuery = ctDealsQuery
+        .not('dealstage', 'eq', 'closedwon')
+        .not('dealstage', 'eq', 'closedlost');
     }
+    // If forceFullSync is true, no filter is applied - fetch ALL deals
     
     const { data: ctDeals, error: fetchError } = await ctDealsQuery;
 

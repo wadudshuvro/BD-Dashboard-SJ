@@ -54,7 +54,7 @@ import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { AIAgentModal } from '@/components/ai/AIAgentModal';
 import type { DealFile } from '@/hooks/useDeals';
-import { DEAL_STATUSES, STATUS_LABELS, type DealStatus } from '@/lib/dealStages';
+import { DEAL_STATUSES, STATUS_LABELS, STAGE_LABELS, type DealStatus } from '@/lib/dealStages';
 
 interface DealExternalLinks {
   n8n_workflow_url?: string | null;
@@ -474,11 +474,11 @@ interface DealStageProgressProps {
 }
 
 const pipelineStages = [
-  { id: 'prospecting', label: 'Prospecting', color: 'bg-blue-500' },
-  { id: 'qualification', label: 'Qualification', color: 'bg-purple-500' },
-  { id: 'proposal', label: 'Proposal', color: 'bg-yellow-500' },
-  { id: 'negotiation', label: 'Negotiation', color: 'bg-orange-500' },
-  { id: 'closed_won', label: 'Closed Won', color: 'bg-green-500' },
+  { id: 'prospecting', label: STAGE_LABELS.prospecting, color: 'bg-blue-500' },
+  { id: 'qualification', label: STAGE_LABELS.qualification, color: 'bg-purple-500' },
+  { id: 'proposal', label: STAGE_LABELS.proposal, color: 'bg-yellow-500' },
+  { id: 'negotiation', label: STAGE_LABELS.negotiation, color: 'bg-orange-500' },
+  { id: 'closed_won', label: STAGE_LABELS.closed_won, color: 'bg-green-500' },
 ];
 
 const DealStageProgress = ({ currentStage }: DealStageProgressProps) => {

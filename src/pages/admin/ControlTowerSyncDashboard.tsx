@@ -200,10 +200,12 @@ const ControlTowerSyncDashboard = () => {
     }
   };
 
-  const triggerPullSync = async () => {
+  const triggerPullSync = async (fullSync: boolean = false) => {
     setIsPulling(true);
     try {
-      const { data, error } = await supabase.functions.invoke('sync-control-tower-deals', { body: {} });
+      const { data, error } = await supabase.functions.invoke('sync-control-tower-deals', { 
+        body: { forceFullSync: fullSync } 
+      });
       if (error) throw error;
       
       const summary = [
@@ -219,7 +221,9 @@ const ControlTowerSyncDashboard = () => {
       }
       
       toast({ 
-        title: totalFailed > 0 ? '⚠️ Pull Sync Completed with Issues' : '✅ Pull Sync Complete',
+        title: fullSync 
+          ? (totalFailed > 0 ? '⚠️ Full Sync Completed with Issues' : '✅ Full Sync Complete')
+          : (totalFailed > 0 ? '⚠️ Pull Sync Completed with Issues' : '✅ Pull Sync Complete'),
         description: summary.join('\n'),
         variant: totalFailed > 0 ? 'destructive' : 'default',
         duration: 8000
@@ -424,9 +428,13 @@ const ControlTowerSyncDashboard = () => {
           <CardDescription>Sync all deal data including estimates, proposals, PODs, categories, and collaboration links from Control Tower</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-3">
-          <Button onClick={triggerPullSync} disabled={isPulling || loading}>
+          <Button onClick={() => triggerPullSync(false)} disabled={isPulling || loading}>
             {isPulling ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CloudDownload className="mr-2 h-4 w-4" />}
-            {isPulling ? 'Pulling...' : 'Pull Now'}
+            {isPulling ? 'Pulling...' : 'Pull Now (Active)'}
+          </Button>
+          <Button variant="default" onClick={() => triggerPullSync(true)} disabled={isPulling || loading}>
+            {isPulling ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CloudDownload className="mr-2 h-4 w-4" />}
+            {isPulling ? 'Full Sync...' : 'Full Sync (All)'}
           </Button>
           <Button variant="outline" onClick={triggerPushSync} disabled={isPushing || loading}>
             {isPushing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CloudUpload className="mr-2 h-4 w-4" />}
@@ -439,6 +447,48 @@ const ControlTowerSyncDashboard = () => {
           <Button variant="ghost" onClick={fetchSummary} disabled={loading}>
             <RefreshCw className="mr-2 h-4 w-4" /> Refresh
           </Button>
+        </CardContent>
+      </Card>
+
+      {/* Data Verification Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Data Coverage Verification</CardTitle>
+          <CardDescription>Local database deal counts by stage (Control Tower comparison coming soon)</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="grid grid-cols-3 gap-4 text-sm font-medium text-muted-foreground border-b pb-2">
+              <div>Stage</div>
+              <div className="text-right">Local DB Count</div>
+              <div className="text-center">Status</div>
+            </div>
+            <div className="space-y-2">
+              <div className="grid grid-cols-3 gap-4 text-sm">
+                <div>Lead (Prospecting)</div>
+                <div className="text-right font-mono">{logs.filter(l => l.entity_type === 'deal' && l.status === 'success').length > 0 ? '✓' : '-'}</div>
+                <div className="text-center">📊</div>
+              </div>
+              <div className="grid grid-cols-3 gap-4 text-sm">
+                <div>Estimation (Qualification)</div>
+                <div className="text-right font-mono">-</div>
+                <div className="text-center">📊</div>
+              </div>
+              <div className="grid grid-cols-3 gap-4 text-sm">
+                <div>Discovery (Proposal)</div>
+                <div className="text-right font-mono">-</div>
+                <div className="text-center">📊</div>
+              </div>
+              <div className="grid grid-cols-3 gap-4 text-sm">
+                <div>Proposal Shared (Negotiation)</div>
+                <div className="text-right font-mono">-</div>
+                <div className="text-center">📊</div>
+              </div>
+            </div>
+            <div className="text-xs text-muted-foreground mt-4">
+              ✓ = Data synced successfully | Note: Detailed metrics coming in next phase
+            </div>
+          </div>
         </CardContent>
       </Card>
 
