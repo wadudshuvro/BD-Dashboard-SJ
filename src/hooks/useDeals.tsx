@@ -456,6 +456,7 @@ export function useLocalDealsByStage(
             .select(
               `
               *,
+              pods(name),
               deal_files:deal_files(
                 id,
                 deal_id,
@@ -538,11 +539,15 @@ export function useLocalDealsByStage(
             pm_assigned_id: deal.pm_assigned_id,
             pm_assigned_name: pm ? `${(pm as any).first_name} ${(pm as any).last_name}` : '-',
             stage: deal.stage,
+            dealtype: deal.dealtype,
+            category: deal.category,
             close_date: deal.close_date,
             created_at: deal.created_at,
+            updated_at: deal.updated_at,
+            pod_name: (deal as any).pods?.name || '-',
             control_tower_id: deal.control_tower_id,
             synced_from_control_tower: deal.synced_from_control_tower,
-            lead_source: deal.control_tower_status || '-',
+            lead_source: deal.lead_source || '-',
             hubspot_crm_deal_url: deal.control_tower_id ? `https://app.hubspot.com/contacts/deal/${deal.control_tower_id}` : null,
             deal_files: deal.deal_files || [],
           };

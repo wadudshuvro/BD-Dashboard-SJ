@@ -80,13 +80,49 @@ export function StagePipelineTable({ stage, title, description }: StagePipelineT
     },
     { 
       key: 'value' as const, 
-      label: 'Value', 
+      label: 'Amount', 
       render: formatCurrency 
     },
     { 
-      key: 'updated_at' as const, 
-      label: 'Last Update', 
+      key: 'stage' as const, 
+      label: 'Stage',
+      render: (value: string) => {
+        const label = value ? value.charAt(0).toUpperCase() + value.slice(1) : '-';
+        return <Badge variant="secondary">{label}</Badge>;
+      }
+    },
+    { 
+      key: 'dealtype' as const, 
+      label: 'Type',
+      render: (value: string) => {
+        if (!value) return '-';
+        return value === 'newbusiness' ? 'New Business' : 'Existing Business';
+      }
+    },
+    { 
+      key: 'category' as const, 
+      label: 'Category',
+      render: (value: string) => value || '-'
+    },
+    { 
+      key: 'created_at' as const, 
+      label: 'Create Date', 
       render: formatDate 
+    },
+    { 
+      key: 'close_date' as const, 
+      label: 'Close Date', 
+      render: formatDate 
+    },
+    { 
+      key: 'pod_name' as const, 
+      label: 'POD',
+      render: (value: string) => value || '-'
+    },
+    { 
+      key: 'lead_source' as const, 
+      label: 'Source',
+      render: (value: string) => value || '-'
     },
   ];
 

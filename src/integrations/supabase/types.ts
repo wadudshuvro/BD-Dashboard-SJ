@@ -1069,6 +1069,7 @@ export type Database = {
       deals: {
         Row: {
           amount: number | null
+          category: string | null
           client_id: string | null
           close_date: string | null
           control_tower_client_id: string | null
@@ -1092,6 +1093,7 @@ export type Database = {
           notes: string | null
           owner_id: string | null
           pm_assigned_id: string | null
+          pod_id: string | null
           potential_amount: number | null
           priority: string | null
           probability: number | null
@@ -1104,6 +1106,7 @@ export type Database = {
         }
         Insert: {
           amount?: number | null
+          category?: string | null
           client_id?: string | null
           close_date?: string | null
           control_tower_client_id?: string | null
@@ -1127,6 +1130,7 @@ export type Database = {
           notes?: string | null
           owner_id?: string | null
           pm_assigned_id?: string | null
+          pod_id?: string | null
           potential_amount?: number | null
           priority?: string | null
           probability?: number | null
@@ -1139,6 +1143,7 @@ export type Database = {
         }
         Update: {
           amount?: number | null
+          category?: string | null
           client_id?: string | null
           close_date?: string | null
           control_tower_client_id?: string | null
@@ -1162,6 +1167,7 @@ export type Database = {
           notes?: string | null
           owner_id?: string | null
           pm_assigned_id?: string | null
+          pod_id?: string | null
           potential_amount?: number | null
           priority?: string | null
           probability?: number | null
@@ -1178,6 +1184,13 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deals_pod_id_fkey"
+            columns: ["pod_id"]
+            isOneToOne: false
+            referencedRelation: "pods"
             referencedColumns: ["id"]
           },
         ]

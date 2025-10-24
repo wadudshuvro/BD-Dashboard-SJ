@@ -19,10 +19,10 @@ export const DEAL_STATUSES = {
 type StatusValue = typeof DEAL_STATUSES[keyof typeof DEAL_STATUSES];
 
 export const STAGE_LABELS: Record<StageValue, string> = {
-  [DEAL_STAGES.PROSPECTING]: 'Prospecting',
-  [DEAL_STAGES.QUALIFICATION]: 'Qualification',
-  [DEAL_STAGES.PROPOSAL]: 'Proposal',
-  [DEAL_STAGES.NEGOTIATION]: 'Negotiation',
+  [DEAL_STAGES.PROSPECTING]: 'Lead',
+  [DEAL_STAGES.QUALIFICATION]: 'Estimation',
+  [DEAL_STAGES.PROPOSAL]: 'Discovery',
+  [DEAL_STAGES.NEGOTIATION]: 'Proposal Shared',
   [DEAL_STAGES.CLOSED_WON]: 'Closed Won',
   [DEAL_STAGES.CLOSED_LOST]: 'Closed Lost',
 };

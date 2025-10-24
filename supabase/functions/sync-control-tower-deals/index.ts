@@ -419,6 +419,16 @@ async function performSync(
     // Build user mapping cache
     const userMappingCache = await buildUserMappingCache(supabase);
     
+    // Build POD mapping cache (by name)
+    const { data: podsData } = await supabase.from('pods').select('id, name');
+    const podMappingCache = new Map<string, string>();
+    podsData?.forEach((pod: any) => {
+      if (pod.name) {
+        podMappingCache.set(pod.name.toLowerCase().trim(), pod.id);
+      }
+    });
+    console.log(`[Sync] Built POD mapping cache with ${podMappingCache.size} PODs`);
+    
     // Step 1: Collect all unique clients from deals
     console.log('[Sync] Extracting clients from deals...');
     const clientsMap = new Map<string, any>();
@@ -524,6 +534,13 @@ async function performSync(
           localPmId = userMappingCache.get(pmEmail.toLowerCase().trim()) || null;
         }
         
+        // Map POD via name
+        const podName = ctDeal.pod || ctDeal.pod_name || ctDeal.team;
+        let localPodId = null;
+        if (podName) {
+          localPodId = podMappingCache.get(podName.toLowerCase().trim()) || null;
+        }
+        
         const tags = Array.isArray(ctDeal.tags)
           ? ctDeal.tags
           : typeof ctDeal.tags === 'string'
@@ -555,6 +572,8 @@ async function performSync(
           hubspot_deal_id: ctDeal.hubspot_deal_id || ctDeal.hs_object_id || null,
           hubspot_crm_deal_url: ctDeal.hubspot_crm_deal_url || null,
           dealtype: ctDeal.dealtype || ctDeal.deal_type || null,
+          category: ctDeal.category || ctDeal.deal_category || null,
+          pod_id: localPodId,
           lead_source: ctDeal.lead_source || ctDeal.source || null,
           expected_closing_date: expectedCloseDate ? new Date(expectedCloseDate).toISOString().split('T')[0] : null,
           potential_amount: ctDeal.potential_amount ? parseFloat(ctDeal.potential_amount) : (ctDeal.amount ? parseFloat(ctDeal.amount) : null),

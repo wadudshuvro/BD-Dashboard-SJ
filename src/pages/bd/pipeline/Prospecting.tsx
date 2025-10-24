@@ -62,7 +62,7 @@ export default function Prospecting() {
     <div className="container mx-auto py-8 space-y-8">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Prospecting Stage</h1>
+          <h1 className="text-3xl font-bold">Lead Stage</h1>
           <p className="text-muted-foreground">
             Initial outreach and qualification of potential opportunities
           </p>
