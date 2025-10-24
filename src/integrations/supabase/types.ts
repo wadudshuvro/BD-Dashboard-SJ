@@ -360,6 +360,71 @@ export type Database = {
           },
         ]
       }
+      campaign_contacts: {
+        Row: {
+          campaign_id: string
+          contact_company: string | null
+          contact_email: string | null
+          contact_linkedin_url: string | null
+          contact_name: string
+          contact_phone: string | null
+          contact_title: string | null
+          created_at: string
+          exa_item_id: string | null
+          exa_score: number | null
+          id: string
+          last_enriched_at: string | null
+          metadata: Json | null
+          research_summary: Json | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          campaign_id: string
+          contact_company?: string | null
+          contact_email?: string | null
+          contact_linkedin_url?: string | null
+          contact_name: string
+          contact_phone?: string | null
+          contact_title?: string | null
+          created_at?: string
+          exa_item_id?: string | null
+          exa_score?: number | null
+          id?: string
+          last_enriched_at?: string | null
+          metadata?: Json | null
+          research_summary?: Json | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          campaign_id?: string
+          contact_company?: string | null
+          contact_email?: string | null
+          contact_linkedin_url?: string | null
+          contact_name?: string
+          contact_phone?: string | null
+          contact_title?: string | null
+          created_at?: string
+          exa_item_id?: string | null
+          exa_score?: number | null
+          id?: string
+          last_enriched_at?: string | null
+          metadata?: Json | null
+          research_summary?: Json | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_contacts_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "bd_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaign_research: {
         Row: {
           campaign_id: string

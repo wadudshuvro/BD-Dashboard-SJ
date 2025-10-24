@@ -399,85 +399,91 @@ async function processLeadImportJob(
       return;
     }
 
-    // Get current campaign
-    const { data: currentCampaign, error: fetchError } = await supabase
-      .from("bd_campaigns")
-      .select("contacts_summary")
-      .eq("id", payload.campaignId)
-      .single();
+    // Fetch existing campaign contacts from relational table
+    console.log(`[processLeadImportJob] Fetching existing contacts for campaign ${payload.campaignId}...`);
+    const { data: existingContacts, error: fetchError } = await supabase
+      .from("campaign_contacts")
+      .select("id, exa_item_id, contact_email, contact_linkedin_url, status")
+      .eq("campaign_id", payload.campaignId);
 
     if (fetchError) {
-      throw new Error(`Failed to fetch campaign: ${fetchError.message}`);
+      console.error(`[processLeadImportJob] Error fetching existing contacts:`, fetchError);
     }
 
-    // Build contacts array
-    const existingContacts = Array.isArray(currentCampaign.contacts_summary)
-      ? (currentCampaign.contacts_summary as Array<Record<string, unknown>>)
-      : [];
+    console.log(`[processLeadImportJob] Found ${existingContacts?.length || 0} existing contacts`);
 
-    const newContacts = normalizedLeads.map((lead) => ({
-      id: crypto.randomUUID(),
-      contact_name: lead.contactName || "Unknown",
-      contact_email: lead.email || null,
-      contact_linkedin_url: lead.linkedinUrl || null,
-      contact_company: lead.companyName || null,
-      contact_title: lead.title || null,
-      status: "identified",
-      metadata: {
-        exa_enrichment: lead.metadata,
-        exa_item_id: lead.exaItemId,
-        exa_score: lead.score,
-        imported_at: new Date().toISOString(),
-        import_job_id: jobId,
-      },
-      last_enriched_at: new Date().toISOString(),
-      exa_item_id: lead.exaItemId,
-      created_at: new Date().toISOString(),
-    }));
+    // Build insert/update arrays
+    const contactsToInsert = [];
+    const contactsToUpdate = [];
 
-    // Deduplicate: update existing or add new
-    let imported = 0;
-    let updated = 0;
+    for (const lead of normalizedLeads) {
+      // Find existing contact by exa_item_id, email, or LinkedIn URL
+      const existing = existingContacts?.find(
+        (c: { exa_item_id?: string; contact_email?: string; contact_linkedin_url?: string }) =>
+          (c.exa_item_id && lead.exaItemId && c.exa_item_id === lead.exaItemId) ||
+          (c.contact_email && lead.email && c.contact_email === lead.email) ||
+          (c.contact_linkedin_url && lead.linkedinUrl && c.contact_linkedin_url === lead.linkedinUrl)
+      ) as { id: string; status?: string } | undefined;
 
-    for (const newContact of newContacts) {
-      const existingIndex = existingContacts.findIndex(
-        (c) =>
-          (c.exa_item_id && newContact.exa_item_id && c.exa_item_id === newContact.exa_item_id) ||
-          (c.contact_email && newContact.contact_email && c.contact_email === newContact.contact_email) ||
-          (c.contact_linkedin_url &&
-            newContact.contact_linkedin_url &&
-            c.contact_linkedin_url === newContact.contact_linkedin_url)
-      );
-
-      if (existingIndex >= 0) {
-        // Update existing contact (merge data)
-        existingContacts[existingIndex] = {
-          ...existingContacts[existingIndex],
-          ...newContact,
-          id: existingContacts[existingIndex].id, // Keep original ID
-          created_at: existingContacts[existingIndex].created_at, // Keep original created_at
-          status: existingContacts[existingIndex].status, // Keep existing status
+      if (existing) {
+        // Update existing contact (keep status, update other fields)
+        contactsToUpdate.push({
+          id: existing.id,
+          contact_name: lead.contactName || "Unknown",
+          contact_email: lead.email,
+          contact_linkedin_url: lead.linkedinUrl,
+          contact_company: lead.companyName,
+          contact_title: lead.title,
+          exa_score: lead.score,
+          metadata: lead.metadata,
+          last_enriched_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
-        };
-        updated++;
+        });
       } else {
-        // Add new contact
-        existingContacts.push(newContact);
-        imported++;
+        // Insert new contact
+        contactsToInsert.push({
+          campaign_id: payload.campaignId,
+          contact_name: lead.contactName || "Unknown",
+          contact_email: lead.email,
+          contact_linkedin_url: lead.linkedinUrl,
+          contact_company: lead.companyName,
+          contact_title: lead.title,
+          status: "identified",
+          exa_item_id: lead.exaItemId,
+          exa_score: lead.score,
+          metadata: lead.metadata,
+          last_enriched_at: new Date().toISOString(),
+        });
       }
     }
 
-    // Update campaign with new contacts
-    const { error: updateError } = await supabase
-      .from("bd_campaigns")
-      .update({
-        contacts_summary: existingContacts,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", payload.campaignId);
+    console.log(
+      `[processLeadImportJob] ${contactsToInsert.length} new contacts to insert, ${contactsToUpdate.length} to update`
+    );
 
-    if (updateError) {
-      throw new Error(`Failed to update campaign contacts: ${updateError.message}`);
+    // Batch insert new contacts
+    if (contactsToInsert.length > 0) {
+      const { error: insertError } = await supabase.from("campaign_contacts").insert(contactsToInsert);
+
+      if (insertError) {
+        throw new Error(`Failed to insert contacts: ${insertError.message}`);
+      }
+      console.log(`[processLeadImportJob] Inserted ${contactsToInsert.length} new contacts`);
+    }
+
+    // Batch update existing contacts
+    if (contactsToUpdate.length > 0) {
+      for (const contact of contactsToUpdate) {
+        const { error: updateError } = await supabase
+          .from("campaign_contacts")
+          .update(contact)
+          .eq("id", contact.id);
+
+        if (updateError) {
+          console.error(`[processLeadImportJob] Failed to update contact ${contact.id}:`, updateError);
+        }
+      }
+      console.log(`[processLeadImportJob] Updated ${contactsToUpdate.length} existing contacts`);
     }
 
     // Update job as completed
@@ -486,11 +492,11 @@ async function processLeadImportJob(
       .update({
         status: "completed",
         completed_at: new Date().toISOString(),
-        imported_count: imported,
+        imported_count: contactsToInsert.length,
       })
       .eq("id", jobId);
 
-    console.log(`[processLeadImportJob] Job ${jobId} completed: ${imported} new, ${updated} updated`);
+    console.log(`[processLeadImportJob] Job ${jobId} completed: ${contactsToInsert.length} new, ${contactsToUpdate.length} updated`);
 
     // Send email notification
     try {
@@ -498,7 +504,11 @@ async function processLeadImportJob(
         body: {
           jobId,
           campaignId: payload.campaignId,
-          results: { imported, updated, total: normalizedLeads.length },
+          results: { 
+            imported: contactsToInsert.length, 
+            updated: contactsToUpdate.length, 
+            total: normalizedLeads.length 
+          },
         },
       });
     } catch (emailError) {

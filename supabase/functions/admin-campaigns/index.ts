@@ -398,6 +398,31 @@ async function hydrateCampaigns(
   const baseCampaigns = campaigns.map((campaign) => ({ ...campaign }));
   const { brandMap, profileMap, kpiMap, analyticsMap } = await fetchRelatedMaps(client, baseCampaigns);
 
+  // Fetch campaign contacts from relational table
+  const campaignIds = campaigns.map((c) => c.id);
+  const contactsMap = new Map<string, Array<Record<string, unknown>>>();
+  
+  if (campaignIds.length > 0) {
+    try {
+      const { data: contacts, error } = await client
+        .from("campaign_contacts")
+        .select("*")
+        .in("campaign_id", campaignIds)
+        .order("created_at", { ascending: false });
+      
+      if (!error && contacts) {
+        for (const contact of contacts) {
+          const campaignId = (contact as { campaign_id: string }).campaign_id;
+          const list = contactsMap.get(campaignId) ?? [];
+          list.push(contact as Record<string, unknown>);
+          contactsMap.set(campaignId, list);
+        }
+      }
+    } catch (error) {
+      console.warn("[admin-campaigns] Unable to load campaign contacts", error);
+    }
+  }
+
   return baseCampaigns.map((campaign) => ({
     ...campaign,
     brand: campaign.brand_id ? brandMap.get(campaign.brand_id) ?? null : null,
@@ -405,6 +430,7 @@ async function hydrateCampaigns(
     creator: campaign.created_by ? profileMap.get(campaign.created_by) ?? null : null,
     kpis: kpiMap.get(campaign.id) ?? [],
     analytics_summary: analyticsMap.get(campaign.id) ?? [],
+    contacts: contactsMap.get(campaign.id) ?? [],
   }));
 }
 
