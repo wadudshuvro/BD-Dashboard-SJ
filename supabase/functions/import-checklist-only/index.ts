@@ -90,9 +90,9 @@ Deno.serve(async (req) => {
     // Process each deal
     for (const deal of deals) {
       try {
-        // Fetch checklist items from Control Tower (table name: deal_checklist)
+        // Fetch checklist items from Control Tower (table name: deal_checklist_items)
         const { data: ctChecklistItems, error: ctError } = await controlTowerClient
-          .from('deal_checklist')
+          .from('deal_checklist_items')
           .select('*')
           .eq('deal_id', deal.control_tower_id);
 
