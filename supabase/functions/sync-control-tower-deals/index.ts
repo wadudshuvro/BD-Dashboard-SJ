@@ -336,10 +336,59 @@ async function performSync(
       );
     }
 
-    console.log(`[Sync] Found ${ctDeals.length} active deals to sync`);
+    console.log(`[Sync] Fetched ${ctDeals.length} deals from Control Tower`);
+
+    // Filter out stale deals (close_date > 30 days old with no recent activity)
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    
+    const activeDeals = ctDeals.filter((deal: any) => {
+      // Always include single deal syncs
+      if (singleDealId) return true;
+      
+      // If no close_date, keep it
+      const closeDate = deal.closedate || deal.close_date || deal.expected_closing_date;
+      if (!closeDate) return true;
+      
+      const closeDateObj = new Date(closeDate);
+      
+      // If close_date is recent (within 30 days), keep it
+      if (closeDateObj >= thirtyDaysAgo) return true;
+      
+      // If close_date is old, check for recent activity
+      const updatedAt = deal.updated_at || deal.updatedAt || deal.createdate || deal.created_at;
+      if (updatedAt) {
+        const updatedAtObj = new Date(updatedAt);
+        const hasRecentActivity = updatedAtObj >= thirtyDaysAgo;
+        return hasRecentActivity;
+      }
+      
+      // No activity data, exclude stale deal
+      return false;
+    });
+
+    const filteredCount = ctDeals.length - activeDeals.length;
+    if (filteredCount > 0) {
+      console.log(`[Sync] Filtered out ${filteredCount} stale deals (close_date > 30 days old with no recent activity)`);
+    }
+    
+    if (activeDeals.length === 0) {
+      console.log('[Sync] No active deals remaining after filtering');
+      return new Response(
+        JSON.stringify({ 
+          synced: 0, 
+          updated: 0, 
+          failed: 0, 
+          errors: [] 
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log(`[Sync] Syncing ${activeDeals.length} active deals`);
 
     const driveFolderMap = new Map<string, string>();
-    for (const ctDeal of ctDeals) {
+    for (const ctDeal of activeDeals) {
       const folderId = extractDriveFolderId(ctDeal);
       if (folderId) {
         driveFolderMap.set(String(ctDeal.id), folderId);
@@ -351,16 +400,16 @@ async function performSync(
     }
 
     // Log sample deal structure for debugging
-    if (ctDeals.length > 0) {
+    if (activeDeals.length > 0) {
       console.log('[Sync] Sample deal structure:', {
-        id: ctDeals[0].id,
-        dealname: ctDeals[0].dealname,
-        potential_amount: ctDeals[0].potential_amount,
-        amount: ctDeals[0].amount,
-        dealstage: ctDeals[0].dealstage,
-        clientCompanyName: ctDeals[0].clientCompanyName,
-        expected_closing_date: ctDeals[0].expected_closing_date,
-        keys: Object.keys(ctDeals[0]).slice(0, 15)
+        id: activeDeals[0].id,
+        dealname: activeDeals[0].dealname,
+        potential_amount: activeDeals[0].potential_amount,
+        amount: activeDeals[0].amount,
+        dealstage: activeDeals[0].dealstage,
+        clientCompanyName: activeDeals[0].clientCompanyName,
+        expected_closing_date: activeDeals[0].expected_closing_date,
+        keys: Object.keys(activeDeals[0]).slice(0, 15)
       });
     }
 
@@ -374,7 +423,7 @@ async function performSync(
     console.log('[Sync] Extracting clients from deals...');
     const clientsMap = new Map<string, any>();
     
-    ctDeals.forEach((ctDeal: any) => {
+    activeDeals.forEach((ctDeal: any) => {
       const clientData = extractClientData(ctDeal);
       if (clientData && clientData.company) {
         const key = clientData.company.toLowerCase().trim();
@@ -427,7 +476,7 @@ async function performSync(
     console.log('[Sync] Transforming deals with cached client and user references...');
     const unmappedOwners: Array<{ email: string | null; name: string | null }> = [];
     
-    const transformedDeals = ctDeals.map((ctDeal: any) => {
+    const transformedDeals = activeDeals.map((ctDeal: any) => {
         const ctStage = ctDeal.dealstage || ctDeal.stage;
         const ctStageName = ctDeal.dealstage_name || ctDeal.stage_name;
         
