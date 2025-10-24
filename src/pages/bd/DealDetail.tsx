@@ -96,6 +96,36 @@ interface Deal {
   deal_files?: DealFile[];
   google_drive_folder_id?: string | null;
   google_drive_folder_url?: string | null;
+  
+  // New Control Tower fields
+  category?: string | null;
+  pipeline?: string | null;
+  type_of_work?: string | null;
+  pod_id?: string | null;
+  
+  // Document URLs
+  estimate_url?: string | null;
+  internal_estimate_doc_url?: string | null;
+  client_estimate_doc_url?: string | null;
+  estimate_task_link?: string | null;
+  internal_estimate_doc_link?: string | null;
+  pandadoc_proposal_url?: string | null;
+  
+  // Collaboration URLs
+  collaborative_ai?: string | null;
+  collaborative_ai_link?: string | null;
+  workboard_ai_link?: string | null;
+  client_agent_url?: string | null;
+  client_agent_folder?: string | null;
+  
+  // CRM URLs
+  leadslift_crm_deal_url?: string | null;
+  
+  // POD relationship
+  pods?: {
+    id: string;
+    name: string;
+  } | null;
 }
 
 interface Client {
@@ -323,9 +353,24 @@ const QuickActionsPanel = ({ dealId, controlTowerId: _controlTowerId, externalLi
 interface ExternalLinksSectionProps {
   externalLinks?: DealExternalLinks | null;
   hubspotUrl?: string | null;
+  leadsLiftUrl?: string | null;
+  estimateUrl?: string | null;
+  pandadocUrl?: string | null;
+  collabAiUrl?: string | null;
+  workboardUrl?: string | null;
+  clientAgentUrl?: string | null;
 }
 
-const ExternalLinksSection = ({ externalLinks, hubspotUrl }: ExternalLinksSectionProps) => {
+const ExternalLinksSection = ({ 
+  externalLinks, 
+  hubspotUrl,
+  leadsLiftUrl,
+  estimateUrl,
+  pandadocUrl,
+  collabAiUrl,
+  workboardUrl,
+  clientAgentUrl
+}: ExternalLinksSectionProps) => {
   const links = useMemo(
     () =>
       [
@@ -334,6 +379,42 @@ const ExternalLinksSection = ({ externalLinks, hubspotUrl }: ExternalLinksSectio
           url: hubspotUrl,
           icon: ExternalLink,
           color: 'text-orange-600'
+        },
+        {
+          label: 'LeadsLift CRM',
+          url: leadsLiftUrl,
+          icon: ExternalLink,
+          color: 'text-blue-600'
+        },
+        {
+          label: 'Estimate Document',
+          url: estimateUrl,
+          icon: FileText,
+          color: 'text-green-600'
+        },
+        {
+          label: 'PandaDoc Proposal',
+          url: pandadocUrl,
+          icon: FileSignature,
+          color: 'text-purple-600'
+        },
+        {
+          label: 'CollabAI Workspace',
+          url: collabAiUrl,
+          icon: Bot,
+          color: 'text-green-600'
+        },
+        {
+          label: 'Workboard AI',
+          url: workboardUrl,
+          icon: Workflow,
+          color: 'text-indigo-600'
+        },
+        {
+          label: 'Client Agent',
+          url: clientAgentUrl,
+          icon: User,
+          color: 'text-teal-600'
         },
         {
           label: 'N8N Workflow',
@@ -348,13 +429,13 @@ const ExternalLinksSection = ({ externalLinks, hubspotUrl }: ExternalLinksSectio
           color: 'text-blue-600'
         },
         {
-          label: 'CollabAI Agent',
+          label: 'CollabAI Agent (Legacy)',
           url: externalLinks?.collabai_agent_url,
           icon: Bot,
           color: 'text-green-600'
         }
       ].filter((link) => link.url),
-    [externalLinks, hubspotUrl]
+    [externalLinks, hubspotUrl, leadsLiftUrl, estimateUrl, pandadocUrl, collabAiUrl, workboardUrl, clientAgentUrl]
   );
 
   if (links.length === 0) return null;
@@ -522,6 +603,7 @@ export default function DealDetail() {
           .from('deals')
           .select(`
             *,
+            pods(id, name),
             deal_files:deal_files(
               id,
               deal_id,
@@ -1092,9 +1174,25 @@ export default function DealDetail() {
                     <p className="text-xs text-muted-foreground">Lead Source</p>
                     <p className="text-sm font-medium">{deal.lead_source || '-'}</p>
                   </div>
-                  <div className="sm:col-span-2">
+                  <div>
                     <p className="text-xs text-muted-foreground">Deal Type</p>
-                    <p className="text-sm font-medium">{deal.dealtype || '-'}</p>
+                    <p className="text-sm font-medium">{deal.dealtype === 'newbusiness' ? 'New Business' : deal.dealtype === 'existingbusiness' ? 'Existing Business' : deal.dealtype || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Category</p>
+                    <p className="text-sm font-medium">{deal.category || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Pipeline</p>
+                    <p className="text-sm font-medium">{deal.pipeline || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Type of Work</p>
+                    <p className="text-sm font-medium">{deal.type_of_work || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">POD</p>
+                    <p className="text-sm font-medium">{deal.pods?.name || '-'}</p>
                   </div>
                 </div>
               </CardContent>
@@ -1216,7 +1314,7 @@ export default function DealDetail() {
             </Card>
 
             {deal.notes && (
-              <Card className="lg:col-span-2">
+              <Card className="md:col-span-2">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <FileText className="h-5 w-5" />
@@ -1225,6 +1323,178 @@ export default function DealDetail() {
                 </CardHeader>
                 <CardContent>
                   <p className="whitespace-pre-wrap text-sm text-muted-foreground">{deal.notes}</p>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Documents & Estimates Section */}
+            {(deal.estimate_url || deal.internal_estimate_doc_url || deal.client_estimate_doc_url || 
+              deal.pandadoc_proposal_url || deal.estimate_task_link || deal.internal_estimate_doc_link) && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+                    <FileText className="h-4 w-4" />
+                    Documents & Estimates
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {deal.estimate_url && (
+                    <a href={deal.estimate_url} target="_blank" rel="noopener noreferrer" 
+                       className="flex items-center justify-between rounded border px-3 py-2 hover:bg-muted/50 transition-colors">
+                      <span className="flex items-center gap-2 text-sm">
+                        <FileText className="h-4 w-4" />
+                        Estimate Document
+                      </span>
+                      <ExternalLink className="h-4 w-4" />
+                    </a>
+                  )}
+                  {deal.internal_estimate_doc_url && (
+                    <a href={deal.internal_estimate_doc_url} target="_blank" rel="noopener noreferrer"
+                       className="flex items-center justify-between rounded border px-3 py-2 hover:bg-muted/50 transition-colors">
+                      <span className="flex items-center gap-2 text-sm">
+                        <FileCheck className="h-4 w-4" />
+                        Internal Estimate
+                      </span>
+                      <ExternalLink className="h-4 w-4" />
+                    </a>
+                  )}
+                  {deal.client_estimate_doc_url && (
+                    <a href={deal.client_estimate_doc_url} target="_blank" rel="noopener noreferrer"
+                       className="flex items-center justify-between rounded border px-3 py-2 hover:bg-muted/50 transition-colors">
+                      <span className="flex items-center gap-2 text-sm">
+                        <FileSignature className="h-4 w-4" />
+                        Client Estimate
+                      </span>
+                      <ExternalLink className="h-4 w-4" />
+                    </a>
+                  )}
+                  {deal.pandadoc_proposal_url && (
+                    <a href={deal.pandadoc_proposal_url} target="_blank" rel="noopener noreferrer"
+                       className="flex items-center justify-between rounded border px-3 py-2 hover:bg-muted/50 transition-colors">
+                      <span className="flex items-center gap-2 text-sm">
+                        <FileSignature className="h-4 w-4" />
+                        PandaDoc Proposal
+                      </span>
+                      <ExternalLink className="h-4 w-4" />
+                    </a>
+                  )}
+                  {deal.estimate_task_link && (
+                    <a href={deal.estimate_task_link} target="_blank" rel="noopener noreferrer"
+                       className="flex items-center justify-between rounded border px-3 py-2 hover:bg-muted/50 transition-colors">
+                      <span className="flex items-center gap-2 text-sm">
+                        <CheckSquare className="h-4 w-4" />
+                        Estimate Task
+                      </span>
+                      <ExternalLink className="h-4 w-4" />
+                    </a>
+                  )}
+                  {deal.internal_estimate_doc_link && (
+                    <a href={deal.internal_estimate_doc_link} target="_blank" rel="noopener noreferrer"
+                       className="flex items-center justify-between rounded border px-3 py-2 hover:bg-muted/50 transition-colors">
+                      <span className="flex items-center gap-2 text-sm">
+                        <FileText className="h-4 w-4" />
+                        Internal Estimate Doc Link
+                      </span>
+                      <ExternalLink className="h-4 w-4" />
+                    </a>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Collaboration Tools Section */}
+            {(deal.collaborative_ai || deal.collaborative_ai_link || deal.workboard_ai_link || 
+              deal.client_agent_url || deal.client_agent_folder) && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+                    <Sparkles className="h-4 w-4" />
+                    Collaboration & Workspaces
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {deal.collaborative_ai && (
+                    <div className="rounded border px-3 py-2">
+                      <div className="text-xs text-muted-foreground">CollabAI Reference</div>
+                      <div className="text-sm font-medium">{deal.collaborative_ai}</div>
+                    </div>
+                  )}
+                  {deal.collaborative_ai_link && (
+                    <a href={deal.collaborative_ai_link} target="_blank" rel="noopener noreferrer"
+                       className="flex items-center justify-between rounded border px-3 py-2 hover:bg-muted/50 transition-colors">
+                      <span className="flex items-center gap-2 text-sm">
+                        <Bot className="h-4 w-4" />
+                        CollabAI Workspace
+                      </span>
+                      <ExternalLink className="h-4 w-4" />
+                    </a>
+                  )}
+                  {deal.workboard_ai_link && (
+                    <a href={deal.workboard_ai_link} target="_blank" rel="noopener noreferrer"
+                       className="flex items-center justify-between rounded border px-3 py-2 hover:bg-muted/50 transition-colors">
+                      <span className="flex items-center gap-2 text-sm">
+                        <Workflow className="h-4 w-4" />
+                        Workboard AI
+                      </span>
+                      <ExternalLink className="h-4 w-4" />
+                    </a>
+                  )}
+                  {deal.client_agent_url && (
+                    <a href={deal.client_agent_url} target="_blank" rel="noopener noreferrer"
+                       className="flex items-center justify-between rounded border px-3 py-2 hover:bg-muted/50 transition-colors">
+                      <span className="flex items-center gap-2 text-sm">
+                        <User className="h-4 w-4" />
+                        Client Agent
+                      </span>
+                      <ExternalLink className="h-4 w-4" />
+                    </a>
+                  )}
+                  {deal.client_agent_folder && (
+                    <div className="rounded border px-3 py-2">
+                      <div className="text-xs text-muted-foreground">Client Agent Folder</div>
+                      <div className="text-sm font-medium break-all">{deal.client_agent_folder}</div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* CRM Links Section */}
+            {(deal.hubspot_crm_deal_url || deal.leadslift_crm_deal_url || deal.control_tower_id) && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+                    <ExternalLink className="h-4 w-4" />
+                    CRM & External Systems
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {deal.hubspot_crm_deal_url && (
+                    <a href={deal.hubspot_crm_deal_url} target="_blank" rel="noopener noreferrer"
+                       className="flex items-center justify-between rounded border px-3 py-2 hover:bg-muted/50 transition-colors text-orange-600">
+                      <span className="flex items-center gap-2 text-sm">
+                        <ExternalLink className="h-4 w-4" />
+                        HubSpot CRM Deal
+                      </span>
+                      <ExternalLink className="h-4 w-4" />
+                    </a>
+                  )}
+                  {deal.leadslift_crm_deal_url && (
+                    <a href={deal.leadslift_crm_deal_url} target="_blank" rel="noopener noreferrer"
+                       className="flex items-center justify-between rounded border px-3 py-2 hover:bg-muted/50 transition-colors text-blue-600">
+                      <span className="flex items-center gap-2 text-sm">
+                        <ExternalLink className="h-4 w-4" />
+                        LeadsLift CRM Deal
+                      </span>
+                      <ExternalLink className="h-4 w-4" />
+                    </a>
+                  )}
+                  {deal.control_tower_id && (
+                    <div className="rounded border px-3 py-2">
+                      <div className="text-xs text-muted-foreground">Control Tower ID</div>
+                      <div className="text-sm font-medium">{deal.control_tower_id}</div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}
@@ -1623,6 +1893,12 @@ export default function DealDetail() {
           <ExternalLinksSection
             externalLinks={deal.external_links}
             hubspotUrl={deal.hubspot_crm_deal_url}
+            leadsLiftUrl={deal.leadslift_crm_deal_url}
+            estimateUrl={deal.estimate_url}
+            pandadocUrl={deal.pandadoc_proposal_url}
+            collabAiUrl={deal.collaborative_ai_link}
+            workboardUrl={deal.workboard_ai_link}
+            clientAgentUrl={deal.client_agent_url}
           />
 
           <Card>

@@ -47,6 +47,18 @@ const ActionItemSchema = z.object({
   confidence: z.number().min(0).max(1).optional(),
 });
 
+const StructuredOutputBaseSchema = z.object({
+  industry: z.string().optional().nullable(),
+  employee_count: z.union([z.string(), z.number()]).optional().nullable(),
+  revenue: z.union([z.string(), z.number()]).optional().nullable(),
+  summary: z.string().optional().nullable(),
+  notes: z.string().optional().nullable(),
+});
+
+const StructuredOutputSchema = StructuredOutputBaseSchema.optional();
+
+type StructuredOutput = z.infer<typeof StructuredOutputBaseSchema>;
+
 const AgentResponseSchema = z.object({
   summary: z.string().min(1),
   findings: z.array(z.string()).default([]),
@@ -376,6 +388,7 @@ async function persistRun(
     selectedFileIds?: string[];
     userContext?: string;
     structuredOutput?: any;
+    clientId?: string;
   },
 ) {
   const { data, error } = await (client as any)
@@ -398,6 +411,7 @@ async function persistRun(
       selected_file_ids: payload.selectedFileIds || [],
       user_context: payload.userContext,
       structured_output: payload.structuredOutput || payload.response,
+      client_id: payload.clientId,
     })
     .select()
     .single();
@@ -675,7 +689,7 @@ serve(async (req) => {
       agentId: agentId as string,
       userId,
       agentCategory: (agent as any).category ?? null,
-      executionContext: executionContext || {},
+      executionContext: runExecutionContext,
       response: parsedResponse,
       providerTelemetry: telemetry,
       providerRawOutputs: rawOutputs,
