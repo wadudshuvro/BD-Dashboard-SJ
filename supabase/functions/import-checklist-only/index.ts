@@ -186,17 +186,6 @@ Deno.serve(async (req) => {
           } else {
             result.synced++;
           }
-
-          // Log successful sync
-          await supabase.from('control_tower_sync_log').insert({
-            sync_type: 'pull',
-            entity_type: 'checklist',
-            entity_id: ctItem.id,
-            control_tower_id: ctItem.id,
-            status: upsertError ? 'failed' : 'success',
-            error_message: upsertError?.message || null,
-            synced_by: user.id,
-          });
         }
       } catch (dealError: any) {
         console.error(`[Import] Error processing deal ${deal.id}:`, dealError);
@@ -207,6 +196,24 @@ Deno.serve(async (req) => {
 
     result.duration = Date.now() - startTime;
     console.log(`[Import] Complete: ${result.synced} synced, ${result.skipped} skipped, ${result.failed} failed in ${result.duration}ms`);
+
+    // Log a single summary entry
+    await supabase.from('control_tower_sync_log').insert({
+      sync_type: 'pull',
+      entity_type: 'checklist_import',
+      entity_id: specificDealId || null,
+      control_tower_id: null,
+      status: result.failed > 0 ? 'partial_success' : 'success',
+      error_message: result.errors.length > 0 ? result.errors.join('; ') : null,
+      synced_by: user.id,
+      payload: {
+        synced: result.synced,
+        skipped: result.skipped,
+        failed: result.failed,
+        duration_ms: result.duration,
+        deals_processed: deals.length
+      }
+    });
 
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
