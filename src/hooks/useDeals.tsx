@@ -475,13 +475,15 @@ export function useLocalDealsByStage(
                 drive_folder_url,
                 created_at,
                 updated_at
-              )
-            `,
-              { count: 'exact' }
             )
-            .eq('stage', stage)
-            .order('created_at', { ascending: false })
-            .range(from, to);
+          `,
+            { count: 'exact' }
+          )
+          .eq('stage', stage)
+          .eq('status', 'active')
+          .order('amount', { ascending: false, nullsFirst: false })
+          .order('updated_at', { ascending: false })
+          .range(from, to);
         
         if (error) throw error;
         

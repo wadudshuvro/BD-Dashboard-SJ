@@ -1096,6 +1096,7 @@ export type Database = {
           priority: string | null
           probability: number | null
           stage: string | null
+          status: string | null
           synced_from_control_tower: boolean | null
           tags: string[] | null
           title: string
@@ -1130,6 +1131,7 @@ export type Database = {
           priority?: string | null
           probability?: number | null
           stage?: string | null
+          status?: string | null
           synced_from_control_tower?: boolean | null
           tags?: string[] | null
           title: string
@@ -1164,6 +1166,7 @@ export type Database = {
           priority?: string | null
           probability?: number | null
           stage?: string | null
+          status?: string | null
           synced_from_control_tower?: boolean | null
           tags?: string[] | null
           title?: string

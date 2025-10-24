@@ -54,6 +54,7 @@ import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { AIAgentModal } from '@/components/ai/AIAgentModal';
 import type { DealFile } from '@/hooks/useDeals';
+import { DEAL_STATUSES, STATUS_LABELS, type DealStatus } from '@/lib/dealStages';
 
 interface DealExternalLinks {
   n8n_workflow_url?: string | null;
@@ -67,6 +68,7 @@ interface Deal {
   amount: number | null;
   potential_amount?: number | null;
   stage: string | null;
+  status?: string | null;
   close_date: string | null;
   expected_closing_date?: string | null;
   probability: number | null;
@@ -947,10 +949,39 @@ export default function DealDetail() {
       <div className="space-y-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="space-y-3">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <Badge variant={getStageBadgeVariant(deal.stage)} className="capitalize">
                 {deal.stage?.replace('_', ' ') || 'prospecting'}
               </Badge>
+              
+              {/* Status Selector */}
+              <Select
+                value={deal.status || 'active'}
+                onValueChange={async (value: DealStatus) => {
+                  try {
+                    await supabase
+                      .from('deals')
+                      .update({ status: value })
+                      .eq('id', deal.id);
+                    toast({ title: 'Status updated successfully' });
+                    queryClient.invalidateQueries({ queryKey: ['deal', slug] });
+                  } catch (error) {
+                    toast({ title: 'Failed to update status', variant: 'destructive' });
+                  }
+                }}
+              >
+                <SelectTrigger className="w-[140px] h-7">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(STATUS_LABELS).map(([key, label]) => (
+                    <SelectItem key={key} value={key}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              
               {deal.priority && <Badge variant="outline">Priority: {deal.priority}</Badge>}
               {deal.synced_from_control_tower && <Badge variant="outline">Synced from Control Tower</Badge>}
             </div>
@@ -1051,7 +1082,7 @@ export default function DealDetail() {
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Status</p>
-                    <p className="text-sm font-medium">{deal.control_tower_status || 'Active'}</p>
+                    <p className="text-sm font-medium capitalize">{STATUS_LABELS[deal.status as DealStatus] || 'Active'}</p>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Expected Close</p>

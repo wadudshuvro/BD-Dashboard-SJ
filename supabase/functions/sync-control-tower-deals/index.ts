@@ -291,6 +291,11 @@ async function performSync(
     
     let ctDealsQuery = ctClient.from('Deal').select('*');
     
+    // Filter to only active deals unless syncing a single deal
+    if (!singleDealId) {
+      ctDealsQuery = ctDealsQuery.eq('dealstatus', 'active');
+    }
+    
     if (singleDealId) {
       // For single deal sync, fetch by control_tower_id
       const { data: localDeal } = await supabase
@@ -520,6 +525,9 @@ async function performSync(
           synced_from_control_tower: true,
           last_synced_at: new Date().toISOString(),
           probability: ctDeal.probability ? parseFloat(ctDeal.probability) : null,
+          
+          // Map dealstatus to local status field
+          status: ctDeal.dealstatus || ctDeal.status || 'active',
 
           // Timestamps from Control Tower
           created_at: ctDeal.createdate || ctDeal.created_at || new Date().toISOString(),

@@ -62,7 +62,7 @@ function parseConfig(config: Record<string, unknown> | null | undefined): Perple
 
 async function fetchIntegration(client: SupabaseClient): Promise<IntegrationRow | null> {
   const { data } = await client
-    .from<IntegrationRow>("integrations")
+    .from("integrations")
     .select("id, name, type, config, is_active, last_sync")
     .eq("type", "perplexity")
     .maybeSingle();

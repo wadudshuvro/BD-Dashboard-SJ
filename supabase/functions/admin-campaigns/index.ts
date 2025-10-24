@@ -155,6 +155,7 @@ interface HydratedCampaign {
   creator?: ProfileRow | null;
   kpis?: KpiRow[];
   analytics_summary?: AnalyticsSummary[];
+  contacts?: Array<Record<string, unknown>>;
 }
 
 interface CampaignDatabaseRow {
