@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from '@/hooks/use-toast';
 import { formatDistanceToNow, format } from 'date-fns';
-import { Loader2, RefreshCw, CloudUpload, CloudDownload, AlertCircle, CheckCircle2, Clock, CheckSquare, Trash2 } from 'lucide-react';
+import { Loader2, RefreshCw, CloudUpload, CloudDownload, AlertCircle, CheckCircle2, Clock, CheckSquare, Trash2, Network } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -67,6 +67,7 @@ const ControlTowerSyncDashboard = () => {
   const [isPulling, setIsPulling] = useState(false);
   const [isPushing, setIsPushing] = useState(false);
   const [isImportingChecklists, setIsImportingChecklists] = useState(false);
+  const [isSyncingPods, setIsSyncingPods] = useState(false);
   const [isClearingLogs, setIsClearingLogs] = useState(false);
   const [showClearDialog, setShowClearDialog] = useState(false);
   const [filters, setFilters] = useState({ entityType: 'all', status: 'all' });
@@ -298,6 +299,25 @@ const ControlTowerSyncDashboard = () => {
     }
   };
 
+  const triggerPodSync = async () => {
+    setIsSyncingPods(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('sync-control-tower-pods');
+      if (error) throw error;
+      
+      toast({ 
+        title: '✅ POD Sync Complete',
+        description: `Imported ${data?.podsImported || 0} PODs from Control Tower`,
+        duration: 5000
+      });
+    } catch (error: any) {
+      toast({ title: '❌ POD Sync Failed', description: error.message, variant: 'destructive' });
+    } finally {
+      setIsSyncingPods(false);
+      fetchSummary();
+    }
+  };
+
   const clearAllLogs = async () => {
     setIsClearingLogs(true);
     try {
@@ -443,6 +463,10 @@ const ControlTowerSyncDashboard = () => {
           <Button variant="secondary" onClick={triggerChecklistImport} disabled={isImportingChecklists || loading}>
             {isImportingChecklists ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckSquare className="mr-2 h-4 w-4" />}
             {isImportingChecklists ? 'Importing...' : 'Import Checklists'}
+          </Button>
+          <Button variant="secondary" onClick={triggerPodSync} disabled={isSyncingPods || loading}>
+            {isSyncingPods ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Network className="mr-2 h-4 w-4" />}
+            {isSyncingPods ? 'Syncing PODs...' : 'Sync PODs'}
           </Button>
           <Button variant="ghost" onClick={fetchSummary} disabled={loading}>
             <RefreshCw className="mr-2 h-4 w-4" /> Refresh
