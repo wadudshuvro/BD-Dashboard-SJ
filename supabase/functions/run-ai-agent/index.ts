@@ -6,13 +6,17 @@ import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import {
   AgentConfig,
+  ProviderConfig,
   buildProviderChain,
   invokeProvider,
   ProviderTelemetry,
 } from "../_shared/providers.ts";
 
 const AgentRunRequestSchema = z.object({
-  agent_id: z.string().uuid(),
+  agent_id: z.string().uuid().optional(),
+  agent_type: z.string().optional(),
+  target: z.string().optional(),
+  client_id: z.string().uuid().optional(),
   execution_context: z.object({
     timeframe: z.string().optional(),
     filters: z.record(z.any()).optional(),
@@ -42,6 +46,18 @@ const ActionItemSchema = z.object({
   confidence: z.number().min(0).max(1).optional(),
 });
 
+const StructuredOutputBaseSchema = z.object({
+  industry: z.string().optional().nullable(),
+  employee_count: z.union([z.string(), z.number()]).optional().nullable(),
+  revenue: z.union([z.string(), z.number()]).optional().nullable(),
+  summary: z.string().optional().nullable(),
+  notes: z.string().optional().nullable(),
+});
+
+const StructuredOutputSchema = StructuredOutputBaseSchema.optional();
+
+type StructuredOutput = z.infer<typeof StructuredOutputBaseSchema>;
+
 const AgentResponseSchema = z.object({
   summary: z.string().min(1),
   findings: z.array(z.string()).default([]),
@@ -55,6 +71,7 @@ const AgentResponseSchema = z.object({
   confidence_score: z.number().min(0).max(1).optional(),
   insights: z.array(z.string()).optional(),
   risks: z.array(z.string()).optional(),
+  structured_output: StructuredOutputSchema,
 });
 
 type AgentResponse = z.infer<typeof AgentResponseSchema>;
@@ -88,6 +105,30 @@ interface ConfigurationPayload {
     analysis_prompts?: Record<string, string>;
   };
 }
+
+type IntegrationRow = {
+  type: string;
+  config: Record<string, unknown> | null;
+  is_active: boolean | null;
+};
+
+type ClientProfile = {
+  id: string;
+  name: string | null;
+  website: string | null;
+  industry: string | null;
+  notes: string | null;
+  employee_count: number | null;
+  revenue: number | null;
+};
+
+type ClientInputContext = {
+  client_name: string;
+  website: string;
+  industry: string;
+  notes: string;
+  enrichment_task: string;
+};
 
 async function getClient(req: Request) {
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
@@ -171,6 +212,47 @@ async function fetchFileContents(client: SupabaseClient, fileIds: string[]): Pro
   }
 
   return fileContents.join("\n\n");
+}
+
+async function resolvePreferredProvider(
+  client: SupabaseClient,
+): Promise<{ providerConfig: ProviderConfig; defaultModelOverride?: string } | null> {
+  const preferred = [
+    { type: "perplexity", provider: "perplexity" as const, fallbackModel: "pplx-70b-online" },
+    { type: "openai", provider: "openai" as const, fallbackModel: "gpt-4o-mini" },
+  ];
+
+  for (const preference of preferred) {
+    const { data, error } = await client
+      .from("integrations")
+      .select("type, config, is_active")
+      .eq("type", preference.type)
+      .eq("is_active", true)
+      .limit(1)
+      .maybeSingle<IntegrationRow>();
+
+    if (error) {
+      console.error(`[run-ai-agent] Failed to load ${preference.type} integration`, error);
+      continue;
+    }
+
+    if (data) {
+      const config = (data.config ?? {}) as Record<string, unknown>;
+      const configuredModel = typeof config?.model === "string" && config.model.trim().length > 0
+        ? config.model
+        : preference.fallbackModel;
+
+      return {
+        providerConfig: {
+          provider: preference.provider,
+          model: configuredModel,
+        },
+        defaultModelOverride: preference.provider === "openai" ? configuredModel : undefined,
+      };
+    }
+  }
+
+  return null;
 }
 
 function assemblePrompt(
@@ -319,6 +401,7 @@ async function persistRun(
     selectedFileIds?: string[];
     userContext?: string;
     structuredOutput?: any;
+    clientId?: string;
   },
 ) {
   const { data, error } = await (client as any)
@@ -341,6 +424,7 @@ async function persistRun(
       selected_file_ids: payload.selectedFileIds || [],
       user_context: payload.userContext,
       structured_output: payload.structuredOutput || payload.response,
+      client_id: payload.clientId,
     })
     .select()
     .single();
@@ -370,34 +454,163 @@ serve(async (req) => {
     const json = await req.json();
     const payload = AgentRunRequestSchema.parse(json);
 
-    const { agent_id: agentId, execution_context: executionContext, file_ids: fileIds, user_context: userContext } = payload;
+    const {
+      agent_id: providedAgentId,
+      execution_context: executionContext,
+      file_ids: fileIds,
+      user_context: userContext,
+      client_id: clientId,
+      agent_type: agentType,
+      target,
+    } = payload;
 
-    const { data: agent, error: agentError } = await client
-      .from("ai_agents")
-      .select("*, config, prompt_template")
-      .eq("id", agentId)
-      .single();
+    const resolvedTarget = target ?? "deal";
+    const runExecutionContext: Record<string, unknown> = { ...(executionContext ?? {}) };
+    if (!runExecutionContext.target) {
+      runExecutionContext.target = resolvedTarget;
+    }
 
-    if (agentError || !agent) {
-      throw new Error("Agent not found or access denied");
+    let agent: (DatabaseAgent & { config?: AgentConfig; prompt_template?: string }) | null = null;
+    let resolvedAgentId = providedAgentId ?? "";
+    let clientProfile: ClientProfile | null = null;
+    let inputContext: ClientInputContext | null = null;
+
+    if (resolvedTarget === "client") {
+      if (!clientId) {
+        throw new Error("client_id is required when target is 'client'");
+      }
+
+      const normalizedAgentType = agentType ?? "research";
+      const { data: resolvedAgent, error: resolveAgentError } = await client
+        .from("ai_agents")
+        .select("*, config, prompt_template")
+        .eq("type", normalizedAgentType)
+        .eq("is_active", true)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (resolveAgentError || !resolvedAgent) {
+        throw new Error("Active research agent not found");
+      }
+
+      agent = resolvedAgent as DatabaseAgent & { config?: AgentConfig; prompt_template?: string };
+      resolvedAgentId = resolvedAgent.id;
+
+      runExecutionContext.target = "client";
+      runExecutionContext.client_id = clientId;
+      runExecutionContext.agent_type = normalizedAgentType;
+
+      const { data: clientData, error: clientError } = await client
+        .from("clients")
+        .select("id, name, website, industry, notes, employee_count, revenue")
+        .eq("id", clientId)
+        .single();
+
+      if (clientError || !clientData) {
+        throw new Error("Client not found or access denied");
+      }
+
+      clientProfile = clientData as ClientProfile;
+      if (clientProfile.name && !runExecutionContext.client_name) {
+        runExecutionContext.client_name = clientProfile.name;
+      }
+
+      const enrichmentTask =
+        "Research and enrich the client profile with industry, employee count, revenue, and a concise summary of recent insights.";
+      inputContext = {
+        client_name: clientProfile.name ?? "",
+        website: clientProfile.website ?? "",
+        industry: clientProfile.industry ?? "",
+        notes: clientProfile.notes ?? "",
+        enrichment_task: enrichmentTask,
+      };
+      runExecutionContext.input_context = inputContext;
+    }
+
+    if (!agent) {
+      if (!providedAgentId) {
+        throw new Error("agent_id is required for this request");
+      }
+
+      const { data: fetchedAgent, error: agentError } = await client
+        .from("ai_agents")
+        .select("*, config, prompt_template")
+        .eq("id", providedAgentId)
+        .single();
+
+      if (agentError || !fetchedAgent) {
+        throw new Error("Agent not found or access denied");
+      }
+
+      agent = fetchedAgent as DatabaseAgent & { config?: AgentConfig; prompt_template?: string };
+      resolvedAgentId = providedAgentId;
     }
 
     const configs = await fetchConfigurations(client);
-    const sharedResources = await fetchSharedResources(client, agentId);
-    
-    const fileContents = fileIds ? await fetchFileContents(client, fileIds) : "";
-    
-    const { systemPrompt, userPrompt } = assemblePrompt(
-      agent,
-      configs.businessContext,
-      configs.prompts,
-      executionContext || {},
-      sharedResources,
-      fileContents,
-      userContext,
-    );
+    const sharedResources = await fetchSharedResources(client, resolvedAgentId);
 
-    const providerChain = buildProviderChain((agent.config as any) || {}, configs.modelSettings?.default_model || "google/gemini-2.5-flash");
+    const fileContents = fileIds && fileIds.length ? await fetchFileContents(client, fileIds) : "";
+
+    let systemPrompt: string;
+    let userPrompt: string;
+
+    if (resolvedTarget === "client" && clientProfile && inputContext) {
+      const enrichmentTask = inputContext.enrichment_task;
+      const formattedContext = JSON.stringify(inputContext, null, 2);
+      const template = typeof agent.prompt_template === "string" ? agent.prompt_template : "";
+      const populatedTemplate = template
+        .replace(/{{input_context}}/g, formattedContext)
+        .replace(/{{enrichment_task}}/g, enrichmentTask)
+        .replace(/{{client_name}}/g, inputContext.client_name || "N/A");
+
+      systemPrompt = agent.system_prompt;
+      if (populatedTemplate.trim().length > 0) {
+        userPrompt = populatedTemplate;
+      } else {
+        const responseTemplate = JSON.stringify({
+          structured_output: {
+            industry: "Updated industry",
+            employee_count: 120,
+            revenue: 1250000,
+            summary: "One paragraph summary of the client's positioning",
+          },
+        }, null, 2);
+        userPrompt =
+          `Use the following input context to enrich the client profile:\n${formattedContext}\n\n` +
+          `Return valid JSON that matches this shape:\n${responseTemplate}`;
+      }
+    } else {
+      const assembled = assemblePrompt(
+        agent,
+        configs.businessContext,
+        configs.prompts,
+        runExecutionContext,
+        sharedResources,
+        fileContents,
+        userContext,
+      );
+      systemPrompt = assembled.systemPrompt;
+      userPrompt = assembled.userPrompt;
+    }
+
+    const providerPreference = await resolvePreferredProvider(client);
+    let agentConfig = (agent.config as AgentConfig) || {};
+    if (providerPreference) {
+      agentConfig = {
+        ...agentConfig,
+        providers: {
+          ...agentConfig.providers,
+          primary: providerPreference.providerConfig,
+        },
+      };
+    }
+
+    const defaultModel = providerPreference?.defaultModelOverride
+      ?? configs.modelSettings?.default_model
+      ?? "google/gemini-2.5-flash";
+
+    const providerChain = buildProviderChain(agentConfig, defaultModel);
 
     const messages = [
       { role: "system" as const, content: systemPrompt },
@@ -439,34 +652,124 @@ serve(async (req) => {
       throw new Error("All providers failed to produce a valid response");
     }
 
+    let updatedClientProfile = clientProfile;
+    const structuredOutput: StructuredOutput | null = parsedResponse.structured_output ?? null;
+
+    if (resolvedTarget === "client" && clientProfile) {
+      const sanitizeString = (value: unknown): string | null => {
+        if (typeof value === "string") {
+          const trimmed = value.trim();
+          return trimmed.length > 0 ? trimmed : null;
+        }
+        return null;
+      };
+      const sanitizeInteger = (value: unknown): number | null => {
+        if (typeof value === "number" && Number.isFinite(value)) {
+          return Math.round(value);
+        }
+        if (typeof value === "string") {
+          const parsed = Number.parseInt(value.replace(/[^0-9-]/g, ""), 10);
+          return Number.isNaN(parsed) ? null : parsed;
+        }
+        return null;
+      };
+      const sanitizeNumeric = (value: unknown): number | null => {
+        if (typeof value === "number" && Number.isFinite(value)) {
+          return value;
+        }
+        if (typeof value === "string") {
+          const parsed = Number.parseFloat(value.replace(/[^0-9.-]/g, ""));
+          return Number.isNaN(parsed) ? null : parsed;
+        }
+        return null;
+      };
+
+      const clientUpdates: Record<string, unknown> = {};
+      if (structuredOutput) {
+        const industryValue = sanitizeString(structuredOutput.industry ?? null);
+        if (industryValue !== null) clientUpdates.industry = industryValue;
+
+        const employeeCountValue = sanitizeInteger(structuredOutput.employee_count ?? null);
+        if (employeeCountValue !== null) clientUpdates.employee_count = employeeCountValue;
+
+        const revenueValue = sanitizeNumeric(structuredOutput.revenue ?? null);
+        if (revenueValue !== null) clientUpdates.revenue = revenueValue;
+
+        const summaryValue = sanitizeString(structuredOutput.summary ?? null);
+        if (summaryValue !== null) {
+          clientUpdates.notes = summaryValue;
+        }
+      }
+
+      if (Object.keys(clientUpdates).length > 0) {
+        try {
+          const { data: updatedClient, error: updateError } = await client
+            .from("clients")
+            .update(clientUpdates)
+            .eq("id", clientProfile.id)
+            .select("id, name, website, industry, notes, employee_count, revenue")
+            .single();
+
+          if (updateError) {
+            throw updateError;
+          }
+
+          if (updatedClient) {
+            updatedClientProfile = updatedClient as ClientProfile;
+          }
+        } catch (updateError) {
+          console.error("[run-ai-agent] Failed to update client profile", updateError);
+        }
+      }
+    }
+
+    const runClientId = resolvedTarget === "client"
+      ? updatedClientProfile?.id ?? clientId ?? undefined
+      : undefined;
+
     const runRecord = await persistRun(client, {
-      agentId,
+      agentId: resolvedAgentId,
       userId,
       agentCategory: (agent as any).category ?? null,
-      executionContext: executionContext || {},
+      executionContext: runExecutionContext,
       response: parsedResponse,
       providerTelemetry: telemetry,
       providerRawOutputs: rawOutputs,
       selectedFileIds: fileIds,
       userContext,
-      structuredOutput: parsedResponse,
+      structuredOutput: structuredOutput ?? parsedResponse,
+      clientId: runClientId,
     });
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        run_id: (runRecord as any).id,
-        summary: parsedResponse.summary,
-        findings: parsedResponse.findings,
-        recommendations: parsedResponse.recommendations,
-        action_items: parsedResponse.action_items,
-        structured_output: parsedResponse,
-        telemetry,
-      }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      },
-    );
+    const responseBody: Record<string, unknown> = {
+      success: true,
+      run_id: (runRecord as any).id,
+      summary: parsedResponse.summary,
+      findings: parsedResponse.findings,
+      recommendations: parsedResponse.recommendations,
+      action_items: parsedResponse.action_items,
+      structured_output: structuredOutput ?? parsedResponse,
+      telemetry,
+    };
+
+    if (resolvedTarget === "client") {
+      responseBody.client = updatedClientProfile
+        ? {
+          id: updatedClientProfile.id,
+          name: updatedClientProfile.name,
+          website: updatedClientProfile.website,
+          industry: updatedClientProfile.industry,
+          employee_count: updatedClientProfile.employee_count,
+          revenue: updatedClientProfile.revenue,
+          notes: updatedClientProfile.notes,
+        }
+        : null;
+      responseBody.input_context = inputContext;
+    }
+
+    return new Response(JSON.stringify(responseBody), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   } catch (error) {
     console.error("Error in run-ai-agent function:", error);
     return new Response(
