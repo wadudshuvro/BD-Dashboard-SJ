@@ -177,6 +177,20 @@ function extractDriveFolderId(ctDeal: any): string | null {
   return null;
 }
 
+/**
+ * Maps Control Tower stage to local deal status
+ */
+function mapStatus(ctStage: any): string {
+  const stageStr = String(ctStage || '').toLowerCase().trim();
+  
+  // Map closed stages to won/lost status
+  if (stageStr === 'closedwon') return 'won';
+  if (stageStr === 'closedlost') return 'lost';
+  
+  // All other stages are "active" deals
+  return 'active';
+}
+
 // Build a client lookup cache from company names
 async function buildClientCache(supabase: any): Promise<Map<string, string>> {
   console.log('[Sync] Building client lookup cache...');
@@ -621,7 +635,7 @@ async function performSync(
           probability: ctDeal.probability ? parseFloat(ctDeal.probability) : null,
           
           // Map dealstage to local status field
-          status: ctDeal.dealstage || ctDeal.status || 'active',
+          status: mapStatus(ctDeal.dealstage || ctDeal.status),
 
           // Timestamps from Control Tower
           created_at: ctDeal.createdate || ctDeal.created_at || new Date().toISOString(),
