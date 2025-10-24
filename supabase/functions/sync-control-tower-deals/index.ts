@@ -293,7 +293,7 @@ async function performSync(
     
     // Filter to only active deals unless syncing a single deal
     if (!singleDealId) {
-      ctDealsQuery = ctDealsQuery.eq('dealstatus', 'active');
+      ctDealsQuery = ctDealsQuery.eq('dealstage', 'active');
     }
     
     if (singleDealId) {
@@ -617,8 +617,8 @@ async function performSync(
           last_synced_at: new Date().toISOString(),
           probability: ctDeal.probability ? parseFloat(ctDeal.probability) : null,
           
-          // Map dealstatus to local status field
-          status: ctDeal.dealstatus || ctDeal.status || 'active',
+          // Map dealstage to local status field
+          status: ctDeal.dealstage || ctDeal.status || 'active',
 
           // Timestamps from Control Tower
           created_at: ctDeal.createdate || ctDeal.created_at || new Date().toISOString(),
