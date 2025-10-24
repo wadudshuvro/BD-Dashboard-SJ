@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { format, formatDistanceToNow } from 'date-fns';
 import {
@@ -11,6 +11,7 @@ import {
   User,
   FileText,
   ExternalLink,
+  Loader2,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,9 +20,29 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useClientBySlug } from '@/hooks/useClientBySlug';
 import { useDeals } from '@/hooks/useDeals';
 import { useDealFiles } from '@/hooks/useDealFiles';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/components/ui/use-toast';
+import { useQueryClient } from '@tanstack/react-query';
+
+type AgentStructuredOutput = {
+  industry?: string | null;
+  employee_count?: number | string | null;
+  revenue?: number | string | null;
+  notes?: string | null;
+  summary?: string | null;
+};
 
 function formatDate(value?: string | null, withTime = false) {
   if (!value) return '—';
@@ -45,12 +66,180 @@ function formatRelativeDate(value?: string | null) {
 export default function ClientDetail() {
   const { slug } = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
   const { data: client, isLoading: isLoadingClient, error: fetchError } = useClientBySlug(slug);
   const clientId = client?.id;
   const { deals, loading: dealsLoading } = useDeals({ clientId, enabled: Boolean(clientId) });
   const { files, loading: filesLoading } = useDealFiles({ clientId, enabled: Boolean(clientId) });
 
   const error = fetchError ? 'Unable to load client details' : null;
+
+  const [isRunning, setIsRunning] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [agentOutput, setAgentOutput] = useState<AgentStructuredOutput | null>(null);
+  const [isApplyingUpdates, setIsApplyingUpdates] = useState(false);
+
+  const parseNumericValue = (value: AgentStructuredOutput[keyof AgentStructuredOutput]) => {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value;
+    }
+    if (typeof value === 'string') {
+      const cleaned = value.replace(/[^0-9.]/g, '');
+      if (!cleaned) return undefined;
+      const parsed = Number.parseFloat(cleaned);
+      return Number.isFinite(parsed) ? parsed : undefined;
+    }
+    return undefined;
+  };
+
+  const handleDialogOpenChange = (open: boolean) => {
+    if (!open) {
+      if (isRunning || isApplyingUpdates) {
+        return;
+      }
+      setIsModalOpen(false);
+      setAgentOutput(null);
+      return;
+    }
+    setIsModalOpen(true);
+  };
+
+  const handleRunAgent = async () => {
+    if (!client?.id) {
+      toast({
+        title: 'Client unavailable',
+        description: 'Select a client before running the AI agent.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsModalOpen(true);
+    setIsRunning(true);
+    setAgentOutput(null);
+
+    try {
+      const { data, error: functionError } = await supabase.functions.invoke('run-ai-agent', {
+        body: { agent_type: 'research', target: 'client', client_id: client.id },
+      });
+
+      if (functionError) {
+        throw functionError;
+      }
+
+      const structuredOutput = (data as { structured_output?: AgentStructuredOutput })?.structured_output ?? null;
+
+      if (!structuredOutput) {
+        toast({
+          title: 'No suggestions found',
+          description: 'The AI agent did not return any enrichment data.',
+        });
+        return;
+      }
+
+      setAgentOutput(structuredOutput);
+      toast({
+        title: 'AI suggestions ready',
+        description: 'Review the proposed updates before applying them.',
+      });
+    } catch (err) {
+      console.error('Error running AI agent:', err);
+      toast({
+        title: 'Failed to run AI agent',
+        description: err instanceof Error ? err.message : 'An unexpected error occurred.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsRunning(false);
+    }
+  };
+
+  const handleApplySuggestions = async () => {
+    if (!client?.id) {
+      toast({
+        title: 'Client unavailable',
+        description: 'Unable to update this client right now.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!agentOutput) {
+      toast({
+        title: 'No suggestions to apply',
+        description: 'Run the AI agent to load suggestions before confirming.',
+      });
+      return;
+    }
+
+    const updatePayload: Record<string, unknown> = {};
+
+    if (agentOutput.industry) {
+      updatePayload.industry = agentOutput.industry;
+    }
+
+    const teamSize = parseNumericValue(agentOutput.employee_count);
+    if (typeof teamSize === 'number') {
+      updatePayload.team_size = teamSize;
+    }
+
+    const companyRevenue = parseNumericValue(agentOutput.revenue);
+    if (typeof companyRevenue === 'number') {
+      updatePayload.company_revenue = companyRevenue;
+    }
+
+    const notesValue = agentOutput.notes ?? agentOutput.summary;
+    if (notesValue) {
+      updatePayload.notes = notesValue;
+    }
+
+    if (Object.keys(updatePayload).length === 0) {
+      toast({
+        title: 'Nothing to update',
+        description: 'The AI agent did not provide new client data to apply.',
+      });
+      return;
+    }
+
+    setIsApplyingUpdates(true);
+
+    try {
+      const { error: updateError } = await supabase
+        .from('clients')
+        .update(updatePayload)
+        .eq('id', client.id);
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      await queryClient.invalidateQueries({ queryKey: ['client-by-slug', slug] });
+      toast({
+        title: 'Client updated',
+        description: 'AI-enriched data has been applied successfully.',
+      });
+      setIsModalOpen(false);
+      setAgentOutput(null);
+    } catch (err) {
+      console.error('Error applying AI suggestions:', err);
+      toast({
+        title: 'Failed to update client',
+        description: err instanceof Error ? err.message : 'An unexpected error occurred.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsApplyingUpdates(false);
+    }
+  };
+
+  const handleCancel = () => {
+    if (isRunning || isApplyingUpdates) {
+      return;
+    }
+    setIsModalOpen(false);
+    setAgentOutput(null);
+  };
 
   const primaryContact = useMemo(
     () =>
@@ -118,12 +307,89 @@ export default function ClientDetail() {
   }
 
   return (
-    <div className="container mx-auto space-y-6 py-8">
-      <div className="flex items-center justify-between">
-        <Button variant="ghost" className="gap-2" onClick={() => navigate(-1)}>
-          <ArrowLeft className="h-4 w-4" /> Back to clients
-        </Button>
-      </div>
+    <>
+      <Dialog open={isModalOpen} onOpenChange={handleDialogOpenChange}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Apply AI Suggestions</DialogTitle>
+            <DialogDescription>
+              Review the AI-enriched client fields and confirm to update this record.
+            </DialogDescription>
+          </DialogHeader>
+          {isRunning && !agentOutput ? (
+            <div className="flex items-center gap-3 rounded-md border bg-muted/40 p-4 text-sm">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>Running AI agent and preparing suggestions…</span>
+            </div>
+          ) : agentOutput ? (
+            <div className="space-y-4 text-sm">
+              <div className="grid gap-2">
+                <span className="font-medium">Industry</span>
+                <span className="rounded-md border bg-muted/40 p-2">
+                  {agentOutput.industry || '—'}
+                </span>
+              </div>
+              <div className="grid gap-2">
+                <span className="font-medium">Employee Count</span>
+                <span className="rounded-md border bg-muted/40 p-2">
+                  {agentOutput.employee_count ?? '—'}
+                </span>
+              </div>
+              <div className="grid gap-2">
+                <span className="font-medium">Revenue</span>
+                <span className="rounded-md border bg-muted/40 p-2">
+                  {agentOutput.revenue ?? '—'}
+                </span>
+              </div>
+              <div className="grid gap-2">
+                <span className="font-medium">Notes</span>
+                <span className="rounded-md border bg-muted/40 p-2">
+                  {agentOutput.notes ?? agentOutput.summary ?? '—'}
+                </span>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Run the AI agent to generate suggestions for this client.
+            </p>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={handleCancel} disabled={isRunning || isApplyingUpdates}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleApplySuggestions}
+              disabled={isRunning || isApplyingUpdates || !agentOutput}
+              className="gap-2"
+            >
+              {isApplyingUpdates ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              {isApplyingUpdates ? 'Saving…' : 'Confirm'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <div className="container mx-auto space-y-6 py-8">
+        <div className="flex items-center justify-between">
+          <Button variant="ghost" className="gap-2" onClick={() => navigate(-1)}>
+            <ArrowLeft className="h-4 w-4" /> Back to clients
+          </Button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  onClick={handleRunAgent}
+                  disabled={isRunning || isApplyingUpdates || !client}
+                  className="gap-2"
+                >
+                  {isRunning ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                  {isRunning ? 'Running…' : 'Run Agent'}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Use AI Agent to analyze and fill missing company data.</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
 
       {error ? (
         <Card>
@@ -319,6 +585,7 @@ export default function ClientDetail() {
           )}
         </CardContent>
       </Card>
-    </div>
+      </div>
+    </>
   );
 }
