@@ -566,7 +566,7 @@ async function performSync(
           // Store Control Tower references for tracking
           control_tower_client_id: ctDeal.client_id || ctDeal.clientId || null,
           control_tower_owner_id: ctDeal.actual_deal_owner_id || ctDeal.owner_id || ctDeal.ownerId || null,
-          control_tower_status: ctDeal.dealstatus || ctDeal.status || 'active',
+          control_tower_status: ctDeal.dealstage || ctDeal.status || 'active',
 
           notes: ctDeal.notes || ctDeal.description || null,
           hubspot_deal_id: ctDeal.hubspot_deal_id || ctDeal.hs_object_id || null,
