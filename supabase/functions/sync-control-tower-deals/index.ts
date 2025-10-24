@@ -112,28 +112,56 @@ serve(async (req) => {
 });
 
 // Stage mapping from Control Tower to local pipeline stages
+// Based on Control Tower query results showing exact dealstage IDs
 const STAGE_MAPPING: Record<string, string> = {
-  'appointmentscheduled': 'prospecting',
-  'qualifiedtobuy': 'qualification',
-  'presentationscheduled': 'proposal',
-  'decisionmakerboughtin': 'proposal',
-  'contractsent': 'negotiation',
+  // Pipeline stages (HubSpot IDs from Control Tower)
+  'appointmentscheduled': 'prospecting',    // Lead
+  '123153694': 'qualification',              // Estimation
+  'qualifiedtobuy': 'proposal',              // Discovery
+  'presentationscheduled': 'negotiation',    // Proposal Shared
+  
+  // Closed stages
   'closedwon': 'closed_won',
   'closedlost': 'closed_lost',
-  // Numeric ID mappings (from Control Tower)
-  '960993642': 'prospecting',
-  '960993643': 'qualification',
-  '960993644': 'proposal',
-  '960993645': 'negotiation',
 };
 
-function mapStage(ctStage: any, stageName?: string): string {
-  if (!ctStage) return 'prospecting';
+// Revenue projection stage IDs (960xxxxx) - these should NOT be mapped to pipeline stages
+// They will be excluded from pipeline views entirely
+const REVENUE_PROJECTION_STAGE_IDS = new Set([
+  '960399524', // Jan 2025
+  '960993642', // Feb 2025
+  '960993643', // Mar 2025
+  '960993644', // Apr 2025
+  '960993645', // May 2025
+  '960993646', // Jun 2025
+  '960993647', // Jul 2025
+  '960993648', // Aug 2025
+  '960993649', // Sep 2025
+  '960993650', // Oct 2025
+  '960993651', // Nov 2025 (and Dec potentially)
+]);
 
+function mapStage(ctStage: any, stageName?: string): string | null {
+  if (!ctStage) return null;
+
+  const stageStr = String(ctStage).toLowerCase().trim();
+  
+  // Check if this is a revenue projection stage - return null to exclude from pipeline
+  if (REVENUE_PROJECTION_STAGE_IDS.has(stageStr)) {
+    console.log('[Sync] Revenue projection stage detected, excluding from pipeline:', stageStr);
+    return null;
+  }
+  
   // Log for debugging
   console.log('[Sync] Mapping stage:', { ctStage, stageName });
   
-  // If we have a stage name, use it
+  // Try exact ID match first (this is the most reliable)
+  if (STAGE_MAPPING[stageStr]) {
+    console.log('[Sync] Mapped by exact ID:', stageStr, '->', STAGE_MAPPING[stageStr]);
+    return STAGE_MAPPING[stageStr];
+  }
+  
+  // If we have a stage name, try to match it
   if (stageName) {
     const nameStr = String(stageName).toLowerCase().replace(/\s+/g, '');
     if (STAGE_MAPPING[nameStr]) {
@@ -142,11 +170,9 @@ function mapStage(ctStage: any, stageName?: string): string {
     }
   }
   
-  // Try mapping the stage ID/value
-  const stageStr = String(ctStage).toLowerCase().replace(/\s+/g, '');
-  const mapped = STAGE_MAPPING[stageStr] || 'prospecting';
-  console.log('[Sync] Mapped by ID:', stageStr, '->', mapped);
-  return mapped;
+  // Unknown stage - return null to exclude
+  console.warn('[Sync] Unknown stage, excluding from sync:', stageStr);
+  return null;
 }
 
 function extractDriveFolderId(ctDeal: any): string | null {
@@ -287,12 +313,15 @@ async function performSync(
     
     if (!pipelineError && pipelineStages && pipelineStages.length > 0) {
       console.log('[Sync] Found pipeline stages:', pipelineStages);
-      // Update stage mapping based on pipeline definitions
+      // Update stage mapping based on pipeline definitions (skip if revenue projection stage)
       pipelineStages.forEach((stage: any) => {
         const stageId = String(stage.id || stage.stage_id);
         const stageName = String(stage.name || stage.label || '').toLowerCase().replace(/\s+/g, '');
         if (stageName && !STAGE_MAPPING[stageId]) {
-          STAGE_MAPPING[stageId] = mapStage(stageName, stageName);
+          const mapped = mapStage(stageName, stageName);
+          if (mapped !== null) {
+            STAGE_MAPPING[stageId] = mapped;
+          }
         }
       });
       console.log('[Sync] Active stage mapping:', STAGE_MAPPING);
@@ -504,9 +533,23 @@ async function performSync(
     console.log('[Sync] Transforming deals with cached client and user references...');
     const unmappedOwners: Array<{ email: string | null; name: string | null }> = [];
     
-    const transformedDeals = activeDeals.map((ctDeal: any) => {
+    const transformedDeals = activeDeals
+      .map((ctDeal: any) => {
         const ctStage = ctDeal.dealstage || ctDeal.stage;
         const ctStageName = ctDeal.dealstage_name || ctDeal.stage_name;
+        
+        // Map stage - this may return null for revenue projection stages
+        const mappedStage = mapStage(ctStage, ctStageName);
+        
+        // Skip deals with unmapped stages (revenue projection deals)
+        if (mappedStage === null) {
+          console.log('[Sync] Skipping deal with revenue projection stage:', {
+            id: ctDeal.id,
+            dealname: ctDeal.dealname,
+            stage: ctStage
+          });
+          return null;
+        }
         
         // Lookup client from cache
         let localClientId = null;
@@ -573,7 +616,7 @@ async function performSync(
           // Use correct Control Tower field names
           title: ctDeal.dealname || ctDeal.deal_name || ctDeal.name || 'Untitled Deal',
           amount: parseFloat(ctDeal.amount || ctDeal.potential_amount || 0),
-          stage: mapStage(ctStage, ctStageName),
+          stage: mappedStage, // Already mapped and validated above
           close_date: expectedCloseDate || null,
 
           // Map to local client and users
@@ -642,7 +685,8 @@ async function performSync(
           created_at: ctDeal.createdate || ctDeal.created_at || new Date().toISOString(),
           updated_at: ctDeal.updated_at || new Date().toISOString(),
         };
-      });
+      })
+      .filter((deal: any): deal is NonNullable<typeof deal> => deal !== null); // Remove null entries (revenue projection deals)
     
     // Log unmapped owners
     if (unmappedOwners.length > 0) {
