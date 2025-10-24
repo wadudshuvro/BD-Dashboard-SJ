@@ -6,7 +6,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, Loader2, X } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { AlertCircle, Calendar as CalendarIcon, Loader2, X } from "lucide-react";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 import type { BDCampaign } from "@/hooks/useBDCampaigns";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -29,12 +34,17 @@ export function CampaignLeadImportDialog({
   const [selectedKeywords, setSelectedKeywords] = useState<string[]>([]);
   const [customKeywords, setCustomKeywords] = useState("");
   const [maxResults, setMaxResults] = useState(25);
+  const [startDate, setStartDate] = useState<Date>();
+  const [endDate, setEndDate] = useState<Date>();
+  const [excludeCompanies, setExcludeCompanies] = useState("");
+  const [userLocation, setUserLocation] = useState("US");
   const [isImporting, setIsImporting] = useState(false);
   const [jobStatus, setJobStatus] = useState<{
     id: string;
     status: "pending" | "running" | "completed" | "failed";
     progress?: string;
     result?: { imported: number; updated: number };
+    errorMessage?: string;
   } | null>(null);
 
   // Generate keyword suggestions from campaign data
@@ -90,11 +100,22 @@ export function CampaignLeadImportDialog({
 
     setIsImporting(true);
     try {
+      const excludeTextArray = excludeCompanies
+        .split(",")
+        .map(c => c.trim())
+        .filter(Boolean);
+
       const { data, error } = await supabase.functions.invoke("campaign-lead-import", {
         body: {
           campaignId: campaign.id,
           keywords: finalKeywords,
           maxResults,
+          dateRange: {
+            start: startDate ? startDate.toISOString() : undefined,
+            end: endDate ? endDate.toISOString() : undefined,
+          },
+          excludeText: excludeTextArray.length > 0 ? excludeTextArray : undefined,
+          userLocation,
         },
       });
 
@@ -118,7 +139,7 @@ export function CampaignLeadImportDialog({
 
       const { data: job } = await supabase
         .from("lead_import_jobs")
-        .select("status, imported_count")
+        .select("status, imported_count, error_details")
         .eq("id", jobId)
         .single();
 
@@ -126,7 +147,7 @@ export function CampaignLeadImportDialog({
 
       const statusMap: Record<string, string> = {
         pending: "Queued for processing...",
-        running: "Searching for leads...",
+        running: "Searching LinkedIn profiles...",
         completed: "Import complete!",
         failed: "Import failed",
       };
@@ -136,6 +157,7 @@ export function CampaignLeadImportDialog({
         status: job.status as any,
         progress: statusMap[job.status] || job.status,
         result: job.status === "completed" ? { imported: job.imported_count, updated: 0 } : undefined,
+        errorMessage: job.status === "failed" ? job.error_details : undefined,
       });
 
       if (job.status === "completed" || job.status === "failed" || pollCount >= maxPolls) {
@@ -154,18 +176,21 @@ export function CampaignLeadImportDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Add Leads to Campaign</DialogTitle>
+          <DialogTitle>Add LinkedIn Leads to Campaign</DialogTitle>
           <DialogDescription>
-            Search for and import leads using Exa.ai based on keywords
+            Search for and import LinkedIn profiles using Exa.ai
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6 py-4">
+        <div className="space-y-6 py-4 max-h-[70vh] overflow-y-auto">
           {/* Campaign Context */}
           <div className="rounded-lg border bg-muted/50 p-4">
             <p className="text-sm font-medium">Campaign: {campaign.name}</p>
             <p className="text-sm text-muted-foreground mt-1">
               Type: {campaign.campaign_type?.replace("_", " ") || "N/A"}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Source: LinkedIn Profiles Only
             </p>
           </div>
 
@@ -207,6 +232,74 @@ export function CampaignLeadImportDialog({
             </p>
           </div>
 
+          {/* Date Range */}
+          <div className="space-y-3">
+            <Label>Published Date Range (optional)</Label>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-xs text-muted-foreground">Start Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !startDate && "text-muted-foreground")}>
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {startDate ? format(startDate, "PPP") : "Pick a date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar mode="single" selected={startDate} onSelect={setStartDate} initialFocus className="pointer-events-auto" />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">End Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !endDate && "text-muted-foreground")}>
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {endDate ? format(endDate, "PPP") : "Pick a date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar mode="single" selected={endDate} onSelect={setEndDate} initialFocus className="pointer-events-auto" />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
+          </div>
+
+          {/* Exclude Companies */}
+          <div className="space-y-3">
+            <Label htmlFor="exclude-companies">Exclude Companies (optional)</Label>
+            <Textarea
+              id="exclude-companies"
+              placeholder="Enter company names to exclude, separated by commas..."
+              value={excludeCompanies}
+              onChange={(e) => setExcludeCompanies(e.target.value)}
+              rows={2}
+            />
+            <p className="text-xs text-muted-foreground">
+              Example: Chase, Fannie Mae, Wells Fargo
+            </p>
+          </div>
+
+          {/* User Location */}
+          <div className="space-y-3">
+            <Label>User Location</Label>
+            <Select value={userLocation} onValueChange={setUserLocation}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="US">United States</SelectItem>
+                <SelectItem value="UK">United Kingdom</SelectItem>
+                <SelectItem value="CA">Canada</SelectItem>
+                <SelectItem value="AU">Australia</SelectItem>
+                <SelectItem value="DE">Germany</SelectItem>
+                <SelectItem value="FR">France</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           {/* Max Results */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
@@ -228,10 +321,13 @@ export function CampaignLeadImportDialog({
           {/* Final Keywords Preview */}
           {finalKeywords.length > 0 && (
             <div className="space-y-2">
-              <Label>Search Query Preview</Label>
+              <Label>LinkedIn Search Query</Label>
               <div className="rounded-lg border bg-muted/30 p-3">
                 <p className="text-sm font-mono">
-                  {finalKeywords.join(" OR ")}
+                  {finalKeywords.join(" ")}
+                </p>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Category: LinkedIn Profiles | Location: {userLocation}
                 </p>
               </div>
             </div>
@@ -249,9 +345,14 @@ export function CampaignLeadImportDialog({
               </AlertTitle>
               <AlertDescription>
                 {jobStatus.progress}
+                {jobStatus.errorMessage && (
+                  <div className="mt-2 text-sm whitespace-pre-wrap">
+                    <strong>Error:</strong> {jobStatus.errorMessage}
+                  </div>
+                )}
                 {jobStatus.result && (
                   <div className="mt-2 text-sm">
-                    Imported <strong>{jobStatus.result.imported}</strong> new contacts
+                    Imported <strong>{jobStatus.result.imported}</strong> new LinkedIn contacts
                   </div>
                 )}
               </AlertDescription>

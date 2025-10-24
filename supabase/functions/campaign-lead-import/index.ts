@@ -3,6 +3,7 @@ import { serve } from "https://deno.land/std@0.192.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import Exa from "https://esm.sh/exa-js@1.0.12";
 
 const headers = { ...corsHeaders, "Content-Type": "application/json" } as const;
 
@@ -10,21 +11,16 @@ const RequestSchema = z.object({
   campaignId: z.string().uuid(),
   keywords: z.array(z.string()).min(1),
   maxResults: z.number().int().positive().max(100).default(25),
-  filters: z.object({
-    industries: z.array(z.string()).optional(),
-    locations: z.array(z.string()).optional(),
-    companySize: z.string().optional(),
+  dateRange: z.object({
+    start: z.string().optional(),
+    end: z.string().optional(),
   }).optional(),
+  excludeText: z.array(z.string()).optional(),
+  userLocation: z.string().optional(),
 });
 
 type JsonRecord = Record<string, unknown>;
 
-const EXA_API_BASE_URL = "https://api.exa.ai";
-const WEBSETS_ENDPOINT = "/websets/v0/websets";
-const MAX_POLL_DURATION_MS = 3 * 60 * 1000;
-const POLL_INTERVAL_MS = 2000;
-const RETRY_ATTEMPTS = 3;
-const RETRY_BACKOFF_MS = 750;
 const EXA_COST_PER_LEAD = 0.10;
 
 serve(async (req) => {
@@ -113,7 +109,9 @@ serve(async (req) => {
         criteria: {
           keywords: payload.keywords,
           max_results: payload.maxResults,
-          filters: payload.filters,
+          dateRange: payload.dateRange,
+          excludeText: payload.excludeText,
+          userLocation: payload.userLocation,
         },
         created_at: new Date().toISOString(),
       })
@@ -169,175 +167,52 @@ function formatZodError(error: unknown) {
   return { message: error instanceof Error ? error.message : String(error) };
 }
 
-async function fetchExaWebset(
+async function searchExaLeads(
   apiKey: string,
   query: string,
   maxResults: number,
-  filters?: { industries?: string[]; locations?: string[]; companySize?: string },
-  externalId?: string
-): Promise<{ websetId: string | null; status: string | null; items: unknown[] }> {
-  const url = `${EXA_API_BASE_URL}${WEBSETS_ENDPOINT}`;
-  const reqHeaders: HeadersInit = {
-    "Content-Type": "application/json",
-    "x-api-key": apiKey,
+  dateRange?: { start?: string; end?: string },
+  excludeText?: string[],
+  userLocation?: string
+): Promise<unknown[]> {
+  console.log("[searchExaLeads] Initializing Exa client...");
+  const exa = new Exa(apiKey);
+
+  const searchOptions: any = {
+    text: true,
+    type: "auto",
+    category: "linkedin profile", // Only search LinkedIn profiles
+    numResults: maxResults,
   };
 
-  // Build enhanced query string with filters
-  let enhancedQuery = query;
-  const queryParts: string[] = [];
-  
-  if (filters?.industries && filters.industries.length > 0) {
-    queryParts.push(filters.industries.join(" OR "));
-  }
-  if (filters?.locations && filters.locations.length > 0) {
-    queryParts.push(filters.locations.join(" OR "));
-  }
-  if (filters?.companySize) {
-    queryParts.push(`company size ${filters.companySize}`);
-  }
-  
-  if (queryParts.length > 0) {
-    enhancedQuery = `${query} ${queryParts.join(" ")}`;
+  // Add optional filters
+  if (userLocation) {
+    searchOptions.userLocation = userLocation;
   }
 
-  // Construct proper Exa Websets API payload
-  const payload: JsonRecord = {
-    search: {
-      query: enhancedQuery,
-      count: maxResults,
-    },
-    entity: {
-      type: "people",
-    },
-  };
-
-  // Add enrichments to get LinkedIn URLs and other data
-  payload.enrichments = [
-    {
-      description: "LinkedIn profile URL",
-      format: "text",
-    },
-    {
-      description: "Email address",
-      format: "text",
-    },
-    {
-      description: "Job title and company name",
-      format: "text",
-    },
-  ];
-
-  // Add external ID for tracking
-  if (externalId) {
-    payload.externalId = externalId;
+  if (dateRange?.start) {
+    searchOptions.startPublishedDate = dateRange.start;
   }
 
-  console.log("[fetchExaWebset] Sending Websets API request:", JSON.stringify(payload, null, 2));
-
-  const createResponse = await fetchWithRetry(() =>
-    fetch(url, { method: "POST", headers: reqHeaders, body: JSON.stringify(payload) })
-  );
-
-  if (!createResponse.ok) {
-    const text = await createResponse.text();
-    throw new Error(`Exa webset request failed (${createResponse.status}): ${text}`);
+  if (dateRange?.end) {
+    searchOptions.endPublishedDate = dateRange.end;
   }
 
-  const initialJson = (await safeJson(createResponse)) as JsonRecord;
-  let normalized = normalizeWebset(initialJson);
-
-  if (normalized.items.length > 0 && isCompletedStatus(normalized.status)) {
-    return normalized;
+  if (excludeText && excludeText.length > 0) {
+    searchOptions.excludeText = excludeText;
   }
 
-  if (!normalized.websetId) {
-    throw new Error("Exa response did not include a webset identifier");
-  }
+  console.log("[searchExaLeads] Searching with query:", query);
+  console.log("[searchExaLeads] Search options:", JSON.stringify(searchOptions, null, 2));
 
-  const deadline = Date.now() + MAX_POLL_DURATION_MS;
-  while (Date.now() < deadline) {
-    await delay(POLL_INTERVAL_MS);
-    const pollResponse = await fetchWithRetry(() =>
-      fetch(`${url}/${normalized.websetId}`, { method: "GET", headers: reqHeaders })
-    );
-
-    if (!pollResponse.ok) {
-      const text = await pollResponse.text();
-      throw new Error(`Exa webset polling failed (${pollResponse.status}): ${text}`);
-    }
-
-    const pollJson = (await safeJson(pollResponse)) as JsonRecord;
-    normalized = normalizeWebset(pollJson);
-
-    if (isCompletedStatus(normalized.status) && normalized.items.length >= 0) {
-      return normalized;
-    }
-
-    if (isFailedStatus(normalized.status)) {
-      throw new Error(`Exa webset returned failure status: ${normalized.status ?? "unknown"}`);
-    }
-  }
-
-  throw new Error("Timed out while waiting for Exa webset results");
-}
-
-async function fetchWithRetry(fetcher: () => Promise<Response>, attempt = 0): Promise<Response> {
   try {
-    const response = await fetcher();
-    if (shouldRetryResponse(response) && attempt < RETRY_ATTEMPTS) {
-      await delay(backoffDelay(attempt));
-      return fetchWithRetry(fetcher, attempt + 1);
-    }
-    return response;
+    const result = await exa.searchAndContents(query, searchOptions);
+    console.log(`[searchExaLeads] Found ${result.results?.length || 0} results`);
+    return result.results || [];
   } catch (error) {
-    if (attempt >= RETRY_ATTEMPTS) throw error;
-    await delay(backoffDelay(attempt));
-    return fetchWithRetry(fetcher, attempt + 1);
+    console.error("[searchExaLeads] Error:", error);
+    throw new Error(`Exa search failed: ${error instanceof Error ? error.message : String(error)}`);
   }
-}
-
-function shouldRetryResponse(response: Response): boolean {
-  return response.status === 429 || response.status >= 500;
-}
-
-function backoffDelay(attempt: number): number {
-  return RETRY_BACKOFF_MS * Math.max(1, attempt + 1);
-}
-
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-async function safeJson(response: Response): Promise<unknown> {
-  try {
-    return await response.json();
-  } catch {
-    return {};
-  }
-}
-
-function normalizeWebset(data: JsonRecord): {
-  websetId: string | null;
-  status: string | null;
-  items: unknown[];
-} {
-  const websetId = extractStringFromPaths(data, ["id", "webset_id", "websetId", "webset.id", "data.id"]);
-  const status = extractStringFromPaths(data, ["status", "state", "webset.status", "data.status"]);
-  const items = extractArrayFromPaths(data, ["items", "results", "webset.items", "webset.results", "data.items", "data.results"]);
-
-  return { websetId, status, items };
-}
-
-function isCompletedStatus(status: string | null | undefined): boolean {
-  if (!status) return false;
-  const value = status.toLowerCase();
-  return ["ready", "completed", "complete", "done", "finished", "success"].includes(value);
-}
-
-function isFailedStatus(status: string | null | undefined): boolean {
-  if (!status) return false;
-  const value = status.toLowerCase();
-  return ["failed", "error", "cancelled", "canceled"].includes(value);
 }
 
 interface NormalizedLead {
@@ -365,25 +240,28 @@ function normalizeLeads(items: unknown[]): NormalizedLead[] {
 function normalizeLeadItem(raw: unknown): NormalizedLead | null {
   if (!raw || typeof raw !== "object") return null;
   const record = raw as JsonRecord;
-  const merged: JsonRecord = { ...flattenNested(record), ...record };
 
-  const exaItemId = extractStringFromPaths(merged, ["item_id", "id", "result_id", "document_id", "item.id", "document.id"]);
-  const contactName = extractStringFromPaths(merged, ["contact_name", "name", "person_name", "person.name", "profile.name"]);
-  const companyName = extractStringFromPaths(merged, ["company", "company_name", "organization", "employer", "profile.company"]);
-  const email = extractStringFromPaths(merged, ["email", "emails", "contact.email", "profile.email", "person.email"]);
-  const linkedinUrl = extractStringFromPaths(merged, ["linkedin_url", "linkedin", "profile_url", "profile.linkedin", "person.linkedin_url"]);
-  const title = extractStringFromPaths(merged, ["title", "job_title", "position", "role", "profile.title", "person.title"]);
-  const score = extractNumberFromPaths(merged, ["score", "relevance", "ranking", "metadata.score"]);
+  // Exa Search API returns results in a specific format
+  const id = extractStringFromPaths(record, ["id"]);
+  const url = extractStringFromPaths(record, ["url"]);
+  const title = extractStringFromPaths(record, ["title"]);
+  const text = extractStringFromPaths(record, ["text"]);
+  const score = extractNumberFromPaths(record, ["score"]);
+
+  // Extract name and company from title/text
+  const titleParts = title?.split("|").map(s => s.trim()) || [];
+  const contactName = titleParts[0] || null;
+  const companyName = titleParts[1] || extractStringFromPaths(record, ["author"]);
 
   return {
-    exaItemId,
+    exaItemId: id,
     contactName,
     companyName,
-    email: email ? email.toLowerCase() : null,
-    linkedinUrl,
-    title,
+    email: null, // Exa doesn't always provide email
+    linkedinUrl: url?.includes("linkedin.com") ? url : null,
+    title: titleParts[2] || null,
     score,
-    metadata: toJsonRecord(raw),
+    metadata: { ...record, text_preview: text?.substring(0, 200) },
   };
 }
 
@@ -468,7 +346,9 @@ async function processLeadImportJob(
     campaignId: string;
     keywords: string[];
     maxResults: number;
-    filters?: { industries?: string[]; locations?: string[]; companySize?: string };
+    dateRange?: { start?: string; end?: string };
+    excludeText?: string[];
+    userLocation?: string;
   },
   userId: string
 ) {
@@ -481,26 +361,31 @@ async function processLeadImportJob(
 
     console.log(`[processLeadImportJob] Starting job ${jobId} for campaign ${payload.campaignId}`);
 
-    // Call Exa.ai Websets API with proper format
-    const query = payload.keywords.join(" OR ");
-    const externalId = `campaign-${payload.campaignId}-import-${Date.now()}`;
-    const webset = await fetchExaWebset(exaApiKey, query, payload.maxResults, payload.filters, externalId);
+    // Call Exa.ai Search API (synchronous, LinkedIn-specific)
+    const query = payload.keywords.join(" ");
+    const results = await searchExaLeads(
+      exaApiKey,
+      query,
+      payload.maxResults,
+      payload.dateRange,
+      payload.excludeText,
+      payload.userLocation
+    );
 
-    console.log(`[processLeadImportJob] Received ${webset.items.length} items from Exa`);
+    console.log(`[processLeadImportJob] Received ${results.length} results from Exa`);
 
-    // Store webset_id for tracking
+    // Store search results metadata
     await supabase
       .from("lead_import_jobs")
       .update({
         criteria: {
           ...payload,
-          webset_id: webset.websetId,
-          webset_status: webset.status,
+          results_count: results.length,
         },
       })
       .eq("id", jobId);
 
-    const normalizedLeads = dedupeLeads(normalizeLeads(webset.items));
+    const normalizedLeads = dedupeLeads(normalizeLeads(results));
 
     if (normalizedLeads.length === 0) {
       await supabase
