@@ -43,7 +43,7 @@ import { Progress } from '@/components/ui/progress';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useDealComments, useAddComment, useDeleteComment, AddCommentPayload } from '@/hooks/useDealComments';
 import { useDealChecklist, useAddChecklistItem, useToggleChecklistItem, useDeleteChecklistItem } from '@/hooks/useDealChecklist';
 import { useDealSystemInfo } from '@/hooks/useDealSystemInfo';
@@ -941,27 +941,9 @@ export default function DealDetail() {
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back
         </Button>
-        
-        <Tabs value={isFilesTab ? "files" : "overview"} className="w-auto">
-          <TabsList>
-            <TabsTrigger value="overview" asChild>
-              <Link to={basePath}>Overview</Link>
-            </TabsTrigger>
-            <TabsTrigger value="files" asChild>
-              <Link to={`${basePath}/files`} className="flex items-center gap-2">
-                Files
-                {files.length > 0 && (
-                  <Badge variant="secondary" className="ml-1 px-1.5 py-0 text-xs">
-                    {files.length}
-                  </Badge>
-                )}
-              </Link>
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="space-y-3">
             <div className="flex items-center gap-2">
@@ -1004,13 +986,54 @@ export default function DealDetail() {
             )}
           </div>
         </div>
-
-        <DealStageProgress currentStage={deal.stage} />
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-3">
-        <div className="xl:col-span-2 space-y-6">
-          <div className="grid gap-6 lg:grid-cols-2">
+      {/* Tabs Navigation */}
+      <Tabs defaultValue="overview" className="w-full">
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="overview" colorIndicator="blue">
+            Overview
+          </TabsTrigger>
+          <TabsTrigger value="activities" colorIndicator="green">
+            <div className="flex items-center gap-2">
+              Activities
+              {comments && comments.length > 0 && (
+                <Badge variant="secondary" className="h-5 px-1.5 py-0 text-xs">
+                  {comments.length}
+                </Badge>
+              )}
+            </div>
+          </TabsTrigger>
+          <TabsTrigger value="tasks" colorIndicator="yellow">
+            <div className="flex items-center gap-2">
+              Tasks
+              {checklistItems && checklistItems.length > 0 && (
+                <Badge variant="secondary" className="h-5 px-1.5 py-0 text-xs">
+                  {checklistItems.filter(item => item.is_completed).length}/{checklistItems.length}
+                </Badge>
+              )}
+            </div>
+          </TabsTrigger>
+          <TabsTrigger value="documents" colorIndicator="purple">
+            <div className="flex items-center gap-2">
+              Documents
+              {files.length > 0 && (
+                <Badge variant="secondary" className="h-5 px-1.5 py-0 text-xs">
+                  {files.length}
+                </Badge>
+              )}
+            </div>
+          </TabsTrigger>
+          <TabsTrigger value="systems" colorIndicator="orange">
+            Systems
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Overview Tab */}
+        <TabsContent value="overview" className="space-y-6 mt-6">
+          <DealStageProgress currentStage={deal.stage} />
+
+          <div className="grid gap-6 md:grid-cols-2">
             {/* Deal Information - Compact */}
             <Card>
               <CardHeader className="pb-3">
@@ -1169,12 +1192,15 @@ export default function DealDetail() {
               </Card>
             )}
           </div>
+        </TabsContent>
 
-          <Card className="md:col-span-2">
+        {/* Activities Tab */}
+        <TabsContent value="activities" className="space-y-6 mt-6">
+            <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <MessageSquare className="h-5 w-5" />
-                Comments
+                Comments & Activity
                 {comments && comments.length > 0 && (
                   <Badge variant="secondary">{comments.length}</Badge>
                 )}
@@ -1250,21 +1276,10 @@ export default function DealDetail() {
               </div>
             </CardContent>
           </Card>
-        </div>
+        </TabsContent>
 
-        <div className="space-y-6">
-          <QuickActionsPanel
-            dealId={deal.id}
-            controlTowerId={deal.control_tower_id}
-            externalLinks={deal.external_links}
-          />
-
-          <ExternalLinksSection
-            externalLinks={deal.external_links}
-            hubspotUrl={deal.hubspot_crm_deal_url}
-          />
-
-          {/* Google Drive Documents */}
+        {/* Tasks Tab */}
+        <TabsContent value="tasks" className="space-y-6 mt-6">
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -1384,7 +1399,7 @@ export default function DealDetail() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <CheckSquare className="h-5 w-5" />
-                Checklist
+                Deal Checklist
                 {checklistItems && checklistItems.length > 0 && (
                   <Badge variant="secondary">{checklistItems.length}</Badge>
                 )}
@@ -1453,8 +1468,164 @@ export default function DealDetail() {
               </div>
             </CardContent>
           </Card>
-        </div>
-      </div>
+        </TabsContent>
+
+        {/* Documents Tab */}
+        <TabsContent value="documents" className="space-y-6 mt-6">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <FolderOpen className="h-5 w-5 text-muted-foreground" />
+                  <CardTitle>Google Drive Documents</CardTitle>
+                </div>
+                {deal?.google_drive_folder_url && (
+                  <Button
+                    onClick={() => handleSyncDriveFolder()}
+                    disabled={syncingFolder}
+                    variant="outline"
+                    size="sm"
+                  >
+                    {syncingFolder ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Syncing...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                        Sync Folder
+                      </>
+                    )}
+                  </Button>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent>
+              {!deal?.google_drive_folder_url ? (
+                <div className="text-center py-8">
+                  <FolderOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-sm text-muted-foreground mb-4">
+                    No Google Drive folder mapped to this deal
+                  </p>
+                  <Button onClick={() => setShowMapFolderDialog(true)} variant="outline">
+                    <ExternalLink className="mr-2 h-4 w-4" />
+                    Map Google Drive Folder
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
+                    <FolderOpen className="h-4 w-4 text-muted-foreground" />
+                    <a
+                      href={deal.google_drive_folder_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-primary hover:underline flex-1 truncate"
+                    >
+                      {deal.google_drive_folder_url}
+                    </a>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => window.open(deal.google_drive_folder_url!, "_blank")}
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  
+                  {filesLoading ? (
+                    <div className="flex items-center justify-center py-4">
+                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : files.length > 0 ? (
+                    <div className="space-y-2">
+                      {files.map((file) => {
+                        const isAIReady = file.metadata?.parser === 'pdfjs' || file.json_snapshot_path;
+                        return (
+                          <div key={file.id} className="flex items-center gap-3 p-2 hover:bg-muted rounded-md">
+                            <FileText className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-sm flex-1 truncate">{file.drive_file_name}</span>
+                            {file.category ? (
+                              <Badge variant="outline" className="text-xs">
+                                {file.category}
+                              </Badge>
+                            ) : null}
+                            {isAIReady && (
+                              <Badge variant="secondary" className="text-xs">
+                                <FileCheck className="h-3 w-3 mr-1" />
+                                AI-Ready
+                              </Badge>
+                            )}
+                            <span className="text-xs text-muted-foreground">
+                              {file.drive_file_type}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      No files synced yet. Click "Sync Folder" to fetch documents.
+                    </p>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Systems Tab */}
+        <TabsContent value="systems" className="space-y-6 mt-6">
+          <QuickActionsPanel
+            dealId={deal.id}
+            controlTowerId={deal.control_tower_id}
+            externalLinks={deal.external_links}
+          />
+
+          <ExternalLinksSection
+            externalLinks={deal.external_links}
+            hubspotUrl={deal.hubspot_crm_deal_url}
+          />
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Info className="h-5 w-5" />
+                System Information
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                {deal.control_tower_id && (
+                  <div>
+                    <p className="text-muted-foreground mb-1">Control Tower ID</p>
+                    <p className="font-mono text-xs break-all">{deal.control_tower_id}</p>
+                  </div>
+                )}
+                {deal.hubspot_deal_id && (
+                  <div>
+                    <p className="text-muted-foreground mb-1">HubSpot Deal ID</p>
+                    <p className="font-mono text-xs break-all">{deal.hubspot_deal_id}</p>
+                  </div>
+                )}
+                {deal.last_synced_at && (
+                  <div>
+                    <p className="text-muted-foreground mb-1">Last Synced</p>
+                    <p className="font-medium">{new Date(deal.last_synced_at).toLocaleString()}</p>
+                  </div>
+                )}
+                {deal.synced_from_control_tower && (
+                  <div>
+                    <p className="text-muted-foreground mb-1">Sync Status</p>
+                    <Badge variant="secondary">Synced from Control Tower</Badge>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
       
       <Dialog open={showMapFolderDialog} onOpenChange={setShowMapFolderDialog}>
         <DialogContent>
