@@ -431,11 +431,26 @@ export function useDeals(options: UseDealsOptions = {}): UseDealsReturn {
 
 export type { DealStage, DealStatus };
 
+export interface LocalDealFilters {
+  categories?: string[];
+  dealTypes?: string[];
+  podIds?: string[];
+  ownerIds?: string[];
+  pmIds?: string[];
+  syncedOnly?: boolean;
+  dateFrom?: Date | null;
+  dateTo?: Date | null;
+  createdDateFrom?: Date | null;
+  createdDateTo?: Date | null;
+  search?: string;
+}
+
 // Hook for fetching local deals by stage (for pipeline pages)
 export function useLocalDealsByStage(
   stage: 'prospecting' | 'qualification' | 'proposal' | 'negotiation' | 'new',
   page: number = 1,
-  limit: number = 25
+  limit: number = 25,
+  filters?: LocalDealFilters
 ) {
   const { user } = useAuth();
   const [data, setData] = useState<{ data: any[]; total: number }>({ data: [], total: 0 });
@@ -451,7 +466,7 @@ export function useLocalDealsByStage(
         const to = from + limit - 1;
         
         // Fetch deals without resource embedding to avoid foreign key cache issues
-          const { data: dealsData, error, count } = await supabase
+          let query = supabase
             .from('deals')
             .select(
               `
@@ -481,7 +496,54 @@ export function useLocalDealsByStage(
             { count: 'exact' }
           )
           .eq('stage', stage)
-          .eq('status', 'active')
+          .eq('status', 'active');
+
+        // Apply filters
+        if (filters?.categories?.length) {
+          query = query.in('category', filters.categories);
+        }
+
+        if (filters?.dealTypes?.length) {
+          query = query.in('dealtype', filters.dealTypes);
+        }
+
+        if (filters?.podIds?.length) {
+          query = query.in('pod_id', filters.podIds);
+        }
+
+        if (filters?.ownerIds?.length) {
+          query = query.in('owner_id', filters.ownerIds);
+        }
+
+        if (filters?.pmIds?.length) {
+          query = query.in('pm_assigned_id', filters.pmIds);
+        }
+
+        if (filters?.syncedOnly) {
+          query = query.eq('synced_from_control_tower', true);
+        }
+
+        if (filters?.dateFrom) {
+          query = query.gte('close_date', filters.dateFrom.toISOString());
+        }
+
+        if (filters?.dateTo) {
+          query = query.lte('close_date', filters.dateTo.toISOString());
+        }
+
+        if (filters?.createdDateFrom) {
+          query = query.gte('created_at', filters.createdDateFrom.toISOString());
+        }
+
+        if (filters?.createdDateTo) {
+          query = query.lte('created_at', filters.createdDateTo.toISOString());
+        }
+
+        if (filters?.search) {
+          query = query.or(`title.ilike.%${filters.search}%,notes.ilike.%${filters.search}%`);
+        }
+
+        const { data: dealsData, error, count } = await query
           .order('amount', { ascending: false, nullsFirst: false })
           .order('updated_at', { ascending: false })
           .range(from, to);
@@ -566,7 +628,7 @@ export function useLocalDealsByStage(
     };
 
     fetchData();
-  }, [user?.id, stage, page, limit]);
+  }, [user?.id, stage, page, limit, filters]);
 
   return { data, isLoading };
 }

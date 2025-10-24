@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { PipelineDataTable } from '@/components/bd/PipelineDataTable';
 import { Badge } from '@/components/ui/badge';
 import { useLocalDealsByStage } from '@/hooks/useDeals';
@@ -5,6 +6,10 @@ import { format } from 'date-fns';
 import { usePagination } from '@/hooks/usePagination';
 import { useNavigate, Link } from 'react-router-dom';
 import { STAGE_LABELS, DealStage } from '@/lib/dealStages';
+import { DealFilters, DealFiltersState } from '@/components/bd/DealFilters';
+import { useAdminUsers } from '@/hooks/useAdminUsers';
+import { usePods } from '@/hooks/usePods';
+import { useCategories } from '@/hooks/useCategories';
 
 interface StagePipelineTableProps {
   stage: 'prospecting' | 'qualification' | 'proposal' | 'negotiation';
@@ -14,8 +19,20 @@ interface StagePipelineTableProps {
 
 export function StagePipelineTable({ stage, title, description }: StagePipelineTableProps) {
   const pagination = usePagination(25);
-  const { data, isLoading } = useLocalDealsByStage(stage, pagination.currentPage, pagination.pageSize);
+  const [filters, setFilters] = useState<DealFiltersState>({});
+  
+  const { data, isLoading } = useLocalDealsByStage(
+    stage,
+    pagination.currentPage,
+    pagination.pageSize,
+    filters
+  );
   const navigate = useNavigate();
+  
+  const { users: owners } = useAdminUsers();
+  const { users: pms } = useAdminUsers();
+  const { pods } = usePods();
+  const { data: categoriesData } = useCategories();
   
   const deals = data?.data || [];
   const totalCount = data?.total || 0;
@@ -134,17 +151,31 @@ export function StagePipelineTable({ stage, title, description }: StagePipelineT
           <h1 className="text-3xl font-bold">{title}</h1>
           <p className="text-muted-foreground">{description}</p>
           <div className="mt-2">
-            <Badge variant="secondary">{deals.length} Active Deals</Badge>
+            <Badge variant="secondary">{totalCount} Total Deals</Badge>
           </div>
         </div>
       )}
+
+      <div className="mb-6">
+        <DealFilters
+          filters={filters}
+          onFiltersChange={(newFilters) => {
+            setFilters(newFilters);
+            pagination.reset();
+          }}
+          owners={owners || []}
+          pms={pms || []}
+          pods={pods || []}
+          categories={categoriesData || []}
+        />
+      </div>
 
       <PipelineDataTable
         data={deals}
         columns={columns}
         isLoading={isLoading}
         emptyMessage={`No ${stage} deals found`}
-        searchable
+        searchable={false}
         externalLinkFn={(row) => row.hubspot_crm_deal_url}
         totalCount={totalCount}
         currentPage={pagination.currentPage}

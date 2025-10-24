@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import {
   Popover,
   PopoverContent,
@@ -30,8 +31,13 @@ export interface DealFiltersState {
   statuses?: string[];
   ownerIds?: string[];
   pmIds?: string[];
+  podIds?: string[];
+  categories?: string[];
+  dealTypes?: string[];
   dateFrom?: Date | null;
   dateTo?: Date | null;
+  createdDateFrom?: Date | null;
+  createdDateTo?: Date | null;
   syncedOnly?: boolean;
   search?: string;
 }
@@ -41,6 +47,8 @@ interface DealFiltersProps {
   onFiltersChange: (filters: DealFiltersState) => void;
   owners: AdminUser[];
   pms: AdminUser[];
+  pods: Array<{ id: string; name: string }>;
+  categories: string[];
 }
 
 function getUserDisplayName(user: AdminUser) {
@@ -50,11 +58,30 @@ function getUserDisplayName(user: AdminUser) {
   return user.email;
 }
 
-export function DealFilters({ filters, onFiltersChange, owners, pms }: DealFiltersProps) {
+function getActiveFilterCount(filters: DealFiltersState): number {
+  let count = 0;
+  if (filters.stages?.length) count++;
+  if (filters.statuses?.length) count++;
+  if (filters.ownerIds?.length) count++;
+  if (filters.pmIds?.length) count++;
+  if (filters.podIds?.length) count++;
+  if (filters.categories?.length) count++;
+  if (filters.dealTypes?.length) count++;
+  if (filters.dateFrom || filters.dateTo) count++;
+  if (filters.createdDateFrom || filters.createdDateTo) count++;
+  if (filters.syncedOnly) count++;
+  if (filters.search) count++;
+  return count;
+}
+
+export function DealFilters({ filters, onFiltersChange, owners, pms, pods, categories }: DealFiltersProps) {
   const stageOptions = useMemo(() => Object.values(DEAL_STAGES), []);
   const statusOptions = useMemo(() => Object.values(DEAL_STATUSES), []);
 
-  const toggleFilterValue = (key: 'stages' | 'statuses' | 'ownerIds' | 'pmIds', value: string) => {
+  const toggleFilterValue = (
+    key: 'stages' | 'statuses' | 'ownerIds' | 'pmIds' | 'podIds' | 'categories' | 'dealTypes',
+    value: string
+  ) => {
     const current = new Set(filters[key] ?? []);
     if (current.has(value)) {
       current.delete(value);
@@ -67,7 +94,10 @@ export function DealFilters({ filters, onFiltersChange, owners, pms }: DealFilte
     });
   };
 
-  const handleDateChange = (key: 'dateFrom' | 'dateTo', value: Date | null) => {
+  const handleDateChange = (
+    key: 'dateFrom' | 'dateTo' | 'createdDateFrom' | 'createdDateTo',
+    value: Date | null
+  ) => {
     onFiltersChange({
       ...filters,
       [key]: value,
@@ -81,6 +111,12 @@ export function DealFilters({ filters, onFiltersChange, owners, pms }: DealFilte
   return (
     <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
       <div className="flex flex-wrap items-center gap-2">
+        {getActiveFilterCount(filters) > 0 && (
+          <Badge variant="secondary" className="gap-1">
+            {getActiveFilterCount(filters)} filter{getActiveFilterCount(filters) > 1 ? 's' : ''} active
+          </Badge>
+        )}
+        
         <Popover>
           <PopoverTrigger asChild>
             <Button variant="outline" size="sm" className="gap-2">
@@ -220,8 +256,117 @@ export function DealFilters({ filters, onFiltersChange, owners, pms }: DealFilte
         <Popover>
           <PopoverTrigger asChild>
             <Button variant="outline" size="sm" className="gap-2">
+              <Filter className="h-4 w-4" />
+              Category
+              {filters.categories?.length ? (
+                <span className="rounded bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-primary">
+                  {filters.categories.length}
+                </span>
+              ) : null}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-56 p-0" align="start">
+            <Command>
+              <CommandInput placeholder="Search categories..." />
+              <CommandList>
+                <CommandEmpty>No category found.</CommandEmpty>
+                <CommandGroup>
+                  {categories.map((category) => (
+                    <CommandItem
+                      key={category}
+                      onSelect={() => toggleFilterValue('categories', category)}
+                      className="flex items-center gap-2"
+                    >
+                      <Checkbox checked={filters.categories?.includes(category)} />
+                      <span>{category}</span>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
+
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="sm" className="gap-2">
+              <Filter className="h-4 w-4" />
+              Type
+              {filters.dealTypes?.length ? (
+                <span className="rounded bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-primary">
+                  {filters.dealTypes.length}
+                </span>
+              ) : null}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-56 p-0" align="start">
+            <Command>
+              <CommandList>
+                <CommandGroup>
+                  <CommandItem
+                    onSelect={() => toggleFilterValue('dealTypes', 'newbusiness')}
+                    className="flex items-center gap-2"
+                  >
+                    <Checkbox checked={filters.dealTypes?.includes('newbusiness')} />
+                    <span>New Business</span>
+                  </CommandItem>
+                  <CommandItem
+                    onSelect={() => toggleFilterValue('dealTypes', 'existingbusiness')}
+                    className="flex items-center gap-2"
+                  >
+                    <Checkbox checked={filters.dealTypes?.includes('existingbusiness')} />
+                    <span>Existing Business</span>
+                  </CommandItem>
+                </CommandGroup>
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
+
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="sm" className="gap-2">
+              <Filter className="h-4 w-4" />
+              POD
+              {filters.podIds?.length ? (
+                <span className="rounded bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-primary">
+                  {filters.podIds.length}
+                </span>
+              ) : null}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-56 p-0" align="start">
+            <Command>
+              <CommandInput placeholder="Search PODs..." />
+              <CommandList>
+                <CommandEmpty>No POD found.</CommandEmpty>
+                <CommandGroup>
+                  {pods.map((pod) => (
+                    <CommandItem
+                      key={pod.id}
+                      onSelect={() => toggleFilterValue('podIds', pod.id)}
+                      className="flex items-center gap-2"
+                    >
+                      <Checkbox checked={filters.podIds?.includes(pod.id)} />
+                      <span>{pod.name}</span>
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
+
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="sm" className="gap-2">
               <CalendarIcon className="h-4 w-4" />
               Close Date
+              {(filters.dateFrom || filters.dateTo) && (
+                <span className="rounded bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-primary">
+                  ✓
+                </span>
+              )}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-4" align="start">
@@ -246,6 +391,45 @@ export function DealFilters({ filters, onFiltersChange, owners, pms }: DealFilte
               </div>
               <Button variant="secondary" size="sm" onClick={() => onFiltersChange({ ...filters, dateFrom: null, dateTo: null })}>
                 Clear Dates
+              </Button>
+            </div>
+          </PopoverContent>
+        </Popover>
+
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="sm" className="gap-2">
+              <CalendarIcon className="h-4 w-4" />
+              Created Date
+              {(filters.createdDateFrom || filters.createdDateTo) && (
+                <span className="rounded bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-primary">
+                  ✓
+                </span>
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-4" align="start">
+            <div className="flex flex-col gap-4">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div>
+                  <Label className="text-xs uppercase text-muted-foreground">From</Label>
+                  <Calendar
+                    mode="single"
+                    selected={filters.createdDateFrom ?? undefined}
+                    onSelect={(date) => handleDateChange('createdDateFrom', date ?? null)}
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs uppercase text-muted-foreground">To</Label>
+                  <Calendar
+                    mode="single"
+                    selected={filters.createdDateTo ?? undefined}
+                    onSelect={(date) => handleDateChange('createdDateTo', date ?? null)}
+                  />
+                </div>
+              </div>
+              <Button variant="secondary" size="sm" onClick={() => onFiltersChange({ ...filters, createdDateFrom: null, createdDateTo: null })}>
+                Clear Created Dates
               </Button>
             </div>
           </PopoverContent>
