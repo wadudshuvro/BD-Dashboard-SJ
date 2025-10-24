@@ -68,6 +68,7 @@ const ControlTowerSyncDashboard = () => {
   const [isPushing, setIsPushing] = useState(false);
   const [isImportingChecklists, setIsImportingChecklists] = useState(false);
   const [isClearingLogs, setIsClearingLogs] = useState(false);
+  const [showClearDialog, setShowClearDialog] = useState(false);
   const [filters, setFilters] = useState({ entityType: 'all', status: 'all' });
 
   useEffect(() => {
@@ -299,13 +300,23 @@ const ControlTowerSyncDashboard = () => {
       const { error } = await supabase.rpc('clear_all_sync_logs');
       if (error) throw error;
       
+      // Close dialog first
+      setShowClearDialog(false);
+      
       toast({ 
         title: '✅ Logs Cleared',
         description: 'All sync logs have been deleted.',
       });
-      fetchSummary();
+      
+      // Refresh the logs list
+      await fetchSummary();
     } catch (error: any) {
-      toast({ title: '❌ Clear Failed', description: error.message, variant: 'destructive' });
+      console.error('Clear logs error:', error);
+      toast({ 
+        title: '❌ Clear Failed', 
+        description: error.message || 'Failed to clear logs', 
+        variant: 'destructive' 
+      });
     } finally {
       setIsClearingLogs(false);
     }
@@ -521,9 +532,14 @@ const ControlTowerSyncDashboard = () => {
               <CardTitle>Sync Activity Log</CardTitle>
               <CardDescription>Audit trail of recent synchronization jobs. Logs are automatically deleted after 20 minutes.</CardDescription>
             </div>
-            <AlertDialog>
+            <AlertDialog open={showClearDialog} onOpenChange={setShowClearDialog}>
               <AlertDialogTrigger asChild>
-                <Button variant="destructive" size="sm" disabled={isClearingLogs || logs.length === 0}>
+                <Button 
+                  variant="destructive" 
+                  size="sm" 
+                  disabled={logs.length === 0 || isClearingLogs}
+                  onClick={() => setShowClearDialog(true)}
+                >
                   <Trash2 className="h-4 w-4 mr-2" />
                   Clear All Logs
                 </Button>
@@ -536,10 +552,23 @@ const ControlTowerSyncDashboard = () => {
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={clearAllLogs} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                    Delete All Logs
-                  </AlertDialogAction>
+                  <AlertDialogCancel disabled={isClearingLogs}>Cancel</AlertDialogCancel>
+                  <Button
+                    onClick={async () => {
+                      await clearAllLogs();
+                    }}
+                    disabled={isClearingLogs}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    {isClearingLogs ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Deleting...
+                      </>
+                    ) : (
+                      'Delete All Logs'
+                    )}
+                  </Button>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
