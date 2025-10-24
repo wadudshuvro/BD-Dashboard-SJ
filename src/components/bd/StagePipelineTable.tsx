@@ -4,6 +4,7 @@ import { useLocalDealsByStage } from '@/hooks/useDeals';
 import { format } from 'date-fns';
 import { usePagination } from '@/hooks/usePagination';
 import { useNavigate, Link } from 'react-router-dom';
+import { STAGE_LABELS, DealStage } from '@/lib/dealStages';
 
 interface StagePipelineTableProps {
   stage: 'prospecting' | 'qualification' | 'proposal' | 'negotiation';
@@ -87,7 +88,7 @@ export function StagePipelineTable({ stage, title, description }: StagePipelineT
       key: 'stage' as const, 
       label: 'Stage',
       render: (value: string) => {
-        const label = value ? value.charAt(0).toUpperCase() + value.slice(1) : '-';
+        const label = STAGE_LABELS[value as DealStage] || value;
         return <Badge variant="secondary">{label}</Badge>;
       }
     },

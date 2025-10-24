@@ -85,4 +85,26 @@ export interface ControlTowerDealEnhanced extends ControlTowerDeal {
   lead_source?: string;
   expected_closing_date?: string;
   potential_amount?: number;
+  
+  // Pipeline and work type
+  pipeline?: string;
+  type_of_work?: string;
+  
+  // Estimate URLs
+  estimate_url?: string;
+  internal_estimate_doc_url?: string;
+  client_estimate_doc_url?: string;
+  estimate_task_link?: string;
+  internal_estimate_doc_link?: string;
+  
+  // Proposal and collaboration URLs
+  pandadoc_proposal_url?: string;
+  collaborative_ai?: string;
+  collaborative_ai_link?: string;
+  workboard_ai_link?: string;
+  
+  // CRM URLs
+  leadslift_crm_deal_url?: string;
+  client_agent_url?: string;
+  client_agent_folder?: string;
 }

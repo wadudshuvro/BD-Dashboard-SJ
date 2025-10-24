@@ -579,6 +579,29 @@ async function performSync(
           potential_amount: ctDeal.potential_amount ? parseFloat(ctDeal.potential_amount) : (ctDeal.amount ? parseFloat(ctDeal.amount) : null),
           priority: ctDeal.priority || 'medium',
           tags,
+          
+          // NEW FIELDS - Pipeline and work type
+          pipeline: ctDeal.pipeline || null,
+          type_of_work: ctDeal.type_of_work || null,
+          
+          // NEW FIELDS - Estimate URLs
+          estimate_url: ctDeal.estimate_url || null,
+          internal_estimate_doc_url: ctDeal.internal_estimate_doc_url || null,
+          client_estimate_doc_url: ctDeal.client_estimate_doc_url || null,
+          estimate_task_link: ctDeal.estimate_task_link || null,
+          internal_estimate_doc_link: ctDeal.internal_estimate_doc_link || null,
+          
+          // NEW FIELDS - Proposal and collaboration URLs
+          pandadoc_proposal_url: ctDeal.pandadoc_proposal_url || null,
+          collaborative_ai: ctDeal.collaborative_ai || null,
+          collaborative_ai_link: ctDeal.collaborative_ai_link || null,
+          workboard_ai_link: ctDeal.workboard_ai_link || null,
+          
+          // NEW FIELDS - CRM URLs
+          leadslift_crm_deal_url: ctDeal.leadslift_crm_deal_url || null,
+          client_agent_url: ctDeal.client_agent_url || null,
+          client_agent_folder: ctDeal.client_agent_folder || null,
+          
           external_links: {
             n8n_workflow_url: ctDeal.n8n_workflow_url || null,
             activecollab_project_url: ctDeal.activecollab_project_url || null,

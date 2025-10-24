@@ -1070,8 +1070,13 @@ export type Database = {
         Row: {
           amount: number | null
           category: string | null
+          client_agent_folder: string | null
+          client_agent_url: string | null
+          client_estimate_doc_url: string | null
           client_id: string | null
           close_date: string | null
+          collaborative_ai: string | null
+          collaborative_ai_link: string | null
           control_tower_client_id: string | null
           control_tower_id: string | null
           control_tower_metadata: Json | null
@@ -1079,6 +1084,8 @@ export type Database = {
           control_tower_status: string | null
           created_at: string
           dealtype: string | null
+          estimate_task_link: string | null
+          estimate_url: string | null
           expected_closing_date: string | null
           external_links: Json | null
           google_drive_folder_id: string | null
@@ -1086,12 +1093,17 @@ export type Database = {
           hubspot_crm_deal_url: string | null
           hubspot_deal_id: string | null
           id: string
+          internal_estimate_doc_link: string | null
+          internal_estimate_doc_url: string | null
           last_activity_by: string | null
           last_activity_date: string | null
           last_synced_at: string | null
           lead_source: string | null
+          leadslift_crm_deal_url: string | null
           notes: string | null
           owner_id: string | null
+          pandadoc_proposal_url: string | null
+          pipeline: string | null
           pm_assigned_id: string | null
           pod_id: string | null
           potential_amount: number | null
@@ -1102,13 +1114,20 @@ export type Database = {
           synced_from_control_tower: boolean | null
           tags: string[] | null
           title: string
+          type_of_work: string | null
           updated_at: string
+          workboard_ai_link: string | null
         }
         Insert: {
           amount?: number | null
           category?: string | null
+          client_agent_folder?: string | null
+          client_agent_url?: string | null
+          client_estimate_doc_url?: string | null
           client_id?: string | null
           close_date?: string | null
+          collaborative_ai?: string | null
+          collaborative_ai_link?: string | null
           control_tower_client_id?: string | null
           control_tower_id?: string | null
           control_tower_metadata?: Json | null
@@ -1116,6 +1135,8 @@ export type Database = {
           control_tower_status?: string | null
           created_at?: string
           dealtype?: string | null
+          estimate_task_link?: string | null
+          estimate_url?: string | null
           expected_closing_date?: string | null
           external_links?: Json | null
           google_drive_folder_id?: string | null
@@ -1123,12 +1144,17 @@ export type Database = {
           hubspot_crm_deal_url?: string | null
           hubspot_deal_id?: string | null
           id?: string
+          internal_estimate_doc_link?: string | null
+          internal_estimate_doc_url?: string | null
           last_activity_by?: string | null
           last_activity_date?: string | null
           last_synced_at?: string | null
           lead_source?: string | null
+          leadslift_crm_deal_url?: string | null
           notes?: string | null
           owner_id?: string | null
+          pandadoc_proposal_url?: string | null
+          pipeline?: string | null
           pm_assigned_id?: string | null
           pod_id?: string | null
           potential_amount?: number | null
@@ -1139,13 +1165,20 @@ export type Database = {
           synced_from_control_tower?: boolean | null
           tags?: string[] | null
           title: string
+          type_of_work?: string | null
           updated_at?: string
+          workboard_ai_link?: string | null
         }
         Update: {
           amount?: number | null
           category?: string | null
+          client_agent_folder?: string | null
+          client_agent_url?: string | null
+          client_estimate_doc_url?: string | null
           client_id?: string | null
           close_date?: string | null
+          collaborative_ai?: string | null
+          collaborative_ai_link?: string | null
           control_tower_client_id?: string | null
           control_tower_id?: string | null
           control_tower_metadata?: Json | null
@@ -1153,6 +1186,8 @@ export type Database = {
           control_tower_status?: string | null
           created_at?: string
           dealtype?: string | null
+          estimate_task_link?: string | null
+          estimate_url?: string | null
           expected_closing_date?: string | null
           external_links?: Json | null
           google_drive_folder_id?: string | null
@@ -1160,12 +1195,17 @@ export type Database = {
           hubspot_crm_deal_url?: string | null
           hubspot_deal_id?: string | null
           id?: string
+          internal_estimate_doc_link?: string | null
+          internal_estimate_doc_url?: string | null
           last_activity_by?: string | null
           last_activity_date?: string | null
           last_synced_at?: string | null
           lead_source?: string | null
+          leadslift_crm_deal_url?: string | null
           notes?: string | null
           owner_id?: string | null
+          pandadoc_proposal_url?: string | null
+          pipeline?: string | null
           pm_assigned_id?: string | null
           pod_id?: string | null
           potential_amount?: number | null
@@ -1176,7 +1216,9 @@ export type Database = {
           synced_from_control_tower?: boolean | null
           tags?: string[] | null
           title?: string
+          type_of_work?: string | null
           updated_at?: string
+          workboard_ai_link?: string | null
         }
         Relationships: [
           {

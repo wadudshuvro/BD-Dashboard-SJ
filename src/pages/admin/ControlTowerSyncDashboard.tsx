@@ -380,7 +380,7 @@ const ControlTowerSyncDashboard = () => {
       <Card>
         <CardHeader>
           <CardTitle>Manual Sync</CardTitle>
-          <CardDescription>Trigger synchronization jobs outside of scheduled runs.</CardDescription>
+          <CardDescription>Sync all deal data including estimates, proposals, PODs, categories, and collaboration links from Control Tower</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-3">
           <Button onClick={triggerPullSync} disabled={isPulling || loading}>
