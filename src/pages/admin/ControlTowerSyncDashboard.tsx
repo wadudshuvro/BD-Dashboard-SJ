@@ -9,7 +9,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from '@/hooks/use-toast';
 import { formatDistanceToNow, format } from 'date-fns';
-import { Loader2, RefreshCw, CloudUpload, CloudDownload, AlertCircle, CheckCircle2, Clock, CheckSquare } from 'lucide-react';
+import { Loader2, RefreshCw, CloudUpload, CloudDownload, AlertCircle, CheckCircle2, Clock, CheckSquare, Trash2 } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 interface SyncLog {
   id: string;
@@ -56,6 +67,7 @@ const ControlTowerSyncDashboard = () => {
   const [isPulling, setIsPulling] = useState(false);
   const [isPushing, setIsPushing] = useState(false);
   const [isImportingChecklists, setIsImportingChecklists] = useState(false);
+  const [isClearingLogs, setIsClearingLogs] = useState(false);
   const [filters, setFilters] = useState({ entityType: 'all', status: 'all' });
 
   useEffect(() => {
@@ -281,6 +293,24 @@ const ControlTowerSyncDashboard = () => {
     }
   };
 
+  const clearAllLogs = async () => {
+    setIsClearingLogs(true);
+    try {
+      const { error } = await supabase.rpc('clear_all_sync_logs');
+      if (error) throw error;
+      
+      toast({ 
+        title: '✅ Logs Cleared',
+        description: 'All sync logs have been deleted.',
+      });
+      fetchSummary();
+    } catch (error: any) {
+      toast({ title: '❌ Clear Failed', description: error.message, variant: 'destructive' });
+    } finally {
+      setIsClearingLogs(false);
+    }
+  };
+
   const lastPull = useMemo(() => logs.find((log) => log.sync_type === 'pull'), [logs]);
   const lastPush = useMemo(() => logs.find((log) => log.sync_type === 'push'), [logs]);
 
@@ -486,9 +516,33 @@ const ControlTowerSyncDashboard = () => {
 
       <Card>
         <CardHeader className="space-y-3">
-          <div>
-            <CardTitle>Sync Activity Log</CardTitle>
-            <CardDescription>Audit trail of recent synchronization jobs.</CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Sync Activity Log</CardTitle>
+              <CardDescription>Audit trail of recent synchronization jobs. Logs are automatically deleted after 20 minutes.</CardDescription>
+            </div>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" size="sm" disabled={isClearingLogs || logs.length === 0}>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Clear All Logs
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Clear All Sync Logs?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently delete all {logs.length} sync log entries. This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={clearAllLogs} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                    Delete All Logs
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
           <div className="flex flex-wrap gap-3">
             <Select

@@ -2161,6 +2161,7 @@ export type Database = {
     }
     Functions: {
       cleanup_old_sync_logs: { Args: never; Returns: undefined }
+      clear_all_sync_logs: { Args: never; Returns: undefined }
       generate_slug_numeric: { Args: { base_text: string }; Returns: string }
       has_role: {
         Args: {
