@@ -139,10 +139,10 @@ export default function LinkedInAgentConfig() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
             <Bot className="h-8 w-8 text-primary" />
-            LinkedIn Agent Orchestration
+            AI Agent Management
           </h1>
           <p className="text-muted-foreground">
-            Manage provider routing, execute agents on demand, and review telemetry-rich run history.
+            Configure AI agents, manage provider settings, and monitor execution history.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -272,7 +272,7 @@ export default function LinkedInAgentConfig() {
                     className="flex items-center gap-2"
                   >
                     <Settings className="h-4 w-4" />
-                    Configure providers
+                    Edit Agent
                   </Button>
                 </div>
               </div>

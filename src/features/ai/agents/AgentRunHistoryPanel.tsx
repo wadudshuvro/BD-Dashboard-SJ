@@ -80,7 +80,7 @@ export function AgentRunHistoryPanel({ agentId }: AgentRunHistoryPanelProps) {
             )}
 
             {!isLoading && (!data || data.length === 0) && (
-              <p className="text-sm text-muted-foreground">No runs recorded yet.</p>
+              <p className="text-sm text-muted-foreground">No execution history yet. Click 'Run Agent' to start.</p>
             )}
 
             {data?.map((run, index) => (
