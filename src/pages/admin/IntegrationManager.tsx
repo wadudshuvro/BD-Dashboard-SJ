@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   Card,
   CardContent,
@@ -11,6 +12,13 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -67,6 +75,25 @@ interface IntegrationLogEntry {
   recorded_at: string | null;
 }
 
+interface PerplexityModelOption {
+  id: string;
+  label: string;
+  cost: number;
+}
+
+interface PerplexityFormState {
+  model: string;
+  cost_per_1k_tokens: string;
+  is_active: boolean;
+}
+
+interface PerplexityTestResult {
+  ok: boolean;
+  latency_ms?: number;
+  error?: string;
+  model?: string;
+}
+
 const formatDateTime = (value: string | null | undefined) => {
   if (!value) return "Never";
   try {
@@ -97,6 +124,14 @@ const IntegrationManager = () => {
       icon: "🤖",
     },
     {
+      id: "perplexity",
+      name: "Perplexity AI",
+      description: "Research-grade answers from Perplexity's AI models",
+      category: "AI",
+      is_enabled: false,
+      icon: "🧠",
+    },
+    {
       id: "google-drive",
       name: "Google Drive",
       description: "Sync deal documents from mapped Google Drive folders",
@@ -120,6 +155,15 @@ const IntegrationManager = () => {
   const [openAITestResult, setOpenAITestResult] = useState<any>(null);
   const [testingGoogleDrive, setTestingGoogleDrive] = useState(false);
   const [googleDriveTestResult, setGoogleDriveTestResult] = useState<any>(null);
+  const [perplexityModels, setPerplexityModels] = useState<PerplexityModelOption[]>([]);
+  const [perplexityForm, setPerplexityForm] = useState<PerplexityFormState>({
+    model: "pplx-70b-online",
+    cost_per_1k_tokens: "0.80",
+    is_active: false,
+  });
+  const [perplexityTestResult, setPerplexityTestResult] = useState<PerplexityTestResult | null>(null);
+  const [testingPerplexity, setTestingPerplexity] = useState(false);
+  const [savingPerplexity, setSavingPerplexity] = useState(false);
 
   const hubspotIntegration = crmIntegrations.find((integration) => integration.type === "hubspot");
   const goHighLevelIntegration = crmIntegrations.find((integration) => integration.type === "gohighlevel");
@@ -152,7 +196,10 @@ const IntegrationManager = () => {
     try {
       const { data: collabaiConfig } = await supabase.functions.invoke("collabai-manage", { method: "GET" });
       const collabEnabled = Boolean(collabaiConfig?.enabled);
-      nextGlobal[0] = { ...nextGlobal[0], is_enabled: collabEnabled };
+      const collabaiIndex = nextGlobal.findIndex((integration) => integration.id === "collabai");
+      if (collabaiIndex !== -1) {
+        nextGlobal[collabaiIndex] = { ...nextGlobal[collabaiIndex], is_enabled: collabEnabled };
+      }
     } catch (error) {
       console.error("Failed to load CollabAI config", error);
     }
@@ -162,19 +209,61 @@ const IntegrationManager = () => {
         body: { action: "status" },
       });
       const openaiEnabled = Boolean(openaiStatus?.configured);
-      nextGlobal[1] = { ...nextGlobal[1], is_enabled: openaiEnabled };
+      const openaiIndex = nextGlobal.findIndex((integration) => integration.id === "openai");
+      if (openaiIndex !== -1) {
+        nextGlobal[openaiIndex] = { ...nextGlobal[openaiIndex], is_enabled: openaiEnabled };
+      }
     } catch (error) {
       console.error("Failed to load OpenAI config", error);
+    }
+
+    try {
+      const { data } = await supabase.functions.invoke("perplexity-manage", { method: "GET" });
+      const configModel = data?.config?.model ?? "pplx-70b-online";
+      const configCost = data?.config?.cost_per_1k_tokens;
+      const costString =
+        typeof configCost === "number"
+          ? configCost.toFixed(2)
+          : typeof configCost === "string" && configCost.trim() !== ""
+            ? Number(configCost).toFixed(2)
+            : "0.80";
+      const isActive = Boolean(data?.integration?.is_active);
+      setPerplexityForm({
+        model: configModel,
+        cost_per_1k_tokens: Number.isNaN(Number(costString)) ? "0.80" : costString,
+        is_active: isActive,
+      });
+      setPerplexityTestResult(null);
+      const perplexityIndex = nextGlobal.findIndex((integration) => integration.id === "perplexity");
+      if (perplexityIndex !== -1) {
+        nextGlobal[perplexityIndex] = {
+          ...nextGlobal[perplexityIndex],
+          is_enabled: isActive,
+        };
+      }
+    } catch (error) {
+      console.error("Failed to load Perplexity config", error);
+    }
+
+    try {
+      const { data } = await supabase.functions.invoke("perplexity-manage/models", { method: "GET" });
+      const models: PerplexityModelOption[] = Array.isArray(data?.models) ? data.models : [];
+      setPerplexityModels(models);
+    } catch (error) {
+      console.error("Failed to load Perplexity models", error);
     }
 
     try {
       const { data, error } = await supabase.functions.invoke("sync-deal-files", {
         body: { action: "test-connection" }
       });
-      
+
       const googleDriveConfigured = !error && data?.ok;
-      nextGlobal[2] = { ...nextGlobal[2], is_enabled: googleDriveConfigured };
-      
+      const googleDriveIndex = nextGlobal.findIndex((integration) => integration.id === "google-drive");
+      if (googleDriveIndex !== -1) {
+        nextGlobal[googleDriveIndex] = { ...nextGlobal[googleDriveIndex], is_enabled: googleDriveConfigured };
+      }
+
       // Optionally fetch recent sync stats
       const { data: syncStats } = await supabase
         .from('google_drive_sync_log')
@@ -182,9 +271,15 @@ const IntegrationManager = () => {
         .order('completed_at', { ascending: false })
         .limit(1)
         .single();
-        
+
       if (syncStats) {
-        nextGlobal[2].metadata = syncStats;
+        const googleDriveMetaIndex = nextGlobal.findIndex((integration) => integration.id === "google-drive");
+        if (googleDriveMetaIndex !== -1) {
+          nextGlobal[googleDriveMetaIndex] = {
+            ...nextGlobal[googleDriveMetaIndex],
+            metadata: syncStats,
+          };
+        }
       }
     } catch (error) {
       console.error("Failed to load Google Drive config", error);
@@ -356,11 +451,11 @@ const IntegrationManager = () => {
       const { data, error } = await supabase.functions.invoke("sync-deal-files", {
         body: { action: "test-connection" }
       });
-      
+
       if (error) throw error;
-      
+
       setGoogleDriveTestResult(data);
-      
+
       if (data?.ok) {
         toast({
           title: "Google Drive connection successful",
@@ -383,6 +478,153 @@ const IntegrationManager = () => {
       setGoogleDriveTestResult({ ok: false, error: "Connection test failed" });
     } finally {
       setTestingGoogleDrive(false);
+    }
+  };
+
+  const handlePerplexityModelChange = (value: string) => {
+    const matched = perplexityModels.find((model) => model.id === value);
+    setPerplexityForm((prev) => ({
+      ...prev,
+      model: value,
+      cost_per_1k_tokens: matched ? matched.cost.toFixed(2) : prev.cost_per_1k_tokens,
+    }));
+    setPerplexityTestResult(null);
+  };
+
+  const handleSavePerplexity = async (options?: { is_active?: boolean; silent?: boolean }) => {
+    const targetActive = options?.is_active ?? perplexityForm.is_active;
+    const trimmedCost = perplexityForm.cost_per_1k_tokens.trim();
+    const parsedCost = Number(trimmedCost);
+
+    if (trimmedCost === "" || Number.isNaN(parsedCost) || parsedCost < 0) {
+      toast({
+        title: "Invalid cost",
+        description: "Enter a valid cost per 1K tokens before saving.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSavingPerplexity(true);
+    setPerplexityTestResult(null);
+
+    try {
+      const { data, error } = await supabase.functions.invoke("perplexity-manage/save-config", {
+        method: "POST",
+        body: {
+          model: perplexityForm.model,
+          cost_per_1k_tokens: parsedCost,
+          is_active: targetActive,
+        },
+      });
+
+      if (error) throw error;
+
+      const savedConfig = data?.config ?? {};
+      const savedModel =
+        typeof savedConfig.model === "string" && savedConfig.model.trim() !== ""
+          ? savedConfig.model
+          : perplexityForm.model;
+      const savedCostNumber =
+        typeof savedConfig.cost_per_1k_tokens === "number"
+          ? savedConfig.cost_per_1k_tokens
+          : parsedCost;
+      const savedCost = savedCostNumber.toFixed(2);
+      const savedActive = Boolean(data?.is_active ?? targetActive);
+
+      setPerplexityForm({
+        model: savedModel,
+        cost_per_1k_tokens: savedCost,
+        is_active: savedActive,
+      });
+      setGlobalIntegrations((prev) =>
+        prev.map((integration) =>
+          integration.id === "perplexity" ? { ...integration, is_enabled: savedActive } : integration,
+        ),
+      );
+
+      if (options?.is_active !== undefined) {
+        toast({
+          title: options.is_active ? "Perplexity AI enabled" : "Perplexity AI disabled",
+          description: options.is_active
+            ? `Using ${savedModel} at $${savedCost} per 1K tokens.`
+            : "You can re-enable the integration at any time.",
+        });
+      } else if (!options?.silent) {
+        toast({
+          title: "Perplexity AI settings saved",
+          description: `Model ${savedModel} at $${savedCost} per 1K tokens.`,
+        });
+      }
+    } catch (error) {
+      console.error("Failed to save Perplexity config", error);
+      toast({
+        title: "Unable to save Perplexity settings",
+        description: error instanceof Error ? error.message : "Unknown error occurred.",
+        variant: "destructive",
+      });
+      if (options?.is_active !== undefined) {
+        setPerplexityForm((prev) => ({ ...prev, is_active: !options.is_active }));
+      }
+    } finally {
+      setSavingPerplexity(false);
+    }
+  };
+
+  const handleTogglePerplexity = async (checked: boolean) => {
+    setPerplexityForm((prev) => ({ ...prev, is_active: checked }));
+    await handleSavePerplexity({ is_active: checked });
+  };
+
+  const handleTestPerplexity = async () => {
+    setTestingPerplexity(true);
+    setPerplexityTestResult(null);
+    try {
+      const { data, error } = await supabase.functions.invoke(
+        `perplexity-manage/test?model=${encodeURIComponent(perplexityForm.model)}`,
+        { method: "GET" },
+      );
+
+      if (error) throw error;
+
+      const result: PerplexityTestResult = {
+        ok: Boolean(data?.ok),
+        latency_ms: typeof data?.latency_ms === "number" ? data.latency_ms : undefined,
+        model: typeof data?.model === "string" ? data.model : undefined,
+        error:
+          data?.ok
+            ? undefined
+            : typeof data?.error === "string"
+              ? data.error
+              : "Perplexity API request failed",
+      };
+
+      setPerplexityTestResult(result);
+
+      if (result.ok) {
+        toast({
+          title: "Perplexity connection successful",
+          description: result.latency_ms
+            ? `API responded in ${result.latency_ms}ms.`
+            : "API responded successfully.",
+        });
+      } else {
+        toast({
+          title: "Perplexity test failed",
+          description: result.error || "Unable to connect to Perplexity API.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Perplexity test failed", error);
+      toast({
+        title: "Test failed",
+        description: error instanceof Error ? error.message : "Unable to test Perplexity connection.",
+        variant: "destructive",
+      });
+      setPerplexityTestResult({ ok: false, error: error instanceof Error ? error.message : "Connection test failed" });
+    } finally {
+      setTestingPerplexity(false);
     }
   };
 
@@ -462,6 +704,112 @@ const IntegrationManager = () => {
                       </>
                     )}
                   </Button>
+                )}
+                {integration.id === "perplexity" && (
+                  <>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="space-y-1 text-sm text-muted-foreground">
+                          <p>Model: {perplexityForm.model}</p>
+                          <p>Cost: ${perplexityForm.cost_per_1k_tokens} per 1K tokens</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Label htmlFor="perplexity-toggle" className="sr-only">
+                            Toggle Perplexity integration
+                          </Label>
+                          <Switch
+                            id="perplexity-toggle"
+                            checked={perplexityForm.is_active}
+                            onCheckedChange={handleTogglePerplexity}
+                            disabled={savingPerplexity}
+                          />
+                        </div>
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="perplexity-model">Model</Label>
+                        <Select value={perplexityForm.model} onValueChange={handlePerplexityModelChange}>
+                          <SelectTrigger id="perplexity-model">
+                            <SelectValue placeholder="Select a model" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {perplexityModels.map((model) => (
+                              <SelectItem key={model.id} value={model.id}>
+                                {model.label} · ${model.cost.toFixed(2)}/1K
+                              </SelectItem>
+                            ))}
+                            {perplexityModels.length === 0 && (
+                              <SelectItem value={perplexityForm.model}>{perplexityForm.model}</SelectItem>
+                            )}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="perplexity-cost">Cost per 1K tokens (USD)</Label>
+                        <Input
+                          id="perplexity-cost"
+                          type="number"
+                          inputMode="decimal"
+                          min="0"
+                          step="0.01"
+                          value={perplexityForm.cost_per_1k_tokens}
+                          onChange={(event) => {
+                            setPerplexityForm((prev) => ({
+                              ...prev,
+                              cost_per_1k_tokens: event.target.value,
+                            }));
+                            setPerplexityTestResult(null);
+                          }}
+                          disabled={savingPerplexity}
+                        />
+                      </div>
+                    </div>
+                    {perplexityTestResult && (
+                      <div
+                        className={`rounded-md border px-3 py-2 text-sm ${
+                          perplexityTestResult.ok
+                            ? "border-green-500 text-green-600 dark:text-green-400"
+                            : "border-red-500 text-red-600 dark:text-red-400"
+                        }`}
+                      >
+                        {perplexityTestResult.ok
+                          ? `Connection successful${
+                              typeof perplexityTestResult.latency_ms === "number"
+                                ? ` (${perplexityTestResult.latency_ms}ms)`
+                                : ""
+                            }`
+                          : `Test failed: ${perplexityTestResult.error || "Unknown error"}`}
+                      </div>
+                    )}
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <Button onClick={() => handleSavePerplexity()} disabled={savingPerplexity}>
+                        {savingPerplexity ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...
+                          </>
+                        ) : (
+                          <>Save configuration</>
+                        )}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={handleTestPerplexity}
+                        disabled={testingPerplexity}
+                      >
+                        {testingPerplexity ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Testing...
+                          </>
+                        ) : (
+                          <>
+                            <RefreshCw className="mr-2 h-4 w-4" /> Test Connection
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                    <Button variant="link" className="p-0" asChild>
+                      <Link to="/adminpanel/integrations/perplexity">More settings</Link>
+                    </Button>
+                  </>
                 )}
                 {integration.id === "google-drive" && (
                   <>
