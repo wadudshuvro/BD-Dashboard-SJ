@@ -754,7 +754,7 @@ async function performSync(
       try {
         // Fetch checklist items from Control Tower for this deal
         const { data: ctChecklistItems, error: checklistError } = await ctClient
-          .from('deal_checklist_items')
+          .from('deal_checklist')
           .select('*')
           .eq('deal_id', deal.control_tower_id)
           .order('order_index', { ascending: true });

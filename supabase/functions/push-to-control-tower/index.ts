@@ -242,7 +242,7 @@ serve(async (req) => {
           if (item.control_tower_item_id) {
             // Update the original checklist item in Control Tower
             const { error: updateError } = await controlTowerClient
-              .from("deal_checklist_items")
+              .from("deal_checklist")
               .update({
                 is_completed: item.is_completed,
                 completed_at: item.completed_at,
