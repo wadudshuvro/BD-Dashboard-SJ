@@ -194,13 +194,13 @@ const ControlTowerSyncDashboard = () => {
       if (error) throw error;
       
       const summary = [
-        `✅ Deals: ${data.deals.new} new, ${data.deals.updated} updated`,
-        `👥 Clients: ${data.clients.new} new, ${data.clients.updated} updated`,
-        `📋 Checklists: ${data.checklists.synced} items synced`,
-        `⏱️ Completed in ${(data.duration / 1000).toFixed(1)}s`
+        `✅ Deals: ${data?.deals?.new || 0} new, ${data?.deals?.updated || 0} updated`,
+        `👥 Clients: ${data?.clients?.new || 0} new, ${data?.clients?.updated || 0} updated`,
+        `📋 Checklists: ${data?.checklists?.synced || 0} items synced`,
+        `⏱️ Completed in ${((data?.duration || 0) / 1000).toFixed(1)}s`
       ];
       
-      const totalFailed = data.deals.failed + data.checklists.failed;
+      const totalFailed = (data?.deals?.failed || 0) + (data?.checklists?.failed || 0);
       if (totalFailed > 0) {
         summary.push(`⚠️ Failed: ${totalFailed} items`);
       }

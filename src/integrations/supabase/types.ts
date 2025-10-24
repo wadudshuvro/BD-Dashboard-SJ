@@ -2160,6 +2160,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      cleanup_old_sync_logs: { Args: never; Returns: undefined }
       generate_slug_numeric: { Args: { base_text: string }; Returns: string }
       has_role: {
         Args: {
