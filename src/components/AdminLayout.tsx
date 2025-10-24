@@ -50,13 +50,6 @@ const AdminLayout = () => {
         ],
       },
       {
-        section: "AI & Automation",
-        items: [
-          { name: "AI Agent Management", href: "/adminpanel/linkedin-agent-config", icon: Bot },
-          { name: "Automation Settings", href: "/adminpanel/settings?tab=automation", icon: Zap },
-        ],
-      },
-      {
         section: "System & Operations",
         items: [
           { name: "System Settings", href: "/adminpanel/settings", icon: Settings },
@@ -70,6 +63,7 @@ const AdminLayout = () => {
         items: [
           { name: "Integration Manager", href: "/adminpanel/integrations", icon: Plug },
           { name: "Control Tower Sync", href: "/adminpanel/integrations/control-tower-sync", icon: RefreshCw },
+          { name: "Perplexity AI", href: "/adminpanel/integrations/perplexity", icon: Sparkles },
         ],
       },
       {
