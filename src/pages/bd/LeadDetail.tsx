@@ -87,7 +87,7 @@ export default function LeadDetail() {
   return (
     <div className="container mx-auto py-8 space-y-6">
       <Button variant="ghost" asChild className="gap-2 w-fit">
-        <Link to="/bd/pipeline/prospecting">
+        <Link to="/prospecting">
           <ArrowLeft className="h-4 w-4" /> Back to prospecting
         </Link>
       </Button>

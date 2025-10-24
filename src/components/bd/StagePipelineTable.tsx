@@ -43,7 +43,7 @@ export function StagePipelineTable({ stage, title, description }: StagePipelineT
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-|-$/g, '');
-    return `/pipeline/${stage}/${slug}-${dealId}`;
+    return `/${stage}/${slug}-${dealId}`;
   };
 
   const columns = [

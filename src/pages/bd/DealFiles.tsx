@@ -192,15 +192,11 @@ export default function DealFiles() {
       <div className="border-b">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-            <Link to="/pipeline/prospecting" className="hover:text-foreground">
-              Pipeline
-            </Link>
-            <ChevronRight className="h-4 w-4" />
-            <Link to={`/pipeline/${stage}`} className="capitalize hover:text-foreground">
+            <Link to={`/${stage}`} className="capitalize hover:text-foreground">
               {stage}
             </Link>
             <ChevronRight className="h-4 w-4" />
-            <Link to={`/pipeline/${stage}/${slug}`} className="hover:text-foreground">
+            <Link to={`/${stage}/${slug}`} className="hover:text-foreground">
               {deal?.title}
             </Link>
             <ChevronRight className="h-4 w-4" />

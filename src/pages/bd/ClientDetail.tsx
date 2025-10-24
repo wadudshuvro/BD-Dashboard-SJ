@@ -260,7 +260,7 @@ export default function ClientDetail() {
                         className="cursor-pointer hover:bg-muted/50"
                         onClick={() =>
                           navigate(
-                            `/pipeline/${(deal.stage || 'prospecting').toLowerCase()}/${createDealSlug(deal.title, deal.id)}`
+                            `/${(deal.stage || 'prospecting').toLowerCase()}/${createDealSlug(deal.title, deal.id)}`
                           )
                         }
                       >

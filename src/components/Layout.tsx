@@ -78,15 +78,15 @@ const Layout = ({ userRole }: LayoutProps) => {
       { name: "My Agents", href: "/bd/my-agents", icon: Zap, current: false },
       {
         name: "Pipeline",
-        href: "/bd/pipeline/prospecting",
+        href: "/prospecting",
         icon: Target,
         current: false,
         subItems: [
-          { name: "Prospecting", href: "/bd/pipeline/prospecting", icon: UserSearch, current: false },
-          { name: "Qualification", href: "/bd/pipeline/qualification", icon: ClipboardCheck, current: false },
-          { name: "Proposal", href: "/bd/pipeline/proposal", icon: FileText, current: false },
-          { name: "Negotiation", href: "/bd/pipeline/negotiation", icon: Handshake, current: false },
-          { name: "Clients", href: "/bd/pipeline/clients", icon: Building2, current: false },
+          { name: "Prospecting", href: "/prospecting", icon: UserSearch, current: false },
+          { name: "Qualification", href: "/qualification", icon: ClipboardCheck, current: false },
+          { name: "Proposal", href: "/proposal", icon: FileText, current: false },
+          { name: "Negotiation", href: "/negotiation", icon: Handshake, current: false },
+          { name: "Clients", href: "/clients", icon: Building2, current: false },
         ]
       },
       { name: "BD Campaigns", href: "/bd/strategy/campaigns", icon: Megaphone, current: false },

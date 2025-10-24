@@ -98,7 +98,7 @@ export default function BDDashboard() {
                 <p className="text-xs text-muted-foreground">Active leads</p>
               </div>
               <Button variant="outline" size="sm" asChild>
-                <Link to="/bd/pipeline/leads">View All</Link>
+                <Link to="/prospecting">View All</Link>
               </Button>
             </div>
           </CardContent>
@@ -115,7 +115,7 @@ export default function BDDashboard() {
                 <p className="text-xs text-muted-foreground">In progress</p>
               </div>
               <Button variant="outline" size="sm" asChild>
-                <Link to="/bd/pipeline/deals">View All</Link>
+                <Link to="/prospecting">View All</Link>
               </Button>
             </div>
           </CardContent>
@@ -132,7 +132,7 @@ export default function BDDashboard() {
                 <p className="text-xs text-muted-foreground">Converted</p>
               </div>
               <Button variant="outline" size="sm" asChild>
-                <Link to="/bd/pipeline/clients">View All</Link>
+                <Link to="/clients">View All</Link>
               </Button>
             </div>
           </CardContent>

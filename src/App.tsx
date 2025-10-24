@@ -148,15 +148,6 @@ const App = () => (
               {/* My Agents */}
               <Route path="my-agents" element={<MyAgentsPage />} />
               
-              {/* Pipeline - Read-only from Control Tower */}
-              <Route path="pipeline/prospecting" element={<Prospecting />} />
-              <Route path="pipeline/qualification" element={<Qualification />} />
-              <Route path="pipeline/proposal" element={<Proposal />} />
-              <Route path="pipeline/negotiation" element={<Negotiation />} />
-              <Route path="pipeline/clients" element={<Clients />} />
-              <Route path="leads/:leadId" element={<LeadDetail />} />
-              <Route path="clients/:clientId" element={<ClientDetail />} />
-              
               {/* Strategy - Campaigns only (Products & Niches moved to Admin Panel) */}
               <Route path="strategy/campaigns" element={<CampaignManagement />} />
               <Route path="strategy/campaigns/:campaignId" element={<CampaignDetail />} />
@@ -174,9 +165,66 @@ const App = () => (
               <Route path="admin/documentation" element={<React.Suspense fallback={<div>Loading...</div>}><Documentation /></React.Suspense>} />
               <Route path="admin/settings" element={<UserSettings />} />
             </Route>
+
+            {/* Pipeline routes - now at root level */}
+            <Route path="/prospecting" element={
+              <ProtectedRoute requiredMinimumRole="user">
+                <Layout />
+              </ProtectedRoute>
+            }>
+              <Route index element={<Prospecting />} />
+            </Route>
+
+            <Route path="/qualification" element={
+              <ProtectedRoute requiredMinimumRole="user">
+                <Layout />
+              </ProtectedRoute>
+            }>
+              <Route index element={<Qualification />} />
+            </Route>
+
+            <Route path="/proposal" element={
+              <ProtectedRoute requiredMinimumRole="user">
+                <Layout />
+              </ProtectedRoute>
+            }>
+              <Route index element={<Proposal />} />
+            </Route>
+
+            <Route path="/negotiation" element={
+              <ProtectedRoute requiredMinimumRole="user">
+                <Layout />
+              </ProtectedRoute>
+            }>
+              <Route index element={<Negotiation />} />
+            </Route>
+
+            <Route path="/clients" element={
+              <ProtectedRoute requiredMinimumRole="user">
+                <Layout />
+              </ProtectedRoute>
+            }>
+              <Route index element={<Clients />} />
+            </Route>
+
+            <Route path="/clients/:id" element={
+              <ProtectedRoute requiredMinimumRole="user">
+                <Layout />
+              </ProtectedRoute>
+            }>
+              <Route index element={<ClientDetail />} />
+            </Route>
+
+            <Route path="/leads/:id" element={
+              <ProtectedRoute requiredMinimumRole="user">
+                <Layout />
+              </ProtectedRoute>
+            }>
+              <Route index element={<LeadDetail />} />
+            </Route>
             
             <Route
-              path="/pipeline/:stage/:slug"
+              path="/:stage/:slug"
               element={
                 <ProtectedRoute requiredMinimumRole="user">
                   <Layout />
