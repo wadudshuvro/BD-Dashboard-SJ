@@ -84,8 +84,8 @@ export function StagePipelineTable({ stage, title, description }: StagePipelineT
       render: formatCurrency 
     },
     { 
-      key: 'close_date' as const, 
-      label: 'Close Date', 
+      key: 'updated_at' as const, 
+      label: 'Last Update', 
       render: formatDate 
     },
   ];
