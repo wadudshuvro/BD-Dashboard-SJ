@@ -6,13 +6,18 @@ import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import {
   AgentConfig,
+  ProviderConfig,
+  ProviderName,
   buildProviderChain,
   invokeProvider,
   ProviderTelemetry,
 } from "../_shared/providers.ts";
 
 const AgentRunRequestSchema = z.object({
-  agent_id: z.string().uuid(),
+  agent_id: z.string().uuid().optional(),
+  agent_type: z.string().optional(),
+  target: z.enum(["deal", "client"]).optional(),
+  client_id: z.string().uuid().optional(),
   execution_context: z.object({
     timeframe: z.string().optional(),
     filters: z.record(z.any()).optional(),
@@ -55,7 +60,8 @@ const AgentResponseSchema = z.object({
   confidence_score: z.number().min(0).max(1).optional(),
   insights: z.array(z.string()).optional(),
   risks: z.array(z.string()).optional(),
-});
+  structured_output: z.record(z.any()).optional(),
+}).passthrough();
 
 type AgentResponse = z.infer<typeof AgentResponseSchema>;
 
@@ -87,6 +93,21 @@ interface ConfigurationPayload {
   prompts: {
     analysis_prompts?: Record<string, string>;
   };
+}
+
+interface IntegrationRow {
+  type: string;
+  config: Record<string, unknown> | null;
+}
+
+interface ClientRow {
+  id: string;
+  name: string;
+  website?: string | null;
+  industry?: string | null;
+  notes?: string | null;
+  employee_count?: number | null;
+  revenue?: number | null;
 }
 
 async function getClient(req: Request) {
@@ -171,6 +192,42 @@ async function fetchFileContents(client: SupabaseClient, fileIds: string[]): Pro
   }
 
   return fileContents.join("\n\n");
+}
+
+function normalizeNumericValue(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    const sanitized = value.replace(/[^0-9.]/g, "");
+    if (!sanitized) return null;
+    const numeric = Number(sanitized);
+    return Number.isFinite(numeric) ? numeric : null;
+  }
+
+  return null;
+}
+
+async function resolvePreferredIntegration(client: SupabaseClient): Promise<IntegrationRow | null> {
+  const preferredProviders: ProviderName[] = ["perplexity", "openai"];
+
+  for (const providerType of preferredProviders) {
+    const { data, error } = await client
+      .from("integrations")
+      .select("type, config")
+      .eq("type", providerType)
+      .eq("is_active", true)
+      .limit(1)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (data) {
+      return data as IntegrationRow;
+    }
+  }
+
+  return null;
 }
 
 function assemblePrompt(
@@ -370,23 +427,143 @@ serve(async (req) => {
     const json = await req.json();
     const payload = AgentRunRequestSchema.parse(json);
 
-    const { agent_id: agentId, execution_context: executionContext, file_ids: fileIds, user_context: userContext } = payload;
+    const {
+      agent_id: payloadAgentId,
+      agent_type: agentType,
+      target: payloadTarget,
+      client_id: clientId,
+      execution_context: incomingExecutionContext,
+      file_ids: fileIds,
+      user_context: userContext,
+    } = payload;
 
-    const { data: agent, error: agentError } = await client
-      .from("ai_agents")
-      .select("*, config, prompt_template")
-      .eq("id", agentId)
-      .single();
+    const target = payloadTarget ?? "deal";
+    let executionContext: Record<string, unknown> = { ...(incomingExecutionContext ?? {}) };
+    executionContext.target = target;
 
-    if (agentError || !agent) {
-      throw new Error("Agent not found or access denied");
+    let agentId = payloadAgentId ?? null;
+    let agent: DatabaseAgent | null = null;
+    let clientProfile: ClientRow | null = null;
+    let integrationOverride: IntegrationRow | null = null;
+    let inputContext: Record<string, unknown> | null = null;
+
+    if (target === "client") {
+      if (!clientId) {
+        throw new Error("client_id is required when target is 'client'");
+      }
+
+      const resolvedAgentType = agentType ?? "research";
+      const { data: resolvedAgent, error: resolvedAgentError } = await client
+        .from("ai_agents")
+        .select("*, config, prompt_template")
+        .eq("type", resolvedAgentType)
+        .eq("is_active", true)
+        .limit(1)
+        .maybeSingle();
+
+      if (resolvedAgentError) throw resolvedAgentError;
+      if (!resolvedAgent) {
+        throw new Error(`No active ${resolvedAgentType} agent configured for client enrichment`);
+      }
+
+      agent = resolvedAgent as unknown as DatabaseAgent;
+      agentId = resolvedAgent.id;
+
+      const { data: clientData, error: clientError } = await client
+        .from("clients")
+        .select("id, name, website, industry, notes, employee_count, revenue")
+        .eq("id", clientId)
+        .maybeSingle();
+
+      if (clientError) throw clientError;
+      if (!clientData) {
+        throw new Error("Client not found");
+      }
+
+      clientProfile = clientData as ClientRow;
+      integrationOverride = await resolvePreferredIntegration(client);
+
+      inputContext = {
+        client: {
+          id: clientProfile.id,
+          name: clientProfile.name,
+          website: clientProfile.website ?? "",
+          industry: clientProfile.industry ?? "",
+          notes: clientProfile.notes ?? "",
+        },
+        enrichment_task:
+          "Research and enrich the client's profile with updated industry, estimated employee count, revenue, and a concise summary for the business development team.",
+      };
+
+      executionContext = {
+        ...executionContext,
+        client_id: clientProfile.id,
+        client_name: clientProfile.name,
+        input_context: inputContext,
+      };
+    }
+
+    if (!agent) {
+      if (!agentId) {
+        throw new Error("Agent ID is required for this request");
+      }
+
+      const { data: fetchedAgent, error: agentError } = await client
+        .from("ai_agents")
+        .select("*, config, prompt_template")
+        .eq("id", agentId)
+        .single();
+
+      if (agentError || !fetchedAgent) {
+        throw new Error("Agent not found or access denied");
+      }
+
+      agent = fetchedAgent as unknown as DatabaseAgent;
+    }
+
+    if (!agent || !agentId) {
+      throw new Error("Agent resolution failed");
     }
 
     const configs = await fetchConfigurations(client);
-    const sharedResources = await fetchSharedResources(client, agentId);
-    
+    const sharedResources = await fetchSharedResources(client, agentId as string);
+
     const fileContents = fileIds ? await fetchFileContents(client, fileIds) : "";
-    
+
+    const agentConfig = ((agent as any).config ?? {}) as AgentConfig;
+    const resolvedAgentConfig: AgentConfig = {
+      ...agentConfig,
+      providers: agentConfig.providers ? { ...agentConfig.providers } : undefined,
+      features: agentConfig.features ? { ...agentConfig.features } : agentConfig.features,
+    };
+
+    const defaultModelFallback = configs.modelSettings?.default_model || "google/gemini-2.5-flash";
+    let defaultModel = defaultModelFallback;
+
+    if (integrationOverride) {
+      const providerName = integrationOverride.type as ProviderName;
+      if (providerName === "perplexity" || providerName === "openai") {
+        const integrationModel = typeof integrationOverride.config?.model === "string"
+          ? integrationOverride.config.model
+          : undefined;
+
+        const primaryProvider: ProviderConfig = {
+          provider: providerName,
+          model: integrationModel
+            ?? (providerName === "perplexity" ? "pplx-70b-online" : defaultModelFallback),
+        };
+
+        resolvedAgentConfig.providers = {
+          ...(resolvedAgentConfig.providers ?? {}),
+          primary: primaryProvider,
+        };
+
+        if (providerName === "openai" && integrationModel) {
+          defaultModel = integrationModel;
+        }
+      }
+    }
+
     const { systemPrompt, userPrompt } = assemblePrompt(
       agent,
       configs.businessContext,
@@ -397,11 +574,15 @@ serve(async (req) => {
       userContext,
     );
 
-    const providerChain = buildProviderChain((agent.config as any) || {}, configs.modelSettings?.default_model || "google/gemini-2.5-flash");
+    const userPromptContent = inputContext
+      ? `${userPrompt}\n\nInput Context:\n${JSON.stringify(inputContext, null, 2)}`
+      : userPrompt;
+
+    const providerChain = buildProviderChain(resolvedAgentConfig, defaultModel);
 
     const messages = [
       { role: "system" as const, content: systemPrompt },
-      { role: "user" as const, content: userPrompt },
+      { role: "user" as const, content: userPromptContent },
     ];
 
     const telemetry: ProviderTelemetry[] = [];
@@ -439,8 +620,59 @@ serve(async (req) => {
       throw new Error("All providers failed to produce a valid response");
     }
 
+    const structuredOutput = (parsedResponse as any).structured_output ?? parsedResponse;
+    let enrichedClient: ClientRow | null = clientProfile;
+
+    if (target === "client" && clientProfile) {
+      const structuredData = typeof structuredOutput === "object" && structuredOutput
+        ? structuredOutput as Record<string, unknown>
+        : {};
+
+      const updates: Record<string, unknown> = {};
+      const nextIndustry = typeof structuredData.industry === "string" ? structuredData.industry.trim() : "";
+      if (nextIndustry) {
+        updates.industry = nextIndustry;
+      }
+
+      const nextEmployeeCount = normalizeNumericValue(structuredData.employee_count);
+      if (nextEmployeeCount !== null) {
+        updates.employee_count = nextEmployeeCount;
+      }
+
+      const nextRevenue = normalizeNumericValue(structuredData.revenue);
+      if (nextRevenue !== null) {
+        updates.revenue = nextRevenue;
+      }
+
+      const summaryNote = typeof structuredData.summary === "string"
+        ? structuredData.summary.trim()
+        : "";
+      if (summaryNote) {
+        updates.notes = summaryNote;
+      }
+
+      if (Object.keys(updates).length > 0) {
+        try {
+          const { data: updatedClient, error: updateError } = await client
+            .from("clients")
+            .update(updates)
+            .eq("id", clientProfile.id)
+            .select("id, name, website, industry, notes, employee_count, revenue")
+            .maybeSingle();
+
+          if (updateError) {
+            throw updateError;
+          }
+
+          enrichedClient = (updatedClient as ClientRow | null) ?? { ...clientProfile, ...updates } as ClientRow;
+        } catch (updateError) {
+          console.error("Failed to update client with enriched data", updateError);
+        }
+      }
+    }
+
     const runRecord = await persistRun(client, {
-      agentId,
+      agentId: agentId as string,
       userId,
       agentCategory: (agent as any).category ?? null,
       executionContext: executionContext || {},
@@ -449,24 +681,36 @@ serve(async (req) => {
       providerRawOutputs: rawOutputs,
       selectedFileIds: fileIds,
       userContext,
-      structuredOutput: parsedResponse,
+      structuredOutput,
     });
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        run_id: (runRecord as any).id,
-        summary: parsedResponse.summary,
-        findings: parsedResponse.findings,
-        recommendations: parsedResponse.recommendations,
-        action_items: parsedResponse.action_items,
-        structured_output: parsedResponse,
-        telemetry,
-      }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      },
-    );
+    const responsePayload: Record<string, unknown> = {
+      success: true,
+      run_id: (runRecord as any).id,
+      summary: parsedResponse.summary,
+      findings: parsedResponse.findings,
+      recommendations: parsedResponse.recommendations,
+      action_items: parsedResponse.action_items,
+      structured_output: structuredOutput,
+      telemetry,
+    };
+
+    if (target === "client" && enrichedClient) {
+      responsePayload.enriched_client = {
+        id: enrichedClient.id,
+        name: enrichedClient.name,
+        website: enrichedClient.website ?? null,
+        industry: enrichedClient.industry ?? null,
+        notes: enrichedClient.notes ?? null,
+        employee_count: enrichedClient.employee_count ?? null,
+        revenue: enrichedClient.revenue ?? null,
+      };
+      responsePayload.client_id = enrichedClient.id;
+    }
+
+    return new Response(JSON.stringify(responsePayload), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   } catch (error) {
     console.error("Error in run-ai-agent function:", error);
     return new Response(
