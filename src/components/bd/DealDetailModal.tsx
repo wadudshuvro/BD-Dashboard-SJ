@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Dialog,
   DialogContent,
@@ -62,10 +63,15 @@ function getUserDisplayName(user: AdminUser | undefined): string {
   return user.email;
 }
 
-function getClientName(clientId: string | undefined | null, clients: Client[]): string {
-  if (!clientId) return 'Unassigned';
+function getClientLink(clientId: string | undefined | null, clients: Client[]): React.ReactNode {
+  if (!clientId) return '-';
   const client = clients.find((item) => item.id === clientId);
-  return client?.name ?? 'Unassigned';
+  if (!client) return '-';
+  return (
+    <Link to={`/clients/${client.slug}`} className="text-primary hover:underline">
+      {client.name}
+    </Link>
+  );
 }
 
 function formatDate(value?: string | null) {
@@ -176,7 +182,7 @@ export function DealDetailModal({
               <div className="rounded-lg border p-4">
                 <div className="text-sm text-muted-foreground">Client</div>
                 <div className="text-lg font-semibold">
-                  {getClientName(deal.client_id, clients)}
+                  {getClientLink(deal.client_id, clients)}
                 </div>
               </div>
               <div className="rounded-lg border p-4">

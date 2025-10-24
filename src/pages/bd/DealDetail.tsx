@@ -105,6 +105,7 @@ interface Client {
   contact_person: string;
   website: string;
   industry: string;
+  slug: string;
 }
 
 interface UserProfile {
@@ -1083,7 +1084,12 @@ export default function DealDetail() {
                     <p className="text-xs font-semibold text-muted-foreground uppercase">Client</p>
                     <div className="space-y-2">
                       <div>
-                        <p className="text-sm font-medium">{client.company || client.name}</p>
+                        <Link 
+                          to={`/clients/${client.slug}`}
+                          className="text-sm font-medium text-primary hover:underline"
+                        >
+                          {client.company || client.name}
+                        </Link>
                         {client.contact_person && (
                           <p className="text-xs text-muted-foreground">{client.contact_person}</p>
                         )}

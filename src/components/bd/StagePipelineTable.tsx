@@ -3,7 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { useLocalDealsByStage } from '@/hooks/useDeals';
 import { format } from 'date-fns';
 import { usePagination } from '@/hooks/usePagination';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 
 interface StagePipelineTableProps {
   stage: 'prospecting' | 'qualification' | 'proposal' | 'negotiation';
@@ -66,7 +66,17 @@ export function StagePipelineTable({ stage, title, description }: StagePipelineT
     { 
       key: 'client_name' as const, 
       label: 'Client',
-      render: (value: string) => value || '-'
+      render: (value: string, row: any) => {
+        if (!value || value === '-' || !row.client_slug) return value || '-';
+        return (
+          <Link 
+            to={`/clients/${row.client_slug}`}
+            className="text-primary hover:underline"
+          >
+            {value}
+          </Link>
+        );
+      }
     },
     { 
       key: 'value' as const, 

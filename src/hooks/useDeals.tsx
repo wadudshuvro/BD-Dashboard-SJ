@@ -498,7 +498,7 @@ export function useLocalDealsByStage(
 
         const [clientsRes, ownersRes, pmsRes] = await Promise.all([
           clientIds.length > 0 
-            ? supabase.from('clients').select('id, name, email, phone, contact_person, company').in('id', clientIds)
+            ? supabase.from('clients').select('id, name, email, phone, contact_person, company, slug').in('id', clientIds)
             : Promise.resolve({ data: [] }),
           ownerIds.length > 0
             ? supabase.from('users').select('id, first_name, last_name').in('id', ownerIds)
@@ -526,6 +526,7 @@ export function useLocalDealsByStage(
             deal_name: deal.title,
             client_id: deal.client_id,
             client_name: (client as any)?.name || (client as any)?.company || '-',
+            client_slug: (client as any)?.slug || null,
             client_email: (client as any)?.email || '-',
             client_phone: (client as any)?.phone || '-',
             client_contact_person: (client as any)?.contact_person || '-',
