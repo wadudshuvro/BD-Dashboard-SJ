@@ -6,7 +6,7 @@ export default function Negotiation() {
     <div className="container mx-auto py-8">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-3xl font-bold">Proposal Shared Stage</h1>
+          <h1 className="text-3xl font-bold">Proposal Shared</h1>
           <p className="text-muted-foreground">Finalizing terms and closing deals</p>
         </div>
         <SyncControlTowerButton />

@@ -1,5 +1,7 @@
 import { Outlet, NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import {
   LayoutDashboard,
   CheckSquare,
@@ -36,6 +38,36 @@ import ProfileDropdown from "./ProfileDropdown";
 import logo from "@/assets/logo-sji.png";
 import { useFeatureFlag } from "@/hooks/useFeatureFlag";
 
+function useDealCounts() {
+  return useQuery({
+    queryKey: ['deal-counts-nav'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('deals')
+        .select('stage')
+        .eq('status', 'active');
+      
+      if (error) throw error;
+      
+      const counts = {
+        prospecting: 0,
+        qualification: 0,
+        proposal: 0,
+        negotiation: 0,
+      };
+      
+      data?.forEach((deal) => {
+        if (deal.stage in counts) {
+          counts[deal.stage as keyof typeof counts]++;
+        }
+      });
+      
+      return counts;
+    },
+    refetchInterval: 30000,
+  });
+}
+
 interface LayoutProps {
   userRole?: 'super_admin' | 'manager' | 'pm' | 'user';
 }
@@ -54,6 +86,7 @@ const Layout = ({ userRole }: LayoutProps) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user, logout } = useAuth();
   const location = useLocation();
+  const { data: dealCounts } = useDealCounts();
   
   // Use the actual user role if available, otherwise fall back to prop
   const currentRole = user?.role || userRole || 'user';
@@ -82,10 +115,10 @@ const Layout = ({ userRole }: LayoutProps) => {
         icon: Target,
         current: false,
         subItems: [
-          { name: "Prospecting", href: "/prospecting", icon: UserSearch, current: false },
-          { name: "Qualification", href: "/qualification", icon: ClipboardCheck, current: false },
-          { name: "Proposal", href: "/proposal", icon: FileText, current: false },
-          { name: "Negotiation", href: "/negotiation", icon: Handshake, current: false },
+          { name: `Lead${dealCounts?.prospecting ? ` (${dealCounts.prospecting})` : ''}`, href: "/prospecting", icon: UserSearch, current: false },
+          { name: `Estimation${dealCounts?.qualification ? ` (${dealCounts.qualification})` : ''}`, href: "/qualification", icon: ClipboardCheck, current: false },
+          { name: `Discovery${dealCounts?.proposal ? ` (${dealCounts.proposal})` : ''}`, href: "/proposal", icon: FileText, current: false },
+          { name: `Proposal Shared${dealCounts?.negotiation ? ` (${dealCounts.negotiation})` : ''}`, href: "/negotiation", icon: Handshake, current: false },
           { name: "Clients", href: "/clients", icon: Building2, current: false },
         ]
       },
