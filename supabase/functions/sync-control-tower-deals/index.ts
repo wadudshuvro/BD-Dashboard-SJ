@@ -291,9 +291,12 @@ async function performSync(
     
     let ctDealsQuery = ctClient.from('Deal').select('*');
     
-    // Filter to only active deals unless syncing a single deal
+    // Exclude only closed won/lost deals unless syncing a single deal
     if (!singleDealId) {
-      ctDealsQuery = ctDealsQuery.eq('dealstage', 'active');
+      // Fetch all deals except those that are fully closed
+      ctDealsQuery = ctDealsQuery
+        .not('dealstage', 'eq', 'closedwon')
+        .not('dealstage', 'eq', 'closedlost');
     }
     
     if (singleDealId) {
