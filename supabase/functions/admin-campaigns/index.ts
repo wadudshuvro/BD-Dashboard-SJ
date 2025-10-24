@@ -527,7 +527,7 @@ async function handleGet(client: SupabaseClient, campaignId: string) {
   return {
     campaign,
     tasks,
-    contacts: [],
+    contacts: campaign.contacts ?? [],
     activities: [],
   };
 }
