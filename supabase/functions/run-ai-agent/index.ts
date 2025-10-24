@@ -7,6 +7,7 @@ import { corsHeaders } from "../_shared/cors.ts";
 import {
   AgentConfig,
   ProviderConfig,
+  ProviderName,
   buildProviderChain,
   invokeProvider,
   ProviderTelemetry,
@@ -15,7 +16,7 @@ import {
 const AgentRunRequestSchema = z.object({
   agent_id: z.string().uuid().optional(),
   agent_type: z.string().optional(),
-  target: z.string().optional(),
+  target: z.enum(["deal", "client"]).optional(),
   client_id: z.string().uuid().optional(),
   execution_context: z.object({
     timeframe: z.string().optional(),
@@ -71,8 +72,8 @@ const AgentResponseSchema = z.object({
   confidence_score: z.number().min(0).max(1).optional(),
   insights: z.array(z.string()).optional(),
   risks: z.array(z.string()).optional(),
-  structured_output: StructuredOutputSchema,
-});
+  structured_output: z.record(z.any()).optional(),
+}).passthrough();
 
 type AgentResponse = z.infer<typeof AgentResponseSchema>;
 
@@ -106,29 +107,20 @@ interface ConfigurationPayload {
   };
 }
 
-type IntegrationRow = {
+interface IntegrationRow {
   type: string;
   config: Record<string, unknown> | null;
-  is_active: boolean | null;
-};
+}
 
-type ClientProfile = {
+interface ClientRow {
   id: string;
-  name: string | null;
-  website: string | null;
-  industry: string | null;
-  notes: string | null;
-  employee_count: number | null;
-  revenue: number | null;
-};
-
-type ClientInputContext = {
-  client_name: string;
-  website: string;
-  industry: string;
-  notes: string;
-  enrichment_task: string;
-};
+  name: string;
+  website?: string | null;
+  industry?: string | null;
+  notes?: string | null;
+  employee_count?: number | null;
+  revenue?: number | null;
+}
 
 async function getClient(req: Request) {
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
@@ -214,41 +206,36 @@ async function fetchFileContents(client: SupabaseClient, fileIds: string[]): Pro
   return fileContents.join("\n\n");
 }
 
-async function resolvePreferredProvider(
-  client: SupabaseClient,
-): Promise<{ providerConfig: ProviderConfig; defaultModelOverride?: string } | null> {
-  const preferred = [
-    { type: "perplexity", provider: "perplexity" as const, fallbackModel: "pplx-70b-online" },
-    { type: "openai", provider: "openai" as const, fallbackModel: "gpt-4o-mini" },
-  ];
+function normalizeNumericValue(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
 
-  for (const preference of preferred) {
+  if (typeof value === "string") {
+    const sanitized = value.replace(/[^0-9.]/g, "");
+    if (!sanitized) return null;
+    const numeric = Number(sanitized);
+    return Number.isFinite(numeric) ? numeric : null;
+  }
+
+  return null;
+}
+
+async function resolvePreferredIntegration(client: SupabaseClient): Promise<IntegrationRow | null> {
+  const preferredProviders: ProviderName[] = ["perplexity", "openai"];
+
+  for (const providerType of preferredProviders) {
     const { data, error } = await client
       .from("integrations")
-      .select("type, config, is_active")
-      .eq("type", preference.type)
+      .select("type, config")
+      .eq("type", providerType)
       .eq("is_active", true)
       .limit(1)
-      .maybeSingle<IntegrationRow>();
+      .maybeSingle();
 
-    if (error) {
-      console.error(`[run-ai-agent] Failed to load ${preference.type} integration`, error);
-      continue;
-    }
-
+    if (error) throw error;
     if (data) {
-      const config = (data.config ?? {}) as Record<string, unknown>;
-      const configuredModel = typeof config?.model === "string" && config.model.trim().length > 0
-        ? config.model
-        : preference.fallbackModel;
-
-      return {
-        providerConfig: {
-          provider: preference.provider,
-          model: configuredModel,
-        },
-        defaultModelOverride: preference.provider === "openai" ? configuredModel : undefined,
-      };
+      return data as IntegrationRow;
     }
   }
 
@@ -455,166 +442,161 @@ serve(async (req) => {
     const payload = AgentRunRequestSchema.parse(json);
 
     const {
-      agent_id: providedAgentId,
-      execution_context: executionContext,
+      agent_id: payloadAgentId,
+      agent_type: agentType,
+      target: payloadTarget,
+      client_id: clientId,
+      execution_context: incomingExecutionContext,
       file_ids: fileIds,
       user_context: userContext,
-      client_id: clientId,
-      agent_type: agentType,
-      target,
     } = payload;
 
-    const resolvedTarget = target ?? "deal";
-    const runExecutionContext: Record<string, unknown> = { ...(executionContext ?? {}) };
-    if (!runExecutionContext.target) {
-      runExecutionContext.target = resolvedTarget;
-    }
+    const target = payloadTarget ?? "deal";
+    let executionContext: Record<string, unknown> = { ...(incomingExecutionContext ?? {}) };
+    executionContext.target = target;
 
-    let agent: (DatabaseAgent & { config?: AgentConfig; prompt_template?: string }) | null = null;
-    let resolvedAgentId = providedAgentId ?? "";
-    let clientProfile: ClientProfile | null = null;
-    let inputContext: ClientInputContext | null = null;
+    let agentId = payloadAgentId ?? null;
+    let agent: DatabaseAgent | null = null;
+    let clientProfile: ClientRow | null = null;
+    let integrationOverride: IntegrationRow | null = null;
+    let inputContext: Record<string, unknown> | null = null;
 
-    if (resolvedTarget === "client") {
+    if (target === "client") {
       if (!clientId) {
         throw new Error("client_id is required when target is 'client'");
       }
 
-      const normalizedAgentType = agentType ?? "research";
-      const { data: resolvedAgent, error: resolveAgentError } = await client
+      const resolvedAgentType = agentType ?? "research";
+      const { data: resolvedAgent, error: resolvedAgentError } = await client
         .from("ai_agents")
         .select("*, config, prompt_template")
-        .eq("type", normalizedAgentType)
+        .eq("type", resolvedAgentType)
         .eq("is_active", true)
-        .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
 
-      if (resolveAgentError || !resolvedAgent) {
-        throw new Error("Active research agent not found");
+      if (resolvedAgentError) throw resolvedAgentError;
+      if (!resolvedAgent) {
+        throw new Error(`No active ${resolvedAgentType} agent configured for client enrichment`);
       }
 
-      agent = resolvedAgent as DatabaseAgent & { config?: AgentConfig; prompt_template?: string };
-      resolvedAgentId = resolvedAgent.id;
-
-      runExecutionContext.target = "client";
-      runExecutionContext.client_id = clientId;
-      runExecutionContext.agent_type = normalizedAgentType;
+      agent = resolvedAgent as unknown as DatabaseAgent;
+      agentId = resolvedAgent.id;
 
       const { data: clientData, error: clientError } = await client
         .from("clients")
         .select("id, name, website, industry, notes, employee_count, revenue")
         .eq("id", clientId)
-        .single();
+        .maybeSingle();
 
-      if (clientError || !clientData) {
-        throw new Error("Client not found or access denied");
+      if (clientError) throw clientError;
+      if (!clientData) {
+        throw new Error("Client not found");
       }
 
-      clientProfile = clientData as ClientProfile;
-      if (clientProfile.name && !runExecutionContext.client_name) {
-        runExecutionContext.client_name = clientProfile.name;
-      }
+      clientProfile = clientData as ClientRow;
+      integrationOverride = await resolvePreferredIntegration(client);
 
-      const enrichmentTask =
-        "Research and enrich the client profile with industry, employee count, revenue, and a concise summary of recent insights.";
       inputContext = {
-        client_name: clientProfile.name ?? "",
-        website: clientProfile.website ?? "",
-        industry: clientProfile.industry ?? "",
-        notes: clientProfile.notes ?? "",
-        enrichment_task: enrichmentTask,
+        client: {
+          id: clientProfile.id,
+          name: clientProfile.name,
+          website: clientProfile.website ?? "",
+          industry: clientProfile.industry ?? "",
+          notes: clientProfile.notes ?? "",
+        },
+        enrichment_task:
+          "Research and enrich the client's profile with updated industry, estimated employee count, revenue, and a concise summary for the business development team.",
       };
-      runExecutionContext.input_context = inputContext;
+
+      executionContext = {
+        ...executionContext,
+        client_id: clientProfile.id,
+        client_name: clientProfile.name,
+        input_context: inputContext,
+      };
     }
 
     if (!agent) {
-      if (!providedAgentId) {
-        throw new Error("agent_id is required for this request");
+      if (!agentId) {
+        throw new Error("Agent ID is required for this request");
       }
 
       const { data: fetchedAgent, error: agentError } = await client
         .from("ai_agents")
         .select("*, config, prompt_template")
-        .eq("id", providedAgentId)
+        .eq("id", agentId)
         .single();
 
       if (agentError || !fetchedAgent) {
         throw new Error("Agent not found or access denied");
       }
 
-      agent = fetchedAgent as DatabaseAgent & { config?: AgentConfig; prompt_template?: string };
-      resolvedAgentId = providedAgentId;
+      agent = fetchedAgent as unknown as DatabaseAgent;
+    }
+
+    if (!agent || !agentId) {
+      throw new Error("Agent resolution failed");
     }
 
     const configs = await fetchConfigurations(client);
-    const sharedResources = await fetchSharedResources(client, resolvedAgentId);
+    const sharedResources = await fetchSharedResources(client, agentId as string);
 
-    const fileContents = fileIds && fileIds.length ? await fetchFileContents(client, fileIds) : "";
+    const fileContents = fileIds ? await fetchFileContents(client, fileIds) : "";
 
-    let systemPrompt: string;
-    let userPrompt: string;
+    const agentConfig = ((agent as any).config ?? {}) as AgentConfig;
+    const resolvedAgentConfig: AgentConfig = {
+      ...agentConfig,
+      providers: agentConfig.providers ? { ...agentConfig.providers } : undefined,
+      features: agentConfig.features ? { ...agentConfig.features } : agentConfig.features,
+    };
 
-    if (resolvedTarget === "client" && clientProfile && inputContext) {
-      const enrichmentTask = inputContext.enrichment_task;
-      const formattedContext = JSON.stringify(inputContext, null, 2);
-      const template = typeof agent.prompt_template === "string" ? agent.prompt_template : "";
-      const populatedTemplate = template
-        .replace(/{{input_context}}/g, formattedContext)
-        .replace(/{{enrichment_task}}/g, enrichmentTask)
-        .replace(/{{client_name}}/g, inputContext.client_name || "N/A");
+    const defaultModelFallback = configs.modelSettings?.default_model || "google/gemini-2.5-flash";
+    let defaultModel = defaultModelFallback;
 
-      systemPrompt = agent.system_prompt;
-      if (populatedTemplate.trim().length > 0) {
-        userPrompt = populatedTemplate;
-      } else {
-        const responseTemplate = JSON.stringify({
-          structured_output: {
-            industry: "Updated industry",
-            employee_count: 120,
-            revenue: 1250000,
-            summary: "One paragraph summary of the client's positioning",
-          },
-        }, null, 2);
-        userPrompt =
-          `Use the following input context to enrich the client profile:\n${formattedContext}\n\n` +
-          `Return valid JSON that matches this shape:\n${responseTemplate}`;
+    if (integrationOverride) {
+      const providerName = integrationOverride.type as ProviderName;
+      if (providerName === "perplexity" || providerName === "openai") {
+        const integrationModel = typeof integrationOverride.config?.model === "string"
+          ? integrationOverride.config.model
+          : undefined;
+
+        const primaryProvider: ProviderConfig = {
+          provider: providerName,
+          model: integrationModel
+            ?? (providerName === "perplexity" ? "pplx-70b-online" : defaultModelFallback),
+        };
+
+        resolvedAgentConfig.providers = {
+          ...(resolvedAgentConfig.providers ?? {}),
+          primary: primaryProvider,
+        };
+
+        if (providerName === "openai" && integrationModel) {
+          defaultModel = integrationModel;
+        }
       }
-    } else {
-      const assembled = assemblePrompt(
-        agent,
-        configs.businessContext,
-        configs.prompts,
-        runExecutionContext,
-        sharedResources,
-        fileContents,
-        userContext,
-      );
-      systemPrompt = assembled.systemPrompt;
-      userPrompt = assembled.userPrompt;
     }
 
-    const providerPreference = await resolvePreferredProvider(client);
-    let agentConfig = (agent.config as AgentConfig) || {};
-    if (providerPreference) {
-      agentConfig = {
-        ...agentConfig,
-        providers: {
-          ...agentConfig.providers,
-          primary: providerPreference.providerConfig,
-        },
-      };
-    }
+    const { systemPrompt, userPrompt } = assemblePrompt(
+      agent,
+      configs.businessContext,
+      configs.prompts,
+      executionContext || {},
+      sharedResources,
+      fileContents,
+      userContext,
+    );
 
-    const defaultModel = providerPreference?.defaultModelOverride
-      ?? configs.modelSettings?.default_model
-      ?? "google/gemini-2.5-flash";
+    const userPromptContent = inputContext
+      ? `${userPrompt}\n\nInput Context:\n${JSON.stringify(inputContext, null, 2)}`
+      : userPrompt;
 
-    const providerChain = buildProviderChain(agentConfig, defaultModel);
+    const providerChain = buildProviderChain(resolvedAgentConfig, defaultModel);
 
     const messages = [
       { role: "system" as const, content: systemPrompt },
-      { role: "user" as const, content: userPrompt },
+      { role: "user" as const, content: userPromptContent },
     ];
 
     const telemetry: ProviderTelemetry[] = [];
@@ -652,83 +634,59 @@ serve(async (req) => {
       throw new Error("All providers failed to produce a valid response");
     }
 
-    let updatedClientProfile = clientProfile;
-    const structuredOutput: StructuredOutput | null = parsedResponse.structured_output ?? null;
+    const structuredOutput = (parsedResponse as any).structured_output ?? parsedResponse;
+    let enrichedClient: ClientRow | null = clientProfile;
 
-    if (resolvedTarget === "client" && clientProfile) {
-      const sanitizeString = (value: unknown): string | null => {
-        if (typeof value === "string") {
-          const trimmed = value.trim();
-          return trimmed.length > 0 ? trimmed : null;
-        }
-        return null;
-      };
-      const sanitizeInteger = (value: unknown): number | null => {
-        if (typeof value === "number" && Number.isFinite(value)) {
-          return Math.round(value);
-        }
-        if (typeof value === "string") {
-          const parsed = Number.parseInt(value.replace(/[^0-9-]/g, ""), 10);
-          return Number.isNaN(parsed) ? null : parsed;
-        }
-        return null;
-      };
-      const sanitizeNumeric = (value: unknown): number | null => {
-        if (typeof value === "number" && Number.isFinite(value)) {
-          return value;
-        }
-        if (typeof value === "string") {
-          const parsed = Number.parseFloat(value.replace(/[^0-9.-]/g, ""));
-          return Number.isNaN(parsed) ? null : parsed;
-        }
-        return null;
-      };
+    if (target === "client" && clientProfile) {
+      const structuredData = typeof structuredOutput === "object" && structuredOutput
+        ? structuredOutput as Record<string, unknown>
+        : {};
 
-      const clientUpdates: Record<string, unknown> = {};
-      if (structuredOutput) {
-        const industryValue = sanitizeString(structuredOutput.industry ?? null);
-        if (industryValue !== null) clientUpdates.industry = industryValue;
-
-        const employeeCountValue = sanitizeInteger(structuredOutput.employee_count ?? null);
-        if (employeeCountValue !== null) clientUpdates.employee_count = employeeCountValue;
-
-        const revenueValue = sanitizeNumeric(structuredOutput.revenue ?? null);
-        if (revenueValue !== null) clientUpdates.revenue = revenueValue;
-
-        const summaryValue = sanitizeString(structuredOutput.summary ?? null);
-        if (summaryValue !== null) {
-          clientUpdates.notes = summaryValue;
-        }
+      const updates: Record<string, unknown> = {};
+      const nextIndustry = typeof structuredData.industry === "string" ? structuredData.industry.trim() : "";
+      if (nextIndustry) {
+        updates.industry = nextIndustry;
       }
 
-      if (Object.keys(clientUpdates).length > 0) {
+      const nextEmployeeCount = normalizeNumericValue(structuredData.employee_count);
+      if (nextEmployeeCount !== null) {
+        updates.employee_count = nextEmployeeCount;
+      }
+
+      const nextRevenue = normalizeNumericValue(structuredData.revenue);
+      if (nextRevenue !== null) {
+        updates.revenue = nextRevenue;
+      }
+
+      const summaryNote = typeof structuredData.summary === "string"
+        ? structuredData.summary.trim()
+        : "";
+      if (summaryNote) {
+        updates.notes = summaryNote;
+      }
+
+      if (Object.keys(updates).length > 0) {
         try {
           const { data: updatedClient, error: updateError } = await client
             .from("clients")
-            .update(clientUpdates)
+            .update(updates)
             .eq("id", clientProfile.id)
             .select("id, name, website, industry, notes, employee_count, revenue")
-            .single();
+            .maybeSingle();
 
           if (updateError) {
             throw updateError;
           }
 
-          if (updatedClient) {
-            updatedClientProfile = updatedClient as ClientProfile;
-          }
+          enrichedClient = (updatedClient as ClientRow | null) ?? { ...clientProfile, ...updates } as ClientRow;
         } catch (updateError) {
-          console.error("[run-ai-agent] Failed to update client profile", updateError);
+          console.error("Failed to update client with enriched data", updateError);
         }
       }
     }
 
-    const runClientId = resolvedTarget === "client"
-      ? updatedClientProfile?.id ?? clientId ?? undefined
-      : undefined;
-
     const runRecord = await persistRun(client, {
-      agentId: resolvedAgentId,
+      agentId: agentId as string,
       userId,
       agentCategory: (agent as any).category ?? null,
       executionContext: runExecutionContext,
@@ -737,37 +695,34 @@ serve(async (req) => {
       providerRawOutputs: rawOutputs,
       selectedFileIds: fileIds,
       userContext,
-      structuredOutput: structuredOutput ?? parsedResponse,
-      clientId: runClientId,
+      structuredOutput,
     });
 
-    const responseBody: Record<string, unknown> = {
+    const responsePayload: Record<string, unknown> = {
       success: true,
       run_id: (runRecord as any).id,
       summary: parsedResponse.summary,
       findings: parsedResponse.findings,
       recommendations: parsedResponse.recommendations,
       action_items: parsedResponse.action_items,
-      structured_output: structuredOutput ?? parsedResponse,
+      structured_output: structuredOutput,
       telemetry,
     };
 
-    if (resolvedTarget === "client") {
-      responseBody.client = updatedClientProfile
-        ? {
-          id: updatedClientProfile.id,
-          name: updatedClientProfile.name,
-          website: updatedClientProfile.website,
-          industry: updatedClientProfile.industry,
-          employee_count: updatedClientProfile.employee_count,
-          revenue: updatedClientProfile.revenue,
-          notes: updatedClientProfile.notes,
-        }
-        : null;
-      responseBody.input_context = inputContext;
+    if (target === "client" && enrichedClient) {
+      responsePayload.enriched_client = {
+        id: enrichedClient.id,
+        name: enrichedClient.name,
+        website: enrichedClient.website ?? null,
+        industry: enrichedClient.industry ?? null,
+        notes: enrichedClient.notes ?? null,
+        employee_count: enrichedClient.employee_count ?? null,
+        revenue: enrichedClient.revenue ?? null,
+      };
+      responsePayload.client_id = enrichedClient.id;
     }
 
-    return new Response(JSON.stringify(responseBody), {
+    return new Response(JSON.stringify(responsePayload), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
