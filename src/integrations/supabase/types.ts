@@ -568,6 +568,7 @@ export type Database = {
           phone: string | null
           postal_code: string | null
           revenue: number | null
+          slug: string | null
           state: string | null
           status: string | null
           updated_at: string
@@ -594,6 +595,7 @@ export type Database = {
           phone?: string | null
           postal_code?: string | null
           revenue?: number | null
+          slug?: string | null
           state?: string | null
           status?: string | null
           updated_at?: string
@@ -620,6 +622,7 @@ export type Database = {
           phone?: string | null
           postal_code?: string | null
           revenue?: number | null
+          slug?: string | null
           state?: string | null
           status?: string | null
           updated_at?: string
@@ -1484,6 +1487,7 @@ export type Database = {
           lead_score_exa: number | null
           metadata: Json | null
           phone: string | null
+          slug: string | null
           status: string | null
           updated_at: string
           website: string | null
@@ -1504,6 +1508,7 @@ export type Database = {
           lead_score_exa?: number | null
           metadata?: Json | null
           phone?: string | null
+          slug?: string | null
           status?: string | null
           updated_at?: string
           website?: string | null
@@ -1524,6 +1529,7 @@ export type Database = {
           lead_score_exa?: number | null
           metadata?: Json | null
           phone?: string | null
+          slug?: string | null
           status?: string | null
           updated_at?: string
           website?: string | null
@@ -2096,6 +2102,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_slug_numeric: { Args: { base_text: string }; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useLeadDetail } from "@/hooks/useLeads";
+import { useLeadBySlug } from "@/hooks/useLeadBySlug";
 import { useExaIntegration } from "@/hooks/useExaIntegration";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
 
@@ -19,16 +19,16 @@ const formatDateTime = (value?: string | null) => {
   }
 };
 
-const buildName = (lead?: { full_name?: string | null; first_name?: string | null; last_name?: string | null }) => {
+const buildName = (lead?: { contact_name?: string | null; company_name?: string | null }) => {
   if (!lead) return "";
-  if (lead.full_name) return lead.full_name;
-  return [lead.first_name, lead.last_name].filter(Boolean).join(" ");
+  return lead.contact_name || lead.company_name || "";
 };
 
 export default function LeadDetail() {
-  const { leadId } = useParams<{ leadId: string }>();
+  const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
-  const { data: lead, isLoading, isError, error } = useLeadDetail(leadId);
+  const { data: lead, isLoading, isError, error } = useLeadBySlug(slug);
+  const leadId = lead?.id;
   const { enrichLead, isEnriching } = useExaIntegration();
   const { hasPermission } = useUserPermissions();
 
@@ -101,22 +101,13 @@ export default function LeadDetail() {
                 {status}
               </Badge>
             </CardTitle>
-            {lead.title && <p className="text-muted-foreground">{lead.title}</p>}
-            <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
-              {lead.company && <span>Company: {lead.company}</span>}
-              {lead.source && <span>Source: {lead.source}</span>}
+            <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+              {lead.company_name && <span>Company: {lead.company_name}</span>}
               <span>Created: {formatDateTime(lead.created_at)}</span>
               <span>Updated: {formatDateTime(lead.updated_at)}</span>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            {lead.linkedin_url && (
-              <Button asChild variant="outline" className="gap-2">
-                <a href={lead.linkedin_url} target="_blank" rel="noreferrer">
-                  <Globe2 className="h-4 w-4" /> LinkedIn profile
-                </a>
-              </Button>
-            )}
             {canEnrich && (
               <Button onClick={handleEnrich} disabled={isEnriching} className="gap-2">
                 {isEnriching && <Loader2 className="h-4 w-4 animate-spin" />} Enrich lead
@@ -140,7 +131,7 @@ export default function LeadDetail() {
                 </div>
                 <div className="grid grid-cols-[120px_1fr] gap-2">
                   <dt className="text-muted-foreground">Owner</dt>
-                  <dd>{lead.owner_name || lead.owner_id || "Unassigned"}</dd>
+                  <dd>{lead.created_by || "Unassigned"}</dd>
                 </div>
                 <div className="grid grid-cols-[120px_1fr] gap-2">
                   <dt className="text-muted-foreground">Last enriched</dt>

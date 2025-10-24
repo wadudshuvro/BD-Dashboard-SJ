@@ -3,6 +3,7 @@ import axiosPrivate from "@/lib/axiosPrivate";
 
 export interface LeadRecord {
   id: string;
+  slug: string;
   full_name?: string | null;
   first_name?: string | null;
   last_name?: string | null;

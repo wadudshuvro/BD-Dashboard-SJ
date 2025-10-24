@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { format, formatDistanceToNow } from 'date-fns';
 import {
@@ -19,7 +19,7 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useClients, type Client } from '@/hooks/useClients';
+import { useClientBySlug } from '@/hooks/useClientBySlug';
 import { useDeals } from '@/hooks/useDeals';
 import { useDealFiles } from '@/hooks/useDealFiles';
 
@@ -43,36 +43,14 @@ function formatRelativeDate(value?: string | null) {
 }
 
 export default function ClientDetail() {
-  const { clientId } = useParams();
+  const { slug } = useParams();
   const navigate = useNavigate();
-  const { getClientById } = useClients();
+  const { data: client, isLoading: isLoadingClient, error: fetchError } = useClientBySlug(slug);
+  const clientId = client?.id;
   const { deals, loading: dealsLoading } = useDeals({ clientId, enabled: Boolean(clientId) });
   const { files, loading: filesLoading } = useDealFiles({ clientId, enabled: Boolean(clientId) });
 
-  const [client, setClient] = useState<Client | null>(null);
-  const [isLoadingClient, setIsLoadingClient] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const loadClient = async () => {
-      if (!clientId) return;
-
-      setIsLoadingClient(true);
-      setError(null);
-
-      try {
-        const data = await getClientById(clientId);
-        setClient(data);
-      } catch (err) {
-        console.error('Failed to load client', err);
-        setError(err instanceof Error ? err.message : 'Unable to load client details');
-      } finally {
-        setIsLoadingClient(false);
-      }
-    };
-
-    loadClient();
-  }, [clientId, getClientById]);
+  const error = fetchError ? 'Unable to load client details' : null;
 
   const primaryContact = useMemo(
     () =>
@@ -112,7 +90,6 @@ export default function ClientDetail() {
   );
 
   const relativeUpdatedAt = formatRelativeDate(client?.updated_at);
-  const relativeHubspotSync = client?.hubspot_last_sync ? formatRelativeDate(client.hubspot_last_sync) : null;
 
   const createDealSlug = (dealTitle: string | null | undefined, dealId: string) => {
     const slug = (dealTitle || 'deal')
@@ -146,11 +123,6 @@ export default function ClientDetail() {
         <Button variant="ghost" className="gap-2" onClick={() => navigate(-1)}>
           <ArrowLeft className="h-4 w-4" /> Back to clients
         </Button>
-        {client?.hubspot_sync_status ? (
-          <Badge variant="secondary" className="capitalize">
-            HubSpot Sync: {client.hubspot_sync_status}
-          </Badge>
-        ) : null}
       </div>
 
       {error ? (
@@ -217,12 +189,6 @@ export default function ClientDetail() {
                   Last Updated: {formatDate(client?.updated_at)}
                   {relativeUpdatedAt ? ` (${relativeUpdatedAt})` : ''}
                 </span>
-                {client?.hubspot_last_sync ? (
-                  <span>
-                    Last HubSpot Sync: {formatDate(client.hubspot_last_sync, true)}
-                    {relativeHubspotSync ? ` (${relativeHubspotSync})` : ''}
-                  </span>
-                ) : null}
               </div>
             </div>
           </CardContent>

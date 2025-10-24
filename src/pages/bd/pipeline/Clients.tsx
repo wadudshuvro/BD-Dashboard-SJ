@@ -48,7 +48,7 @@ export default function Clients() {
         isLoading={isLoading}
         emptyMessage="No clients found"
         searchable
-        onRowClick={(row) => navigate(`/clients/${row.id}`)}
+        onRowClick={(row) => navigate(`/clients/${row.slug}`)}
         totalCount={totalCount}
         currentPage={pagination.currentPage}
         pageSize={pagination.pageSize}

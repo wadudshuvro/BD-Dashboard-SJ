@@ -207,21 +207,21 @@ const App = () => (
               <Route index element={<Clients />} />
             </Route>
 
-            <Route path="/clients/:id" element={
-              <ProtectedRoute requiredMinimumRole="user">
-                <Layout />
-              </ProtectedRoute>
-            }>
-              <Route index element={<ClientDetail />} />
-            </Route>
+<Route path="/clients/:slug" element={
+  <ProtectedRoute requiredMinimumRole="user">
+    <Layout />
+  </ProtectedRoute>
+}>
+  <Route index element={<ClientDetail />} />
+</Route>
 
-            <Route path="/leads/:id" element={
-              <ProtectedRoute requiredMinimumRole="user">
-                <Layout />
-              </ProtectedRoute>
-            }>
-              <Route index element={<LeadDetail />} />
-            </Route>
+<Route path="/leads/:slug" element={
+  <ProtectedRoute requiredMinimumRole="user">
+    <Layout />
+  </ProtectedRoute>
+}>
+  <Route index element={<LeadDetail />} />
+</Route>
             
             <Route
               path="/:stage/:slug"
