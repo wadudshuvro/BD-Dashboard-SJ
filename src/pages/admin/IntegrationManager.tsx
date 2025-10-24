@@ -126,10 +126,18 @@ const IntegrationManager = () => {
     {
       id: "perplexity",
       name: "Perplexity AI",
-      description: "Research-grade answers from Perplexity's AI models",
+      description: "Research-grade answers from Perplexity's AI models (uses PERPLEXITY_API_KEY secret)",
       category: "AI",
       is_enabled: false,
       icon: "🧠",
+    },
+    {
+      id: "exa",
+      name: "Exa Search",
+      description: "Real-time web search and research synthesis (uses EXA_API_KEY secret)",
+      category: "Research",
+      is_enabled: false,
+      icon: "🔍",
     },
     {
       id: "google-drive",
@@ -164,6 +172,8 @@ const IntegrationManager = () => {
   const [perplexityTestResult, setPerplexityTestResult] = useState<PerplexityTestResult | null>(null);
   const [testingPerplexity, setTestingPerplexity] = useState(false);
   const [savingPerplexity, setSavingPerplexity] = useState(false);
+  const [testingExa, setTestingExa] = useState(false);
+  const [exaTestResult, setExaTestResult] = useState<any>(null);
 
   const hubspotIntegration = crmIntegrations.find((integration) => integration.type === "hubspot");
   const goHighLevelIntegration = crmIntegrations.find((integration) => integration.type === "gohighlevel");
@@ -283,6 +293,20 @@ const IntegrationManager = () => {
       }
     } catch (error) {
       console.error("Failed to load Google Drive config", error);
+    }
+
+    // Check EXA integration
+    try {
+      const { data: exaCheck } = await supabase.functions.invoke("admin-leads-exa-import/test", {
+        method: "GET",
+      });
+      const exaConfigured = Boolean(exaCheck?.ok);
+      const exaIndex = nextGlobal.findIndex((integration) => integration.id === "exa");
+      if (exaIndex !== -1) {
+        nextGlobal[exaIndex] = { ...nextGlobal[exaIndex], is_enabled: exaConfigured };
+      }
+    } catch (error) {
+      console.error("Failed to load EXA config", error);
     }
 
     setGlobalIntegrations(nextGlobal);
@@ -628,6 +652,45 @@ const IntegrationManager = () => {
     }
   };
 
+  const handleTestExa = async () => {
+    setTestingExa(true);
+    setExaTestResult(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("admin-leads-exa-import/test", {
+        method: "GET",
+      });
+      
+      if (error) throw error;
+      
+      setExaTestResult(data);
+      
+      if (data?.ok) {
+        toast({
+          title: "EXA connection successful",
+          description: "EXA API key is configured and working.",
+        });
+      } else {
+        toast({
+          title: "EXA connection failed",
+          description: data?.error || "Unable to connect to EXA API.",
+          variant: "destructive",
+        });
+      }
+      
+      await loadIntegrations();
+    } catch (error) {
+      console.error("EXA test failed", error);
+      toast({
+        title: "Test failed",
+        description: error instanceof Error ? error.message : "Unable to test EXA connection.",
+        variant: "destructive",
+      });
+      setExaTestResult({ ok: false, error: "Connection test failed" });
+    } finally {
+      setTestingExa(false);
+    }
+  };
+
   return (
     <div className="space-y-8">
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
@@ -803,15 +866,50 @@ const IntegrationManager = () => {
                           <>
                             <RefreshCw className="mr-2 h-4 w-4" /> Test Connection
                           </>
-                        )}
-                      </Button>
-                    </div>
-                    <Button variant="link" className="p-0" asChild>
-                      <Link to="/adminpanel/integrations/perplexity">More settings</Link>
+                      )}
                     </Button>
-                  </>
-                )}
-                {integration.id === "google-drive" && (
+                  </div>
+                </>
+              )}
+              {integration.id === "exa" && (
+                <>
+                  {exaTestResult && (
+                    <div className="text-sm">
+                      {exaTestResult.ok && (
+                        <p className="text-green-600 dark:text-green-400">
+                          ✓ EXA API key configured
+                        </p>
+                      )}
+                      {!exaTestResult.ok && (
+                        <p className="text-destructive flex items-center gap-1">
+                          <AlertCircle className="h-3 w-3" />
+                          {exaTestResult.error}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                  <Button
+                    onClick={handleTestExa}
+                    disabled={testingExa}
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                  >
+                    {testingExa ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Testing connection...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                        Test Connection
+                      </>
+                    )}
+                  </Button>
+                </>
+              )}
+              {integration.id === "google-drive" && (
                   <>
                     {googleDriveTestResult && (
                       <div className="text-sm">

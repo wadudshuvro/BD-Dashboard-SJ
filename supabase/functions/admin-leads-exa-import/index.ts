@@ -67,6 +67,15 @@ serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  // Handle test endpoint
+  if (req.method === "GET" && new URL(req.url).pathname.endsWith("/test")) {
+    const exaApiKey = Deno.env.get("EXA_API_KEY");
+    if (!exaApiKey) {
+      return jsonResponse({ ok: false, error: "EXA_API_KEY is not configured" }, 200);
+    }
+    return jsonResponse({ ok: true, configured: true }, 200);
+  }
+
   if (req.method !== "POST") {
     return jsonResponse({ error: "Method Not Allowed" }, 405);
   }

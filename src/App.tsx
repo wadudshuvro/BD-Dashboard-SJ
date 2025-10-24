@@ -113,7 +113,6 @@ const App = () => (
               <Route path="users" element={<UserManagement />} />
               <Route path="users/:userId" element={<UserDetail />} />
               <Route path="integrations" element={<IntegrationManager />} />
-              <Route path="integrations/perplexity" element={<PerplexityIntegration />} />
               <Route path="integrations/control-tower-sync" element={<ControlTowerSyncDashboard />} />
               <Route path="documentation" element={<React.Suspense fallback={<div>Loading...</div>}><Documentation /></React.Suspense>} />
               <Route path="settings" element={<AdminSettings />} />
