@@ -604,10 +604,9 @@ const IntegrationManager = () => {
     setTestingPerplexity(true);
     setPerplexityTestResult(null);
     try {
-      const { data, error } = await supabase.functions.invoke(
-        `perplexity-manage/test?model=${encodeURIComponent(perplexityForm.model)}`,
-        { method: "GET" },
-      );
+      const { data, error } = await supabase.functions.invoke('perplexity-manage/test', {
+        body: { model: perplexityForm.model },
+      });
 
       if (error) throw error;
 

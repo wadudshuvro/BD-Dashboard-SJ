@@ -141,8 +141,16 @@ async function handleTest(req: Request): Promise<Response> {
       return new Response(JSON.stringify({ ok: false, error: "Unauthorized" }), { headers, status: 401 });
     }
 
-    const url = new URL(req.url);
-    const modelParam = url.searchParams.get("model");
+    let modelParam: string | null = null;
+
+    // Handle both GET with query params and POST with body
+    if (req.method === "GET") {
+      const url = new URL(req.url);
+      modelParam = url.searchParams.get("model");
+    } else if (req.method === "POST") {
+      const payload = await req.json();
+      modelParam = payload?.model || null;
+    }
 
     const integration = await fetchIntegration(client);
     const config = parseConfig(integration?.config as Record<string, unknown> | null | undefined);
@@ -304,7 +312,7 @@ Deno.serve(async (req) => {
     return handleGetModels(req);
   }
 
-  if (req.method === "GET" && pathname === "/test") {
+  if ((req.method === "GET" || req.method === "POST") && pathname === "/test") {
     return handleTest(req);
   }
 
