@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { format, formatDistanceToNow } from 'date-fns';
 import {
   ArrowLeft,
@@ -20,28 +21,111 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useClientBySlug } from '@/hooks/useClientBySlug';
 import { useDeals } from '@/hooks/useDeals';
 import { useDealFiles } from '@/hooks/useDealFiles';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
-import { useQueryClient } from '@tanstack/react-query';
 
-type AgentStructuredOutput = {
-  industry?: string | null;
-  employee_count?: number | string | null;
-  revenue?: number | string | null;
-  notes?: string | null;
-  summary?: string | null;
+interface AgentRunResponse {
+  structured_output?: unknown;
+}
+
+interface AgentOutput {
+  industry: string | null;
+  employee_count: number | null;
+  revenue: number | null;
+  notes: string | null;
+}
+
+const toNumber = (value: unknown): number | null => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === 'string') {
+    const normalized = value.replace(/[^0-9.\-]/g, '');
+    if (!normalized) return null;
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
+};
+
+const safeString = (value: unknown): string | null => {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed ? trimmed : null;
+  }
+  return null;
+};
+
+const extractAgentOutput = (raw: unknown): AgentOutput | null => {
+  if (!raw || typeof raw !== 'object') {
+    return null;
+  }
+
+  const root = raw as Record<string, unknown>;
+  const candidateSource =
+    root.client && typeof root.client === 'object'
+      ? root.client
+      : root.enriched_fields && typeof root.enriched_fields === 'object'
+        ? root.enriched_fields
+        : root.fields && typeof root.fields === 'object'
+          ? root.fields
+          : root;
+
+  const candidate = candidateSource as Record<string, unknown>;
+
+  const nestedProfile =
+    candidate.profile && typeof candidate.profile === 'object'
+      ? (candidate.profile as Record<string, unknown>)
+      : null;
+
+  const target = nestedProfile ?? candidate;
+
+  const industry = safeString(target.industry ?? candidate.industry);
+  const employeeCount = toNumber(
+    target.employee_count ?? target.headcount ?? candidate.employee_count ?? candidate.headcount
+  );
+  const revenue = toNumber(
+    target.revenue ?? target.annual_revenue ?? candidate.revenue ?? candidate.annual_revenue ?? candidate.company_revenue
+  );
+  const notes =
+    safeString(target.notes) ??
+    safeString(target.summary) ??
+    safeString(candidate.notes) ??
+    safeString(candidate.summary) ??
+    safeString(root.summary) ??
+    safeString(root.notes);
+
+  if (!industry && employeeCount === null && revenue === null && !notes) {
+    return null;
+  }
+
+  return {
+    industry: industry ?? null,
+    employee_count: employeeCount,
+    revenue,
+    notes: notes ?? null,
+  };
+};
+
+const formatCount = (value: number | null | undefined) => {
+  if (value === null || value === undefined) return '—';
+  return new Intl.NumberFormat().format(value);
+};
+
+const formatRevenue = (value: number | null | undefined) => {
+  if (value === null || value === undefined) return '—';
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    maximumFractionDigits: 0,
+  }).format(value);
 };
 
 function formatDate(value?: string | null, withTime = false) {
@@ -72,6 +156,11 @@ export default function ClientDetail() {
   const clientId = client?.id;
   const { deals, loading: dealsLoading } = useDeals({ clientId, enabled: Boolean(clientId) });
   const { files, loading: filesLoading } = useDealFiles({ clientId, enabled: Boolean(clientId) });
+
+  const [isRunning, setIsRunning] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [agentOutput, setAgentOutput] = useState<AgentOutput | null>(null);
+  const [isApplying, setIsApplying] = useState(false);
 
   const error = fetchError ? 'Unable to load client details' : null;
 
@@ -288,6 +377,149 @@ export default function ClientDetail() {
     return slug ? `${slug}-${dealId}` : `deal-${dealId}`;
   };
 
+  const handleDialogOpenChange = (open: boolean) => {
+    if (!open) {
+      if (isRunning || isApplying) return;
+      setIsModalOpen(false);
+      setAgentOutput(null);
+    } else {
+      setIsModalOpen(true);
+    }
+  };
+
+  const handleRunAgent = async () => {
+    if (!client?.id) {
+      toast({
+        title: 'Client not ready',
+        description: 'Client must be loaded before running the AI agent.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsModalOpen(true);
+    setIsRunning(true);
+    setAgentOutput(null);
+
+    try {
+      const { data, error } = await supabase.functions.invoke<AgentRunResponse>('run-ai-agent', {
+        body: { agent_type: 'research', target: 'client', client_id: client.id },
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      const output = extractAgentOutput(data?.structured_output);
+      if (!output) {
+        toast({
+          title: 'No new insights',
+          description: 'The AI agent did not return additional client details.',
+        });
+      }
+      setAgentOutput(output);
+    } catch (runError) {
+      console.error('Error running AI agent:', runError);
+      toast({
+        title: 'Unable to run agent',
+        description: runError instanceof Error ? runError.message : 'Unexpected error',
+        variant: 'destructive',
+      });
+      setIsModalOpen(false);
+      setAgentOutput(null);
+    } finally {
+      setIsRunning(false);
+    }
+  };
+
+  const handleCancel = () => {
+    if (isRunning || isApplying) return;
+    setIsModalOpen(false);
+    setAgentOutput(null);
+  };
+
+  const handleConfirm = async () => {
+    if (!client?.id) {
+      toast({
+        title: 'Client not ready',
+        description: 'A valid client record is required before applying updates.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!agentOutput) {
+      toast({
+        title: 'No AI data available',
+        description: 'Run the AI agent to review suggestions before confirming.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const updates: Record<string, unknown> = {};
+
+    if (agentOutput.industry) {
+      updates.industry = agentOutput.industry;
+    }
+    if (agentOutput.employee_count !== null && agentOutput.employee_count !== undefined) {
+      updates.employee_count = agentOutput.employee_count;
+    }
+    if (agentOutput.revenue !== null && agentOutput.revenue !== undefined) {
+      updates.revenue = agentOutput.revenue;
+    }
+    if (agentOutput.notes) {
+      updates.notes = agentOutput.notes;
+    }
+
+    if (Object.keys(updates).length === 0) {
+      toast({
+        title: 'No changes to apply',
+        description: 'The AI agent did not return any new client information.',
+      });
+      setIsModalOpen(false);
+      setAgentOutput(null);
+      return;
+    }
+
+    setIsApplying(true);
+
+    try {
+      const { error } = await supabase
+        .from('clients')
+        .update(updates)
+        .eq('id', client.id);
+
+      if (error) {
+        throw error;
+      }
+
+      toast({
+        title: 'Client updated',
+        description: 'AI-enriched data has been applied to the client record.',
+      });
+
+      setIsModalOpen(false);
+      setAgentOutput(null);
+
+      if (slug) {
+        await queryClient.invalidateQueries({ queryKey: ['client-by-slug', slug] });
+      }
+      if (client.slug && client.slug !== slug) {
+        await queryClient.invalidateQueries({ queryKey: ['client-by-slug', client.slug] });
+      }
+    } catch (updateError) {
+      console.error('Error updating client with AI output:', updateError);
+      toast({
+        title: 'Unable to update client',
+        description: updateError instanceof Error ? updateError.message : 'Unexpected error',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsApplying(false);
+    }
+  };
+
   if (!isLoadingClient && !client && !error) {
     return (
       <div className="container mx-auto space-y-6 py-8">
@@ -309,282 +541,288 @@ export default function ClientDetail() {
   return (
     <>
       <Dialog open={isModalOpen} onOpenChange={handleDialogOpenChange}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Apply AI Suggestions</DialogTitle>
             <DialogDescription>
-              Review the AI-enriched client fields and confirm to update this record.
+              Review the AI-generated recommendations before updating the client profile.
             </DialogDescription>
           </DialogHeader>
-          {isRunning && !agentOutput ? (
-            <div className="flex items-center gap-3 rounded-md border bg-muted/40 p-4 text-sm">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <span>Running AI agent and preparing suggestions…</span>
-            </div>
-          ) : agentOutput ? (
-            <div className="space-y-4 text-sm">
-              <div className="grid gap-2">
-                <span className="font-medium">Industry</span>
-                <span className="rounded-md border bg-muted/40 p-2">
-                  {agentOutput.industry || '—'}
-                </span>
+          <div className="space-y-4">
+            {isRunning ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Analyzing client data...</span>
               </div>
-              <div className="grid gap-2">
-                <span className="font-medium">Employee Count</span>
-                <span className="rounded-md border bg-muted/40 p-2">
-                  {agentOutput.employee_count ?? '—'}
-                </span>
+            ) : agentOutput ? (
+              <div className="space-y-4">
+                <div className="grid gap-1">
+                  <p className="text-xs font-medium uppercase text-muted-foreground">Industry</p>
+                  <p className="text-sm">{agentOutput.industry ?? '—'}</p>
+                </div>
+                <div className="grid gap-1">
+                  <p className="text-xs font-medium uppercase text-muted-foreground">Employee Count</p>
+                  <p className="text-sm">{formatCount(agentOutput.employee_count)}</p>
+                </div>
+                <div className="grid gap-1">
+                  <p className="text-xs font-medium uppercase text-muted-foreground">Revenue</p>
+                  <p className="text-sm">{formatRevenue(agentOutput.revenue)}</p>
+                </div>
+                <div className="grid gap-1">
+                  <p className="text-xs font-medium uppercase text-muted-foreground">Notes / Summary</p>
+                  <p className="rounded-md border bg-muted/50 p-3 text-sm text-muted-foreground whitespace-pre-wrap">
+                    {agentOutput.notes ?? '—'}
+                  </p>
+                </div>
               </div>
-              <div className="grid gap-2">
-                <span className="font-medium">Revenue</span>
-                <span className="rounded-md border bg-muted/40 p-2">
-                  {agentOutput.revenue ?? '—'}
-                </span>
-              </div>
-              <div className="grid gap-2">
-                <span className="font-medium">Notes</span>
-                <span className="rounded-md border bg-muted/40 p-2">
-                  {agentOutput.notes ?? agentOutput.summary ?? '—'}
-                </span>
-              </div>
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              Run the AI agent to generate suggestions for this client.
-            </p>
-          )}
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                No structured data was returned for this client. You can close the dialog or adjust the details manually.
+              </p>
+            )}
+          </div>
           <DialogFooter>
-            <Button variant="outline" onClick={handleCancel} disabled={isRunning || isApplyingUpdates}>
+            <Button variant="outline" onClick={handleCancel} disabled={isRunning || isApplying}>
               Cancel
             </Button>
-            <Button
-              onClick={handleApplySuggestions}
-              disabled={isRunning || isApplyingUpdates || !agentOutput}
-              className="gap-2"
-            >
-              {isApplyingUpdates ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              {isApplyingUpdates ? 'Saving…' : 'Confirm'}
+            <Button onClick={handleConfirm} disabled={isRunning || isApplying || !agentOutput}>
+              {isApplying ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Applying...
+                </>
+              ) : (
+                'Confirm'
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
       <div className="container mx-auto space-y-6 py-8">
         <div className="flex items-center justify-between">
           <Button variant="ghost" className="gap-2" onClick={() => navigate(-1)}>
             <ArrowLeft className="h-4 w-4" /> Back to clients
           </Button>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  onClick={handleRunAgent}
-                  disabled={isRunning || isApplyingUpdates || !client}
-                  className="gap-2"
-                >
-                  {isRunning ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                  {isRunning ? 'Running…' : 'Run Agent'}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Use AI Agent to analyze and fill missing company data.</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <div className="flex items-center gap-2">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    onClick={handleRunAgent}
+                    disabled={!client?.id || isRunning || isApplying || isLoadingClient}
+                  >
+                    {isRunning ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Running...
+                      </>
+                    ) : (
+                      'Run Agent'
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  Use AI Agent to analyze and fill missing company data.
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
         </div>
 
-      {error ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Unable to load client</CardTitle>
-          </CardHeader>
-          <CardContent>{error}</CardContent>
-        </Card>
-      ) : null}
+        {error ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>Unable to load client</CardTitle>
+            </CardHeader>
+            <CardContent>{error}</CardContent>
+          </Card>
+        ) : null}
 
-      <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
-        <Card>
-          <CardHeader>
-            {isLoadingClient ? (
-              <div className="space-y-2">
-                <Skeleton className="h-6 w-2/3" />
-                <Skeleton className="h-4 w-1/3" />
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <CardTitle className="text-2xl font-semibold">
-                  {client?.name || 'Unknown client'}
-                </CardTitle>
-                <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                  {client?.industry ? <Badge variant="outline">{client.industry}</Badge> : null}
-                  {client?.status ? <Badge className="capitalize">{client.status}</Badge> : null}
+        <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
+          <Card>
+            <CardHeader>
+              {isLoadingClient ? (
+                <div className="space-y-2">
+                  <Skeleton className="h-6 w-2/3" />
+                  <Skeleton className="h-4 w-1/3" />
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <CardTitle className="text-2xl font-semibold">
+                    {client?.name || 'Unknown client'}
+                  </CardTitle>
+                  <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                    {client?.industry ? <Badge variant="outline">{client.industry}</Badge> : null}
+                    {client?.status ? <Badge className="capitalize">{client.status}</Badge> : null}
+                  </div>
+                </div>
+              )}
+            </CardHeader>
+            <CardContent className="space-y-4 text-sm">
+              {isLoadingClient ? (
+                <div className="space-y-3">
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-5/6" />
+                  <Skeleton className="h-4 w-4/6" />
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {primaryContact.length === 0 ? (
+                    <p className="text-muted-foreground">No contact details available.</p>
+                  ) : (
+                    primaryContact.map((item) => (
+                      <div key={item.label} className="flex items-center gap-2">
+                        <item.icon className="h-4 w-4 text-muted-foreground" />
+                        <div>
+                          <p className="font-medium">{item.label}</p>
+                          <p className="text-muted-foreground">{item.value}</p>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+
+              <Separator />
+
+              <div className="grid gap-2">
+                <p className="text-xs font-medium uppercase text-muted-foreground">Metadata</p>
+                <div className="grid gap-1 text-sm text-muted-foreground">
+                  <span>Created: {formatDate(client?.created_at)}</span>
+                  <span>
+                    Last Updated: {formatDate(client?.updated_at)}
+                    {relativeUpdatedAt ? ` (${relativeUpdatedAt})` : ''}
+                  </span>
                 </div>
               </div>
-            )}
-          </CardHeader>
-          <CardContent className="space-y-4 text-sm">
-            {isLoadingClient ? (
-              <div className="space-y-3">
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-5/6" />
-                <Skeleton className="h-4 w-4/6" />
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {primaryContact.length === 0 ? (
-                  <p className="text-muted-foreground">No contact details available.</p>
-                ) : (
-                  primaryContact.map((item) => (
-                    <div key={item.label} className="flex items-center gap-2">
-                      <item.icon className="h-4 w-4 text-muted-foreground" />
-                      <div>
-                        <p className="font-medium">{item.label}</p>
-                        <p className="text-muted-foreground">{item.value}</p>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            )}
+            </CardContent>
+          </Card>
 
-            <Separator />
+          <Card className="lg:col-span-1">
+            <CardHeader>
+              <CardTitle>Associated Deals</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {dealsLoading ? (
+                <div className="space-y-3">
+                  {Array.from({ length: 3 }).map((_, index) => (
+                    <Skeleton key={index} className="h-12 w-full" />
+                  ))}
+                </div>
+              ) : deals.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No deals found for this client.</p>
+              ) : (
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Stage</TableHead>
+                        <TableHead className="text-right">Amount</TableHead>
+                        <TableHead>Close Date</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {deals.map((deal) => (
+                        <TableRow
+                          key={deal.id}
+                          className="cursor-pointer hover:bg-muted/50"
+                          onClick={() =>
+                            navigate(
+                              `/${(deal.stage || 'prospecting').toLowerCase()}/${createDealSlug(deal.title, deal.id)}`
+                            )
+                          }
+                        >
+                          <TableCell className="font-medium">{deal.title || 'Untitled deal'}</TableCell>
+                          <TableCell className="capitalize">{deal.status || '—'}</TableCell>
+                          <TableCell className="capitalize">{deal.stage || '—'}</TableCell>
+                          <TableCell className="text-right">
+                            {typeof deal.amount === 'number'
+                              ? new Intl.NumberFormat('en-US', {
+                                  style: 'currency',
+                                  currency: 'USD',
+                                  minimumFractionDigits: 0,
+                                }).format(deal.amount)
+                              : '—'}
+                          </TableCell>
+                          <TableCell>{formatDate(deal.close_date)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
 
-            <div className="grid gap-2">
-              <p className="text-xs font-medium uppercase text-muted-foreground">Metadata</p>
-              <div className="grid gap-1 text-sm text-muted-foreground">
-                <span>Created: {formatDate(client?.created_at)}</span>
-                <span>
-                  Last Updated: {formatDate(client?.updated_at)}
-                  {relativeUpdatedAt ? ` (${relativeUpdatedAt})` : ''}
-                </span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="lg:col-span-1">
+        <Card>
           <CardHeader>
-            <CardTitle>Associated Deals</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="h-4 w-4" /> Stored Files
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            {dealsLoading ? (
+            {filesLoading ? (
               <div className="space-y-3">
                 {Array.from({ length: 3 }).map((_, index) => (
-                  <Skeleton key={index} className="h-12 w-full" />
+                  <Skeleton key={index} className="h-10 w-full" />
                 ))}
               </div>
-            ) : deals.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No deals found for this client.</p>
+            ) : files.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No stored files for this client.</p>
             ) : (
               <div className="rounded-md border">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Stage</TableHead>
-                      <TableHead className="text-right">Amount</TableHead>
-                      <TableHead>Close Date</TableHead>
+                      <TableHead>File Name</TableHead>
+                      <TableHead>Source</TableHead>
+                      <TableHead>Category</TableHead>
+                      <TableHead>Last Sync</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {deals.map((deal) => (
-                      <TableRow
-                        key={deal.id}
-                        className="cursor-pointer hover:bg-muted/50"
-                        onClick={() =>
-                          navigate(
-                            `/${(deal.stage || 'prospecting').toLowerCase()}/${createDealSlug(deal.title, deal.id)}`
-                          )
-                        }
-                      >
-                        <TableCell className="font-medium">{deal.title || 'Untitled deal'}</TableCell>
-                        <TableCell className="capitalize">{deal.status || '—'}</TableCell>
-                        <TableCell className="capitalize">{deal.stage || '—'}</TableCell>
-                        <TableCell className="text-right">
-                          {typeof deal.amount === 'number'
-                            ? new Intl.NumberFormat('en-US', {
-                                style: 'currency',
-                                currency: 'USD',
-                                minimumFractionDigits: 0,
-                              }).format(deal.amount)
-                            : '—'}
-                        </TableCell>
-                        <TableCell>{formatDate(deal.close_date)}</TableCell>
-                      </TableRow>
-                    ))}
+                    {files.map((file) => {
+                      const driveUrl = file.drive_folder_url ?? undefined;
+                      const lastSync = file.drive_last_modified_at ?? file.updated_at;
+                      const relativeSync = formatRelativeDate(lastSync);
+
+                      return (
+                        <TableRow key={file.id}>
+                          <TableCell className="font-medium">{file.drive_file_name || 'Untitled File'}</TableCell>
+                          <TableCell>Google Drive</TableCell>
+                          <TableCell>
+                            {file.category ? (
+                              <Badge variant="outline">{file.category}</Badge>
+                            ) : (
+                              <span className="text-sm text-muted-foreground">Uncategorized</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-col">
+                              <span>{formatDate(lastSync, true)}</span>
+                              {relativeSync ? <span className="text-xs text-muted-foreground">{relativeSync}</span> : null}
+                            </div>
+                          </TableCell>
+                          <TableCell className="flex justify-end gap-2">
+                            <Button variant="outline" size="sm" asChild disabled={!driveUrl}>
+                              <a href={driveUrl || '#'} target="_blank" rel="noopener noreferrer">
+                                <ExternalLink className="mr-2 h-4 w-4" /> Drive
+                              </a>
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>
             )}
           </CardContent>
         </Card>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileText className="h-4 w-4" /> Stored Files
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {filesLoading ? (
-            <div className="space-y-3">
-              {Array.from({ length: 3 }).map((_, index) => (
-                <Skeleton key={index} className="h-10 w-full" />
-              ))}
-            </div>
-          ) : files.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No stored files for this client.</p>
-          ) : (
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>File Name</TableHead>
-                    <TableHead>Source</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead>Last Sync</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {files.map((file) => {
-                    const driveUrl = file.drive_folder_url ?? undefined;
-                    const lastSync = file.drive_last_modified_at ?? file.updated_at;
-                    const relativeSync = formatRelativeDate(lastSync);
-
-                    return (
-                      <TableRow key={file.id}>
-                        <TableCell className="font-medium">{file.drive_file_name || 'Untitled File'}</TableCell>
-                        <TableCell>Google Drive</TableCell>
-                        <TableCell>
-                          {file.category ? (
-                            <Badge variant="outline">{file.category}</Badge>
-                          ) : (
-                            <span className="text-sm text-muted-foreground">Uncategorized</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex flex-col">
-                            <span>{formatDate(lastSync, true)}</span>
-                            {relativeSync ? <span className="text-xs text-muted-foreground">{relativeSync}</span> : null}
-                          </div>
-                        </TableCell>
-                        <TableCell className="flex justify-end gap-2">
-                          <Button variant="outline" size="sm" asChild disabled={!driveUrl}>
-                            <a href={driveUrl || '#'} target="_blank" rel="noopener noreferrer">
-                              <ExternalLink className="mr-2 h-4 w-4" /> Drive
-                            </a>
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
       </div>
     </>
   );
