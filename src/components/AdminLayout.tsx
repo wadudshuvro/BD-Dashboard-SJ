@@ -63,7 +63,6 @@ const AdminLayout = () => {
         items: [
           { name: "Integration Manager", href: "/adminpanel/integrations", icon: Plug },
           { name: "Control Tower Sync", href: "/adminpanel/integrations/control-tower-sync", icon: RefreshCw },
-          { name: "Perplexity AI", href: "/adminpanel/integrations/perplexity", icon: Sparkles },
         ],
       },
       {
