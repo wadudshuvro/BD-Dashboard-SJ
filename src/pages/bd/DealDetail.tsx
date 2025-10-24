@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
-import { useQueryClient, useQuery } from '@tanstack/react-query';
+import { useQueryClient, useQuery, useMutation } from '@tanstack/react-query';
 import { format, formatDistanceToNow } from 'date-fns';
 import {
   ArrowLeft,
@@ -37,6 +37,7 @@ import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Progress } from '@/components/ui/progress';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -466,6 +467,7 @@ export default function DealDetail() {
   const [client, setClient] = useState<Client | null>(null);
   const [owner, setOwner] = useState<UserProfile | null>(null);
   const [pm, setPm] = useState<UserProfile | null>(null);
+  const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [newComment, setNewComment] = useState('');
@@ -575,6 +577,14 @@ export default function DealDetail() {
             .single();
           if (pmData) setPm(pmData as UserProfile);
         }
+
+        // Fetch all users for PM assignment dropdown
+        const { data: usersData } = await supabase
+          .from('users')
+          .select('id, first_name, last_name, email')
+          .eq('status', 'active')
+          .order('first_name');
+        if (usersData) setAllUsers(usersData as UserProfile[]);
       } catch (err) {
         console.error('Error fetching deal:', err);
         setError(err instanceof Error ? err.message : 'Failed to load deal');
@@ -689,6 +699,95 @@ export default function DealDetail() {
   const handleDeleteChecklistItem = (itemId: string) => {
     if (window.confirm('Are you sure you want to delete this item?')) {
       deleteChecklistMutation.mutate(itemId);
+    }
+  };
+
+  // PM Assignment mutation
+  const assignPmMutation = useMutation({
+    mutationFn: async (pmId: string | null) => {
+      if (!deal?.id) throw new Error('No deal ID');
+      
+      const { data, error } = await supabase
+        .from('deals')
+        .update({ pm_assigned_id: pmId })
+        .eq('id', deal.id)
+        .select('pm_assigned_id')
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: async (_, pmId) => {
+      if (pmId) {
+        const { data: pmData } = await supabase
+          .from('users')
+          .select('id, first_name, last_name, email')
+          .eq('id', pmId)
+          .single();
+        if (pmData) setPm(pmData as UserProfile);
+      } else {
+        setPm(null);
+      }
+      
+      toast({
+        title: 'PM assigned successfully',
+        description: pmId ? 'Project manager has been updated' : 'Project manager removed',
+      });
+      queryClient.invalidateQueries({ queryKey: ['deal', dealId] });
+    },
+    onError: (error) => {
+      toast({
+        title: 'Assignment failed',
+        description: error instanceof Error ? error.message : 'Failed to assign PM',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const handleAssignPm = (pmId: string) => {
+    assignPmMutation.mutate(pmId === 'unassigned' ? null : pmId);
+  };
+
+  const handleAssignToMe = async (role: 'owner' | 'pm') => {
+    if (!deal?.id || !user?.id) return;
+    
+    const field = role === 'owner' ? 'owner_id' : 'pm_assigned_id';
+    
+    try {
+      const { error } = await supabase
+        .from('deals')
+        .update({ [field]: user.id })
+        .eq('id', deal.id);
+      
+      if (error) throw error;
+      
+      if (role === 'owner') {
+        const { data: ownerData } = await supabase
+          .from('users')
+          .select('id, first_name, last_name, email')
+          .eq('id', user.id)
+          .single();
+        if (ownerData) setOwner(ownerData as UserProfile);
+      } else {
+        const { data: pmData } = await supabase
+          .from('users')
+          .select('id, first_name, last_name, email')
+          .eq('id', user.id)
+          .single();
+        if (pmData) setPm(pmData as UserProfile);
+      }
+      
+      toast({
+        title: 'Assigned successfully',
+        description: `You are now the ${role === 'owner' ? 'deal owner' : 'project manager'}`,
+      });
+      queryClient.invalidateQueries({ queryKey: ['deal', dealId] });
+    } catch (error) {
+      toast({
+        title: 'Assignment failed',
+        description: error instanceof Error ? error.message : 'Failed to assign',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -912,158 +1011,145 @@ export default function DealDetail() {
       <div className="grid gap-6 xl:grid-cols-3">
         <div className="xl:col-span-2 space-y-6">
           <div className="grid gap-6 lg:grid-cols-2">
+            {/* Deal Information - Compact */}
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <DollarSign className="h-5 w-5" />
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <DollarSign className="h-4 w-4" />
                   Deal Information
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid gap-4 sm:grid-cols-2">
+              <CardContent className="space-y-3">
+                <div className="grid gap-3 sm:grid-cols-2">
                   <div>
-                    <p className="text-sm text-muted-foreground">Stage</p>
-                    <p className="font-medium capitalize">{deal.stage?.replace('_', ' ') || '-'}</p>
+                    <p className="text-xs text-muted-foreground">Stage</p>
+                    <p className="text-sm font-medium capitalize">{deal.stage?.replace('_', ' ') || '-'}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Status</p>
-                    <p className="font-medium">{deal.control_tower_status || 'Active'}</p>
+                    <p className="text-xs text-muted-foreground">Status</p>
+                    <p className="text-sm font-medium">{deal.control_tower_status || 'Active'}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Expected Close</p>
-                    <p className="font-medium">{formatDate(deal.expected_closing_date || deal.close_date)}</p>
+                    <p className="text-xs text-muted-foreground">Expected Close</p>
+                    <p className="text-sm font-medium">{formatDate(deal.expected_closing_date || deal.close_date)}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Lead Source</p>
-                    <p className="font-medium">{deal.lead_source || '-'}</p>
+                    <p className="text-xs text-muted-foreground">Lead Source</p>
+                    <p className="text-sm font-medium">{deal.lead_source || '-'}</p>
                   </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Deal Type</p>
-                    <p className="font-medium">{deal.dealtype || '-'}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">HubSpot Deal ID</p>
-                    <p className="font-mono text-xs break-all">{deal.hubspot_deal_id || '-'}</p>
-                  </div>
-                </div>
-
-                <Separator />
-
-                <div className="space-y-3">
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Control Tower ID</p>
-                      <p className="font-mono text-xs break-all">{deal.control_tower_id || '-'}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Control Tower Client ID</p>
-                      <p className="font-mono text-xs break-all">{deal.control_tower_client_id || '-'}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Control Tower Owner ID</p>
-                      <p className="font-mono text-xs break-all">{deal.control_tower_owner_id || '-'}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Last Updated</p>
-                      <p className="font-medium">{formatDate(deal.updated_at)}</p>
-                    </div>
+                  <div className="sm:col-span-2">
+                    <p className="text-xs text-muted-foreground">Deal Type</p>
+                    <p className="text-sm font-medium">{deal.dealtype || '-'}</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            {client && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Building className="h-5 w-5" />
-                    Client Information
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Company</p>
-                    <p className="font-medium">{client.company || client.name}</p>
-                  </div>
-                  {client.contact_person && (
-                    <div>
-                      <p className="text-sm text-muted-foreground">Contact Person</p>
-                      <p className="font-medium">{client.contact_person}</p>
-                    </div>
-                  )}
-                  {client.email && (
-                    <div className="flex items-center gap-2">
-                      <Mail className="h-4 w-4 text-muted-foreground" />
-                      <a href={`mailto:${client.email}`} className="text-sm hover:underline">
-                        {client.email}
-                      </a>
-                    </div>
-                  )}
-                  {client.phone && (
-                    <div className="flex items-center gap-2">
-                      <Phone className="h-4 w-4 text-muted-foreground" />
-                      <a href={`tel:${client.phone}`} className="text-sm hover:underline">
-                        {client.phone}
-                      </a>
-                    </div>
-                  )}
-                  {client.website && (
-                    <div>
-                      <a
-                        href={client.website}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm text-primary hover:underline flex items-center gap-1"
-                      >
-                        Visit Website
-                        <ExternalLink className="h-3 w-3" />
-                      </a>
-                    </div>
-                  )}
-                  {client.industry && (
-                    <div>
-                      <p className="text-sm text-muted-foreground">Industry</p>
-                      <p className="font-medium">{client.industry}</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
-
-            <Card className="lg:col-span-2">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <User className="h-5 w-5" />
-                  Team
+            {/* Client & Team - Merged */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Building className="h-4 w-4" />
+                  Client & Team
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-2">Deal Owner</p>
-                    {owner ? (
-                      <div className="flex items-center gap-2">
-                        <div>
-                          <p className="font-medium">{owner.first_name} {owner.last_name}</p>
-                          <p className="text-sm text-muted-foreground">{owner.email}</p>
+              <CardContent className="space-y-4">
+                {/* Client Info */}
+                {client && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase">Client</p>
+                    <div className="space-y-2">
+                      <div>
+                        <p className="text-sm font-medium">{client.company || client.name}</p>
+                        {client.contact_person && (
+                          <p className="text-xs text-muted-foreground">{client.contact_person}</p>
+                        )}
+                      </div>
+                      {client.email && (
+                        <div className="flex items-center gap-2">
+                          <Mail className="h-3 w-3 text-muted-foreground" />
+                          <a href={`mailto:${client.email}`} className="text-xs hover:underline">
+                            {client.email}
+                          </a>
                         </div>
+                      )}
+                      {client.phone && (
+                        <div className="flex items-center gap-2">
+                          <Phone className="h-3 w-3 text-muted-foreground" />
+                          <a href={`tel:${client.phone}`} className="text-xs hover:underline">
+                            {client.phone}
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                <Separator />
+
+                {/* Team Info */}
+                <div className="space-y-3">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase">Team</p>
+                  
+                  {/* Deal Owner */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-xs text-muted-foreground">Deal Owner</p>
+                      {owner?.id !== user?.id && (
+                        <Button 
+                          size="sm" 
+                          variant="ghost" 
+                          className="h-6 text-xs"
+                          onClick={() => handleAssignToMe('owner')}
+                        >
+                          Assign to Me
+                        </Button>
+                      )}
+                    </div>
+                    {owner ? (
+                      <div>
+                        <p className="text-sm font-medium">{owner.first_name} {owner.last_name}</p>
+                        <p className="text-xs text-muted-foreground">{owner.email}</p>
                       </div>
                     ) : (
-                      <p className="text-muted-foreground">Not assigned</p>
+                      <p className="text-xs text-muted-foreground">Not assigned</p>
                     )}
                   </div>
+
+                  {/* Project Manager */}
                   <div>
-                    <p className="text-sm text-muted-foreground mb-2">Project Manager</p>
-                    {pm ? (
-                      <div className="flex items-center gap-2">
-                        <div>
-                          <p className="font-medium">{pm.first_name} {pm.last_name}</p>
-                          <p className="text-sm text-muted-foreground">{pm.email}</p>
-                        </div>
-                      </div>
-                    ) : (
-                      <p className="text-muted-foreground">Not assigned</p>
-                    )}
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-xs text-muted-foreground">Project Manager</p>
+                      {pm?.id !== user?.id && (
+                        <Button 
+                          size="sm" 
+                          variant="ghost" 
+                          className="h-6 text-xs"
+                          onClick={() => handleAssignToMe('pm')}
+                        >
+                          Assign to Me
+                        </Button>
+                      )}
+                    </div>
+                    <Select
+                      value={pm?.id || 'unassigned'}
+                      onValueChange={handleAssignPm}
+                      disabled={assignPmMutation.isPending}
+                    >
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue placeholder="Select PM" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="unassigned" className="text-xs">
+                          Unassigned
+                        </SelectItem>
+                        {allUsers.map((u) => (
+                          <SelectItem key={u.id} value={u.id} className="text-xs">
+                            {u.first_name} {u.last_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
               </CardContent>
