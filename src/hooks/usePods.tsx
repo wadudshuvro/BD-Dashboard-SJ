@@ -109,6 +109,32 @@ export const usePods = () => {
     },
   });
 
+  const importPodsFromControlTower = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke(
+        'sync-control-tower-pods',
+        { body: {} }
+      );
+      
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['pods'] });
+      toast({
+        title: 'PODs Imported Successfully',
+        description: `Imported ${data.podsImported} PODs from Control Tower`,
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Import Failed',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
   return {
     pods: pods || [],
     isLoading,
@@ -116,5 +142,6 @@ export const usePods = () => {
     createPod,
     updatePod,
     deletePod,
+    importPodsFromControlTower,
   };
 };

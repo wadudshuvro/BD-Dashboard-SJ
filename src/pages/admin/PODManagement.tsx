@@ -1,9 +1,20 @@
 import { useState } from 'react';
-import { Plus, Users, Edit, Trash2 } from 'lucide-react';
+import { Plus, Users, Edit, Trash2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -11,7 +22,7 @@ import { usePods, Pod } from '@/hooks/usePods';
 import { useTargetNiches } from '@/hooks/useTargetNiches';
 
 export default function PODManagement() {
-  const { pods, isLoading, createPod, updatePod, deletePod } = usePods();
+  const { pods, isLoading, createPod, updatePod, deletePod, importPodsFromControlTower } = usePods();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingPod, setEditingPod] = useState<Pod | null>(null);
   const [formData, setFormData] = useState({ name: '', description: '' });
@@ -40,6 +51,10 @@ export default function PODManagement() {
     }
   };
 
+  const handleImportPods = async () => {
+    await importPodsFromControlTower.mutateAsync();
+  };
+
   if (isLoading) return <div>Loading PODs...</div>;
 
   return (
@@ -49,13 +64,38 @@ export default function PODManagement() {
           <h1 className="text-3xl font-bold">POD Management</h1>
           <p className="text-muted-foreground">Manage your team PODs and their niches</p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={() => { setEditingPod(null); setFormData({ name: '', description: '' }); }}>
-              <Plus className="mr-2 h-4 w-4" />
-              Create POD
-            </Button>
-          </DialogTrigger>
+        <div className="flex gap-2">
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="outline" disabled={importPodsFromControlTower.isPending}>
+                <RefreshCw className={`mr-2 h-4 w-4 ${importPodsFromControlTower.isPending ? 'animate-spin' : ''}`} />
+                {importPodsFromControlTower.isPending ? 'Importing...' : 'Import from Control Tower'}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Import PODs from Control Tower?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will DELETE all existing PODs and replace them with PODs from Control Tower.
+                  All deals will be re-mapped to the new PODs during the next sync.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleImportPods}>
+                  Import PODs
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+          
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button onClick={() => { setEditingPod(null); setFormData({ name: '', description: '' }); }}>
+                <Plus className="mr-2 h-4 w-4" />
+                Create POD
+              </Button>
+            </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>{editingPod ? 'Edit POD' : 'Create New POD'}</DialogTitle>
@@ -88,7 +128,8 @@ export default function PODManagement() {
               </div>
             </form>
           </DialogContent>
-        </Dialog>
+          </Dialog>
+        </div>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
