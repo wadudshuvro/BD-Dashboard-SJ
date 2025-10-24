@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.75.0';
 import { corsHeaders } from '../_shared/cors.ts';
+import { getControlTowerCredentials } from '../_shared/credentials.ts';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -15,25 +16,8 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Fetch Control Tower credentials from integrations table
-    const { data: integrationConfig, error: configError } = await supabaseClient
-      .from('integrations')
-      .select('config')
-      .eq('type', 'control_tower')
-      .eq('is_active', true)
-      .single();
-
-    if (configError || !integrationConfig) {
-      throw new Error('Control Tower integration not configured');
-    }
-
-    const ctConfig = integrationConfig.config as any;
-    const CONTROL_TOWER_URL = ctConfig.url || Deno.env.get('Controltowerurl');
-    const CONTROL_TOWER_ANON_KEY = ctConfig.anon_key || Deno.env.get('CONTROLTOWERAPIKEY');
-
-    if (!CONTROL_TOWER_URL || !CONTROL_TOWER_ANON_KEY) {
-      throw new Error('Control Tower credentials not configured');
-    }
+    // Get Control Tower credentials
+    const { url: CONTROL_TOWER_URL, key: CONTROL_TOWER_ANON_KEY } = getControlTowerCredentials();
 
     console.log('[sync-control-tower-pods] Fetching PODs from Control Tower...');
 

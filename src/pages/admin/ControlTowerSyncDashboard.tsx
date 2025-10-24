@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from '@/hooks/use-toast';
 import { formatDistanceToNow, format } from 'date-fns';
-import { Loader2, RefreshCw, CloudUpload, CloudDownload, AlertCircle, CheckCircle2, Clock, CheckSquare, Trash2, Network } from 'lucide-react';
+import { Loader2, RefreshCw, CloudUpload, CloudDownload, AlertCircle, CheckCircle2, Clock, Trash2, Network } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -66,7 +66,6 @@ const ControlTowerSyncDashboard = () => {
   const [configSaving, setConfigSaving] = useState(false);
   const [isPulling, setIsPulling] = useState(false);
   const [isPushing, setIsPushing] = useState(false);
-  const [isImportingChecklists, setIsImportingChecklists] = useState(false);
   const [isSyncingPods, setIsSyncingPods] = useState(false);
   const [isClearingLogs, setIsClearingLogs] = useState(false);
   const [showClearDialog, setShowClearDialog] = useState(false);
@@ -269,35 +268,6 @@ const ControlTowerSyncDashboard = () => {
     }
   };
 
-  const triggerChecklistImport = async () => {
-    setIsImportingChecklists(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('import-checklist-only');
-      if (error) throw error;
-      
-      const summary = [
-        `📋 ${data.synced} items imported`,
-        `⏭️ ${data.skipped} skipped`,
-        `⏱️ Completed in ${(data.duration / 1000).toFixed(1)}s`
-      ];
-      
-      if (data.failed > 0) {
-        summary.push(`⚠️ Failed: ${data.failed} items`);
-      }
-      
-      toast({ 
-        title: data.failed > 0 ? '⚠️ Checklist Import Completed with Issues' : '✅ Checklist Import Complete',
-        description: summary.join('\n'),
-        variant: data.failed > 0 ? 'destructive' : 'default',
-        duration: 8000
-      });
-    } catch (error: any) {
-      toast({ title: '❌ Import Failed', description: error.message, variant: 'destructive' });
-    } finally {
-      setIsImportingChecklists(false);
-      fetchSummary();
-    }
-  };
 
   const triggerPodSync = async () => {
     setIsSyncingPods(true);
@@ -459,10 +429,6 @@ const ControlTowerSyncDashboard = () => {
           <Button variant="outline" onClick={triggerPushSync} disabled={isPushing || loading}>
             {isPushing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CloudUpload className="mr-2 h-4 w-4" />}
             {isPushing ? 'Pushing...' : 'Push Now'}
-          </Button>
-          <Button variant="secondary" onClick={triggerChecklistImport} disabled={isImportingChecklists || loading}>
-            {isImportingChecklists ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckSquare className="mr-2 h-4 w-4" />}
-            {isImportingChecklists ? 'Importing...' : 'Import Checklists'}
           </Button>
           <Button variant="secondary" onClick={triggerPodSync} disabled={isSyncingPods || loading}>
             {isSyncingPods ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Network className="mr-2 h-4 w-4" />}
