@@ -42,8 +42,8 @@ export default function CampaignContactDetail() {
   };
 
   const handleRunResearch = () => {
-    if (!contact) return;
-    researchMutation.mutate(contact.id);
+    if (!contact || !contactSlug) return;
+    researchMutation.mutate({ contactId: contact.id, contactSlug });
   };
 
   const handleDelete = () => {

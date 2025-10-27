@@ -7,7 +7,7 @@ export const useCampaignContactResearch = () => {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (contactId: string) => {
+    mutationFn: async ({ contactId, contactSlug }: { contactId: string; contactSlug: string }) => {
       const { data, error } = await supabase.functions.invoke("campaign-contact-research", {
         body: { contactId },
       });
@@ -15,8 +15,9 @@ export const useCampaignContactResearch = () => {
       if (error) throw error;
       return data;
     },
-    onSuccess: (_, contactId) => {
-      queryClient.invalidateQueries({ queryKey: ["campaign-contact-by-slug"] });
+    onSuccess: (_, { contactSlug }) => {
+      queryClient.invalidateQueries({ queryKey: ["campaign-contact-by-slug", contactSlug] });
+      queryClient.invalidateQueries({ queryKey: ["campaign-contacts"] });
       toast({ 
         title: "Research completed", 
         description: "Contact research has been updated with new insights" 
