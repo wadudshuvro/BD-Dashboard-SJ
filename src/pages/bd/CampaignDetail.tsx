@@ -1,16 +1,16 @@
-import { useMemo, useState, type ComponentType } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   Archive,
   ArrowLeft,
   Brain,
-  Calendar,
   CheckCircle2,
   Linkedin,
   Loader2,
   Mail,
   MessageCircle,
   Rocket,
+  TrendingUp,
   Users,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -21,7 +21,6 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/components/ui/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { AnalyticsCard, AIInsightPanel, ExecutionTimeline, IntegrationStatusList } from '@/features/campaign-detail/components';
 import { useCampaignDetail } from '@/hooks/useCampaignDetail';
 import type { CampaignContactStatus } from '@/hooks/useCampaignDetail';
 import { useExaIntegration } from '@/hooks/useExaIntegration';
@@ -58,15 +57,6 @@ export default function CampaignDetail() {
   const {
     campaign,
     contactByStatus,
-    activities,
-    tasks,
-    analytics,
-    kpis,
-    projectTasks,
-    aiAgentRuns,
-    integrations,
-    aiSummary,
-    aiPostMortem,
     markCompleted,
     softArchive,
     isUpdating,
@@ -95,66 +85,15 @@ export default function CampaignDetail() {
     : typeof (campaignMetadata["latest_research_report"] as { url?: string } | undefined)?.url === "string"
       ? ((campaignMetadata["latest_research_report"] as { url?: string }).url as string)
       : undefined;
-  const rawMetadataStatus = campaignMetadata["research_status"];
-  const nestedMetadataStatus = (campaignMetadata["research"] as { status?: string } | undefined)?.status;
-  const rawResearchDataStatus = (campaign?.research_data as Record<string, unknown> | undefined)?.["status"];
-  const researchStatus =
-    typeof rawMetadataStatus === "string"
-      ? rawMetadataStatus
-      : typeof nestedMetadataStatus === "string"
-        ? nestedMetadataStatus
-        : typeof rawResearchDataStatus === "string"
-          ? (rawResearchDataStatus as string)
-          : null;
-  const rawMetadataUpdated = campaignMetadata["research_updated_at"];
-  const nestedMetadataUpdated = (campaignMetadata["research"] as { updated_at?: string } | undefined)?.updated_at;
-  const researchUpdatedAt =
-    typeof rawMetadataUpdated === "string"
-      ? rawMetadataUpdated
-      : typeof nestedMetadataUpdated === "string"
-        ? nestedMetadataUpdated
-        : null;
+
   const canRunResearch = hasPermission(["campaigns", "campaign_research", "research", "exa"], "edit")
     || hasPermission(/research/i, "edit");
 
-  const analyticsCards = useMemo(() => {
-    const numberFormatter = new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 });
-
-    const kpiCards = kpis.map((kpi) => ({
-      key: `kpi-${kpi.id}`,
-      title: kpi.label,
-      value:
-        kpi.current_value === null || kpi.current_value === undefined
-          ? '—'
-          : numberFormatter.format(kpi.current_value),
-      suffix: kpi.unit ?? '',
-      description:
-        kpi.target_value !== null && kpi.target_value !== undefined
-          ? `Target ${numberFormatter.format(kpi.target_value)}${kpi.unit ? ` ${kpi.unit}` : ''}`
-          : kpi.source ?? '',
-      delta: kpi.trend ?? 0,
-      timestamp: kpi.updated_at ?? '',
-    }));
-
-    const metricCards = analytics.map((point) => {
-      let delta: number | null = null;
-      if (point.comparison_value !== null && point.comparison_value !== undefined && point.comparison_value !== 0) {
-        delta = ((point.value - point.comparison_value) / point.comparison_value) * 100;
-      }
-
-      return {
-        key: `metric-${point.id}`,
-        title: point.metric,
-        value: numberFormatter.format(point.value),
-        suffix: '',
-        description: point.source ? `Source: ${point.source}` : '',
-        delta: delta ?? 0,
-        timestamp: point.recorded_at ?? '',
-      };
-    });
-
-    return [...kpiCards, ...metricCards];
-  }, [analytics, kpis]);
+  const totalContactsCount = Object.values(contactByStatus).reduce((sum, contacts) => sum + contacts.length, 0);
+  const meetingsBooked = contactByStatus.meeting_booked?.length || 0;
+  const conversionRate = totalContactsCount > 0 
+    ? Math.round((meetingsBooked / totalContactsCount) * 100) 
+    : 0;
 
   const handleMarkCompleted = async () => {
     try {
@@ -223,6 +162,7 @@ export default function CampaignDetail() {
 
   return (
     <div className="container mx-auto py-8 space-y-6">
+      {/* Navigation */}
       <div className="flex items-center justify-between">
         <Button variant="ghost" asChild className="gap-2">
           <Link to="/campaigns">
@@ -230,12 +170,6 @@ export default function CampaignDetail() {
           </Link>
         </Button>
         <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" className="gap-2" disabled={!campaign.ghl_campaign_id}>
-            <Mail className="h-4 w-4" /> GoHighLevel Campaign
-          </Button>
-          <Button variant="outline" className="gap-2" disabled={!campaign.linkedin_campaign_id}>
-            <Linkedin className="h-4 w-4" /> LinkedIn Tracker
-          </Button>
           {canRunResearch && (
             <Button
               variant="outline"
@@ -275,164 +209,155 @@ export default function CampaignDetail() {
         </div>
       </div>
 
-      {(researchReportUrl || researchStatus) && (
+      {/* Research Alert - Conditional */}
+      {researchReportUrl && (
         <Alert>
           <Rocket className="h-4 w-4" />
-          <AlertTitle>Campaign research</AlertTitle>
-          <AlertDescription className="space-y-2">
-            <p className="text-sm text-muted-foreground">
-              Status: {researchStatus ? researchStatus.toString().replace(/_/g, ' ') : 'Complete'}
-              {researchUpdatedAt && ` • Updated ${new Date(researchUpdatedAt).toLocaleString()}`}
-            </p>
-            {researchReportUrl && (
-              <Button asChild variant="link" className="px-0 text-sm">
-                <a href={researchReportUrl} target="_blank" rel="noreferrer">
-                  View research report
-                </a>
-              </Button>
-            )}
+          <AlertTitle>Research Report Available</AlertTitle>
+          <AlertDescription>
+            <Button asChild variant="link" className="px-0 text-sm h-auto">
+              <a href={researchReportUrl} target="_blank" rel="noreferrer">
+                View research report →
+              </a>
+            </Button>
           </AlertDescription>
         </Alert>
       )}
 
-      <div className="grid gap-6 xl:grid-cols-[320px_1fr_360px]">
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>{campaign.name}</CardTitle>
-              <div className="mt-2 flex flex-wrap items-center gap-2">
+      {/* Hero Section - Campaign Header & Key Metrics */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-start justify-between">
+            <div className="space-y-2">
+              <CardTitle className="text-3xl">{campaign.name}</CardTitle>
+              <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="outline" className="capitalize">
                   {campaign.campaign_type?.replace('_', ' ')}
                 </Badge>
                 <Badge className="capitalize">{campaign.status}</Badge>
-                {campaign.ai_agent_id ? (
+                {campaign.ai_agent_id && (
                   <Badge variant="secondary" className="flex items-center gap-1">
-                    <Brain className="h-3 w-3" /> AI Agent Assigned
+                    <Brain className="h-3 w-3" /> AI Enabled
                   </Badge>
-                ) : null}
+                )}
               </div>
-            </CardHeader>
-            <CardContent className="space-y-4 text-sm">
-              <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-                <span>
-                  {campaign.start_date ? new Date(campaign.start_date).toLocaleDateString() : 'No start date'} –{' '}
-                  {campaign.end_date ? new Date(campaign.end_date).toLocaleDateString() : 'No end date'}
-                </span>
-              </div>
-              <Separator />
-              <div className="space-y-2">
-                <Metric label="Target Contacts" value={totalContacts} icon={Users} />
-                <Metric label="Researched" value={researchedCount} icon={Brain} />
-                <Metric label="LinkedIn Requests" value={linkedinStats.requests_sent || 0} icon={Linkedin} />
-                <Metric label="LinkedIn Acceptance Rate" value={`${acceptanceRate}%`} icon={Rocket} />
-                <Metric label="Emails Sent" value={ghlStats.emails_sent || 0} icon={Mail} />
-                <Metric label="Responses" value={responseTotal} icon={MessageCircle} />
-              </div>
-            </CardContent>
-          </Card>
-          <IntegrationStatusList integrations={integrations} isLoading={isLoading} />
-        </div>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
+            <MetricCard
+              label="Total Contacts"
+              value={totalContactsCount}
+              icon={Users}
+              iconColor="text-blue-600"
+            />
+            <MetricCard
+              label="Researched"
+              value={researchedCount}
+              icon={Brain}
+              iconColor="text-purple-600"
+            />
+            <MetricCard
+              label="Connected"
+              value={contactByStatus.connected?.length || 0}
+              icon={Linkedin}
+              iconColor="text-blue-700"
+            />
+            <MetricCard
+              label="Responses"
+              value={responseTotal}
+              icon={MessageCircle}
+              iconColor="text-green-600"
+            />
+            <MetricCard
+              label="Meetings"
+              value={meetingsBooked}
+              icon={CheckCircle2}
+              iconColor="text-emerald-600"
+            />
+            <MetricCard
+              label="Conversion"
+              value={`${conversionRate}%`}
+              icon={TrendingUp}
+              iconColor="text-orange-600"
+            />
+          </div>
+        </CardContent>
+      </Card>
 
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Analytics Overview</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {analyticsCards.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  We have not ingested analytics data for this campaign yet. Once integrations sync you'll see charts here.
-                </p>
-              ) : (
-                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                  {analyticsCards.map((card) => (
-                    <AnalyticsCard
-                      key={card.key}
-                      title={card.title}
-                      value={card.value}
-                      suffix={card.suffix}
-                      description={card.description}
-                      delta={card.delta}
-                      timestamp={card.timestamp}
-                    />
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Contact Pipeline</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ScrollArea className="h-[420px]">
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                  {PIPELINE_STAGES.map((stage) => {
-                    const contacts = contactByStatus[stage.status] || [];
-                    return (
-                      <div key={stage.status} className="rounded-lg border bg-card p-4">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="font-semibold">{stage.title}</p>
-                            <p className="text-sm text-muted-foreground">{stage.description}</p>
-                          </div>
-                          <Badge variant="secondary" className={stageBadgeClass(stage.status)}>
-                            {contacts.length}
-                          </Badge>
+      {/* Main Focus Area - Contact Pipeline */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Contact Pipeline</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ScrollArea className="h-[520px]">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              {PIPELINE_STAGES.map((stage) => {
+                const contacts = contactByStatus[stage.status] || [];
+                return (
+                  <div key={stage.status} className="space-y-4">
+                    <div className="sticky top-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-10 pb-2">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-semibold">{stage.title}</p>
+                          <p className="text-xs text-muted-foreground">{stage.description}</p>
                         </div>
-                        <Separator className="my-3" />
-                        <div className="space-y-3">
-                          {contacts.length === 0 ? (
-                            <p className="text-sm text-muted-foreground">No contacts yet</p>
-                          ) : (
-                            contacts.slice(0, 5).map((contact) => (
-                              <button
-                                key={contact.id}
-                                onClick={() => navigate(`/campaigns/${campaign.slug}/contacts/${contact.slug}`)}
-                                className="w-full rounded-md border bg-background p-3 text-sm hover:bg-accent transition-colors text-left"
-                              >
-                                <div className="flex items-center gap-3">
-                                  <Avatar className="h-8 w-8">
-                                    <AvatarFallback>
-                                      {contact.contact_name.slice(0, 2).toUpperCase()}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                  <div>
-                                    <p className="font-medium leading-none">{contact.contact_name}</p>
-                                    <p className="text-xs text-muted-foreground">{contact.contact_company}</p>
-                                  </div>
-                                </div>
-                                {contact.research_summary ? (
-                                  <p className="mt-2 line-clamp-3 text-xs text-muted-foreground">
-                                    {(contact.research_summary as any)?.summary || 'Research available'}
-                                  </p>
-                                ) : null}
-                              </button>
-                            ))
-                          )}
-                          {contacts.length > 5 ? (
-                            <Button variant="link" className="px-0 text-xs">
-                              View all {contacts.length} contacts
-                            </Button>
-                          ) : null}
-                        </div>
+                        <Badge variant="secondary" className={stageBadgeClass(stage.status)}>
+                          {contacts.length}
+                        </Badge>
                       </div>
-                    );
-                  })}
-                </div>
-              </ScrollArea>
-            </CardContent>
-          </Card>
-
-          <ExecutionTimeline activities={activities} tasks={projectTasks} aiAgentRuns={aiAgentRuns} />
-        </div>
-
-        <div className="space-y-6">
-          <AIInsightPanel summary={aiSummary} postMortem={aiPostMortem} aiAgentRuns={aiAgentRuns} aiTasks={tasks} />
-        </div>
-      </div>
+                      <Separator className="mt-2" />
+                    </div>
+                    <div className="space-y-3">
+                      {contacts.length === 0 ? (
+                        <div className="rounded-lg border border-dashed p-4 text-center">
+                          <p className="text-sm text-muted-foreground">No contacts</p>
+                        </div>
+                      ) : (
+                        contacts.map((contact) => (
+                          <button
+                            key={contact.id}
+                            onClick={() => navigate(`/campaigns/${campaign.slug}/contacts/${contact.slug}`)}
+                            className="w-full rounded-lg border bg-card p-3 text-left hover:bg-accent hover:shadow-sm transition-all"
+                          >
+                            <div className="flex items-start gap-3">
+                              <Avatar className="h-9 w-9">
+                                <AvatarFallback className="text-xs">
+                                  {contact.contact_name.slice(0, 2).toUpperCase()}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-sm leading-tight truncate">
+                                  {contact.contact_name}
+                                </p>
+                                {contact.contact_company && (
+                                  <p className="text-xs text-muted-foreground truncate">
+                                    {contact.contact_company}
+                                  </p>
+                                )}
+                                <div className="flex items-center gap-2 mt-2">
+                                  {contact.contact_email && (
+                                    <Mail className="h-3 w-3 text-muted-foreground" />
+                                  )}
+                                  {contact.contact_linkedin_url && (
+                                    <Linkedin className="h-3 w-3 text-muted-foreground" />
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </ScrollArea>
+        </CardContent>
+      </Card>
 
       {campaign && (
         <CampaignLeadImportDialog
@@ -451,22 +376,24 @@ export default function CampaignDetail() {
   );
 }
 
-function Metric({
+function MetricCard({
   label,
   value,
   icon: Icon,
+  iconColor,
 }: {
   label: string;
-  value: number | string;
-  icon: ComponentType<{ className?: string }>;
+  value: string | number;
+  icon: React.ElementType;
+  iconColor?: string;
 }) {
   return (
-    <div className="flex items-center justify-between rounded-md border bg-background p-3">
-      <div className="space-y-1">
-        <p className="text-xs uppercase text-muted-foreground">{label}</p>
-        <p className="text-lg font-semibold">{value}</p>
+    <div className="flex flex-col space-y-2 p-4 rounded-lg border bg-card">
+      <div className="flex items-center gap-2">
+        <Icon className={`h-4 w-4 ${iconColor || 'text-muted-foreground'}`} />
+        <span className="text-sm text-muted-foreground">{label}</span>
       </div>
-      <Icon className="h-5 w-5 text-muted-foreground" />
+      <div className="text-2xl font-bold">{value}</div>
     </div>
   );
 }
