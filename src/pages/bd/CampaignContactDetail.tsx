@@ -14,6 +14,10 @@ import { useCampaignContactComments } from "@/hooks/useCampaignContactComments";
 import { useCampaignContactResearch } from "@/hooks/useCampaignContactResearch";
 import { useDeleteCampaignContact } from "@/hooks/useDeleteCampaignContact";
 import { useCampaignContactUpdate } from "@/hooks/useCampaignContactUpdate";
+import { useAgentList } from "@/hooks/useAgentList";
+import { useRunAIAgent } from "@/hooks/useRunAIAgent";
+import { useAgentRunHistory } from "@/hooks/useAgentRunHistory";
+import { toast } from "sonner";
 import { parseLinkedInProfile } from "@/utils/parseLinkedInData";
 import { LinkedInProfileCard } from "@/components/contact/LinkedInProfileCard";
 import { CurrentRoleCard } from "@/components/contact/CurrentRoleCard";
@@ -35,6 +39,13 @@ export default function CampaignContactDetail() {
   
   const [newComment, setNewComment] = useState("");
   const [activeTab, setActiveTab] = useState("overview");
+  
+  // AI Agent hooks
+  const { data: agents } = useAgentList();
+  const runAgent = useRunAIAgent();
+  const bdAgent = agents?.find(a => a.slug === 'bd-research-analyst');
+  const { data: agentRuns } = useAgentRunHistory(bdAgent?.id);
+  const latestRun = agentRuns?.[0];
   
   const campaign = campaignData?.campaign;
 
@@ -60,6 +71,38 @@ export default function CampaignContactDetail() {
       contactId: contact.id, 
       updates: { status: newStatus } 
     });
+  };
+
+  const handleRunAgent = async () => {
+    if (!bdAgent || !contact) return;
+    
+    try {
+      const researchData = {
+        contact_name: contact.contact_name,
+        company: contact.contact_company,
+        title: contact.contact_title,
+        linkedin_about: contact.linkedin_about,
+        linkedin_headline: contact.linkedin_headline,
+        total_years_experience: contact.total_years_experience,
+        linkedin_skills: contact.linkedin_skills,
+        education_summary: contact.education_summary,
+        metadata: contact.metadata
+      };
+
+      await runAgent.mutateAsync({
+        agent_id: bdAgent.id,
+        execution_context: {
+          user_id: contact.id,
+          filters: {
+            contact_data: researchData
+          }
+        }
+      });
+      
+      toast.success("AI analysis complete");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to run AI analysis");
+    }
   };
   
   if (contactLoading || campaignLoading) {
@@ -300,6 +343,57 @@ export default function CampaignContactDetail() {
                       {researchMutation.isPending ? "Researching..." : "Run Research"}
                     </Button>
                   </div>
+                </CardContent>
+              </Card>
+
+              {/* AI Research Insights */}
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Brain className="h-5 w-5" />
+                      AI Research Insights
+                    </CardTitle>
+                    <Button 
+                      onClick={handleRunAgent}
+                      disabled={runAgent.isPending || !bdAgent}
+                      size="sm"
+                    >
+                      {runAgent.isPending ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Analyzing...
+                        </>
+                      ) : (
+                        <>
+                          <Brain className="h-4 w-4 mr-2" />
+                          Analyze Lead
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {latestRun?.output?.content ? (
+                    <div className="space-y-2">
+                      <div className="space-y-1.5">
+                        {latestRun.output.content.split('\n').filter(line => line.trim().startsWith('-') || line.trim().match(/^\d+\./)).map((point, idx) => (
+                          <div key={idx} className="flex items-start gap-2 text-sm">
+                            <span className="text-primary mt-0.5 font-bold">•</span>
+                            <span className="flex-1">{point.replace(/^[-•]\s*/, '').replace(/^\d+\.\s*/, '')}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <Separator className="my-3" />
+                      <p className="text-xs text-muted-foreground">
+                        Last analyzed: {new Date(latestRun.created_at).toLocaleString()}
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      Click "Analyze Lead" to get AI-powered insights about this contact based on their research data.
+                    </p>
+                  )}
                 </CardContent>
               </Card>
 
