@@ -312,9 +312,55 @@ export default function CampaignDetail() {
                     </div>
                     <div className="space-y-3">
                       {contacts.length === 0 ? (
-                        <div className="rounded-lg border border-dashed p-4 text-center">
-                          <p className="text-sm text-muted-foreground">No contacts</p>
-                        </div>
+                        <Card className="border-dashed bg-muted/20">
+                          <CardContent className="flex flex-col items-center justify-center py-8 px-4 text-center">
+                            {stage.status === 'identified' ? (
+                              <>
+                                <Users className="h-10 w-10 text-muted-foreground mb-3" />
+                                <p className="text-sm font-medium mb-1">No contacts yet</p>
+                                <p className="text-xs text-muted-foreground mb-3">Import leads to get started</p>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => setLeadImportDialogOpen(true)}
+                                  className="gap-2"
+                                >
+                                  <Users className="h-3 w-3" />
+                                  Add Leads
+                                </Button>
+                              </>
+                            ) : stage.status === 'researched' && contactByStatus.identified?.length > 0 ? (
+                              <>
+                                <Brain className="h-10 w-10 text-muted-foreground mb-3" />
+                                <p className="text-sm font-medium mb-1">No research yet</p>
+                                <p className="text-xs text-muted-foreground mb-3">Run research on identified contacts</p>
+                                {canRunResearch && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={handleRunResearch}
+                                    disabled={isRunningResearch}
+                                    className="gap-2"
+                                  >
+                                    {isRunningResearch ? (
+                                      <Loader2 className="h-3 w-3 animate-spin" />
+                                    ) : (
+                                      <Rocket className="h-3 w-3" />
+                                    )}
+                                    Run R&D
+                                  </Button>
+                                )}
+                              </>
+                            ) : (
+                              <>
+                                <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center mb-3">
+                                  <div className="text-lg">→</div>
+                                </div>
+                                <p className="text-sm text-muted-foreground">Move contacts here</p>
+                              </>
+                            )}
+                          </CardContent>
+                        </Card>
                       ) : (
                         contacts.map((contact) => (
                           <button
@@ -332,12 +378,22 @@ export default function CampaignDetail() {
                                 <p className="font-medium text-sm leading-tight truncate">
                                   {contact.contact_name}
                                 </p>
+                                {contact.linkedin_headline && (
+                                  <p className="text-xs text-muted-foreground truncate italic line-clamp-1">
+                                    {contact.linkedin_headline}
+                                  </p>
+                                )}
                                 {contact.contact_company && (
                                   <p className="text-xs text-muted-foreground truncate">
-                                    {contact.contact_company}
+                                    {contact.contact_title ? `${contact.contact_title} at ` : ''}{contact.contact_company}
                                   </p>
                                 )}
                                 <div className="flex items-center gap-2 mt-2">
+                                  {contact.research_summary && (
+                                    <Badge variant="secondary" className="text-[10px] h-4 px-1.5 gap-0.5">
+                                      <Brain className="h-2.5 w-2.5" />
+                                    </Badge>
+                                  )}
                                   {contact.contact_email && (
                                     <Mail className="h-3 w-3 text-muted-foreground" />
                                   )}

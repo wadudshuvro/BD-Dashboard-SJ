@@ -26,7 +26,15 @@ export const useCampaignContactUpdate = () => {
       return data as CampaignContact;
     },
     onSuccess: (data) => {
+      // Invalidate contact detail
       queryClient.invalidateQueries({ queryKey: ["campaign-contact-by-slug", data.slug] });
+      
+      // Invalidate campaign detail to update pipeline columns (CRITICAL FIX)
+      if (data.campaign_id) {
+        queryClient.invalidateQueries({ queryKey: ["admin-campaign-detail", data.campaign_id] });
+      }
+      
+      // Invalidate other campaign views
       queryClient.invalidateQueries({ queryKey: ["campaign-by-slug"] });
       queryClient.invalidateQueries({ queryKey: ["campaign-contacts"] });
       
