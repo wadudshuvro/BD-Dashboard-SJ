@@ -7,11 +7,13 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCampaignContactBySlug } from "@/hooks/useCampaignContactBySlug";
 import { useCampaignBySlug } from "@/hooks/useCampaignBySlug";
 import { useCampaignContactComments } from "@/hooks/useCampaignContactComments";
 import { useCampaignContactResearch } from "@/hooks/useCampaignContactResearch";
 import { useDeleteCampaignContact } from "@/hooks/useDeleteCampaignContact";
+import { useCampaignContactUpdate } from "@/hooks/useCampaignContactUpdate";
 import { parseLinkedInProfile } from "@/utils/parseLinkedInData";
 import { LinkedInProfileCard } from "@/components/contact/LinkedInProfileCard";
 import { CurrentRoleCard } from "@/components/contact/CurrentRoleCard";
@@ -29,6 +31,7 @@ export default function CampaignContactDetail() {
   const { comments, isLoading: commentsLoading, addComment, deleteComment, isAddingComment } = useCampaignContactComments(contact?.id);
   const researchMutation = useCampaignContactResearch();
   const deleteMutation = useDeleteCampaignContact();
+  const updateMutation = useCampaignContactUpdate();
   
   const [newComment, setNewComment] = useState("");
   const [activeTab, setActiveTab] = useState("overview");
@@ -49,6 +52,14 @@ export default function CampaignContactDetail() {
   const handleDelete = () => {
     if (!contact || !campaignSlug) return;
     deleteMutation.mutate({ contactId: contact.id, campaignSlug });
+  };
+
+  const handleStatusChange = (newStatus: string) => {
+    if (!contact) return;
+    updateMutation.mutate({ 
+      contactId: contact.id, 
+      updates: { status: newStatus } 
+    });
   };
   
   if (contactLoading || campaignLoading) {
@@ -140,7 +151,25 @@ export default function CampaignContactDetail() {
                 {contact.contact_company && <span>at {contact.contact_company}</span>}
               </div>
             </div>
-            <Badge className="capitalize">{contact.status.replace('_', ' ')}</Badge>
+            <Select 
+              value={contact.status} 
+              onValueChange={handleStatusChange} 
+              disabled={updateMutation.isPending}
+            >
+              <SelectTrigger className="w-[220px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="identified">Identified</SelectItem>
+                <SelectItem value="researched">Researched</SelectItem>
+                <SelectItem value="contacted_linkedin">LinkedIn Request Sent</SelectItem>
+                <SelectItem value="connected">Connected</SelectItem>
+                <SelectItem value="messaged">Message Sent</SelectItem>
+                <SelectItem value="contacted_email">Email Sent</SelectItem>
+                <SelectItem value="responded">Responded</SelectItem>
+                <SelectItem value="meeting_booked">Meeting Booked</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </CardHeader>
         
