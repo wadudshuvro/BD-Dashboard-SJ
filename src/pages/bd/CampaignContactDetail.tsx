@@ -1,5 +1,5 @@
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, Loader2, Mail, Linkedin, Phone, Sparkles, MessageSquare, Trash2, Calendar } from "lucide-react";
+import { ArrowLeft, Loader2, Mail, Linkedin, Phone, Sparkles, MessageSquare, Trash2, Calendar, Users, Network, Briefcase, FileText, Award, Globe, Brain } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -189,6 +189,135 @@ export default function CampaignContactDetail() {
             </TabsList>
 
             <TabsContent value="overview" className="space-y-6 mt-6">
+              {/* Key Stats Row */}
+              {(contact.linkedin_follower_count || contact.linkedin_connection_count || contact.total_years_experience) && (
+                <div className="grid gap-4 md:grid-cols-3">
+                  {contact.linkedin_follower_count && (
+                    <Card>
+                      <CardContent className="pt-6">
+                        <div className="flex items-center gap-3">
+                          <Users className="h-8 w-8 text-blue-600" />
+                          <div>
+                            <p className="text-2xl font-bold">{contact.linkedin_follower_count.toLocaleString()}</p>
+                            <p className="text-sm text-muted-foreground">Followers</p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                  {contact.linkedin_connection_count && (
+                    <Card>
+                      <CardContent className="pt-6">
+                        <div className="flex items-center gap-3">
+                          <Network className="h-8 w-8 text-emerald-600" />
+                          <div>
+                            <p className="text-2xl font-bold">{contact.linkedin_connection_count}+</p>
+                            <p className="text-sm text-muted-foreground">Connections</p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                  {contact.total_years_experience && (
+                    <Card>
+                      <CardContent className="pt-6">
+                        <div className="flex items-center gap-3">
+                          <Briefcase className="h-8 w-8 text-purple-600" />
+                          <div>
+                            <p className="text-2xl font-bold">{contact.total_years_experience}</p>
+                            <p className="text-sm text-muted-foreground">Years Experience</p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              )}
+
+              {/* Quick Actions */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Quick Actions</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-wrap gap-2">
+                    {contact.contact_linkedin_url && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        asChild
+                        className="gap-2"
+                      >
+                        <a href={contact.contact_linkedin_url} target="_blank" rel="noopener noreferrer">
+                          <Linkedin className="h-4 w-4" />
+                          View LinkedIn Profile
+                        </a>
+                      </Button>
+                    )}
+                    {contact.contact_email && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        asChild
+                        className="gap-2"
+                      >
+                        <a href={`mailto:${contact.contact_email}`}>
+                          <Mail className="h-4 w-4" />
+                          Send Email
+                        </a>
+                      </Button>
+                    )}
+                    {contact.contact_phone && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        asChild
+                        className="gap-2"
+                      >
+                        <a href={`tel:${contact.contact_phone}`}>
+                          <Phone className="h-4 w-4" />
+                          Call
+                        </a>
+                      </Button>
+                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setActiveTab("comments")}
+                      className="gap-2"
+                    >
+                      <MessageSquare className="h-4 w-4" />
+                      Add Note
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleRunResearch}
+                      disabled={researchMutation.isPending}
+                      className="gap-2"
+                    >
+                      <Brain className="h-4 w-4" />
+                      {researchMutation.isPending ? "Researching..." : "Run Research"}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* About Section */}
+              {contact.linkedin_about && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <FileText className="h-5 w-5" />
+                      About
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm whitespace-pre-wrap leading-relaxed text-muted-foreground">{contact.linkedin_about}</p>
+                  </CardContent>
+                </Card>
+              )}
+
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <LinkedInProfileCard contact={contact} />
                 <CurrentRoleCard contact={contact} />
@@ -203,6 +332,55 @@ export default function CampaignContactDetail() {
                         workHistory={parsed.work_history}
                         totalYears={contact.total_years_experience}
                       />
+                    )}
+                    
+                    {/* Skills & Languages */}
+                    {(contact.linkedin_skills?.length || contact.languages?.length) && (
+                      <div className="grid gap-6 md:grid-cols-2">
+                        {contact.linkedin_skills && contact.linkedin_skills.length > 0 && (
+                          <Card>
+                            <CardHeader>
+                              <CardTitle className="text-lg flex items-center gap-2">
+                                <Award className="h-5 w-5" />
+                                Skills
+                              </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                              <div className="flex flex-wrap gap-2">
+                                {contact.linkedin_skills.slice(0, 12).map((skill, index) => (
+                                  <Badge key={index} variant="secondary">
+                                    {skill}
+                                  </Badge>
+                                ))}
+                                {contact.linkedin_skills.length > 12 && (
+                                  <Badge variant="outline">
+                                    +{contact.linkedin_skills.length - 12} more
+                                  </Badge>
+                                )}
+                              </div>
+                            </CardContent>
+                          </Card>
+                        )}
+                        {contact.languages && contact.languages.length > 0 && (
+                          <Card>
+                            <CardHeader>
+                              <CardTitle className="text-lg flex items-center gap-2">
+                                <Globe className="h-5 w-5" />
+                                Languages
+                              </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                              <div className="flex flex-wrap gap-2">
+                                {contact.languages.map((lang, index) => (
+                                  <Badge key={index} variant="outline">
+                                    {lang}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </CardContent>
+                          </Card>
+                        )}
+                      </div>
                     )}
                     
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
