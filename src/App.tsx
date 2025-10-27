@@ -29,6 +29,7 @@ import UserProfile from "./pages/UserProfile";
 import NicheManagement from "./pages/bd/NicheManagement";
 import CampaignManagement from "./pages/bd/CampaignManagement";
 import CampaignDetail from "./pages/bd/CampaignDetail";
+import CampaignContactDetail from "./pages/bd/CampaignContactDetail";
 import PODManagement from "./pages/admin/PODManagement";
 import DataSyncSettings from "./pages/admin/DataSyncSettings";
 import Prospecting from "./pages/bd/pipeline/Prospecting";
@@ -149,9 +150,9 @@ const App = () => (
               {/* My Agents */}
               <Route path="my-agents" element={<MyAgentsPage />} />
               
-              {/* Strategy - Campaigns only (Products & Niches moved to Admin Panel) */}
-              <Route path="strategy/campaigns" element={<CampaignManagement />} />
-              <Route path="strategy/campaigns/:campaignId" element={<CampaignDetail />} />
+              {/* Redirect old campaign URLs */}
+              <Route path="strategy/campaigns" element={<Navigate to="/campaigns" replace />} />
+              <Route path="strategy/campaigns/:campaignId" element={<Navigate to="/campaigns" replace />} />
               
               {/* Performance */}
               <Route path="performance/personal" element={<PersonalDashboard />} />
@@ -234,6 +235,17 @@ const App = () => (
             >
               <Route index element={<DealDetail />} />
               <Route path="files" element={<DealFiles />} />
+            </Route>
+
+            {/* Campaigns at root level */}
+            <Route path="/campaigns" element={
+              <ProtectedRoute requiredMinimumRole="user">
+                <Layout />
+              </ProtectedRoute>
+            }>
+              <Route index element={<CampaignManagement />} />
+              <Route path=":slug" element={<CampaignDetail />} />
+              <Route path=":campaignSlug/contacts/:contactSlug" element={<CampaignContactDetail />} />
             </Route>
 
             {/* Catch-all route */}

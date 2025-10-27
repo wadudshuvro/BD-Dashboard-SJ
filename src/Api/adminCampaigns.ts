@@ -35,6 +35,7 @@ export interface CampaignBrand {
 
 export interface CampaignSummary {
   id: string;
+  slug: string;
   name: string;
   niche_id: string;
   brand_id: string | null;

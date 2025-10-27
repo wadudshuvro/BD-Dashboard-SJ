@@ -122,7 +122,7 @@ const Layout = ({ userRole }: LayoutProps) => {
           { name: "Clients", href: "/clients", icon: Building2, current: false },
         ]
       },
-      { name: "BD Campaigns", href: "/bd/strategy/campaigns", icon: Megaphone, current: false },
+      { name: "Campaigns", href: "/campaigns", icon: Megaphone, current: false },
       { 
         name: "Performance", 
         href: "/bd/performance/personal", 

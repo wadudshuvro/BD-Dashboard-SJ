@@ -1,5 +1,5 @@
 import { useMemo, useState, type ComponentType } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   Archive,
   ArrowLeft,
@@ -52,7 +52,7 @@ const STAGE_BADGE_CLASSES: Record<CampaignContactStatus, string> = {
 
 
 export default function CampaignDetail() {
-  const { campaignId } = useParams();
+  const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
   const {
@@ -73,7 +73,7 @@ export default function CampaignDetail() {
     isLoading,
     isError,
     error,
-  } = useCampaignDetail(campaignId);
+  } = useCampaignDetail(slug);
   const { runCampaignResearch, isRunningResearch } = useExaIntegration();
   const { hasPermission } = useUserPermissions();
   const [leadImportDialogOpen, setLeadImportDialogOpen] = useState(false);
@@ -224,8 +224,10 @@ export default function CampaignDetail() {
   return (
     <div className="container mx-auto py-8 space-y-6">
       <div className="flex items-center justify-between">
-        <Button variant="ghost" onClick={() => navigate(-1)} className="gap-2">
-          <ArrowLeft className="h-4 w-4" /> Back to campaigns
+        <Button variant="ghost" asChild className="gap-2">
+          <Link to="/campaigns">
+            <ArrowLeft className="h-4 w-4" /> Back to campaigns
+          </Link>
         </Button>
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="outline" className="gap-2" disabled={!campaign.ghl_campaign_id}>
@@ -386,7 +388,11 @@ export default function CampaignDetail() {
                             <p className="text-sm text-muted-foreground">No contacts yet</p>
                           ) : (
                             contacts.slice(0, 5).map((contact) => (
-                              <div key={contact.id} className="rounded-md border bg-background p-3 text-sm">
+                              <button
+                                key={contact.id}
+                                onClick={() => navigate(`/campaigns/${campaign.slug}/contacts/${contact.slug}`)}
+                                className="w-full rounded-md border bg-background p-3 text-sm hover:bg-accent transition-colors text-left"
+                              >
                                 <div className="flex items-center gap-3">
                                   <Avatar className="h-8 w-8">
                                     <AvatarFallback>
@@ -403,7 +409,7 @@ export default function CampaignDetail() {
                                     {(contact.research_summary as any)?.summary || 'Research available'}
                                   </p>
                                 ) : null}
-                              </div>
+                              </button>
                             ))
                           )}
                           {contacts.length > 5 ? (

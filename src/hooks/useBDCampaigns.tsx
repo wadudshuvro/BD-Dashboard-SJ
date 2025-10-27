@@ -32,6 +32,7 @@ function buildOptimisticCampaign(id: string, payload: CampaignPayload): Campaign
   const now = new Date().toISOString();
   return {
     id,
+    slug: `${payload.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-temp`,
     name: payload.name,
     niche_id: payload.niche_id,
     brand_id: payload.brand_id ?? null,

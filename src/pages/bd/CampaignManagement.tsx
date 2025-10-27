@@ -431,7 +431,7 @@ function CampaignCard({ campaign, niches }: { campaign: BDCampaign; niches: Targ
         </div>
 
         <div className="flex flex-wrap gap-2 pt-2">
-          <Button variant="default" size="sm" onClick={() => navigate(`/bd/strategy/campaigns/${campaign.id}`)}>
+          <Button variant="default" size="sm" onClick={() => navigate(`/campaigns/${campaign.slug}`)}>
             View Details
           </Button>
           <Button variant="outline" size="sm" disabled>

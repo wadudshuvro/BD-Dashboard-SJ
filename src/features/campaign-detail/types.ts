@@ -12,6 +12,7 @@ export type CampaignContactStatus =
 
 export interface CampaignContact {
   id: string;
+  slug: string;
   campaign_id: string;
   contact_name: string;
   contact_email?: string | null;

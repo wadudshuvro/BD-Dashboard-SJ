@@ -490,12 +490,21 @@ async function handleList(req: Request, client: SupabaseClient) {
   };
 }
 
-async function handleGet(client: SupabaseClient, campaignId: string) {
-  const { data, error } = await client
+async function handleGet(client: SupabaseClient, idOrSlug: string) {
+  // Check if it's a UUID or slug
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrSlug);
+  
+  let query = client
     .from("bd_campaigns")
-    .select("*")
-    .eq("id", campaignId)
-    .maybeSingle();
+    .select("*");
+  
+  if (isUuid) {
+    query = query.eq("id", idOrSlug);
+  } else {
+    query = query.eq("slug", idOrSlug);
+  }
+  
+  const { data, error } = await query.maybeSingle();
 
   if (error) {
     throw error;
@@ -505,6 +514,7 @@ async function handleGet(client: SupabaseClient, campaignId: string) {
     return null;
   }
 
+  const campaignId = data.id;
   const [campaign] = await hydrateCampaigns(client, [data as CampaignDatabaseRow]);
 
   let tasks: ProjectTaskRow[] = [];

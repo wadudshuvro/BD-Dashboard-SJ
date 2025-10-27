@@ -301,6 +301,7 @@ export type Database = {
           niche_id: string
           owned_by: string | null
           responses_received: number | null
+          slug: string | null
           start_date: string | null
           status: string
           target_contacts: string[] | null
@@ -322,6 +323,7 @@ export type Database = {
           niche_id: string
           owned_by?: string | null
           responses_received?: number | null
+          slug?: string | null
           start_date?: string | null
           status?: string
           target_contacts?: string[] | null
@@ -343,6 +345,7 @@ export type Database = {
           niche_id?: string
           owned_by?: string | null
           responses_received?: number | null
+          slug?: string | null
           start_date?: string | null
           status?: string
           target_contacts?: string[] | null
@@ -376,6 +379,7 @@ export type Database = {
           last_enriched_at: string | null
           metadata: Json | null
           research_summary: Json | null
+          slug: string | null
           status: string
           updated_at: string
         }
@@ -394,6 +398,7 @@ export type Database = {
           last_enriched_at?: string | null
           metadata?: Json | null
           research_summary?: Json | null
+          slug?: string | null
           status?: string
           updated_at?: string
         }
@@ -412,6 +417,7 @@ export type Database = {
           last_enriched_at?: string | null
           metadata?: Json | null
           research_summary?: Json | null
+          slug?: string | null
           status?: string
           updated_at?: string
         }
