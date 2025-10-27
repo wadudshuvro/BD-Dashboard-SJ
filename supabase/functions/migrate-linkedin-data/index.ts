@@ -1,5 +1,9 @@
-import { createClient } from "jsr:@supabase/supabase-js@2";
-import { corsHeaders } from "../_shared/cors.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.75.0";
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
 
 // LinkedIn Data Parser
 function parseLinkedInProfile(rawData: any): any {
@@ -264,7 +268,7 @@ Deno.serve(async (req) => {
         errorDetails.push({
           contact_id: contact.id,
           contact_name: contact.contact_name,
-          error: error.message,
+          error: error instanceof Error ? error.message : String(error),
         });
       }
     }
@@ -292,8 +296,8 @@ Deno.serve(async (req) => {
     console.error("Migration error:", error);
     return new Response(
       JSON.stringify({ 
-        error: error.message,
-        details: error.toString()
+        error: error instanceof Error ? error.message : "Unknown error occurred",
+        details: String(error)
       }),
       { 
         headers: { ...corsHeaders, "Content-Type": "application/json" },
