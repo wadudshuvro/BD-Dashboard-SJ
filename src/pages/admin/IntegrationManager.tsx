@@ -165,8 +165,8 @@ const IntegrationManager = () => {
   const [googleDriveTestResult, setGoogleDriveTestResult] = useState<any>(null);
   const [perplexityModels, setPerplexityModels] = useState<PerplexityModelOption[]>([]);
   const [perplexityForm, setPerplexityForm] = useState<PerplexityFormState>({
-    model: "pplx-70b-online",
-    cost_per_1k_tokens: "0.80",
+    model: "sonar",
+    cost_per_1k_tokens: "1.00",
     is_active: false,
   });
   const [perplexityTestResult, setPerplexityTestResult] = useState<PerplexityTestResult | null>(null);
@@ -229,7 +229,7 @@ const IntegrationManager = () => {
 
     try {
       const { data } = await supabase.functions.invoke("perplexity-manage", { method: "GET" });
-      const configModel = data?.config?.model ?? "pplx-70b-online";
+      const configModel = data?.config?.model ?? "sonar";
       const configCost = data?.config?.cost_per_1k_tokens;
       const costString =
         typeof configCost === "number"

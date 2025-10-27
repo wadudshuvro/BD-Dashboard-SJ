@@ -34,8 +34,8 @@ interface PerplexityTestResult {
   timestamp: string;
 }
 
-const DEFAULT_MODEL = "pplx-70b-online";
-const DEFAULT_COST = "0.80";
+const DEFAULT_MODEL = "sonar";
+const DEFAULT_COST = "1.00";
 
 const PerplexityIntegration = () => {
   const { toast } = useToast();

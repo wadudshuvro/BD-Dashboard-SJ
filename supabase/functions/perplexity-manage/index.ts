@@ -22,13 +22,17 @@ type PerplexityModel = {
 };
 
 const DEFAULT_CONFIG: PerplexityConfig = {
-  model: "pplx-70b-online",
-  cost_per_1k_tokens: 0.8,
+  model: "sonar",
+  cost_per_1k_tokens: 1.0,
 };
 
 const AVAILABLE_MODELS: PerplexityModel[] = [
-  { id: "pplx-70b-online", label: "Perplexity 70B (Online)", cost: 0.8 },
-  { id: "pplx-7b-online", label: "Perplexity 7B (Fast)", cost: 0.2 },
+  { id: "sonar", label: "Sonar (Llama 3.3 70B)", cost: 1.0 },
+  { id: "sonar-pro", label: "Sonar Pro (Advanced)", cost: 5.0 },
+  { id: "sonar-reasoning", label: "Sonar Reasoning", cost: 5.0 },
+  { id: "llama-3.1-sonar-small-128k-online", label: "Llama 3.1 Sonar Small (8B)", cost: 0.2 },
+  { id: "llama-3.1-sonar-large-128k-online", label: "Llama 3.1 Sonar Large (70B)", cost: 1.0 },
+  { id: "llama-3.1-sonar-huge-128k-online", label: "Llama 3.1 Sonar Huge (405B)", cost: 5.0 },
 ];
 
 async function createSupabaseClient(req: Request): Promise<SupabaseClient> {
