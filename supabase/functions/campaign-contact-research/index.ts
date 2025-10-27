@@ -55,15 +55,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Get Perplexity configuration
-    const { data: integration } = await supabase
-      .from("integrations")
-      .select("config")
-      .eq("type", "perplexity")
-      .eq("is_active", true)
-      .maybeSingle();
-
-    const model = (integration?.config as any)?.model || "llama-3.1-sonar-large-128k-online";
+    // Use Perplexity's current default model
+    const model = "sonar";
 
     // Build research query
     const query = `Research ${contact.contact_name}${contact.contact_company ? ` at ${contact.contact_company}` : ""}${contact.contact_title ? `, ${contact.contact_title}` : ""}. 
