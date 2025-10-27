@@ -155,7 +155,6 @@ interface HydratedCampaign {
   creator?: ProfileRow | null;
   kpis?: KpiRow[];
   analytics_summary?: AnalyticsSummary[];
-  contacts?: Array<Record<string, unknown>>;
 }
 
 interface CampaignDatabaseRow {
@@ -345,23 +344,38 @@ async function fetchRelatedMaps(client: SupabaseClient, campaigns: CampaignDatab
     }
   }
 
+  // Batch fetch all analytics data in a single query
   const analyticsMap = new Map<string, AnalyticsSummary[]>();
-  for (const campaignId of campaignIds) {
+  if (campaignIds.length > 0) {
     try {
       const { data, error } = await client
         .from("analytics_data")
-        .select("id, metric_name, metric_value, recorded_at, dimensions")
-        .contains("dimensions", { campaign_id: campaignId });
+        .select("id, metric_name, metric_value, recorded_at, dimensions");
+      
       if (!error && data) {
-        const summary = summarizeAnalytics(data as AnalyticsRow[]);
-        analyticsMap.set(campaignId, summary);
+        // Group analytics by campaign_id from dimensions
+        const analyticsGrouped = new Map<string, AnalyticsRow[]>();
+        for (const row of data as AnalyticsRow[]) {
+          const campaignId = row.dimensions?.campaign_id as string | undefined;
+          if (campaignId && campaignIds.includes(campaignId)) {
+            const list = analyticsGrouped.get(campaignId) ?? [];
+            list.push(row);
+            analyticsGrouped.set(campaignId, list);
+          }
+        }
+        
+        // Summarize analytics for each campaign
+        for (const [campaignId, rows] of analyticsGrouped.entries()) {
+          const summary = summarizeAnalytics(rows);
+          analyticsMap.set(campaignId, summary);
+        }
       }
     } catch (error) {
       if ((error as { code?: string }).code === "42P01") {
         console.warn("[admin-campaigns] analytics_data table missing, skipping");
-        break;
+      } else {
+        console.warn("[admin-campaigns] Unable to load analytics", error);
       }
-      console.warn(`[admin-campaigns] Unable to load analytics for campaign ${campaignId}`, error);
     }
   }
 
@@ -399,30 +413,8 @@ async function hydrateCampaigns(
   const baseCampaigns = campaigns.map((campaign) => ({ ...campaign }));
   const { brandMap, profileMap, kpiMap, analyticsMap } = await fetchRelatedMaps(client, baseCampaigns);
 
-  // Fetch campaign contacts from relational table
+  // Campaign contacts removed from list view for performance
   const campaignIds = campaigns.map((c) => c.id);
-  const contactsMap = new Map<string, Array<Record<string, unknown>>>();
-  
-  if (campaignIds.length > 0) {
-    try {
-      const { data: contacts, error } = await client
-        .from("campaign_contacts")
-        .select("*")
-        .in("campaign_id", campaignIds)
-        .order("created_at", { ascending: false });
-      
-      if (!error && contacts) {
-        for (const contact of contacts) {
-          const campaignId = (contact as { campaign_id: string }).campaign_id;
-          const list = contactsMap.get(campaignId) ?? [];
-          list.push(contact as Record<string, unknown>);
-          contactsMap.set(campaignId, list);
-        }
-      }
-    } catch (error) {
-      console.warn("[admin-campaigns] Unable to load campaign contacts", error);
-    }
-  }
 
   return baseCampaigns.map((campaign) => ({
     ...campaign,
@@ -431,7 +423,6 @@ async function hydrateCampaigns(
     creator: campaign.created_by ? profileMap.get(campaign.created_by) ?? null : null,
     kpis: kpiMap.get(campaign.id) ?? [],
     analytics_summary: analyticsMap.get(campaign.id) ?? [],
-    contacts: contactsMap.get(campaign.id) ?? [],
   }));
 }
 
@@ -535,10 +526,25 @@ async function handleGet(client: SupabaseClient, idOrSlug: string) {
     }
   }
 
+  // Fetch contacts for detail view
+  let contacts: Array<Record<string, unknown>> = [];
+  try {
+    const { data: contactRows, error: contactError } = await client
+      .from("campaign_contacts")
+      .select("*")
+      .eq("campaign_id", campaignId)
+      .order("created_at", { ascending: false });
+    if (!contactError && contactRows) {
+      contacts = contactRows as Array<Record<string, unknown>>;
+    }
+  } catch (error) {
+    console.warn("[admin-campaigns] Unable to load campaign contacts", error);
+  }
+
   return {
     campaign,
     tasks,
-    contacts: campaign.contacts ?? [],
+    contacts,
     activities: [],
   };
 }
