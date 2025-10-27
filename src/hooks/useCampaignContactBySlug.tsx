@@ -14,6 +14,7 @@ export interface CampaignContact {
   status: string;
   research_summary?: unknown;
   metadata?: unknown;
+  last_enriched_at?: string | null;
   created_at: string;
   updated_at: string;
 }
