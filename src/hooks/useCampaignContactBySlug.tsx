@@ -17,6 +17,27 @@ export interface CampaignContact {
   last_enriched_at?: string | null;
   created_at: string;
   updated_at: string;
+  
+  // New LinkedIn fields
+  linkedin_headline?: string | null;
+  linkedin_location?: string | null;
+  linkedin_follower_count?: number | null;
+  linkedin_connection_count?: number | null;
+  linkedin_profile_image_url?: string | null;
+  current_employer?: string | null;
+  current_position_title?: string | null;
+  current_position_start_date?: string | null;
+  years_in_current_role?: number | null;
+  linkedin_about?: string | null;
+  linkedin_skills?: string[] | null;
+  languages?: string[] | null;
+  total_years_experience?: number | null;
+  industry_focus?: string | null;
+  previous_employers?: string[] | null;
+  education_summary?: string | null;
+  highest_degree?: string | null;
+  profile_completeness_score?: number | null;
+  last_linkedin_activity_date?: string | null;
 }
 
 export const useCampaignContactBySlug = (slug: string | undefined) => {

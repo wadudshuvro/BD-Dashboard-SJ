@@ -408,15 +408,34 @@ export type Database = {
           contact_phone: string | null
           contact_title: string | null
           created_at: string
+          current_employer: string | null
+          current_position_start_date: string | null
+          current_position_title: string | null
+          education_summary: string | null
           exa_item_id: string | null
           exa_score: number | null
+          highest_degree: string | null
           id: string
+          industry_focus: string | null
+          languages: string[] | null
           last_enriched_at: string | null
+          last_linkedin_activity_date: string | null
+          linkedin_about: string | null
+          linkedin_connection_count: number | null
+          linkedin_follower_count: number | null
+          linkedin_headline: string | null
+          linkedin_location: string | null
+          linkedin_profile_image_url: string | null
+          linkedin_skills: string[] | null
           metadata: Json | null
+          previous_employers: string[] | null
+          profile_completeness_score: number | null
           research_summary: Json | null
           slug: string | null
           status: string
+          total_years_experience: number | null
           updated_at: string
+          years_in_current_role: number | null
         }
         Insert: {
           campaign_id: string
@@ -427,15 +446,34 @@ export type Database = {
           contact_phone?: string | null
           contact_title?: string | null
           created_at?: string
+          current_employer?: string | null
+          current_position_start_date?: string | null
+          current_position_title?: string | null
+          education_summary?: string | null
           exa_item_id?: string | null
           exa_score?: number | null
+          highest_degree?: string | null
           id?: string
+          industry_focus?: string | null
+          languages?: string[] | null
           last_enriched_at?: string | null
+          last_linkedin_activity_date?: string | null
+          linkedin_about?: string | null
+          linkedin_connection_count?: number | null
+          linkedin_follower_count?: number | null
+          linkedin_headline?: string | null
+          linkedin_location?: string | null
+          linkedin_profile_image_url?: string | null
+          linkedin_skills?: string[] | null
           metadata?: Json | null
+          previous_employers?: string[] | null
+          profile_completeness_score?: number | null
           research_summary?: Json | null
           slug?: string | null
           status?: string
+          total_years_experience?: number | null
           updated_at?: string
+          years_in_current_role?: number | null
         }
         Update: {
           campaign_id?: string
@@ -446,15 +484,34 @@ export type Database = {
           contact_phone?: string | null
           contact_title?: string | null
           created_at?: string
+          current_employer?: string | null
+          current_position_start_date?: string | null
+          current_position_title?: string | null
+          education_summary?: string | null
           exa_item_id?: string | null
           exa_score?: number | null
+          highest_degree?: string | null
           id?: string
+          industry_focus?: string | null
+          languages?: string[] | null
           last_enriched_at?: string | null
+          last_linkedin_activity_date?: string | null
+          linkedin_about?: string | null
+          linkedin_connection_count?: number | null
+          linkedin_follower_count?: number | null
+          linkedin_headline?: string | null
+          linkedin_location?: string | null
+          linkedin_profile_image_url?: string | null
+          linkedin_skills?: string[] | null
           metadata?: Json | null
+          previous_employers?: string[] | null
+          profile_completeness_score?: number | null
           research_summary?: Json | null
           slug?: string | null
           status?: string
+          total_years_experience?: number | null
           updated_at?: string
+          years_in_current_role?: number | null
         }
         Relationships: [
           {

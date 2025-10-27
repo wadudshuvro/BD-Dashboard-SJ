@@ -12,6 +12,13 @@ import { useCampaignBySlug } from "@/hooks/useCampaignBySlug";
 import { useCampaignContactComments } from "@/hooks/useCampaignContactComments";
 import { useCampaignContactResearch } from "@/hooks/useCampaignContactResearch";
 import { useDeleteCampaignContact } from "@/hooks/useDeleteCampaignContact";
+import { parseLinkedInProfile } from "@/utils/parseLinkedInData";
+import { LinkedInProfileCard } from "@/components/contact/LinkedInProfileCard";
+import { CurrentRoleCard } from "@/components/contact/CurrentRoleCard";
+import { ExperienceTimelineCard } from "@/components/contact/ExperienceTimelineCard";
+import { EducationCard } from "@/components/contact/EducationCard";
+import { ProfessionalNetworkCard } from "@/components/contact/ProfessionalNetworkCard";
+import { EngagementCard } from "@/components/contact/EngagementCard";
 import { useState } from "react";
 import { formatDistanceToNow } from "date-fns";
 
@@ -153,55 +160,48 @@ export default function CampaignContactDetail() {
             </TabsList>
 
             <TabsContent value="overview" className="space-y-6 mt-6">
-              <div>
-                <h3 className="font-semibold mb-3">Contact Information</h3>
-                <Separator className="mb-3" />
-                <div className="grid gap-3">
-                  {contact.contact_email && (
-                    <div className="flex items-center gap-2">
-                      <Mail className="h-4 w-4 text-muted-foreground" />
-                      <a href={`mailto:${contact.contact_email}`} className="hover:underline">
-                        {contact.contact_email}
-                      </a>
-                    </div>
-                  )}
-                  {contact.contact_phone && (
-                    <div className="flex items-center gap-2">
-                      <Phone className="h-4 w-4 text-muted-foreground" />
-                      <a href={`tel:${contact.contact_phone}`} className="hover:underline">
-                        {contact.contact_phone}
-                      </a>
-                    </div>
-                  )}
-                  {contact.contact_linkedin_url && (
-                    <div className="flex items-center gap-2">
-                      <Linkedin className="h-4 w-4 text-muted-foreground" />
-                      <a 
-                        href={contact.contact_linkedin_url} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="hover:underline"
-                      >
-                        LinkedIn Profile
-                      </a>
-                    </div>
-                  )}
-                  {contact.last_enriched_at && (
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm text-muted-foreground">
-                        Last researched {formatDistanceToNow(new Date(contact.last_enriched_at), { addSuffix: true })}
-                      </span>
-                    </div>
-                  )}
-                </div>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <LinkedInProfileCard contact={contact} />
+                <CurrentRoleCard contact={contact} />
               </div>
-
-              {contact.metadata && Object.keys(contact.metadata as object).length > 0 && (
+              
+              {(() => {
+                const parsed = contact.metadata ? parseLinkedInProfile(contact.metadata) : null;
+                return (
+                  <>
+                    {parsed?.work_history && parsed.work_history.length > 0 && (
+                      <ExperienceTimelineCard 
+                        workHistory={parsed.work_history}
+                        totalYears={contact.total_years_experience}
+                      />
+                    )}
+                    
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      <EducationCard 
+                        education={contact.education_summary}
+                        highestDegree={contact.highest_degree}
+                      />
+                      <ProfessionalNetworkCard 
+                        languages={contact.languages}
+                        skills={contact.linkedin_skills}
+                      />
+                    </div>
+                    
+                    {(contact.profile_completeness_score !== null || contact.last_linkedin_activity_date) && (
+                      <EngagementCard 
+                        score={contact.profile_completeness_score}
+                        lastActivity={contact.last_linkedin_activity_date}
+                      />
+                    )}
+                  </>
+                );
+              })()}
+              
+              {!contact.linkedin_headline && contact.metadata && Object.keys(contact.metadata as object).length > 0 && (
                 <div>
-                  <h3 className="font-semibold mb-3">Additional Data</h3>
+                  <h3 className="font-semibold mb-3">Raw LinkedIn Data</h3>
                   <Separator className="mb-3" />
-                  <pre className="text-xs bg-muted p-4 rounded overflow-x-auto">
+                  <pre className="text-xs bg-muted p-4 rounded overflow-x-auto max-h-96">
                     {JSON.stringify(contact.metadata, null, 2)}
                   </pre>
                 </div>

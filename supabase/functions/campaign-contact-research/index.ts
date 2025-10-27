@@ -106,7 +106,30 @@ Provide:
     const aiResponse = await response.json();
     const researchSummary = aiResponse.choices?.[0]?.message?.content || "No research generated";
 
-    // Update contact with research summary
+    // Parse LinkedIn data from metadata if available
+    const { data: contactData } = await supabase
+      .from("campaign_contacts")
+      .select("metadata")
+      .eq("id", contactId)
+      .single();
+
+    let linkedInFields = {};
+    if (contactData?.metadata) {
+      const text = typeof contactData.metadata === 'string' 
+        ? contactData.metadata 
+        : (contactData.metadata as any).text || JSON.stringify(contactData.metadata);
+      
+      const headlineMatch = text.match(/###\s*([^\n]+?)\s*at\s+\[/);
+      const employerMatch = text.match(/at\s+\[([^\]]+)\]/);
+      
+      linkedInFields = {
+        linkedin_headline: headlineMatch?.[1]?.trim(),
+        current_employer: employerMatch?.[1]?.trim(),
+        current_position_title: headlineMatch?.[1]?.trim(),
+      };
+    }
+
+    // Update contact with research summary and parsed fields
     const { error: updateError } = await supabase
       .from("campaign_contacts")
       .update({
@@ -118,6 +141,7 @@ Provide:
           query: query,
         },
         last_enriched_at: new Date().toISOString(),
+        ...linkedInFields,
       })
       .eq("id", contactId);
 
