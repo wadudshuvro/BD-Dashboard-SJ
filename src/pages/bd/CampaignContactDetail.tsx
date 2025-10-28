@@ -567,16 +567,39 @@ export default function CampaignContactDetail() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  {latestRun?.output?.content ? (
-                    <div className="space-y-2">
-                      <div className="space-y-1.5">
-                        {latestRun.output.content.split('\n').filter(line => line.trim().startsWith('-') || line.trim().match(/^\d+\./)).map((point, idx) => (
-                          <div key={idx} className="flex items-start gap-2 text-sm">
-                            <span className="text-primary mt-0.5 font-bold">•</span>
-                            <span className="flex-1">{point.replace(/^[-•]\s*/, '').replace(/^\d+\.\s*/, '')}</span>
-                          </div>
-                        ))}
+                  {latestRun?.ai_summary?.summary ? (
+                    <div className="space-y-3">
+                      {/* Display summary */}
+                      <div className="mb-3">
+                        <p className="text-sm leading-relaxed">{latestRun.ai_summary.summary}</p>
                       </div>
+
+                      {/* Display findings as bullet points */}
+                      {latestRun.ai_summary.findings && latestRun.ai_summary.findings.length > 0 && (
+                        <div className="space-y-1.5">
+                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Key Findings</p>
+                          {latestRun.ai_summary.findings.map((finding: string, idx: number) => (
+                            <div key={idx} className="flex items-start gap-2 text-sm">
+                              <span className="text-primary mt-0.5 font-bold">•</span>
+                              <span className="flex-1">{finding}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Display recommendations */}
+                      {latestRun.ai_summary.recommendations && latestRun.ai_summary.recommendations.length > 0 && (
+                        <div className="mt-3 space-y-1.5">
+                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Recommendations</p>
+                          {latestRun.ai_summary.recommendations.map((rec: string, idx: number) => (
+                            <div key={idx} className="flex items-start gap-2 text-sm">
+                              <Lightbulb className="h-4 w-4 text-yellow-500 mt-0.5 flex-shrink-0" />
+                              <span className="flex-1">{rec}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      
                       <Separator className="my-3" />
                       <p className="text-xs text-muted-foreground">
                         Last analyzed: {new Date(latestRun.created_at).toLocaleString()}
