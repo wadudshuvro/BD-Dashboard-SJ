@@ -494,6 +494,14 @@ export type Database = {
         Row: {
           auto_status_enabled: boolean | null
           campaign_id: string
+          company_description: string | null
+          company_founded_year: number | null
+          company_headquarters: string | null
+          company_id: string | null
+          company_industry: string | null
+          company_linkedin_url: string | null
+          company_size: string | null
+          company_website: string | null
           contact_company: string | null
           contact_email: string | null
           contact_linkedin_url: string | null
@@ -534,6 +542,14 @@ export type Database = {
         Insert: {
           auto_status_enabled?: boolean | null
           campaign_id: string
+          company_description?: string | null
+          company_founded_year?: number | null
+          company_headquarters?: string | null
+          company_id?: string | null
+          company_industry?: string | null
+          company_linkedin_url?: string | null
+          company_size?: string | null
+          company_website?: string | null
           contact_company?: string | null
           contact_email?: string | null
           contact_linkedin_url?: string | null
@@ -574,6 +590,14 @@ export type Database = {
         Update: {
           auto_status_enabled?: boolean | null
           campaign_id?: string
+          company_description?: string | null
+          company_founded_year?: number | null
+          company_headquarters?: string | null
+          company_id?: string | null
+          company_industry?: string | null
+          company_linkedin_url?: string | null
+          company_size?: string | null
+          company_website?: string | null
           contact_company?: string | null
           contact_email?: string | null
           contact_linkedin_url?: string | null
@@ -617,6 +641,13 @@ export type Database = {
             columns: ["campaign_id"]
             isOneToOne: false
             referencedRelation: "bd_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_campaign_contacts_company"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
         ]
@@ -909,6 +940,72 @@ export type Database = {
           last_synced_at?: string | null
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      companies: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          employee_count: string | null
+          founded_year: number | null
+          headquarters: string | null
+          id: string
+          industry: string | null
+          last_researched_at: string | null
+          linkedin_url: string | null
+          logo_url: string | null
+          name: string
+          research_summary: Json | null
+          revenue_range: string | null
+          slug: string
+          specialties: string[] | null
+          technologies: string[] | null
+          updated_at: string
+          website: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          employee_count?: string | null
+          founded_year?: number | null
+          headquarters?: string | null
+          id?: string
+          industry?: string | null
+          last_researched_at?: string | null
+          linkedin_url?: string | null
+          logo_url?: string | null
+          name: string
+          research_summary?: Json | null
+          revenue_range?: string | null
+          slug: string
+          specialties?: string[] | null
+          technologies?: string[] | null
+          updated_at?: string
+          website?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          employee_count?: string | null
+          founded_year?: number | null
+          headquarters?: string | null
+          id?: string
+          industry?: string | null
+          last_researched_at?: string | null
+          linkedin_url?: string | null
+          logo_url?: string | null
+          name?: string
+          research_summary?: Json | null
+          revenue_range?: string | null
+          slug?: string
+          specialties?: string[] | null
+          technologies?: string[] | null
+          updated_at?: string
+          website?: string | null
         }
         Relationships: []
       }

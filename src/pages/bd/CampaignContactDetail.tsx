@@ -28,7 +28,7 @@ import { useGenerateLinkedInMessage } from "@/hooks/useGenerateLinkedInMessage";
 import { toast } from "sonner";
 import { parseLinkedInProfile } from "@/utils/parseLinkedInData";
 import { LinkedInProfileCard } from "@/components/contact/LinkedInProfileCard";
-import { CurrentRoleCard } from "@/components/contact/CurrentRoleCard";
+
 import { ExperienceTimelineCard } from "@/components/contact/ExperienceTimelineCard";
 import { EducationCard } from "@/components/contact/EducationCard";
 import { ProfessionalNetworkCard } from "@/components/contact/ProfessionalNetworkCard";
@@ -299,9 +299,26 @@ export default function CampaignContactDetail() {
           <div className="flex justify-between items-start">
             <div className="space-y-2">
               <CardTitle className="text-2xl">{contact.contact_name}</CardTitle>
-              <div className="flex gap-2 text-sm text-muted-foreground">
-                {contact.contact_title && <span>{contact.contact_title}</span>}
-                {contact.contact_company && <span>at {contact.contact_company}</span>}
+              <div className="flex flex-col gap-1.5">
+                {(contact.current_position_title || contact.contact_title) && (
+                  <p className="text-sm text-muted-foreground font-medium">
+                    {contact.current_position_title || contact.contact_title}
+                  </p>
+                )}
+                {(contact.current_employer || contact.contact_company) && (
+                  <div className="flex items-center gap-2">
+                    <Briefcase className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">
+                      {contact.current_employer || contact.contact_company}
+                    </span>
+                  </div>
+                )}
+                {contact.years_in_current_role && (
+                  <Badge variant="secondary" className="w-fit text-xs">
+                    <Calendar className="h-3 w-3 mr-1" />
+                    {contact.years_in_current_role.toFixed(1)} years in role
+                  </Badge>
+                )}
               </div>
             </div>
             <Select 
@@ -920,10 +937,7 @@ export default function CampaignContactDetail() {
                 </Card>
               )}
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <LinkedInProfileCard contact={contact} />
-                <CurrentRoleCard contact={contact} />
-              </div>
+              <LinkedInProfileCard contact={contact} />
               
               {(() => {
                 const parsed = contact.metadata ? parseLinkedInProfile(contact.metadata) : null;

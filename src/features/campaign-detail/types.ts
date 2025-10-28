@@ -53,6 +53,16 @@ export interface CampaignContact {
   highest_degree?: string | null;
   profile_completeness_score?: number | null;
   last_linkedin_activity_date?: string | null;
+  
+  // Company enrichment fields
+  company_id?: string | null;
+  company_website?: string | null;
+  company_linkedin_url?: string | null;
+  company_industry?: string | null;
+  company_size?: string | null;
+  company_description?: string | null;
+  company_headquarters?: string | null;
+  company_founded_year?: number | null;
 }
 
 export interface CampaignActivity {

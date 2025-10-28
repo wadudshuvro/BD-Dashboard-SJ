@@ -30,6 +30,7 @@ import NicheManagement from "./pages/bd/NicheManagement";
 import CampaignManagement from "./pages/bd/CampaignManagement";
 import CampaignDetail from "./pages/bd/CampaignDetail";
 import CampaignContactDetail from "./pages/bd/CampaignContactDetail";
+import CompanyDetail from "./pages/bd/CompanyDetail";
 import PODManagement from "./pages/admin/PODManagement";
 import DataSyncSettings from "./pages/admin/DataSyncSettings";
 import Prospecting from "./pages/bd/pipeline/Prospecting";
@@ -246,6 +247,15 @@ const App = () => (
               <Route index element={<CampaignManagement />} />
               <Route path=":slug" element={<CampaignDetail />} />
               <Route path=":campaignSlug/contacts/:contactSlug" element={<CampaignContactDetail />} />
+            </Route>
+
+            {/* Companies */}
+            <Route path="/companies/:companyId" element={
+              <ProtectedRoute requiredMinimumRole="user">
+                <Layout />
+              </ProtectedRoute>
+            }>
+              <Route index element={<CompanyDetail />} />
             </Route>
 
             {/* Catch-all route */}
