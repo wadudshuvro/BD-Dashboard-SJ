@@ -1,5 +1,5 @@
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, Loader2, Mail, Linkedin, Phone, Sparkles, MessageSquare, Trash2, Calendar, Users, Network, Briefcase, FileText, Award, Globe, Brain, Copy, Lightbulb, CheckSquare, BarChart3, Target, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Loader2, Mail, Linkedin, Phone, Sparkles, MessageSquare, Trash2, Calendar, Users, Network, Briefcase, FileText, Award, Globe, Brain, Copy, Lightbulb, CheckSquare, BarChart3, Target, AlertTriangle, RefreshCw } from "lucide-react";
 import { StatusBadgeWithIcon } from "@/components/bd/StatusBadgeWithIcon";
 import { StatusProgressBar } from "@/components/bd/StatusProgressBar";
 import { StatusHistoryTimeline } from "@/components/bd/StatusHistoryTimeline";
@@ -86,9 +86,18 @@ export default function CampaignContactDetail() {
     setNewComment("");
   };
 
-  const handleRunResearch = () => {
+  const handleRunResearch = async () => {
     if (!contact || !contactSlug) return;
-    researchMutation.mutate({ contactId: contact.id, contactSlug });
+    
+    await researchMutation.mutateAsync({ 
+      contactId: contact.id, 
+      contactSlug 
+    });
+    
+    // Also invalidate company queries if company exists
+    if (contact.company_id) {
+      queryClient.invalidateQueries({ queryKey: ['company', contact.company_id] });
+    }
   };
 
   const handleDelete = () => {
@@ -589,23 +598,49 @@ export default function CampaignContactDetail() {
                       <Brain className="h-5 w-5" />
                       AI Research Insights
                     </CardTitle>
-                    <Button 
-                      onClick={handleRunAgent}
-                      disabled={runAgent.isPending || !bdAgent}
-                      size="sm"
-                    >
-                      {runAgent.isPending ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Analyzing...
-                        </>
-                      ) : (
-                        <>
-                          <Brain className="h-4 w-4 mr-2" />
-                          Analyze Lead
-                        </>
+                    <div className="flex gap-2">
+                      {/* Re-run Research Button - ALWAYS VISIBLE */}
+                      <Button 
+                        onClick={handleRunResearch}
+                        disabled={researchMutation.isPending}
+                        variant="outline"
+                        size="sm"
+                        className="gap-2"
+                      >
+                        {researchMutation.isPending ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Researching...
+                          </>
+                        ) : (
+                          <>
+                            <RefreshCw className="h-4 w-4" />
+                            Re-run Research
+                          </>
+                        )}
+                      </Button>
+
+                      {/* Analyze Lead Button - for AI agent */}
+                      {bdAgent && (
+                        <Button 
+                          onClick={handleRunAgent}
+                          disabled={runAgent.isPending || !bdAgent}
+                          size="sm"
+                        >
+                          {runAgent.isPending ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Analyzing...
+                            </>
+                          ) : (
+                            <>
+                              <Brain className="h-4 w-4 mr-2" />
+                              Analyze Lead
+                            </>
+                          )}
+                        </Button>
                       )}
-                    </Button>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent>

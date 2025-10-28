@@ -58,18 +58,32 @@ Deno.serve(async (req) => {
     // Use Perplexity's current default model
     const model = "sonar";
 
-    // Build research query
+    // Build research query with both contact and company research
     const query = `Research ${contact.contact_name}${contact.contact_company ? ` at ${contact.contact_company}` : ""}${contact.contact_title ? `, ${contact.contact_title}` : ""}. 
     
 Campaign context: ${contact.bd_campaigns.name} (${contact.bd_campaigns.campaign_type})
 ${contact.contact_linkedin_url ? `LinkedIn: ${contact.contact_linkedin_url}` : ""}
 
-Provide:
+Provide in structured sections:
+
+CONTACT INFORMATION:
 1. Professional background and expertise
 2. Recent activities or achievements
 3. Potential pain points or needs relevant to our campaign
 4. Personalization opportunities for outreach
-5. Best approach for engagement`;
+5. Best approach for engagement
+
+COMPANY INFORMATION${contact.contact_company ? ` (for ${contact.contact_company})` : ''}:
+1. Company website URL
+2. Company LinkedIn URL
+3. Industry/sector
+4. Company size (employee count range)
+5. Headquarters location
+6. Brief company description (2-3 sentences)
+7. Year founded (if available)
+8. Technologies used (if known)
+
+Format your response clearly with "CONTACT:" and "COMPANY:" section headers.`;
 
     console.log("Calling Perplexity API with model:", model);
 
@@ -104,7 +118,28 @@ Provide:
     }
 
     const aiResponse = await response.json();
-    const researchSummary = aiResponse.choices?.[0]?.message?.content || "No research generated";
+    const fullResearchResponse = aiResponse.choices?.[0]?.message?.content || "No research generated";
+
+    // Split contact and company sections
+    const contactSection = fullResearchResponse.split('COMPANY:')[0].replace('CONTACT:', '').trim();
+    const companySection = fullResearchResponse.split('COMPANY:')[1]?.trim() || '';
+
+    // Extract company data using regex patterns
+    const websiteMatch = companySection.match(/website[:\s]+([^\s\n]+)/i);
+    const linkedinMatch = companySection.match(/linkedin[:\s]+([^\s\n]+)/i);
+    const industryMatch = companySection.match(/industry[:\s]+([^\n]+)/i);
+    const sizeMatch = companySection.match(/size[:\s]+([^\n]+)/i);
+    const hqMatch = companySection.match(/headquarters[:\s]+([^\n]+)/i);
+    const descMatch = companySection.match(/description[:\s]+([^\n]+(?:\n[^\n]+)?)/i);
+
+    const companyData = {
+      website: websiteMatch?.[1]?.trim(),
+      linkedin_url: linkedinMatch?.[1]?.trim(),
+      industry: industryMatch?.[1]?.trim(),
+      employee_count: sizeMatch?.[1]?.trim(),
+      headquarters: hqMatch?.[1]?.trim(),
+      description: descMatch?.[1]?.trim(),
+    };
 
     // Parse LinkedIn data from metadata if available
     const { data: contactData } = await supabase
@@ -129,18 +164,76 @@ Provide:
       };
     }
 
-    // Update contact with research summary and parsed fields
+    // Handle company data upsert if we have company information
+    let companyId = null;
+    if (contact.contact_company && companyData.website) {
+      // Check if company exists
+      const { data: existingCompany } = await supabase
+        .from('companies')
+        .select('id')
+        .ilike('name', contact.contact_company)
+        .maybeSingle();
+
+      if (existingCompany) {
+        // Update existing company
+        await supabase
+          .from('companies')
+          .update({
+            website: companyData.website,
+            linkedin_url: companyData.linkedin_url,
+            industry: companyData.industry,
+            employee_count: companyData.employee_count,
+            headquarters: companyData.headquarters,
+            description: companyData.description,
+            last_researched_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', existingCompany.id);
+        
+        companyId = existingCompany.id;
+        console.log("Updated existing company:", existingCompany.id);
+      } else {
+        // Create new company
+        const { data: newCompany } = await supabase
+          .from('companies')
+          .insert({
+            name: contact.contact_company,
+            website: companyData.website,
+            linkedin_url: companyData.linkedin_url,
+            industry: companyData.industry,
+            employee_count: companyData.employee_count,
+            headquarters: companyData.headquarters,
+            description: companyData.description,
+            last_researched_at: new Date().toISOString(),
+            created_by: user.id,
+          })
+          .select('id')
+          .single();
+        
+        companyId = newCompany?.id;
+        console.log("Created new company:", companyId);
+      }
+    }
+
+    // Update contact with research summary, company link, and parsed fields
     const { error: updateError } = await supabase
       .from("campaign_contacts")
       .update({
         research_summary: {
-          summary: researchSummary,
+          summary: contactSection,
           generated_at: new Date().toISOString(),
           generated_by: user.id,
           model: model,
           query: query,
         },
         last_enriched_at: new Date().toISOString(),
+        company_id: companyId,
+        company_website: companyData.website,
+        company_linkedin_url: companyData.linkedin_url,
+        company_industry: companyData.industry,
+        company_size: companyData.employee_count,
+        company_description: companyData.description,
+        company_headquarters: companyData.headquarters,
         ...linkedInFields,
       })
       .eq("id", contactId);
@@ -155,7 +248,9 @@ Provide:
     return new Response(
       JSON.stringify({
         success: true,
-        research_summary: researchSummary,
+        research_summary: contactSection,
+        company_data: companyData,
+        company_id: companyId,
         contact_id: contactId,
       }),
       {

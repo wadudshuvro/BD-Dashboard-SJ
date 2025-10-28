@@ -25,6 +25,8 @@ export const useCampaignContactResearch = () => {
         .eq("id", contactId)
         .single();
 
+      const hasCompanyData = data?.company_id || data?.company_data?.website;
+      
       if (contact?.status === "identified") {
         await updateContact.mutateAsync({
           contactId,
@@ -33,12 +35,16 @@ export const useCampaignContactResearch = () => {
         
         toast({ 
           title: "Research completed", 
-          description: "Contact research completed and status updated to Researched ✓" 
+          description: hasCompanyData 
+            ? "Contact and company research completed ✓" 
+            : "Contact research completed and status updated to Researched ✓" 
         });
       } else {
         toast({ 
           title: "Research completed", 
-          description: "Contact research has been updated with new insights" 
+          description: hasCompanyData
+            ? "Contact and company data updated with new insights"
+            : "Contact research has been updated with new insights" 
         });
       }
 
