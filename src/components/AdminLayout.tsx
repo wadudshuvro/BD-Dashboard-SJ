@@ -140,7 +140,7 @@ const AdminLayout = () => {
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 space-y-4 px-4 py-6">
+          <nav className="flex-1 overflow-y-auto overflow-x-hidden space-y-4 px-4 py-6 scroll-smooth">
             {navigation.map((section) => (
               <div key={section.section}>
                 <h3 className="mb-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
