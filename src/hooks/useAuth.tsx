@@ -61,10 +61,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       // Fetch role from user_roles table (secure separate table)
+      // Order by role hierarchy to get highest priority role in case of duplicates
       const { data: roleData, error: roleError } = await supabase
         .from('user_roles' as any)
         .select('role')
         .eq('user_id', authUser.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
         .maybeSingle();
 
       if (roleError) {
