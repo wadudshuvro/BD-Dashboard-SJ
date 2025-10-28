@@ -691,15 +691,6 @@ export default function CampaignContactDetail() {
                 );
               })()}
               
-              {!contact.linkedin_headline && contact.metadata && Object.keys(contact.metadata as object).length > 0 && (
-                <div>
-                  <h3 className="font-semibold mb-3">Raw LinkedIn Data</h3>
-                  <Separator className="mb-3" />
-                  <pre className="text-xs bg-muted p-4 rounded overflow-x-auto max-h-96">
-                    {JSON.stringify(contact.metadata, null, 2)}
-                  </pre>
-                </div>
-              )}
             </TabsContent>
 
             <TabsContent value="research" className="space-y-4 mt-6">
