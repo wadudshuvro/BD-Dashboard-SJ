@@ -218,7 +218,7 @@ export async function triggerAgentRun(payload: AgentRunPayload): Promise<AgentRu
 export async function fetchAgentRunHistory(agentId: string, limit = 20): Promise<AgentRunHistoryRow[]> {
   const { data, error } = await supabase
     .from("ai_agent_runs")
-    .select("id, created_at, status, output, ai_summary, agent_id")
+    .select("id, created_at, status, output, ai_summary, agent_id, execution_context")
     .eq("agent_id", agentId)
     .order("created_at", { ascending: false })
     .limit(limit);
