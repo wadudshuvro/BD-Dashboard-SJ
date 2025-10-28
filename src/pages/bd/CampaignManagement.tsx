@@ -8,6 +8,7 @@ import {
   Search,
   TrendingUp,
   Users,
+  Pencil,
 } from 'lucide-react';
 import { usePagination } from '@/hooks/usePagination';
 import {
@@ -52,6 +53,7 @@ export default function CampaignManagement() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingCampaign, setEditingCampaign] = useState<BDCampaign | null>(null);
   
   const errorMessage = error instanceof Error && error.message ? error.message : null;
   const totalPages = Math.ceil(total / pagination.pageSize);
@@ -127,14 +129,26 @@ export default function CampaignManagement() {
 
     return (
       <>
-        <CampaignDialog open={dialogOpen} onOpenChange={setDialogOpen} niches={niches} />
+        <CampaignDialog 
+          open={dialogOpen} 
+          onOpenChange={(open) => {
+            setDialogOpen(open);
+            if (!open) setEditingCampaign(null);
+          }}
+          niches={niches}
+          campaign={editingCampaign || undefined}
+          mode={editingCampaign ? 'edit' : 'create'}
+        />
         <div className="container mx-auto py-8 space-y-6">
           <div className="flex justify-between items-center">
             <div>
               <h1 className="text-3xl font-bold">Campaign Management</h1>
               <p className="text-muted-foreground">Track and manage your outbound campaigns</p>
             </div>
-            <Button onClick={() => setDialogOpen(true)}>
+            <Button onClick={() => {
+              setEditingCampaign(null);
+              setDialogOpen(true);
+            }}>
               <Plus className="mr-2 h-4 w-4" />
               Create Campaign
             </Button>
@@ -156,14 +170,26 @@ export default function CampaignManagement() {
 
   return (
     <>
-      <CampaignDialog open={dialogOpen} onOpenChange={setDialogOpen} niches={niches} />
+      <CampaignDialog 
+        open={dialogOpen} 
+        onOpenChange={(open) => {
+          setDialogOpen(open);
+          if (!open) setEditingCampaign(null);
+        }}
+        niches={niches}
+        campaign={editingCampaign || undefined}
+        mode={editingCampaign ? 'edit' : 'create'}
+      />
       <div className="container mx-auto py-8">
         <div className="flex justify-between items-center mb-6">
           <div>
             <h1 className="text-3xl font-bold">Campaign Management</h1>
             <p className="text-muted-foreground">Track and manage your outbound campaigns</p>
           </div>
-          <Button onClick={() => setDialogOpen(true)}>
+          <Button onClick={() => {
+            setEditingCampaign(null);
+            setDialogOpen(true);
+          }}>
             <Plus className="mr-2 h-4 w-4" />
             Create Campaign
           </Button>
@@ -227,7 +253,15 @@ export default function CampaignManagement() {
             <div className="space-y-6">
               <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
                 {filteredCampaigns.map((campaign) => (
-                  <CampaignCard key={campaign.id} campaign={campaign} niches={niches} />
+                  <CampaignCard 
+                    key={campaign.id} 
+                    campaign={campaign} 
+                    niches={niches}
+                    onEdit={(c) => {
+                      setEditingCampaign(c);
+                      setDialogOpen(true);
+                    }}
+                  />
                 ))}
               </div>
 
@@ -283,7 +317,7 @@ export default function CampaignManagement() {
   );
 }
 
-function CampaignCard({ campaign, niches }: { campaign: BDCampaign; niches: TargetNiche[] }) {
+function CampaignCard({ campaign, niches, onEdit }: { campaign: BDCampaign; niches: TargetNiche[]; onEdit: (campaign: BDCampaign) => void }) {
   const navigate = useNavigate();
   const niche = niches.find((n) => n.id === campaign.niche_id);
   const targetCount = campaign.target_contacts_count ?? 0;
@@ -339,15 +373,36 @@ function CampaignCard({ campaign, niches }: { campaign: BDCampaign; niches: Targ
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Badge variant="outline" className="capitalize">
-            {campaign.campaign_type?.replace('_', ' ')}
-          </Badge>
+        <div className="flex items-center gap-2 flex-wrap">
+          {(campaign.campaign_types || [campaign.campaign_type]).map((type) => (
+            <Badge key={type} variant="outline" className="capitalize">
+              {type.replace('_', ' ')}
+            </Badge>
+          ))}
         </div>
 
-        <Button variant="default" size="sm" className="w-full" onClick={() => navigate(`/campaigns/${campaign.slug}`)}>
-          View Details
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="flex-1"
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit(campaign);
+            }}
+          >
+            <Pencil className="h-4 w-4 mr-2" />
+            Edit
+          </Button>
+          <Button 
+            variant="default" 
+            size="sm" 
+            className="flex-1" 
+            onClick={() => navigate(`/campaigns/${campaign.slug}`)}
+          >
+            View Details
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );

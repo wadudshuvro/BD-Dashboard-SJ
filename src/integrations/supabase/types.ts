@@ -300,6 +300,7 @@ export type Database = {
           actual_contacts_reached: number | null
           brand_id: string | null
           campaign_type: string
+          campaign_types: string[] | null
           created_at: string
           created_by: string | null
           deals_generated: number | null
@@ -322,6 +323,7 @@ export type Database = {
           actual_contacts_reached?: number | null
           brand_id?: string | null
           campaign_type: string
+          campaign_types?: string[] | null
           created_at?: string
           created_by?: string | null
           deals_generated?: number | null
@@ -344,6 +346,7 @@ export type Database = {
           actual_contacts_reached?: number | null
           brand_id?: string | null
           campaign_type?: string
+          campaign_types?: string[] | null
           created_at?: string
           created_by?: string | null
           deals_generated?: number | null

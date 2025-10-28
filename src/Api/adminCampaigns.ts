@@ -2,6 +2,7 @@ import axiosPrivate from "@/lib/axiosPrivate";
 
 export type CampaignStatus = "planning" | "active" | "paused" | "completed" | "archived";
 export type CampaignType = "email_outbound" | "linkedin_outbound" | "cold_calling" | "abm" | "other";
+export type CampaignTypeArray = CampaignType[];
 
 export interface CampaignKpi {
   id: string;
@@ -39,7 +40,8 @@ export interface CampaignSummary {
   name: string;
   niche_id: string;
   brand_id: string | null;
-  campaign_type: CampaignType;
+  campaign_type: CampaignType; // Legacy field
+  campaign_types: CampaignTypeArray;
   status: CampaignStatus;
   ghl_campaign_id: string | null;
   linkedin_campaign_id: string | null;
@@ -74,7 +76,8 @@ export interface CampaignPayload {
   name: string;
   niche_id: string;
   brand_id?: string | null;
-  campaign_type: CampaignType;
+  campaign_type?: CampaignType; // Legacy field for backwards compatibility
+  campaign_types: CampaignTypeArray;
   status?: CampaignStatus;
   ghl_campaign_id?: string | null;
   linkedin_campaign_id?: string | null;
