@@ -54,6 +54,7 @@ export type Database = {
           error: string | null
           error_message: string | null
           executed_by: string | null
+          execution_context: Json | null
           generated_tasks: Json | null
           id: string
           input: Json | null
@@ -74,6 +75,7 @@ export type Database = {
           error?: string | null
           error_message?: string | null
           executed_by?: string | null
+          execution_context?: Json | null
           generated_tasks?: Json | null
           id?: string
           input?: Json | null
@@ -94,6 +96,7 @@ export type Database = {
           error?: string | null
           error_message?: string | null
           executed_by?: string | null
+          execution_context?: Json | null
           generated_tasks?: Json | null
           id?: string
           input?: Json | null
