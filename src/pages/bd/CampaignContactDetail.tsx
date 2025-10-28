@@ -1,11 +1,11 @@
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, Loader2, Mail, Linkedin, Phone, Sparkles, MessageSquare, Trash2, Calendar, Users, Network, Briefcase, FileText, Award, Globe, Brain } from "lucide-react";
+import { ArrowLeft, Loader2, Mail, Linkedin, Phone, Sparkles, MessageSquare, Trash2, Calendar, Users, Network, Briefcase, FileText, Award, Globe, Brain, Copy, Lightbulb } from "lucide-react";
 import { StatusBadgeWithIcon } from "@/components/bd/StatusBadgeWithIcon";
 import { StatusProgressBar } from "@/components/bd/StatusProgressBar";
 import { StatusHistoryTimeline } from "@/components/bd/StatusHistoryTimeline";
 import { useCampaignContactStatusHistory } from "@/hooks/useCampaignContactStatusHistory";
 import type { CampaignContactStatus } from "@/features/campaign-detail/types";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useCampaignContactBySlug } from "@/hooks/useCampaignContactBySlug";
 import { useCampaignBySlug } from "@/hooks/useCampaignBySlug";
 import { useCampaignContactComments } from "@/hooks/useCampaignContactComments";
@@ -22,6 +23,7 @@ import { useCampaignContactUpdate } from "@/hooks/useCampaignContactUpdate";
 import { useAgentList } from "@/hooks/useAgentList";
 import { useRunCampaignAgent } from "@/hooks/useRunCampaignAgent";
 import { useAgentRunHistory } from "@/hooks/useAgentRunHistory";
+import { useGenerateLinkedInMessage } from "@/hooks/useGenerateLinkedInMessage";
 import { toast } from "sonner";
 import { parseLinkedInProfile } from "@/utils/parseLinkedInData";
 import { LinkedInProfileCard } from "@/components/contact/LinkedInProfileCard";
@@ -45,6 +47,13 @@ export default function CampaignContactDetail() {
   
   const [newComment, setNewComment] = useState("");
   const [activeTab, setActiveTab] = useState("overview");
+  
+  // LinkedIn Message Generation
+  const [messageType, setMessageType] = useState<'connection_request' | 'first_followup' | 'second_followup' | 'meeting_request'>('connection_request');
+  const [userContext, setUserContext] = useState("");
+  const [selectedVariant, setSelectedVariant] = useState("");
+  const generateMessageMutation = useGenerateLinkedInMessage();
+  const generatedMessages = generateMessageMutation.data;
   
   // AI Agent hooks
   const { data: agents } = useAgentList();
@@ -105,6 +114,20 @@ export default function CampaignContactDetail() {
         }
       }
     });
+  };
+
+  const handleGenerateMessage = () => {
+    if (!contact) return;
+    generateMessageMutation.mutate({
+      contactId: contact.id,
+      messageType,
+      userContext,
+    });
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success("Copied to clipboard");
   };
   
   if (contactLoading || campaignLoading) {
@@ -375,6 +398,144 @@ export default function CampaignContactDetail() {
                       {researchMutation.isPending ? "Researching..." : "Run Research"}
                     </Button>
                   </div>
+                </CardContent>
+              </Card>
+
+              {/* LinkedIn Outreach Card */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <MessageSquare className="h-5 w-5" />
+                    LinkedIn Outreach
+                  </CardTitle>
+                  <CardDescription>
+                    AI-generated personalized messages
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <Select value={messageType} onValueChange={(v: any) => setMessageType(v)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select message type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="connection_request">Connection Request</SelectItem>
+                      <SelectItem value="first_followup">First Follow-up</SelectItem>
+                      <SelectItem value="second_followup">Second Follow-up</SelectItem>
+                      <SelectItem value="meeting_request">Meeting Request</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  <Textarea
+                    placeholder="Additional context (optional): e.g., 'Mention our mutual connection with John Smith' or 'Reference their recent post about AI'"
+                    value={userContext}
+                    onChange={(e) => setUserContext(e.target.value)}
+                    rows={3}
+                  />
+
+                  <Button 
+                    onClick={handleGenerateMessage}
+                    disabled={generateMessageMutation.isPending}
+                    className="w-full"
+                  >
+                    {generateMessageMutation.isPending ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Generating Messages...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="mr-2 h-4 w-4" />
+                        Generate LinkedIn Messages
+                      </>
+                    )}
+                  </Button>
+
+                  {generatedMessages && (
+                    <div className="space-y-3">
+                      <Tabs value={selectedVariant || generatedMessages.message_variants[0]?.variant_name} onValueChange={setSelectedVariant}>
+                        <TabsList className="grid w-full grid-cols-3">
+                          {generatedMessages.message_variants.map((variant) => (
+                            <TabsTrigger key={variant.variant_name} value={variant.variant_name}>
+                              {variant.variant_name.split(' ')[0]}
+                            </TabsTrigger>
+                          ))}
+                        </TabsList>
+
+                        {generatedMessages.message_variants.map((variant) => (
+                          <TabsContent key={variant.variant_name} value={variant.variant_name}>
+                            <Card>
+                              <CardContent className="pt-4 space-y-3">
+                                <div className="relative">
+                                  <p className="text-sm whitespace-pre-wrap p-3 bg-muted rounded-md">
+                                    {variant.message}
+                                  </p>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => copyToClipboard(variant.message)}
+                                    className="absolute top-2 right-2"
+                                  >
+                                    <Copy className="h-4 w-4" />
+                                  </Button>
+                                </div>
+
+                                <div className="flex flex-wrap gap-2">
+                                  <Badge variant="outline">
+                                    {variant.character_count} characters
+                                  </Badge>
+                                  <Badge variant="secondary">
+                                    {variant.tone}
+                                  </Badge>
+                                  {variant.character_count > 300 && messageType === 'connection_request' && (
+                                    <Badge variant="destructive">
+                                      ⚠️ Over LinkedIn limit
+                                    </Badge>
+                                  )}
+                                </div>
+
+                                <div>
+                                  <p className="text-xs font-medium text-muted-foreground mb-1">
+                                    Personalization Elements:
+                                  </p>
+                                  <ul className="text-xs space-y-1">
+                                    {variant.personalization_elements.map((element, idx) => (
+                                      <li key={idx} className="flex items-start gap-1">
+                                        <span className="text-primary">•</span>
+                                        {element}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          </TabsContent>
+                        ))}
+                      </Tabs>
+
+                      <Alert>
+                        <Lightbulb className="h-4 w-4" />
+                        <AlertTitle>Recommended: {generatedMessages.recommended_variant}</AlertTitle>
+                        <AlertDescription>
+                          {generatedMessages.reasoning}
+                        </AlertDescription>
+                      </Alert>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <Card>
+                          <CardContent className="pt-4">
+                            <p className="text-xs font-medium text-muted-foreground">Best Time to Send</p>
+                            <p className="text-sm font-semibold capitalize">{generatedMessages.send_timing_suggestion}</p>
+                          </CardContent>
+                        </Card>
+                        <Card>
+                          <CardContent className="pt-4">
+                            <p className="text-xs font-medium text-muted-foreground">Follow-up Strategy</p>
+                            <p className="text-xs">{generatedMessages.follow_up_strategy}</p>
+                          </CardContent>
+                        </Card>
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
