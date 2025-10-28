@@ -1,10 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
-  Brain,
   Layers,
-  Linkedin,
-  Mail,
   MessageCircle,
   Phone,
   Plus,
@@ -40,12 +37,6 @@ type AggregateStats = {
   totalContacts: number;
   totalMeetings: number;
   totalDeals: number;
-  linkedinRequests: number;
-  linkedinAccepted: number;
-  linkedinMessages: number;
-  linkedinResponses: number;
-  ghlEmailsSent: number;
-  ghlReplies: number;
   totalResponses: number;
 };
 
@@ -81,35 +72,16 @@ export default function CampaignManagement() {
   const aggregateStats = useMemo(() => {
     return campaigns.reduce<AggregateStats>(
       (acc, campaign) => {
-        const linkedin = (campaign.linkedin_stats as Record<string, number | undefined>) || {};
-        const ghl = (campaign.ghl_stats as Record<string, number | undefined>) || {};
-
         acc.totalContacts += campaign.actual_contacts_reached ?? 0;
         acc.totalMeetings += campaign.meetings_booked ?? 0;
         acc.totalDeals += campaign.deals_generated ?? 0;
-        acc.linkedinRequests += linkedin.requests_sent || 0;
-        acc.linkedinAccepted += linkedin.connections_accepted || 0;
-        acc.linkedinMessages += linkedin.messages_sent || 0;
-        acc.linkedinResponses += linkedin.responses_received || 0;
-        acc.ghlEmailsSent += ghl.emails_sent || 0;
-        acc.ghlReplies += ghl.replies || 0;
-        acc.totalResponses +=
-          (linkedin.responses_received || 0) +
-          (ghl.replies || 0) +
-          (campaign.responses_received ?? 0);
-
+        acc.totalResponses += campaign.responses_received ?? 0;
         return acc;
       },
       {
         totalContacts: 0,
         totalMeetings: 0,
         totalDeals: 0,
-        linkedinRequests: 0,
-        linkedinAccepted: 0,
-        linkedinMessages: 0,
-        linkedinResponses: 0,
-        ghlEmailsSent: 0,
-        ghlReplies: 0,
         totalResponses: 0,
       },
     );
@@ -132,34 +104,19 @@ export default function CampaignManagement() {
       icon: Users,
     },
     {
+      title: 'Total Responses',
+      value: aggregateStats.totalResponses,
+      icon: MessageCircle,
+    },
+    {
       title: 'Meetings Booked',
       value: aggregateStats.totalMeetings,
       icon: Phone,
     },
     {
-      title: 'LinkedIn Requests Sent',
-      value: aggregateStats.linkedinRequests,
-      icon: Linkedin,
-    },
-    {
-      title: 'LinkedIn Accepted',
-      value: aggregateStats.linkedinAccepted,
-      icon: Users,
-    },
-    {
-      title: 'LinkedIn Messages',
-      value: aggregateStats.linkedinMessages,
-      icon: MessageCircle,
-    },
-    {
-      title: 'Emails Sent (GHL)',
-      value: aggregateStats.ghlEmailsSent,
-      icon: Mail,
-    },
-    {
-      title: 'Total Responses',
-      value: aggregateStats.totalResponses,
-      icon: Brain,
+      title: 'Deals Generated',
+      value: aggregateStats.totalDeals,
+      icon: TrendingUp,
     },
   ];
 
@@ -229,7 +186,7 @@ export default function CampaignManagement() {
           </Alert>
         ) : (
           <>
-            <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-4 mb-8">
+            <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-6 mb-8">
               {metrics.map((metric) => (
                 <Card key={metric.title}>
                   <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -333,24 +290,6 @@ function CampaignCard({ campaign, niches }: { campaign: BDCampaign; niches: Targ
   const contactsReached = campaign.actual_contacts_reached ?? 0;
   const progress = targetCount ? (contactsReached / targetCount) * 100 : 0;
 
-  const researchData = (campaign.research_data as Record<string, unknown>) || {};
-  const researchCompleted = Number(
-    (researchData['contacts_researched'] as number | undefined) ?? campaign.actual_contacts_reached ?? 0,
-  );
-  const linkedinStats = (campaign.linkedin_stats as Record<string, number | undefined>) || {};
-  const ghlStats = (campaign.ghl_stats as Record<string, number | undefined>) || {};
-
-  const acceptanceRate = linkedinStats.requests_sent
-    ? Math.round(((linkedinStats.connections_accepted || 0) / linkedinStats.requests_sent) * 100)
-    : 0;
-
-  const messageFollowThrough = linkedinStats.connections_accepted
-    ? Math.round(((linkedinStats.messages_sent || 0) / linkedinStats.connections_accepted) * 100)
-    : 0;
-
-  const responseTotal =
-    (linkedinStats.responses_received || 0) + (ghlStats.replies || 0) + (campaign.responses_received || 0);
-
   const statusColors: Record<BDCampaign['status'], 'secondary' | 'default' | 'outline'> = {
     planning: 'secondary',
     active: 'default',
@@ -366,23 +305,6 @@ function CampaignCard({ campaign, niches }: { campaign: BDCampaign; niches: Targ
           <div>
             <CardTitle>{campaign.name}</CardTitle>
             <CardDescription>{niche?.name || 'Unknown Niche'}</CardDescription>
-            <div className="mt-2 flex items-center gap-2">
-              {campaign.linkedin_campaign_id ? (
-                <Badge variant="outline" className="flex items-center gap-1">
-                  <Linkedin className="h-3 w-3" /> LinkedIn
-                </Badge>
-              ) : null}
-              {campaign.ghl_campaign_id ? (
-                <Badge variant="outline" className="flex items-center gap-1">
-                  <Mail className="h-3 w-3" /> Email
-                </Badge>
-              ) : null}
-              {campaign.ai_agent_id ? (
-                <Badge variant="secondary" className="flex items-center gap-1">
-                  <Brain className="h-3 w-3" /> AI Assisted
-                </Badge>
-              ) : null}
-            </div>
           </div>
           <Badge variant={statusColors[campaign.status]} className="uppercase">
             {campaign.status}
@@ -390,83 +312,43 @@ function CampaignCard({ campaign, niches }: { campaign: BDCampaign; niches: Targ
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Contact Progress</span>
-              <span className="font-medium">
-                {contactsReached} / {targetCount}
-              </span>
-            </div>
-            <Progress value={progress} />
+        <div className="space-y-2">
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">Progress</span>
+            <span className="font-medium">
+              {contactsReached} / {targetCount} contacts
+            </span>
           </div>
-
-          <div className="space-y-3 text-sm">
-            <MetricRow label="Research Completed" value={`${researchCompleted}`} postfix={`/ ${targetCount}`} progress={targetCount ? (researchCompleted / targetCount) * 100 : 0} />
-            <MetricRow label="LinkedIn Requests" value={`${linkedinStats.requests_sent || 0}`} postfix={targetCount ? `/ ${targetCount}` : undefined} progress={targetCount ? ((linkedinStats.requests_sent || 0) / targetCount) * 100 : undefined} />
-          <MetricRow label="LinkedIn Acceptance Rate" value={`${acceptanceRate}%`} />
-          <MetricRow label="Message Follow-Through" value={`${messageFollowThrough}%`} />
-          <MetricRow label="Emails Sent" value={`${ghlStats.emails_sent || 0}`} />
+          <Progress value={progress} />
         </div>
 
         <Separator />
 
-        <div className="grid grid-cols-2 gap-4 text-sm">
+        <div className="grid grid-cols-3 gap-4 text-sm">
           <div>
             <div className="text-muted-foreground">Responses</div>
-            <div className="font-medium">{responseTotal}</div>
+            <div className="font-medium">{campaign.responses_received ?? 0}</div>
           </div>
           <div>
             <div className="text-muted-foreground">Meetings</div>
-            <div className="font-medium">{campaign.meetings_booked}</div>
+            <div className="font-medium">{campaign.meetings_booked ?? 0}</div>
+          </div>
+          <div>
+            <div className="text-muted-foreground">Deals</div>
+            <div className="font-medium">{campaign.deals_generated ?? 0}</div>
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex items-center gap-2">
           <Badge variant="outline" className="capitalize">
             {campaign.campaign_type?.replace('_', ' ')}
           </Badge>
-          {campaign.linkedin_campaign_id ? (
-            <Badge variant="outline">ID: {campaign.linkedin_campaign_id}</Badge>
-          ) : null}
         </div>
 
-        <div className="flex flex-wrap gap-2 pt-2">
-          <Button variant="default" size="sm" onClick={() => navigate(`/campaigns/${campaign.slug}`)}>
-            View Details
-          </Button>
-          <Button variant="outline" size="sm" disabled>
-            Run AI Research
-          </Button>
-          <Button variant="outline" size="sm" disabled>
-            Generate Content
-          </Button>
-        </div>
+        <Button variant="default" size="sm" className="w-full" onClick={() => navigate(`/campaigns/${campaign.slug}`)}>
+          View Details
+        </Button>
       </CardContent>
     </Card>
-  );
-}
-
-function MetricRow({
-  label,
-  value,
-  postfix,
-  progress,
-}: {
-  label: string;
-  value: string;
-  postfix?: string;
-  progress?: number;
-}) {
-  return (
-    <div className="space-y-1">
-      <div className="flex justify-between text-sm">
-        <span className="text-muted-foreground">{label}</span>
-        <span className="font-medium">
-          {value}
-          {postfix ? ` ${postfix}` : ''}
-        </span>
-      </div>
-      {typeof progress === 'number' ? <Progress value={Math.min(progress, 100)} /> : null}
-    </div>
   );
 }
