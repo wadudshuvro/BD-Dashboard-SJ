@@ -165,6 +165,10 @@ export function useDeals(options: UseDealsOptions = {}): UseDealsReturn {
       setLoading(true);
       setError(null);
 
+      const todayAtMidnight = new Date();
+      todayAtMidnight.setHours(0, 0, 0, 0);
+      const todayIso = todayAtMidnight.toISOString().split('T')[0];
+
       let query: any = supabase
         .from('deals')
         .select(
@@ -194,6 +198,10 @@ export function useDeals(options: UseDealsOptions = {}): UseDealsReturn {
         `
         )
         .order(sortBy, { ascending: sortOrder === 'asc' });
+
+      query = query
+        .or(`close_date.is.null,close_date.gte.${todayIso}`)
+        .or('pipeline.is.null,pipeline.neq."SJ Internal"');
 
       if (clientId) {
         query = query.eq('client_id', clientId);
