@@ -53,7 +53,16 @@ serve(async (req) => {
     const userId = user?.id ?? null;
     
     // Parse request body for optional dealId filter and forceFullSync flag
-    const body = req.method === 'POST' ? await req.json() : {};
+    let body: any = {};
+    if (req.method === 'POST') {
+      try {
+        const text = await req.text();
+        body = text ? JSON.parse(text) : {};
+      } catch (e) {
+        console.log('[Sync] No body or invalid JSON, using defaults');
+        body = {};
+      }
+    }
     const dealId = body.dealId || null;
     const forceFullSync = body.forceFullSync || false;
 
