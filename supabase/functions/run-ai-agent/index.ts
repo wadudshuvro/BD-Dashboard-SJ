@@ -77,6 +77,140 @@ const AgentResponseSchema = z.object({
 
 type AgentResponse = z.infer<typeof AgentResponseSchema>;
 
+// Tool calling schema for BD lead analysis
+const bdAnalysisToolSchema = {
+  type: "function" as const,
+  function: {
+    name: "provide_lead_analysis",
+    description: "Provide comprehensive BD lead analysis with all required fields",
+    parameters: {
+      type: "object",
+      properties: {
+        summary: {
+          type: "string",
+          description: "2-3 sentence executive summary of lead value and campaign fit"
+        },
+        findings: {
+          type: "array",
+          items: { type: "string" },
+          description: "8-12 key insights in bullet format"
+        },
+        recommendations: {
+          type: "array",
+          items: { type: "string" },
+          description: "3-7 strategic recommendations"
+        },
+        action_items: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              type: { type: "string", enum: ["task", "research", "outreach"] },
+              description: { type: "string" },
+              priority: { type: "string", enum: ["high", "medium", "low"] },
+              due_date: { type: "string" },
+              confidence: { type: "number", minimum: 0, maximum: 1 }
+            },
+            required: ["type", "description", "priority", "confidence"]
+          }
+        },
+        metrics: {
+          type: "object",
+          properties: {
+            total_items_analyzed: { type: "integer" },
+            high_priority_issues: { type: "integer" },
+            anomalies_found: { type: "integer" }
+          },
+          required: ["total_items_analyzed", "high_priority_issues", "anomalies_found"]
+        },
+        confidence_score: {
+          type: "number",
+          minimum: 0,
+          maximum: 1,
+          description: "Overall confidence based on data completeness"
+        },
+        insights: {
+          type: "array",
+          items: { type: "string" },
+          description: "Context-specific insights, industry considerations, market timing"
+        },
+        risks: {
+          type: "array",
+          items: { type: "string" },
+          description: "Potential challenges, objections, competitive threats"
+        },
+        structured_output: {
+          type: "object",
+          properties: {
+            lead_quality_score: {
+              type: "string",
+              enum: ["A+", "A", "A-", "B+", "B", "B-", "C+", "C", "C-", "D", "F"],
+              description: "Lead quality grade"
+            },
+            engagement_readiness: {
+              type: "string",
+              enum: ["hot", "warm", "cold"],
+              description: "Engagement readiness assessment"
+            },
+            decision_maker_level: {
+              type: "string",
+              enum: ["C-suite", "VP", "Director", "Manager", "Individual Contributor"],
+              description: "Decision-making authority level"
+            },
+            best_approach: {
+              type: "string",
+              enum: ["consultative", "educational", "solution-focused", "relationship-building"],
+              description: "Recommended approach strategy"
+            },
+            estimated_deal_size: {
+              type: "string",
+              description: "Estimated deal size range or 'Not applicable'"
+            },
+            sales_cycle_estimate: {
+              type: "string",
+              description: "Estimated sales cycle duration"
+            },
+            recommended_next_step: {
+              type: "string",
+              description: "Specific recommended action"
+            },
+            recommended_timing: {
+              type: "string",
+              enum: ["now", "this week", "this month", "next quarter"],
+              description: "Recommended timing for next action"
+            },
+            key_talking_points: {
+              type: "array",
+              items: { type: "string" },
+              description: "3-5 key talking points for outreach"
+            }
+          },
+          required: [
+            "lead_quality_score",
+            "engagement_readiness",
+            "decision_maker_level",
+            "best_approach",
+            "recommended_next_step",
+            "recommended_timing",
+            "key_talking_points"
+          ]
+        }
+      },
+      required: [
+        "summary",
+        "findings",
+        "recommendations",
+        "action_items",
+        "metrics",
+        "confidence_score",
+        "insights",
+        "risks",
+        "structured_output"
+      ]
+    }
+  }
+};
+
 type SupabaseClient = ReturnType<typeof createClient>;
 
 interface DatabaseAgent {
@@ -699,35 +833,147 @@ serve(async (req) => {
     const rawOutputs: unknown[] = [];
     let parsedResponse: AgentResponse | null = null;
 
-    for (const providerConfig of providerChain) {
-      const result = await invokeProvider(providerConfig, messages);
-      const telemetryEntry = buildProviderTelemetry(result);
-      telemetry.push(telemetryEntry);
-      rawOutputs.push(result.rawResponse);
+    // Check if this is BD contact analysis - use tool calling for structured output
+    const contactData = (executionContext.filters as any)?.contact_data;
+    const isBDAnalysis = contactData && agent.category === 'research';
 
-      if (!result.content) {
-        console.error(`Provider ${providerConfig.provider}/${providerConfig.model} failed:`, {
-          error: telemetryEntry.error,
-          rawResponse: result.rawResponse,
-        });
-        continue;
+    if (isBDAnalysis) {
+      // Use OpenAI with tool calling for BD analysis
+      const openaiKey = Deno.env.get('OPENAI_API_KEY');
+      
+      if (openaiKey) {
+        const startTime = Date.now();
+        try {
+          const toolCallResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${openaiKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: 'gpt-4o-mini',
+              messages,
+              tools: [bdAnalysisToolSchema],
+              tool_choice: { type: "function", function: { name: "provide_lead_analysis" } },
+              temperature: 0.3,
+            }),
+          });
+
+          const toolCallResult = await toolCallResponse.json();
+          const latencyMs = Date.now() - startTime;
+          
+          telemetry.push({
+            provider: 'openai',
+            model: 'gpt-4o-mini',
+            latencyMs,
+            tokenUsage: {
+              promptTokens: toolCallResult.usage?.prompt_tokens,
+              completionTokens: toolCallResult.usage?.completion_tokens,
+              totalTokens: toolCallResult.usage?.total_tokens,
+            },
+          });
+          rawOutputs.push(toolCallResult);
+
+          const toolCall = toolCallResult.choices?.[0]?.message?.tool_calls?.[0];
+          if (toolCall && toolCall.function.name === "provide_lead_analysis") {
+            const analysisData = JSON.parse(toolCall.function.arguments);
+            
+            // Ensure all required fields with defaults
+            parsedResponse = {
+              summary: analysisData.summary || "Analysis completed",
+              findings: Array.isArray(analysisData.findings) ? analysisData.findings : [],
+              recommendations: Array.isArray(analysisData.recommendations) ? analysisData.recommendations : [],
+              action_items: Array.isArray(analysisData.action_items) ? analysisData.action_items : [],
+              metrics: analysisData.metrics || {
+                total_items_analyzed: 0,
+                high_priority_issues: 0,
+                anomalies_found: 0
+              },
+              confidence_score: analysisData.confidence_score ?? 0.5,
+              insights: Array.isArray(analysisData.insights) ? analysisData.insights : ["No additional insights"],
+              risks: Array.isArray(analysisData.risks) ? analysisData.risks : ["No risks identified"],
+              structured_output: analysisData.structured_output || {
+                lead_quality_score: "C",
+                engagement_readiness: "warm",
+                decision_maker_level: "Manager",
+                best_approach: "consultative",
+                estimated_deal_size: "Unknown",
+                sales_cycle_estimate: "Unknown",
+                recommended_next_step: "Conduct additional research",
+                recommended_timing: "this week",
+                key_talking_points: ["Initial contact recommended"]
+              }
+            };
+            
+            console.log('✅ BD Analysis completed with tool calling');
+          } else {
+            console.warn('⚠️ Tool call did not return expected format, falling back to standard flow');
+          }
+        } catch (toolError) {
+          console.error('Tool calling failed, falling back to standard provider chain:', toolError);
+          const latencyMs = Date.now() - startTime;
+          telemetry.push({
+            provider: 'openai',
+            model: 'gpt-4o-mini',
+            latencyMs,
+            error: { message: toolError instanceof Error ? toolError.message : 'Tool calling failed' },
+          });
+        }
       }
+    }
 
-      try {
-        parsedResponse = tryParseJson(result.content);
-        break;
-      } catch (error) {
-        telemetry[telemetry.length - 1] = {
-          ...telemetry[telemetry.length - 1],
-          error: {
-            message: error instanceof Error ? error.message : "Unable to parse provider output",
-          },
-        };
+    // Fallback to standard provider chain if tool calling wasn't used or failed
+    if (!parsedResponse) {
+      for (const providerConfig of providerChain) {
+        const result = await invokeProvider(providerConfig, messages);
+        const telemetryEntry = buildProviderTelemetry(result);
+        telemetry.push(telemetryEntry);
+        rawOutputs.push(result.rawResponse);
+
+        if (!result.content) {
+          console.error(`Provider ${providerConfig.provider}/${providerConfig.model} failed:`, {
+            error: telemetryEntry.error,
+            rawResponse: result.rawResponse,
+          });
+          continue;
+        }
+
+        try {
+          parsedResponse = tryParseJson(result.content);
+          break;
+        } catch (error) {
+          telemetry[telemetry.length - 1] = {
+            ...telemetry[telemetry.length - 1],
+            error: {
+              message: error instanceof Error ? error.message : "Unable to parse provider output",
+            },
+          };
+        }
       }
     }
 
     if (!parsedResponse) {
       throw new Error("All providers failed to produce a valid response");
+    }
+
+    // Final validation: ensure all expected fields exist for BD analysis
+    if (isBDAnalysis) {
+      parsedResponse = {
+        ...parsedResponse,
+        insights: parsedResponse.insights || ["No additional insights available"],
+        risks: parsedResponse.risks || ["No risks identified"],
+        structured_output: parsedResponse.structured_output || {
+          lead_quality_score: "C",
+          engagement_readiness: "warm",
+          decision_maker_level: "Manager",
+          best_approach: "consultative",
+          estimated_deal_size: "Unknown",
+          sales_cycle_estimate: "Unknown",
+          recommended_next_step: "Conduct additional research",
+          recommended_timing: "this week",
+          key_talking_points: ["Initial contact recommended"]
+        }
+      };
     }
 
     const structuredOutput = (parsedResponse as any).structured_output ?? parsedResponse;
