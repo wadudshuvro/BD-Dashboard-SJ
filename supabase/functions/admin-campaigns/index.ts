@@ -317,8 +317,10 @@ async function fetchRelatedMaps(client: SupabaseClient, campaigns: CampaignDatab
       const arr = campaignBrandsMap.get(cb.campaign_id) || [];
       arr.push(cb.brand_id);
       campaignBrandsMap.set(cb.campaign_id, arr);
-      if (cb.clients) {
-        brandMap.set(cb.clients.id, cb.clients as unknown as BrandRow);
+      // Handle joined client data (Supabase returns it as object, not array)
+      const clientData = cb.clients as unknown as { id: string; name: string | null; slug: string | null } | null;
+      if (clientData && clientData.id) {
+        brandMap.set(clientData.id, clientData as BrandRow);
       }
     }
   }
