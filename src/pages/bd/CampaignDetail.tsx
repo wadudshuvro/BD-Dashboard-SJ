@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   Archive,
@@ -26,6 +26,11 @@ import type { CampaignContactStatus } from '@/hooks/useCampaignDetail';
 import { useExaIntegration } from '@/hooks/useExaIntegration';
 import { useUserPermissions } from '@/hooks/useUserPermissions';
 import { CampaignLeadImportDialog } from '@/components/bd/CampaignLeadImportDialog';
+import { CampaignContactsTable } from '@/components/bd/CampaignContactsTable';
+import { ContactListControls, type SortOption } from '@/components/bd/ContactListControls';
+import { EmptyContactList } from '@/components/bd/EmptyContactList';
+import { useCampaignContactResearch } from '@/hooks/useCampaignContactResearch';
+import type { QuickActionType } from '@/components/bd/QuickActionsCell';
 
 const PIPELINE_STAGES: { status: CampaignContactStatus; title: string; description: string }[] = [
   { status: 'identified', title: 'Identified', description: 'Contacts imported into the campaign' },
@@ -57,6 +62,7 @@ export default function CampaignDetail() {
   const {
     campaign,
     contactByStatus,
+    contacts,
     markCompleted,
     softArchive,
     isUpdating,
@@ -66,7 +72,22 @@ export default function CampaignDetail() {
   } = useCampaignDetail(slug);
   const { runCampaignResearch, isRunningResearch } = useExaIntegration();
   const { hasPermission } = useUserPermissions();
+  const { mutateAsync: runContactResearch } = useCampaignContactResearch();
   const [leadImportDialogOpen, setLeadImportDialogOpen] = useState(false);
+  
+  // Smart List state
+  const [viewMode, setViewMode] = useState<'list' | 'pipeline'>(() => {
+    const saved = localStorage.getItem('campaign-view-mode');
+    return (saved as 'list' | 'pipeline') || 'pipeline';
+  });
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<CampaignContactStatus[]>([]);
+  const [sortBy, setSortBy] = useState<SortOption>('activity-desc');
+
+  // Save view mode preference
+  useEffect(() => {
+    localStorage.setItem('campaign-view-mode', viewMode);
+  }, [viewMode]);
 
   const linkedinStats = (campaign?.linkedin_stats as Record<string, number | undefined>) || {};
   const ghlStats = (campaign?.ghl_stats as Record<string, number | undefined>) || {};
@@ -134,6 +155,144 @@ export default function CampaignDetail() {
     } catch (error) {
       console.error('Unable to trigger campaign research', error);
     }
+  };
+
+  // Filter and sort contacts for list view
+  const filteredContacts = useMemo(() => {
+    if (!contacts) return [];
+    
+    let result = [...contacts];
+
+    // Search filter
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(
+        (c) =>
+          c.contact_name.toLowerCase().includes(query) ||
+          c.contact_company?.toLowerCase().includes(query) ||
+          c.contact_title?.toLowerCase().includes(query) ||
+          c.linkedin_headline?.toLowerCase().includes(query) ||
+          c.current_employer?.toLowerCase().includes(query) ||
+          c.current_position_title?.toLowerCase().includes(query)
+      );
+    }
+
+    // Status filter
+    if (statusFilter.length > 0) {
+      result = result.filter((c) => statusFilter.includes(c.status));
+    }
+
+    // Sort
+    result.sort((a, b) => {
+      switch (sortBy) {
+        case 'name-asc':
+          return a.contact_name.localeCompare(b.contact_name);
+        case 'name-desc':
+          return b.contact_name.localeCompare(a.contact_name);
+        case 'activity-desc': {
+          const aDate = new Date(a.last_activity_at || a.updated_at).getTime();
+          const bDate = new Date(b.last_activity_at || b.updated_at).getTime();
+          return bDate - aDate;
+        }
+        case 'activity-asc': {
+          const aDate = new Date(a.last_activity_at || a.updated_at).getTime();
+          const bDate = new Date(b.last_activity_at || b.updated_at).getTime();
+          return aDate - bDate;
+        }
+        case 'status': {
+          const statusOrder = PIPELINE_STAGES.map((s) => s.status);
+          return statusOrder.indexOf(a.status) - statusOrder.indexOf(b.status);
+        }
+        default:
+          return 0;
+      }
+    });
+
+    return result;
+  }, [contacts, searchQuery, statusFilter, sortBy]);
+
+  // Calculate status counts for filter dropdown
+  const statusCounts = useMemo(() => {
+    if (!contacts) return {} as Record<CampaignContactStatus, number>;
+    return contacts.reduce((acc, contact) => {
+      acc[contact.status] = (acc[contact.status] || 0) + 1;
+      return acc;
+    }, {} as Record<CampaignContactStatus, number>);
+  }, [contacts]);
+
+  // Quick action handler
+  const handleQuickAction = async (action: QuickActionType, contactSlug: string) => {
+    const contact = contacts?.find((c) => c.slug === contactSlug);
+    if (!contact) return;
+
+    switch (action) {
+      case 'view':
+        navigate(`/campaigns/${campaign?.slug}/contacts/${contact.slug}`);
+        break;
+
+      case 'research':
+        try {
+          toast({
+            title: 'Running AI research...',
+            description: `Analyzing ${contact.contact_name}`,
+          });
+          await runContactResearch({ contactId: contact.id, contactSlug: contact.slug });
+        } catch (error) {
+          console.error('Research failed', error);
+        }
+        break;
+
+      case 'connect':
+        if (contact.contact_linkedin_url) {
+          window.open(contact.contact_linkedin_url, '_blank');
+        } else {
+          toast({
+            title: 'No LinkedIn URL',
+            description: 'This contact does not have a LinkedIn profile',
+            variant: 'destructive',
+          });
+        }
+        break;
+
+      case 'message':
+        if (contact.contact_linkedin_url) {
+          window.open(`${contact.contact_linkedin_url}/detail/recent-activity/`, '_blank');
+        } else {
+          navigate(`/campaigns/${campaign?.slug}/contacts/${contact.slug}`);
+        }
+        break;
+
+      case 'email':
+        if (contact.contact_email) {
+          window.location.href = `mailto:${contact.contact_email}`;
+        } else {
+          toast({
+            title: 'No email address',
+            description: 'This contact does not have an email address',
+            variant: 'destructive',
+          });
+        }
+        break;
+
+      case 'meeting':
+        toast({
+          title: 'Meeting scheduler coming soon!',
+          description: 'This feature is under development',
+        });
+        break;
+
+      case 'followup':
+        navigate(`/campaigns/${campaign?.slug}/contacts/${contact.slug}`);
+        break;
+
+      default:
+        navigate(`/campaigns/${campaign?.slug}/contacts/${contact.slug}`);
+    }
+  };
+
+  const handleClearFilters = () => {
+    setSearchQuery('');
+    setStatusFilter([]);
   };
 
   if (isLoading) {
@@ -286,132 +445,164 @@ export default function CampaignDetail() {
         </CardContent>
       </Card>
 
-      {/* Main Focus Area - Contact Pipeline */}
+      {/* Main Focus Area - Contact Pipeline / Smart List */}
       <Card>
         <CardHeader>
-          <CardTitle>Contact Pipeline</CardTitle>
+          <div className="space-y-4">
+            <CardTitle>Campaign Contacts</CardTitle>
+            <ContactListControls
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
+              statusFilter={statusFilter}
+              onStatusFilterChange={setStatusFilter}
+              sortBy={sortBy}
+              onSortChange={setSortBy}
+              viewMode={viewMode}
+              onViewModeChange={setViewMode}
+              statusCounts={statusCounts}
+            />
+          </div>
         </CardHeader>
         <CardContent>
-          <ScrollArea className="h-[520px]">
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              {PIPELINE_STAGES.map((stage) => {
-                const contacts = contactByStatus[stage.status] || [];
-                return (
-                  <div key={stage.status} className="space-y-4">
-                    <div className="sticky top-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-10 pb-2">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-semibold">{stage.title}</p>
-                          <p className="text-xs text-muted-foreground">{stage.description}</p>
+          {viewMode === 'list' ? (
+            // Smart List View
+            filteredContacts.length > 0 ? (
+              <CampaignContactsTable
+                contacts={filteredContacts}
+                campaignSlug={campaign.slug}
+                onQuickAction={handleQuickAction}
+              />
+            ) : (
+              <EmptyContactList
+                hasContacts={(contacts?.length || 0) > 0}
+                hasFilters={searchQuery !== '' || statusFilter.length > 0}
+                onClearFilters={handleClearFilters}
+                onAddLeads={() => setLeadImportDialogOpen(true)}
+              />
+            )
+          ) : (
+            // Pipeline View (existing)
+            <ScrollArea className="h-[520px]">
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                {PIPELINE_STAGES.map((stage) => {
+                  const stageContacts = contactByStatus[stage.status] || [];
+                  return (
+                    <div key={stage.status} className="space-y-4">
+                      <div className="sticky top-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-10 pb-2">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-semibold">{stage.title}</p>
+                            <p className="text-xs text-muted-foreground">{stage.description}</p>
+                          </div>
+                          <Badge variant="secondary" className={stageBadgeClass(stage.status)}>
+                            {stageContacts.length}
+                          </Badge>
                         </div>
-                        <Badge variant="secondary" className={stageBadgeClass(stage.status)}>
-                          {contacts.length}
-                        </Badge>
+                        <Separator className="mt-2" />
                       </div>
-                      <Separator className="mt-2" />
-                    </div>
-                    <div className="space-y-3">
-                      {contacts.length === 0 ? (
-                        <Card className="border-dashed bg-muted/20">
-                          <CardContent className="flex flex-col items-center justify-center py-8 px-4 text-center">
-                            {stage.status === 'identified' ? (
-                              <>
-                                <Users className="h-10 w-10 text-muted-foreground mb-3" />
-                                <p className="text-sm font-medium mb-1">No contacts yet</p>
-                                <p className="text-xs text-muted-foreground mb-3">Import leads to get started</p>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => setLeadImportDialogOpen(true)}
-                                  className="gap-2"
-                                >
-                                  <Users className="h-3 w-3" />
-                                  Add Leads
-                                </Button>
-                              </>
-                            ) : stage.status === 'researched' && contactByStatus.identified?.length > 0 ? (
-                              <>
-                                <Brain className="h-10 w-10 text-muted-foreground mb-3" />
-                                <p className="text-sm font-medium mb-1">No research yet</p>
-                                <p className="text-xs text-muted-foreground mb-3">Run research on identified contacts</p>
-                                {canRunResearch && (
+                      <div className="space-y-3">
+                        {stageContacts.length === 0 ? (
+                          <Card className="border-dashed bg-muted/20">
+                            <CardContent className="flex flex-col items-center justify-center py-8 px-4 text-center">
+                              {stage.status === 'identified' ? (
+                                <>
+                                  <Users className="h-10 w-10 text-muted-foreground mb-3" />
+                                  <p className="text-sm font-medium mb-1">No contacts yet</p>
+                                  <p className="text-xs text-muted-foreground mb-3">Import leads to get started</p>
                                   <Button
                                     size="sm"
                                     variant="outline"
-                                    onClick={handleRunResearch}
-                                    disabled={isRunningResearch}
+                                    onClick={() => setLeadImportDialogOpen(true)}
                                     className="gap-2"
                                   >
-                                    {isRunningResearch ? (
-                                      <Loader2 className="h-3 w-3 animate-spin" />
-                                    ) : (
-                                      <Rocket className="h-3 w-3" />
-                                    )}
-                                    Run R&D
+                                    <Users className="h-3 w-3" />
+                                    Add Leads
                                   </Button>
-                                )}
-                              </>
-                            ) : (
-                              <>
-                                <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center mb-3">
-                                  <div className="text-lg">→</div>
-                                </div>
-                                <p className="text-sm text-muted-foreground">Move contacts here</p>
-                              </>
-                            )}
-                          </CardContent>
-                        </Card>
-                      ) : (
-                        contacts.map((contact) => (
-                          <button
-                            key={contact.id}
-                            onClick={() => navigate(`/campaigns/${campaign.slug}/contacts/${contact.slug}`)}
-                            className="w-full rounded-lg border bg-card p-3 text-left hover:bg-accent hover:shadow-sm transition-all"
-                          >
-                            <div className="flex items-start gap-3">
-                              <Avatar className="h-9 w-9">
-                                <AvatarFallback className="text-xs">
-                                  {contact.contact_name.slice(0, 2).toUpperCase()}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div className="flex-1 min-w-0">
-                                <p className="font-medium text-sm leading-tight truncate">
-                                  {contact.contact_name}
-                                </p>
-                                {contact.linkedin_headline && (
-                                  <p className="text-xs text-muted-foreground truncate italic line-clamp-1">
-                                    {contact.linkedin_headline}
+                                </>
+                              ) : stage.status === 'researched' && contactByStatus.identified?.length > 0 ? (
+                                <>
+                                  <Brain className="h-10 w-10 text-muted-foreground mb-3" />
+                                  <p className="text-sm font-medium mb-1">No research yet</p>
+                                  <p className="text-xs text-muted-foreground mb-3">Run research on identified contacts</p>
+                                  {canRunResearch && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={handleRunResearch}
+                                      disabled={isRunningResearch}
+                                      className="gap-2"
+                                    >
+                                      {isRunningResearch ? (
+                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                      ) : (
+                                        <Rocket className="h-3 w-3" />
+                                      )}
+                                      Run R&D
+                                    </Button>
+                                  )}
+                                </>
+                              ) : (
+                                <>
+                                  <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center mb-3">
+                                    <div className="text-lg">→</div>
+                                  </div>
+                                  <p className="text-sm text-muted-foreground">Move contacts here</p>
+                                </>
+                              )}
+                            </CardContent>
+                          </Card>
+                        ) : (
+                          stageContacts.map((contact) => (
+                            <button
+                              key={contact.id}
+                              onClick={() => navigate(`/campaigns/${campaign.slug}/contacts/${contact.slug}`)}
+                              className="w-full rounded-lg border bg-card p-3 text-left hover:bg-accent hover:shadow-sm transition-all"
+                            >
+                              <div className="flex items-start gap-3">
+                                <Avatar className="h-9 w-9">
+                                  <AvatarFallback className="text-xs">
+                                    {contact.contact_name.slice(0, 2).toUpperCase()}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-medium text-sm leading-tight truncate">
+                                    {contact.contact_name}
                                   </p>
-                                )}
-                                {contact.contact_company && (
-                                  <p className="text-xs text-muted-foreground truncate">
-                                    {contact.contact_title ? `${contact.contact_title} at ` : ''}{contact.contact_company}
-                                  </p>
-                                )}
-                                <div className="flex items-center gap-2 mt-2">
-                                  {contact.research_summary && (
-                                    <Badge variant="secondary" className="text-[10px] h-4 px-1.5 gap-0.5">
-                                      <Brain className="h-2.5 w-2.5" />
-                                    </Badge>
+                                  {contact.linkedin_headline && (
+                                    <p className="text-xs text-muted-foreground truncate italic line-clamp-1">
+                                      {contact.linkedin_headline}
+                                    </p>
                                   )}
-                                  {contact.contact_email && (
-                                    <Mail className="h-3 w-3 text-muted-foreground" />
+                                  {contact.contact_company && (
+                                    <p className="text-xs text-muted-foreground truncate">
+                                      {contact.contact_title ? `${contact.contact_title} at ` : ''}{contact.contact_company}
+                                    </p>
                                   )}
-                                  {contact.contact_linkedin_url && (
-                                    <Linkedin className="h-3 w-3 text-muted-foreground" />
-                                  )}
+                                  <div className="flex items-center gap-2 mt-2">
+                                    {contact.research_summary && (
+                                      <Badge variant="secondary" className="text-[10px] h-4 px-1.5 gap-0.5">
+                                        <Brain className="h-2.5 w-2.5" />
+                                      </Badge>
+                                    )}
+                                    {contact.contact_email && (
+                                      <Mail className="h-3 w-3 text-muted-foreground" />
+                                    )}
+                                    {contact.contact_linkedin_url && (
+                                      <Linkedin className="h-3 w-3 text-muted-foreground" />
+                                    )}
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          </button>
-                        ))
-                      )}
+                            </button>
+                          ))
+                        )}
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          </ScrollArea>
+                  );
+                })}
+              </div>
+            </ScrollArea>
+          )}
         </CardContent>
       </Card>
 
