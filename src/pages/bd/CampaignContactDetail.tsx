@@ -527,7 +527,7 @@ export default function CampaignContactDetail() {
                     )}
                   </Button>
 
-                  {generatedMessages && (
+                  {generatedMessages && generatedMessages.message_variants && generatedMessages.message_variants.length > 0 && (
                     <div className="space-y-3">
                       <Tabs value={selectedVariant || generatedMessages.message_variants[0]?.variant_name} onValueChange={setSelectedVariant}>
                         <TabsList className="grid w-full grid-cols-3">
@@ -612,6 +612,15 @@ export default function CampaignContactDetail() {
                         </Card>
                       </div>
                     </div>
+                  )}
+                  
+                  {generatedMessages && (!generatedMessages.message_variants || generatedMessages.message_variants.length === 0) && (
+                    <Alert>
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertDescription>
+                        Messages were generated but the response format was unexpected. Please try generating again.
+                      </AlertDescription>
+                    </Alert>
                   )}
                 </CardContent>
               </Card>
