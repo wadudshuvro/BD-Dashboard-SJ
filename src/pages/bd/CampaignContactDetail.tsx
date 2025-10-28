@@ -1,5 +1,5 @@
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, Loader2, Mail, Linkedin, Phone, Sparkles, MessageSquare, Trash2, Calendar, Users, Network, Briefcase, FileText, Award, Globe, Brain, Copy, Lightbulb, CheckSquare, BarChart3, Target, AlertTriangle, RefreshCw } from "lucide-react";
+import { ArrowLeft, Loader2, Mail, Linkedin, Phone, Sparkles, MessageSquare, Trash2, Calendar, Users, Network, Briefcase, FileText, Award, Globe, Brain, Copy, Lightbulb, CheckSquare, BarChart3, Target, AlertTriangle, RefreshCw, Building, AlertCircle } from "lucide-react";
 import { StatusBadgeWithIcon } from "@/components/bd/StatusBadgeWithIcon";
 import { StatusProgressBar } from "@/components/bd/StatusProgressBar";
 import { StatusHistoryTimeline } from "@/components/bd/StatusHistoryTimeline";
@@ -281,6 +281,38 @@ export default function CampaignContactDetail() {
             </Button>
           )}
 
+          {/* Company Research Button - show if has company name but no company_id */}
+          {!contact.company_id && (contact.current_employer || contact.contact_company) && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleRunResearch}
+              disabled={researchMutation.isPending}
+              className="gap-2"
+            >
+              {researchMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Researching...
+                </>
+              ) : (
+                <>
+                  <Building className="h-4 w-4" />
+                  Research Company
+                </>
+              )}
+            </Button>
+          )}
+
+          {/* View Company Button - show if has company_id */}
+          {contact.company_id && (
+            <Button variant="outline" size="sm" asChild className="gap-2">
+              <Link to={`/companies/${contact.company_id}`}>
+                <Briefcase className="h-4 w-4" /> View Company
+              </Link>
+            </Button>
+          )}
+
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button variant="destructive" size="sm" className="gap-2">
@@ -317,9 +349,18 @@ export default function CampaignContactDetail() {
                 {(contact.current_employer || contact.contact_company) && (
                   <div className="flex items-center gap-2">
                     <Briefcase className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">
-                      {contact.current_employer || contact.contact_company}
-                    </span>
+                    {contact.company_id ? (
+                      <Link 
+                        to={`/companies/${contact.company_id}`}
+                        className="text-sm text-primary hover:underline"
+                      >
+                        {contact.current_employer || contact.contact_company}
+                      </Link>
+                    ) : (
+                      <span className="text-sm text-muted-foreground">
+                        {contact.current_employer || contact.contact_company}
+                      </span>
+                    )}
                   </div>
                 )}
                 {contact.years_in_current_role && (
@@ -376,9 +417,13 @@ export default function CampaignContactDetail() {
         
         <CardContent>
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-5">
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="research">Research</TabsTrigger>
+              <TabsTrigger value="company" className="gap-2">
+                <Building className="h-4 w-4" />
+                Company
+              </TabsTrigger>
               <TabsTrigger value="history" className="relative">
                 History
                 {statusHistory.length > 0 && (
@@ -1042,6 +1087,134 @@ export default function CampaignContactDetail() {
                     {researchMutation.isPending ? "Researching..." : "Run Research Now"}
                   </Button>
                 </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="company" className="space-y-4 mt-6">
+              {contact.company_id ? (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center justify-between">
+                      <span className="flex items-center gap-2">
+                        <Building className="h-5 w-5" />
+                        {contact.current_employer || contact.contact_company}
+                      </span>
+                      <Button variant="outline" size="sm" asChild>
+                        <Link to={`/companies/${contact.company_id}`}>
+                          View Full Company Profile
+                        </Link>
+                      </Button>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {contact.company_description && (
+                      <div className="space-y-2">
+                        <h3 className="font-semibold text-sm">About</h3>
+                        <p className="text-sm text-muted-foreground">{contact.company_description}</p>
+                      </div>
+                    )}
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      {contact.company_industry && (
+                        <div>
+                          <p className="text-xs text-muted-foreground mb-1">Industry</p>
+                          <p className="text-sm font-medium">{contact.company_industry}</p>
+                        </div>
+                      )}
+                      {contact.company_size && (
+                        <div>
+                          <p className="text-xs text-muted-foreground mb-1">Company Size</p>
+                          <p className="text-sm font-medium">{contact.company_size}</p>
+                        </div>
+                      )}
+                      {contact.company_headquarters && (
+                        <div>
+                          <p className="text-xs text-muted-foreground mb-1">Headquarters</p>
+                          <p className="text-sm font-medium">{contact.company_headquarters}</p>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex gap-2">
+                      {contact.company_website && (
+                        <Button variant="outline" size="sm" asChild>
+                          <a href={contact.company_website} target="_blank" rel="noopener noreferrer">
+                            <Globe className="h-4 w-4 mr-2" />
+                            Website
+                          </a>
+                        </Button>
+                      )}
+                      {contact.company_linkedin_url && (
+                        <Button variant="outline" size="sm" asChild>
+                          <a href={contact.company_linkedin_url} target="_blank" rel="noopener noreferrer">
+                            <Linkedin className="h-4 w-4 mr-2" />
+                            LinkedIn
+                          </a>
+                        </Button>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Building className="h-5 w-5" />
+                      {contact.current_employer || contact.contact_company || 'Company Information'}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {contact.company_website || contact.company_description ? (
+                      <div className="space-y-4">
+                        {contact.company_description && (
+                          <div>
+                            <p className="text-xs text-muted-foreground mb-1">Description</p>
+                            <p className="text-sm">{contact.company_description}</p>
+                          </div>
+                        )}
+                        {contact.company_website && (
+                          <Button variant="outline" size="sm" asChild>
+                            <a href={contact.company_website} target="_blank" rel="noopener noreferrer">
+                              <Globe className="h-4 w-4 mr-2" />
+                              Visit Website
+                            </a>
+                          </Button>
+                        )}
+                        <Alert>
+                          <AlertCircle className="h-4 w-4" />
+                          <AlertTitle>Limited Company Data</AlertTitle>
+                          <AlertDescription>
+                            Run research to get complete company profile and link to company page.
+                          </AlertDescription>
+                        </Alert>
+                      </div>
+                    ) : (
+                      <div className="text-center py-8">
+                        <Building className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                        <h3 className="font-semibold mb-2">No Company Information Available</h3>
+                        <p className="text-sm text-muted-foreground mb-4">
+                          Run research to gather company insights and create a company profile
+                        </p>
+                        <Button 
+                          onClick={handleRunResearch}
+                          disabled={researchMutation.isPending}
+                        >
+                          {researchMutation.isPending ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Researching...
+                            </>
+                          ) : (
+                            <>
+                              <Sparkles className="h-4 w-4 mr-2" />
+                              Research Company
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
               )}
             </TabsContent>
 
