@@ -35,6 +35,9 @@ import type { CampaignType } from '@/Api/adminCampaigns';
 import type { TargetNiche } from '@/hooks/useTargetNiches';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
+import { useBDTeamMembers } from '@/hooks/useBDTeamMembers';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 const CAMPAIGN_TYPES: CampaignType[] = [
   'email_outbound',
@@ -98,6 +101,7 @@ const campaignFormSchema = z
     startDate: optionalDate,
     endDate: optionalDate,
     targetContactsCount: optionalNumber,
+    ownedBy: z.string().uuid().optional(),
     seedKpis: z.boolean().optional().default(false),
     enableTaskTemplate: z.boolean().optional().default(false),
     taskTemplateKey: z.string().optional(),
@@ -131,7 +135,9 @@ export function CampaignDialog({ open, onOpenChange, niches, campaign, mode = 'c
   const { createCampaign, updateCampaign } = useBDCampaigns();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { user } = useAuth();
   const isEditMode = mode === 'edit' && campaign;
+  const { data: bdTeamMembers = [], isLoading: bdTeamLoading } = useBDTeamMembers();
 
   const form = useForm<CampaignFormValues>({
     resolver: zodResolver(campaignFormSchema),
@@ -143,6 +149,7 @@ export function CampaignDialog({ open, onOpenChange, niches, campaign, mode = 'c
       startDate: undefined,
       endDate: undefined,
       targetContactsCount: undefined,
+      ownedBy: user?.id,
       seedKpis: false,
       enableTaskTemplate: false,
       taskTemplateKey: undefined,
@@ -174,6 +181,7 @@ export function CampaignDialog({ open, onOpenChange, niches, campaign, mode = 'c
         startDate: undefined,
         endDate: undefined,
         targetContactsCount: undefined,
+        ownedBy: user?.id,
         seedKpis: false,
         enableTaskTemplate: false,
         taskTemplateKey: undefined,
@@ -188,6 +196,7 @@ export function CampaignDialog({ open, onOpenChange, niches, campaign, mode = 'c
         startDate: campaign.start_date || undefined,
         endDate: campaign.end_date || undefined,
         targetContactsCount: campaign.target_contacts_count || undefined,
+        ownedBy: campaign.owned_by || user?.id,
         seedKpis: false,
         enableTaskTemplate: false,
         taskTemplateKey: undefined,
@@ -206,6 +215,7 @@ export function CampaignDialog({ open, onOpenChange, niches, campaign, mode = 'c
         start_date: values.startDate ?? null,
         end_date: values.endDate ?? null,
         target_contacts_count: typeof values.targetContactsCount === 'number' ? values.targetContactsCount : null,
+        owned_by: values.ownedBy || null,
       };
 
       if (isEditMode) {
@@ -296,6 +306,46 @@ export function CampaignDialog({ open, onOpenChange, niches, campaign, mode = 'c
                             {niche.name}
                           </SelectItem>
                         ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="ownedBy"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Campaign Owner</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select owner" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {bdTeamLoading ? (
+                          <div className="py-2 px-2 text-sm text-muted-foreground">Loading team members...</div>
+                        ) : bdTeamMembers.length === 0 ? (
+                          <div className="py-2 px-2 text-sm text-muted-foreground">No team members found</div>
+                        ) : (
+                          bdTeamMembers.map((member) => (
+                            <SelectItem key={member.id} value={member.id}>
+                              <div className="flex items-center gap-2">
+                                <Avatar className="h-5 w-5">
+                                  <AvatarImage src={member.avatar_url} />
+                                  <AvatarFallback className="text-xs">
+                                    {member.full_name?.substring(0, 2).toUpperCase() || 'U'}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <span>{member.full_name}</span>
+                                <span className="text-xs text-muted-foreground">({member.email})</span>
+                              </div>
+                            </SelectItem>
+                          ))
+                        )}
                       </SelectContent>
                     </Select>
                     <FormMessage />
