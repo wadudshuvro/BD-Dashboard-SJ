@@ -2,13 +2,6 @@ import { Search, SlidersHorizontal, List, Columns } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
@@ -30,15 +23,11 @@ const STATUS_OPTIONS: { value: CampaignContactStatus; label: string }[] = [
   { value: 'meeting_booked', label: 'Meeting' },
 ];
 
-export type SortOption = 'name-asc' | 'name-desc' | 'activity-desc' | 'activity-asc' | 'status';
-
 interface ContactListControlsProps {
   searchQuery: string;
   onSearchChange: (query: string) => void;
   statusFilter: CampaignContactStatus[];
   onStatusFilterChange: (statuses: CampaignContactStatus[]) => void;
-  sortBy: SortOption;
-  onSortChange: (sort: SortOption) => void;
   viewMode: 'list' | 'pipeline';
   onViewModeChange: (mode: 'list' | 'pipeline') => void;
   statusCounts?: Record<CampaignContactStatus, number>;
@@ -49,8 +38,6 @@ export function ContactListControls({
   onSearchChange,
   statusFilter,
   onStatusFilterChange,
-  sortBy,
-  onSortChange,
   viewMode,
   onViewModeChange,
   statusCounts,
@@ -129,20 +116,6 @@ export function ContactListControls({
             )}
           </DropdownMenuContent>
         </DropdownMenu>
-
-        {/* Sort */}
-        <Select value={sortBy} onValueChange={(value) => onSortChange(value as SortOption)}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Sort by..." />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="activity-desc">Recent Activity</SelectItem>
-            <SelectItem value="activity-asc">Oldest Activity</SelectItem>
-            <SelectItem value="name-asc">Name (A-Z)</SelectItem>
-            <SelectItem value="name-desc">Name (Z-A)</SelectItem>
-            <SelectItem value="status">Status (Pipeline)</SelectItem>
-          </SelectContent>
-        </Select>
 
         {/* View Toggle */}
         <div className="flex items-center border rounded-md">

@@ -27,7 +27,7 @@ import { useExaIntegration } from '@/hooks/useExaIntegration';
 import { useUserPermissions } from '@/hooks/useUserPermissions';
 import { CampaignLeadImportDialog } from '@/components/bd/CampaignLeadImportDialog';
 import { CampaignContactsTable } from '@/components/bd/CampaignContactsTable';
-import { ContactListControls, type SortOption } from '@/components/bd/ContactListControls';
+import { ContactListControls } from '@/components/bd/ContactListControls';
 import { EmptyContactList } from '@/components/bd/EmptyContactList';
 import { useCampaignContactResearch } from '@/hooks/useCampaignContactResearch';
 import type { QuickActionType } from '@/components/bd/QuickActionsCell';
@@ -82,7 +82,6 @@ export default function CampaignDetail() {
   });
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<CampaignContactStatus[]>([]);
-  const [sortBy, setSortBy] = useState<SortOption>('activity-desc');
 
   // Save view mode preference
   useEffect(() => {
@@ -182,34 +181,8 @@ export default function CampaignDetail() {
       result = result.filter((c) => statusFilter.includes(c.status));
     }
 
-    // Sort
-    result.sort((a, b) => {
-      switch (sortBy) {
-        case 'name-asc':
-          return a.contact_name.localeCompare(b.contact_name);
-        case 'name-desc':
-          return b.contact_name.localeCompare(a.contact_name);
-        case 'activity-desc': {
-          const aDate = new Date(a.last_activity_at || a.updated_at).getTime();
-          const bDate = new Date(b.last_activity_at || b.updated_at).getTime();
-          return bDate - aDate;
-        }
-        case 'activity-asc': {
-          const aDate = new Date(a.last_activity_at || a.updated_at).getTime();
-          const bDate = new Date(b.last_activity_at || b.updated_at).getTime();
-          return aDate - bDate;
-        }
-        case 'status': {
-          const statusOrder = PIPELINE_STAGES.map((s) => s.status);
-          return statusOrder.indexOf(a.status) - statusOrder.indexOf(b.status);
-        }
-        default:
-          return 0;
-      }
-    });
-
     return result;
-  }, [contacts, searchQuery, statusFilter, sortBy]);
+  }, [contacts, searchQuery, statusFilter]);
 
   // Calculate status counts for filter dropdown
   const statusCounts = useMemo(() => {
@@ -455,8 +428,6 @@ export default function CampaignDetail() {
               onSearchChange={setSearchQuery}
               statusFilter={statusFilter}
               onStatusFilterChange={setStatusFilter}
-              sortBy={sortBy}
-              onSortChange={setSortBy}
               viewMode={viewMode}
               onViewModeChange={setViewMode}
               statusCounts={statusCounts}
