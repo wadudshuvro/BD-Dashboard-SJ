@@ -59,6 +59,7 @@ export type Database = {
           id: string
           input: Json | null
           output: Json | null
+          provider_chain: Json | null
           selected_file_ids: string[] | null
           started_at: string
           status: string | null
@@ -80,6 +81,7 @@ export type Database = {
           id?: string
           input?: Json | null
           output?: Json | null
+          provider_chain?: Json | null
           selected_file_ids?: string[] | null
           started_at?: string
           status?: string | null
@@ -101,6 +103,7 @@ export type Database = {
           id?: string
           input?: Json | null
           output?: Json | null
+          provider_chain?: Json | null
           selected_file_ids?: string[] | null
           started_at?: string
           status?: string | null
