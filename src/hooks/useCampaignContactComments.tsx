@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useCampaignContactUpdate } from "./useCampaignContactUpdate";
 
 export interface CampaignContactComment {
   id: string;
@@ -16,6 +17,7 @@ export interface CampaignContactComment {
 export const useCampaignContactComments = (contactId: string | undefined) => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const updateContact = useCampaignContactUpdate();
 
   const commentsQuery = useQuery({
     queryKey: ["campaign-contact-comments", contactId],
@@ -76,9 +78,42 @@ export const useCampaignContactComments = (contactId: string | undefined) => {
         user_email: profile?.email,
       };
     },
-    onSuccess: () => {
+    onSuccess: async (_, { contactId, comment }) => {
+      // Keyword detection for auto-status change
+      const lowerComment = comment.toLowerCase();
+      const { data: contact } = await supabase
+        .from("campaign_contacts")
+        .select("status, slug")
+        .eq("id", contactId)
+        .single();
+
+      if (contact) {
+        let newStatus: string | null = null;
+
+        if ((lowerComment.includes("responded") || lowerComment.includes("replied")) && contact.status !== "responded") {
+          newStatus = "responded";
+        } else if ((lowerComment.includes("meeting") || lowerComment.includes("scheduled") || lowerComment.includes("booked")) && contact.status !== "meeting_booked") {
+          newStatus = "meeting_booked";
+        } else if (lowerComment.includes("connected") && contact.status === "contacted_linkedin") {
+          newStatus = "connected";
+        }
+
+        if (newStatus) {
+          await updateContact.mutateAsync({
+            contactId,
+            updates: { status: newStatus }
+          });
+          
+          toast({ 
+            title: "Comment added & status updated", 
+            description: `Status automatically updated based on comment keywords ✓` 
+          });
+        } else {
+          toast({ title: "Comment added successfully" });
+        }
+      }
+
       queryClient.invalidateQueries({ queryKey: ["campaign-contact-comments", contactId] });
-      toast({ title: "Comment added successfully" });
     },
     onError: (error: Error) => {
       toast({ 

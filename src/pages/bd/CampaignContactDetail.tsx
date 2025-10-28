@@ -2,6 +2,8 @@ import { Link, useParams } from "react-router-dom";
 import { ArrowLeft, Loader2, Mail, Linkedin, Phone, Sparkles, MessageSquare, Trash2, Calendar, Users, Network, Briefcase, FileText, Award, Globe, Brain } from "lucide-react";
 import { StatusBadgeWithIcon } from "@/components/bd/StatusBadgeWithIcon";
 import { StatusProgressBar } from "@/components/bd/StatusProgressBar";
+import { StatusHistoryTimeline } from "@/components/bd/StatusHistoryTimeline";
+import { useCampaignContactStatusHistory } from "@/hooks/useCampaignContactStatusHistory";
 import type { CampaignContactStatus } from "@/features/campaign-detail/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -39,6 +41,7 @@ export default function CampaignContactDetail() {
   const researchMutation = useCampaignContactResearch();
   const deleteMutation = useDeleteCampaignContact();
   const updateMutation = useCampaignContactUpdate();
+  const { data: statusHistory = [] } = useCampaignContactStatusHistory(contact?.id);
   
   const [newComment, setNewComment] = useState("");
   const [activeTab, setActiveTab] = useState("overview");
@@ -239,9 +242,17 @@ export default function CampaignContactDetail() {
         
         <CardContent>
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="research">Research</TabsTrigger>
+              <TabsTrigger value="history" className="relative">
+                History
+                {statusHistory.length > 0 && (
+                  <Badge variant="secondary" className="ml-2 h-5 w-5 rounded-full p-0 text-xs">
+                    {statusHistory.length}
+                  </Badge>
+                )}
+              </TabsTrigger>
               <TabsTrigger value="comments" className="relative">
                 Comments
                 {comments.length > 0 && (
@@ -565,6 +576,10 @@ export default function CampaignContactDetail() {
                   </Button>
                 </div>
               )}
+            </TabsContent>
+
+            <TabsContent value="history" className="mt-6">
+              <StatusHistoryTimeline history={statusHistory} />
             </TabsContent>
 
             <TabsContent value="comments" className="space-y-4 mt-6">
