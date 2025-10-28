@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { useControlTowerDeals, useControlTowerClients, useControlTowerLeads } from '@/hooks/useControlTowerData';
 import { TrendingUp, Users, Target, Award } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { SyncControlTowerButton } from '@/components/bd/SyncControlTowerButton';
 
 export default function BDDashboard() {
   const { data: leads = [] } = useControlTowerLeads();
@@ -23,11 +24,14 @@ export default function BDDashboard() {
 
   return (
     <div className="container mx-auto py-8 space-y-6">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold">Business Development Dashboard</h1>
-        <p className="text-muted-foreground">
-          Track your BD performance and pipeline health
-        </p>
+      <div className="mb-6 flex justify-between items-start">
+        <div>
+          <h1 className="text-3xl font-bold">Business Development Dashboard</h1>
+          <p className="text-muted-foreground">
+            Track your BD performance and pipeline health
+          </p>
+        </div>
+        <SyncControlTowerButton />
       </div>
 
       {/* KPI Cards */}
