@@ -310,12 +310,108 @@ function assemblePrompt(
       anomalies_found: 0,
       high_priority_issues: 0
     },
-    confidence_score: 0.8
+    confidence_score: 0.8,
+    insights: ["Additional insight 1"],
+    risks: ["Risk factor 1"],
+    structured_output: {
+      lead_quality_score: "A+",
+      engagement_readiness: "hot|warm|cold",
+      decision_maker_level: "C-suite|VP|Director|Manager",
+      best_approach: "consultative|educational|solution-focused",
+      recommended_next_step: "specific action",
+      recommended_timing: "now|this week|this month",
+      key_talking_points: ["point 1", "point 2", "point 3"]
+    }
   }, null, 2);
 
   let userPrompt: string;
   
-  if (agent.prompt_template) {
+  // Check if this is a BD contact analysis
+  const contactData = (executionContext.filters as any)?.contact_data;
+  
+  if (contactData && agent.category === 'research') {
+    // Build comprehensive BD analysis prompt
+    userPrompt = `# LEAD INTELLIGENCE ANALYSIS
+
+## CAMPAIGN CONTEXT
+Campaign: ${contactData.campaign_name || 'N/A'}
+Type: ${contactData.campaign_type || 'N/A'}
+Status: ${contactData.campaign_status || 'N/A'}
+Target Regions: ${Array.isArray(contactData.campaign_target_regions) ? contactData.campaign_target_regions.join(", ") : 'N/A'}
+Campaign Goals:
+- Target Contacts: ${contactData.campaign_goals?.target_contacts_count || 0}
+- Reached: ${contactData.campaign_goals?.actual_contacts_reached || 0}
+- Responses: ${contactData.campaign_goals?.responses_received || 0}
+- Meetings: ${contactData.campaign_goals?.meetings_booked || 0}
+- Deals: ${contactData.campaign_goals?.deals_generated || 0}
+
+## LEAD PROFILE
+
+### Basic Information
+Name: ${contactData.contact_name || 'N/A'}
+Email: ${contactData.contact_email || 'Not available'}
+Phone: ${contactData.contact_phone || 'Not available'}
+LinkedIn: ${contactData.contact_linkedin_url || 'Not available'}
+
+### Current Role
+Title: ${contactData.current_position_title || 'Not available'}
+Company: ${contactData.current_employer || 'Not available'}
+Started: ${contactData.current_position_start_date || 'Unknown'}
+Years in Role: ${contactData.years_in_current_role || 'Unknown'}
+
+### Professional Background
+Headline: ${contactData.linkedin_headline || 'N/A'}
+Location: ${contactData.linkedin_location || 'N/A'}
+Total Experience: ${contactData.total_years_experience || 'Unknown'} years
+Industry Focus: ${contactData.industry_focus || 'Not specified'}
+Previous Employers: ${Array.isArray(contactData.previous_employers) ? contactData.previous_employers.join(", ") : 'N/A'}
+
+### Education
+${contactData.education_summary || 'No education info'}
+Highest Degree: ${contactData.highest_degree || 'Not specified'}
+
+### Skills & Languages
+Skills (${Array.isArray(contactData.linkedin_skills) ? contactData.linkedin_skills.length : 0}): ${Array.isArray(contactData.linkedin_skills) ? contactData.linkedin_skills.slice(0, 10).join(", ") : 'N/A'}
+Languages: ${Array.isArray(contactData.languages) ? contactData.languages.join(", ") : 'N/A'}
+
+### LinkedIn Profile Metrics
+Followers: ${contactData.linkedin_follower_count ? contactData.linkedin_follower_count.toLocaleString() : 'N/A'}
+Connections: ${contactData.linkedin_connection_count || 'N/A'}+
+Profile Completeness: ${contactData.profile_completeness_score || 'Unknown'}%
+Last Activity: ${contactData.last_linkedin_activity_date || 'Unknown'}
+
+### About Section
+${contactData.linkedin_about || 'No about section available'}
+
+## EXISTING RESEARCH INSIGHTS
+${contactData.research_summary || 'No research summary available - recommend running "Run Research" first'}
+${contactData.research_generated_at ? `Generated: ${new Date(contactData.research_generated_at).toLocaleString()}` : ''}
+
+## ENGAGEMENT HISTORY
+Current Status: ${contactData.current_status || 'N/A'}
+Last Enrichment: ${contactData.last_enriched_at ? new Date(contactData.last_enriched_at).toLocaleString() : 'N/A'}
+
+---
+
+# YOUR TASK
+
+As a BD Research Analyst, analyze this lead comprehensively and provide actionable intelligence for outreach.
+
+## Output Requirements (JSON format):
+
+Provide the result as JSON matching this enhanced schema:
+${responseTemplate}
+
+**CRITICAL**: 
+- Base analysis on ACTUAL DATA PROVIDED, not assumptions
+- Highlight data gaps that need filling
+- Prioritize campaign-specific relevance
+- Provide BD-ready intelligence, not generic advice
+- Reference specific details from the profile
+- If research_summary is missing, note that running "Run Research" first would enhance analysis
+- Include structured_output with lead_quality_score (A+ to F), engagement_readiness (hot/warm/cold), decision_maker_level, best_approach, key_talking_points, recommended_next_step, and recommended_timing
+`;
+  } else if (agent.prompt_template) {
     userPrompt = agent.prompt_template
       .replace(/\{\{deal_title\}\}/g, executionContext.deal_title as string || "N/A")
       .replace(/\{\{deal_stage\}\}/g, executionContext.deal_stage as string || "N/A")

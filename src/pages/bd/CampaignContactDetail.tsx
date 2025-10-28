@@ -1,5 +1,5 @@
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, Loader2, Mail, Linkedin, Phone, Sparkles, MessageSquare, Trash2, Calendar, Users, Network, Briefcase, FileText, Award, Globe, Brain, Copy, Lightbulb, CheckSquare, BarChart3, Target } from "lucide-react";
+import { ArrowLeft, Loader2, Mail, Linkedin, Phone, Sparkles, MessageSquare, Trash2, Calendar, Users, Network, Briefcase, FileText, Award, Globe, Brain, Copy, Lightbulb, CheckSquare, BarChart3, Target, AlertTriangle } from "lucide-react";
 import { StatusBadgeWithIcon } from "@/components/bd/StatusBadgeWithIcon";
 import { StatusProgressBar } from "@/components/bd/StatusProgressBar";
 import { StatusHistoryTimeline } from "@/components/bd/StatusHistoryTimeline";
@@ -97,18 +97,81 @@ export default function CampaignContactDetail() {
   };
 
   const handleRunAgent = async () => {
-    if (!bdAgent || !contact || !contactSlug) return;
+    if (!bdAgent || !contact || !contactSlug || !campaign) {
+      toast.error("Missing required data", {
+        description: "Cannot run analysis without agent, contact, or campaign data",
+      });
+      return;
+    }
+
+    // Check if research_summary exists, recommend running it first if not
+    if (!contact.research_summary || !(contact.research_summary as any)?.summary) {
+      toast.info("Recommendation", {
+        description: "For best results, run 'Run Research' first to gather external insights",
+        duration: 5000,
+      });
+    }
     
-    const researchData = {
+    const comprehensiveContactData = {
+      // === Basic Info ===
       contact_name: contact.contact_name,
-      company: contact.contact_company,
-      title: contact.contact_title,
-      linkedin_about: contact.linkedin_about,
+      contact_email: contact.contact_email,
+      contact_phone: contact.contact_phone,
+      contact_linkedin_url: contact.contact_linkedin_url,
+      
+      // === Current Role ===
+      current_employer: contact.current_employer || contact.contact_company,
+      current_position_title: contact.current_position_title || contact.contact_title,
+      current_position_start_date: contact.current_position_start_date,
+      years_in_current_role: contact.years_in_current_role,
+      
+      // === Professional Profile ===
       linkedin_headline: contact.linkedin_headline,
+      linkedin_about: contact.linkedin_about,
+      linkedin_location: contact.linkedin_location,
       total_years_experience: contact.total_years_experience,
-      linkedin_skills: contact.linkedin_skills,
+      industry_focus: contact.industry_focus,
+      previous_employers: contact.previous_employers,
+      
+      // === Education ===
       education_summary: contact.education_summary,
-      metadata: contact.metadata
+      highest_degree: contact.highest_degree,
+      
+      // === Skills & Languages ===
+      linkedin_skills: contact.linkedin_skills,
+      languages: contact.languages,
+      
+      // === LinkedIn Metrics ===
+      linkedin_follower_count: contact.linkedin_follower_count,
+      linkedin_connection_count: contact.linkedin_connection_count,
+      profile_completeness_score: contact.profile_completeness_score,
+      last_linkedin_activity_date: contact.last_linkedin_activity_date,
+      
+      // === Research Insights ===
+      research_summary: (contact.research_summary as any)?.summary || null,
+      research_generated_at: (contact.research_summary as any)?.generated_at || null,
+      
+      // === Metadata (Parsed LinkedIn) ===
+      linkedin_metadata: contact.metadata,
+      
+      // === Engagement Status ===
+      current_status: contact.status,
+      last_enriched_at: contact.last_enriched_at,
+      
+      // === Campaign Context ===
+      campaign_name: campaign.name,
+      campaign_type: campaign.campaign_type,
+      campaign_status: campaign.status,
+      campaign_target_regions: campaign.target_regions,
+      campaign_goals: {
+        target_contacts_count: campaign.target_contacts_count,
+        actual_contacts_reached: campaign.actual_contacts_reached,
+        responses_received: campaign.responses_received,
+        meetings_booked: campaign.meetings_booked,
+        deals_generated: campaign.deals_generated,
+      },
+      campaign_start_date: campaign.start_date,
+      campaign_end_date: campaign.end_date,
     };
 
     runAgent.mutate({
@@ -119,7 +182,7 @@ export default function CampaignContactDetail() {
         contactId: contact.id,
         user_id: contact.id,
         filters: {
-          contact_data: researchData
+          contact_data: comprehensiveContactData
         }
       }
     }, {
@@ -587,106 +650,302 @@ export default function CampaignContactDetail() {
                       Analyzing contact...
                     </div>
                   ) : latestRun?.ai_summary?.summary ? (
-                    <div className="space-y-3">
-                      {/* Display summary */}
-                      <div className="mb-3">
-                        <p className="text-sm leading-relaxed">{latestRun.ai_summary.summary}</p>
-                      </div>
+                    <div className="space-y-4">
+                      {/* Executive Summary */}
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="text-sm flex items-center gap-2">
+                            <Target className="h-4 w-4" />
+                            Executive Summary
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <p className="text-sm leading-relaxed">{latestRun.ai_summary.summary}</p>
+                        </CardContent>
+                      </Card>
 
-                      {/* Display findings as bullet points */}
+                      {/* Lead Qualification */}
+                      {latestRun.ai_summary.structured_output && (
+                        <Card>
+                          <CardHeader>
+                            <CardTitle className="text-sm">Lead Qualification</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="grid grid-cols-2 gap-3">
+                              {latestRun.ai_summary.structured_output.lead_quality_score && (
+                                <div>
+                                  <p className="text-xs text-muted-foreground mb-1">Quality Score</p>
+                                  <Badge variant={
+                                    latestRun.ai_summary.structured_output.lead_quality_score?.includes('A') ? 'default' :
+                                    latestRun.ai_summary.structured_output.lead_quality_score?.includes('B') ? 'secondary' :
+                                    'outline'
+                                  } className="text-lg">
+                                    {latestRun.ai_summary.structured_output.lead_quality_score}
+                                  </Badge>
+                                </div>
+                              )}
+                              {latestRun.ai_summary.structured_output.engagement_readiness && (
+                                <div>
+                                  <p className="text-xs text-muted-foreground mb-1">Engagement Readiness</p>
+                                  <Badge variant={
+                                    latestRun.ai_summary.structured_output.engagement_readiness === 'hot' ? 'destructive' :
+                                    latestRun.ai_summary.structured_output.engagement_readiness === 'warm' ? 'default' :
+                                    'secondary'
+                                  }>
+                                    {latestRun.ai_summary.structured_output.engagement_readiness?.toUpperCase()}
+                                  </Badge>
+                                </div>
+                              )}
+                              {latestRun.ai_summary.structured_output.decision_maker_level && (
+                                <div>
+                                  <p className="text-xs text-muted-foreground mb-1">Decision Level</p>
+                                  <p className="text-sm font-medium">
+                                    {latestRun.ai_summary.structured_output.decision_maker_level}
+                                  </p>
+                                </div>
+                              )}
+                              {latestRun.ai_summary.structured_output.best_approach && (
+                                <div>
+                                  <p className="text-xs text-muted-foreground mb-1">Best Approach</p>
+                                  <p className="text-sm font-medium">
+                                    {latestRun.ai_summary.structured_output.best_approach}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
+
+                      {/* Key Talking Points */}
+                      {latestRun.ai_summary.structured_output?.key_talking_points && (
+                        <Card>
+                          <CardHeader>
+                            <CardTitle className="text-sm flex items-center gap-2">
+                              <MessageSquare className="h-4 w-4" />
+                              Key Talking Points
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <ul className="space-y-2">
+                              {latestRun.ai_summary.structured_output.key_talking_points.map((point: string, idx: number) => (
+                                <li key={idx} className="flex items-start gap-2">
+                                  <span className="text-primary font-bold">•</span>
+                                  <span className="text-sm flex-1">{point}</span>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => copyToClipboard(point)}
+                                    className="h-6 w-6 p-0"
+                                  >
+                                    <Copy className="h-3 w-3" />
+                                  </Button>
+                                </li>
+                              ))}
+                            </ul>
+                          </CardContent>
+                        </Card>
+                      )}
+
+                      {/* Findings */}
                       {latestRun.ai_summary.findings && latestRun.ai_summary.findings.length > 0 && (
-                        <div className="space-y-1.5">
-                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Key Findings</p>
-                          {latestRun.ai_summary.findings.map((finding: string, idx: number) => (
-                            <div key={idx} className="flex items-start gap-2 text-sm">
-                              <span className="text-primary mt-0.5 font-bold">•</span>
-                              <span className="flex-1">{finding}</span>
-                            </div>
-                          ))}
-                        </div>
+                        <Card>
+                          <CardHeader>
+                            <CardTitle className="text-sm">Key Findings</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <ul className="space-y-1.5">
+                              {latestRun.ai_summary.findings.map((finding: string, idx: number) => (
+                                <li key={idx} className="flex items-start gap-2 text-sm">
+                                  <span className="text-primary mt-0.5 font-bold">•</span>
+                                  <span className="flex-1">{finding}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </CardContent>
+                        </Card>
                       )}
 
-                      {/* Display recommendations */}
+                      {/* Recommendations */}
                       {latestRun.ai_summary.recommendations && latestRun.ai_summary.recommendations.length > 0 && (
-                        <div className="mt-3 space-y-1.5">
-                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Recommendations</p>
-                          {latestRun.ai_summary.recommendations.map((rec: string, idx: number) => (
-                            <div key={idx} className="flex items-start gap-2 text-sm">
-                              <Lightbulb className="h-4 w-4 text-yellow-500 mt-0.5 flex-shrink-0" />
-                              <span className="flex-1">{rec}</span>
-                            </div>
-                          ))}
+                        <Card>
+                          <CardHeader>
+                            <CardTitle className="text-sm flex items-center gap-2">
+                              <Lightbulb className="h-4 w-4" />
+                              Recommendations
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <ul className="space-y-1.5">
+                              {latestRun.ai_summary.recommendations.map((rec: string, idx: number) => (
+                                <li key={idx} className="flex items-start gap-2 text-sm">
+                                  <Lightbulb className="h-4 w-4 text-yellow-500 mt-0.5 flex-shrink-0" />
+                                  <span className="flex-1">{rec}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </CardContent>
+                        </Card>
+                      )}
+
+                      {/* Insights & Risks */}
+                      {(latestRun.ai_summary.insights || latestRun.ai_summary.risks) && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {latestRun.ai_summary.insights && latestRun.ai_summary.insights.length > 0 && (
+                            <Card>
+                              <CardHeader>
+                                <CardTitle className="text-sm flex items-center gap-2">
+                                  <Sparkles className="h-4 w-4" />
+                                  Additional Insights
+                                </CardTitle>
+                              </CardHeader>
+                              <CardContent>
+                                <ul className="space-y-1.5">
+                                  {latestRun.ai_summary.insights.map((insight: string, idx: number) => (
+                                    <li key={idx} className="text-sm">• {insight}</li>
+                                  ))}
+                                </ul>
+                              </CardContent>
+                            </Card>
+                          )}
+
+                          {latestRun.ai_summary.risks && latestRun.ai_summary.risks.length > 0 && (
+                            <Card>
+                              <CardHeader>
+                                <CardTitle className="text-sm flex items-center gap-2">
+                                  <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                                  Risk Factors
+                                </CardTitle>
+                              </CardHeader>
+                              <CardContent>
+                                <ul className="space-y-1.5">
+                                  {latestRun.ai_summary.risks.map((risk: string, idx: number) => (
+                                    <li key={idx} className="text-sm">• {risk}</li>
+                                  ))}
+                                </ul>
+                              </CardContent>
+                            </Card>
+                          )}
                         </div>
                       )}
 
-                      {/* Display action items */}
+                      {/* Recommended Next Step */}
+                      {latestRun.ai_summary.structured_output?.recommended_next_step && (
+                        <Alert>
+                          <CheckSquare className="h-4 w-4" />
+                          <AlertTitle>Recommended Next Step</AlertTitle>
+                          <AlertDescription>
+                            <p className="font-medium">{latestRun.ai_summary.structured_output.recommended_next_step}</p>
+                            {latestRun.ai_summary.structured_output.recommended_timing && (
+                              <p className="text-xs mt-1 text-muted-foreground">
+                                Timing: {latestRun.ai_summary.structured_output.recommended_timing}
+                              </p>
+                            )}
+                          </AlertDescription>
+                        </Alert>
+                      )}
+
+                      {/* Action Items */}
                       {latestRun.ai_summary.action_items && latestRun.ai_summary.action_items.length > 0 && (
-                        <div className="mt-3 space-y-1.5">
-                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Action Items</p>
-                          {latestRun.ai_summary.action_items.map((item: string, idx: number) => (
-                            <div key={idx} className="flex items-start gap-2 text-sm">
-                              <CheckSquare className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
-                              <span className="flex-1">{item}</span>
-                            </div>
-                          ))}
-                        </div>
+                        <Card>
+                          <CardHeader>
+                            <CardTitle className="text-sm flex items-center gap-2">
+                              <CheckSquare className="h-4 w-4" />
+                              Action Items
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <ul className="space-y-2">
+                              {latestRun.ai_summary.action_items.map((item: any, idx: number) => (
+                                <li key={idx} className="flex items-start gap-2 text-sm p-2 rounded-md bg-muted/30">
+                                  <CheckSquare className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                                  <div className="flex-1">
+                                    <p className="font-medium">{typeof item === 'string' ? item : item.description}</p>
+                                    {typeof item === 'object' && (
+                                      <div className="flex gap-2 mt-1">
+                                        {item.priority && (
+                                          <Badge variant={item.priority === 'high' ? 'destructive' : item.priority === 'medium' ? 'default' : 'secondary'} className="text-xs">
+                                            {item.priority}
+                                          </Badge>
+                                        )}
+                                        {item.confidence && (
+                                          <Badge variant="outline" className="text-xs">
+                                            {Math.round(item.confidence * 100)}% confidence
+                                          </Badge>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                </li>
+                              ))}
+                            </ul>
+                          </CardContent>
+                        </Card>
                       )}
-                      
-                      <Separator className="my-3" />
 
-                      {/* Analysis metrics */}
+                      {/* Analysis Metrics */}
                       {latestRun.ai_summary.metrics && (
-                        <div className="mb-3">
-                          <div className="flex items-center gap-2 mb-2">
-                            <BarChart3 className="h-4 w-4 text-muted-foreground" />
-                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Analysis Metrics</p>
-                          </div>
-                          <div className="grid grid-cols-3 gap-3">
-                            <div className="text-center p-2 rounded-md bg-muted/30">
-                              <p className="text-xs text-muted-foreground mb-1">Data Points</p>
-                              <p className="text-lg font-bold">{latestRun.ai_summary.metrics.total_items_analyzed || 0}</p>
+                        <Card>
+                          <CardHeader>
+                            <CardTitle className="text-sm flex items-center gap-2">
+                              <BarChart3 className="h-4 w-4" />
+                              Analysis Metrics
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="grid grid-cols-3 gap-3">
+                              <div className="text-center p-3 rounded-md bg-muted/30">
+                                <p className="text-xs text-muted-foreground mb-1">Data Points</p>
+                                <p className="text-2xl font-bold">{latestRun.ai_summary.metrics.total_items_analyzed || 0}</p>
+                              </div>
+                              <div className="text-center p-3 rounded-md bg-muted/30">
+                                <p className="text-xs text-muted-foreground mb-1">High Priority</p>
+                                <p className="text-2xl font-bold">{latestRun.ai_summary.metrics.high_priority_issues || 0}</p>
+                              </div>
+                              <div className="text-center p-3 rounded-md bg-muted/30">
+                                <p className="text-xs text-muted-foreground mb-1">Anomalies</p>
+                                <p className="text-2xl font-bold">{latestRun.ai_summary.metrics.anomalies_found || 0}</p>
+                              </div>
                             </div>
-                            <div className="text-center p-2 rounded-md bg-muted/30">
-                              <p className="text-xs text-muted-foreground mb-1">High Priority</p>
-                              <p className="text-lg font-bold">{latestRun.ai_summary.metrics.high_priority_issues || 0}</p>
-                            </div>
-                            <div className="text-center p-2 rounded-md bg-muted/30">
-                              <p className="text-xs text-muted-foreground mb-1">Anomalies</p>
-                              <p className="text-lg font-bold">{latestRun.ai_summary.metrics.anomalies_found || 0}</p>
-                            </div>
-                          </div>
-                        </div>
+                          </CardContent>
+                        </Card>
                       )}
 
-                      {/* Confidence score */}
+                      {/* Confidence Score */}
                       {latestRun.ai_summary.confidence_score !== undefined && (
-                        <div className="mb-3">
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center gap-2">
-                              <Target className="h-4 w-4 text-muted-foreground" />
-                              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Confidence Score</p>
+                        <Card>
+                          <CardHeader>
+                            <CardTitle className="text-sm flex items-center gap-2">
+                              <Target className="h-4 w-4" />
+                              Analysis Confidence
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm text-muted-foreground">
+                                  {latestRun.ai_summary.confidence_score >= 0.76 ? "High Confidence" :
+                                   latestRun.ai_summary.confidence_score >= 0.51 ? "Medium Confidence" :
+                                   "Low Confidence"}
+                                </span>
+                                <span className="text-sm font-bold">
+                                  {Math.round(latestRun.ai_summary.confidence_score * 100)}%
+                                </span>
+                              </div>
+                              <Progress 
+                                value={latestRun.ai_summary.confidence_score * 100} 
+                                className={
+                                  latestRun.ai_summary.confidence_score >= 0.76 ? "[&>div]:bg-green-500" :
+                                  latestRun.ai_summary.confidence_score >= 0.51 ? "[&>div]:bg-yellow-500" :
+                                  "[&>div]:bg-red-500"
+                                }
+                              />
                             </div>
-                            <span className="text-sm font-bold">
-                              {Math.round(latestRun.ai_summary.confidence_score * 100)}%
-                            </span>
-                          </div>
-                          <Progress 
-                            value={latestRun.ai_summary.confidence_score * 100} 
-                            className={
-                              latestRun.ai_summary.confidence_score >= 0.76 ? "[&>div]:bg-green-500" :
-                              latestRun.ai_summary.confidence_score >= 0.51 ? "[&>div]:bg-yellow-500" :
-                              "[&>div]:bg-red-500"
-                            }
-                          />
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {latestRun.ai_summary.confidence_score >= 0.76 ? "High Confidence" :
-                             latestRun.ai_summary.confidence_score >= 0.51 ? "Medium Confidence" :
-                             "Low Confidence"}
-                          </p>
-                        </div>
+                          </CardContent>
+                        </Card>
                       )}
 
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs text-muted-foreground text-center">
                         Last analyzed: {new Date(latestRun.created_at).toLocaleString()}
                       </p>
                     </div>
