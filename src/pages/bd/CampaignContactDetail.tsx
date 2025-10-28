@@ -417,75 +417,6 @@ export default function CampaignContactDetail() {
                 </div>
               )}
 
-              {/* Quick Actions */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Quick Actions</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-wrap gap-2">
-                    {contact.contact_linkedin_url && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        asChild
-                        className="gap-2"
-                      >
-                        <a href={contact.contact_linkedin_url} target="_blank" rel="noopener noreferrer">
-                          <Linkedin className="h-4 w-4" />
-                          View LinkedIn Profile
-                        </a>
-                      </Button>
-                    )}
-                    {contact.contact_email && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        asChild
-                        className="gap-2"
-                      >
-                        <a href={`mailto:${contact.contact_email}`}>
-                          <Mail className="h-4 w-4" />
-                          Send Email
-                        </a>
-                      </Button>
-                    )}
-                    {contact.contact_phone && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        asChild
-                        className="gap-2"
-                      >
-                        <a href={`tel:${contact.contact_phone}`}>
-                          <Phone className="h-4 w-4" />
-                          Call
-                        </a>
-                      </Button>
-                    )}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setActiveTab("comments")}
-                      className="gap-2"
-                    >
-                      <MessageSquare className="h-4 w-4" />
-                      Add Note
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleRunResearch}
-                      disabled={researchMutation.isPending}
-                      className="gap-2"
-                    >
-                      <Brain className="h-4 w-4" />
-                      {researchMutation.isPending ? "Researching..." : "Run Research"}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-
               {/* LinkedIn Outreach Card */}
               <Card>
                 <CardHeader>
@@ -1003,55 +934,6 @@ export default function CampaignContactDetail() {
                         workHistory={parsed.work_history}
                         totalYears={contact.total_years_experience}
                       />
-                    )}
-                    
-                    {/* Skills & Languages */}
-                    {(contact.linkedin_skills?.length || contact.languages?.length) && (
-                      <div className="grid gap-6 md:grid-cols-2">
-                        {contact.linkedin_skills && contact.linkedin_skills.length > 0 && (
-                          <Card>
-                            <CardHeader>
-                              <CardTitle className="text-lg flex items-center gap-2">
-                                <Award className="h-5 w-5" />
-                                Skills
-                              </CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                              <div className="flex flex-wrap gap-2">
-                                {contact.linkedin_skills.slice(0, 12).map((skill, index) => (
-                                  <Badge key={index} variant="secondary">
-                                    {skill}
-                                  </Badge>
-                                ))}
-                                {contact.linkedin_skills.length > 12 && (
-                                  <Badge variant="outline">
-                                    +{contact.linkedin_skills.length - 12} more
-                                  </Badge>
-                                )}
-                              </div>
-                            </CardContent>
-                          </Card>
-                        )}
-                        {contact.languages && contact.languages.length > 0 && (
-                          <Card>
-                            <CardHeader>
-                              <CardTitle className="text-lg flex items-center gap-2">
-                                <Globe className="h-5 w-5" />
-                                Languages
-                              </CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                              <div className="flex flex-wrap gap-2">
-                                {contact.languages.map((lang, index) => (
-                                  <Badge key={index} variant="outline">
-                                    {lang}
-                                  </Badge>
-                                ))}
-                              </div>
-                            </CardContent>
-                          </Card>
-                        )}
-                      </div>
                     )}
                     
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
