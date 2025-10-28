@@ -762,11 +762,48 @@ async function performSync(
 
       try {
         // Fetch checklist items from Control Tower for this deal
-        const { data: ctChecklistItems, error: checklistError } = await ctClient
+        // Attempt to fetch checklist items with graceful fallbacks for missing columns
+        let ctChecklistItems: any[] | null = null;
+        let checklistError: any = null;
+
+        // Try ordering by order_index first (preferred)
+        let resp = await ctClient
           .from('deal_checklist')
           .select('*')
           .eq('deal_id', deal.control_tower_id)
           .order('order_index', { ascending: true });
+
+        if (resp.error && (resp.error.code === '42703' || (resp.error.message || '').includes('order_index'))) {
+          console.warn(`[Sync] order_index not found, falling back to position for deal ${deal.id}`);
+          // Fallback to position
+          resp = await ctClient
+            .from('deal_checklist')
+            .select('*')
+            .eq('deal_id', deal.control_tower_id)
+            .order('position', { ascending: true });
+        }
+
+        if (resp.error && (resp.error.code === '42703' || (resp.error.message || '').includes('position'))) {
+          console.warn(`[Sync] position not found, falling back to created_at for deal ${deal.id}`);
+          // Fallback to created_at
+          resp = await ctClient
+            .from('deal_checklist')
+            .select('*')
+            .eq('deal_id', deal.control_tower_id)
+            .order('created_at', { ascending: true });
+        }
+
+        if (resp.error && (resp.error.code === '42703' || (resp.error.message || '').includes('created_at'))) {
+          console.warn(`[Sync] created_at not found, fetching without explicit order for deal ${deal.id}`);
+          // Final fallback without explicit order
+          resp = await ctClient
+            .from('deal_checklist')
+            .select('*')
+            .eq('deal_id', deal.control_tower_id);
+        }
+
+        ctChecklistItems = resp.data;
+        checklistError = resp.error;
 
         if (checklistError) {
           console.warn(`[Sync] Error fetching checklist for deal ${deal.id}:`, checklistError);
