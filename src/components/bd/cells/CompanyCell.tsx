@@ -23,13 +23,17 @@ export function CompanyCell({ contact }: CompanyCellProps) {
 
   // If contact has a company_id, make it clickable
   if (contact.company_id) {
+    // For now, use company_id since we don't have slug in the contact data
+    // TODO: When company data is joined, use company slug
+    const companyLink = `/companies/${contact.company_id}`;
+    
     if (isTruncated) {
       return (
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
               <Link 
-                to={`/companies/${contact.company_id}`}
+                to={companyLink}
                 className="text-sm text-primary hover:underline cursor-pointer"
               >
                 {displayCompany}
@@ -44,7 +48,7 @@ export function CompanyCell({ contact }: CompanyCellProps) {
     }
     return (
       <Link 
-        to={`/companies/${contact.company_id}`}
+        to={companyLink}
         className="text-sm text-primary hover:underline"
       >
         {company}

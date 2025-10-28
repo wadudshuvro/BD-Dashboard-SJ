@@ -42,3 +42,36 @@ export const useCompanyById = (companyId: string | undefined) => {
     enabled: !!companyId,
   });
 };
+
+export const useCompanyBySlug = (slug: string | undefined) => {
+  return useQuery({
+    queryKey: ["company", "slug", slug],
+    queryFn: async () => {
+      if (!slug) throw new Error("Company slug is required");
+      
+      // Try to fetch by slug first
+      let { data, error } = await supabase
+        .from("companies")
+        .select("*")
+        .eq("slug", slug)
+        .maybeSingle();
+
+      // If not found by slug, try by ID (for backward compatibility)
+      if (!data && !error) {
+        const result = await supabase
+          .from("companies")
+          .select("*")
+          .eq("id", slug)
+          .maybeSingle();
+        
+        data = result.data;
+        error = result.error;
+      }
+
+      if (error) throw error;
+      if (!data) throw new Error("Company not found");
+      return data as Company;
+    },
+    enabled: !!slug,
+  });
+};

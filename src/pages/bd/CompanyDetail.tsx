@@ -1,9 +1,12 @@
 import { useParams, Link } from "react-router-dom";
-import { useCompanyById } from "@/hooks/useCompanyById";
+import { useCompanyBySlug } from "@/hooks/useCompanyById";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { 
   Building2, 
   ExternalLink, 
@@ -13,12 +16,45 @@ import {
   Calendar,
   Linkedin,
   ArrowLeft,
-  TrendingUp
+  TrendingUp,
+  User
 } from "lucide-react";
 
 export default function CompanyDetail() {
-  const { companyId } = useParams<{ companyId: string }>();
-  const { data: company, isLoading } = useCompanyById(companyId);
+  const { slug } = useParams<{ slug: string }>();
+  const { data: company, isLoading } = useCompanyBySlug(slug);
+
+  // Fetch contacts for this company
+  const { data: contacts = [], isLoading: contactsLoading } = useQuery({
+    queryKey: ["company-contacts", company?.id],
+    queryFn: async () => {
+      if (!company?.id) return [];
+      
+      const { data, error } = await supabase
+        .from("campaign_contacts")
+        .select(`
+          id,
+          slug,
+          contact_name,
+          contact_email,
+          contact_title,
+          current_position_title,
+          contact_linkedin_url,
+          status,
+          campaign_id,
+          bd_campaigns (
+            name,
+            slug
+          )
+        `)
+        .eq("company_id", company.id)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!company?.id,
+  });
 
   if (isLoading) {
     return (
@@ -206,7 +242,10 @@ export default function CompanyDetail() {
         {company.research_summary && Object.keys(company.research_summary).length > 0 && (
           <Card>
             <CardHeader>
-              <CardTitle>AI Research Insights</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5" />
+                AI Research Insights
+              </CardTitle>
               {company.last_researched_at && (
                 <p className="text-xs text-muted-foreground">
                   Last researched: {new Date(company.last_researched_at).toLocaleDateString()}
@@ -220,6 +259,97 @@ export default function CompanyDetail() {
             </CardContent>
           </Card>
         )}
+
+        {/* Company Contacts */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <User className="h-5 w-5" />
+              Contacts at {company.name} ({contacts.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {contactsLoading ? (
+              <div className="space-y-2">
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-12 w-full" />
+              </div>
+            ) : contacts.length === 0 ? (
+              <div className="text-center py-8">
+                <User className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <h3 className="font-semibold mb-2">No Contacts Found</h3>
+                <p className="text-sm text-muted-foreground">
+                  There are no contacts linked to this company yet.
+                </p>
+              </div>
+            ) : (
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Title</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Campaign</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {contacts.map((contact: any) => (
+                      <TableRow key={contact.id}>
+                        <TableCell className="font-medium">
+                          <div className="flex items-center gap-2">
+                            {contact.contact_name}
+                            {contact.contact_linkedin_url && (
+                              <a 
+                                href={contact.contact_linkedin_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-primary hover:text-primary/80"
+                              >
+                                <Linkedin className="h-4 w-4" />
+                              </a>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {contact.current_position_title || contact.contact_title || '-'}
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          {contact.contact_email || '-'}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="secondary" className="capitalize">
+                            {contact.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {contact.bd_campaigns ? (
+                            <Link 
+                              to={`/campaigns/${contact.bd_campaigns.slug}`}
+                              className="text-sm text-primary hover:underline"
+                            >
+                              {contact.bd_campaigns.name}
+                            </Link>
+                          ) : '-'}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button variant="ghost" size="sm" asChild>
+                            <Link to={`/campaigns/${contact.bd_campaigns?.slug}/contacts/${contact.slug}`}>
+                              View Details
+                            </Link>
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
   );
 }

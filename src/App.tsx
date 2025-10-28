@@ -250,7 +250,7 @@ const App = () => (
             </Route>
 
             {/* Companies */}
-            <Route path="/companies/:companyId" element={
+            <Route path="/companies/:slug" element={
               <ProtectedRoute requiredMinimumRole="user">
                 <Layout />
               </ProtectedRoute>

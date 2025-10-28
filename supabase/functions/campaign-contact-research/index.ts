@@ -193,11 +193,17 @@ Format your response clearly with "CONTACT:" and "COMPANY:" section headers.`;
         companyId = existingCompany.id;
         console.log("Updated existing company:", existingCompany.id);
       } else {
-        // Create new company
+        // Create new company with slug
+        const slug = contact.contact_company
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-+|-+$/g, '');
+        
         const { data: newCompany } = await supabase
           .from('companies')
           .insert({
             name: contact.contact_company,
+            slug: slug,
             website: companyData.website,
             linkedin_url: companyData.linkedin_url,
             industry: companyData.industry,
@@ -207,11 +213,11 @@ Format your response clearly with "CONTACT:" and "COMPANY:" section headers.`;
             last_researched_at: new Date().toISOString(),
             created_by: user.id,
           })
-          .select('id')
+          .select('id, slug')
           .single();
         
         companyId = newCompany?.id;
-        console.log("Created new company:", companyId);
+        console.log("Created new company:", companyId, "with slug:", newCompany?.slug);
       }
     }
 
