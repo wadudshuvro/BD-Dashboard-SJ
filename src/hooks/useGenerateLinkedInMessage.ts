@@ -1,4 +1,4 @@
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -26,12 +26,24 @@ interface GeneratedMessageResponse {
 }
 
 export function useGenerateLinkedInMessage() {
+  const queryClient = useQueryClient();
+  
   return useMutation({
     mutationFn: async (params: GenerateMessageParams) => {
-      // Fetch full contact data
+      // Fetch contact WITH campaign and company data
       const { data: contact, error: contactError } = await supabase
         .from('campaign_contacts')
-        .select('*')
+        .select(`
+          *,
+          bd_campaigns!inner(
+            id, name, campaign_type, status,
+            target_contacts, target_regions
+          ),
+          companies(
+            id, name, website, linkedin_url, industry, 
+            employee_count, headquarters, description
+          )
+        `)
         .eq('id', params.contactId)
         .single();
 
@@ -49,7 +61,7 @@ export function useGenerateLinkedInMessage() {
         throw new Error('LinkedIn message agent not configured');
       }
 
-      // Prepare execution context with ALL available data
+      // Prepare execution context with contact + campaign + company data
       const executionContext = {
         user_id: contact.id,
         message_type: params.messageType,
@@ -69,6 +81,22 @@ export function useGenerateLinkedInMessage() {
           research_summary: contact.research_summary,
           status: contact.status,
         },
+        campaign_context: {
+          campaign_name: (contact.bd_campaigns as any).name,
+          campaign_type: (contact.bd_campaigns as any).campaign_type,
+          campaign_status: (contact.bd_campaigns as any).status,
+          target_contacts: (contact.bd_campaigns as any).target_contacts,
+          target_regions: (contact.bd_campaigns as any).target_regions,
+        },
+        company_context: contact.companies ? {
+          company_name: (contact.companies as any).name,
+          company_website: (contact.companies as any).website,
+          company_linkedin: (contact.companies as any).linkedin_url,
+          company_industry: (contact.companies as any).industry,
+          company_size: (contact.companies as any).employee_count,
+          company_headquarters: (contact.companies as any).headquarters,
+          company_description: (contact.companies as any).description,
+        } : null,
         user_context: params.userContext || ''
       };
 
@@ -81,11 +109,39 @@ export function useGenerateLinkedInMessage() {
       });
 
       if (error) throw error;
-      return data.structured_output as GeneratedMessageResponse;
+      const result = data.structured_output as GeneratedMessageResponse;
+
+      // Save to database
+      const { data: userData } = await supabase.auth.getUser();
+      const { error: saveError } = await supabase
+        .from('campaign_contact_linkedin_messages')
+        .insert([{
+          contact_id: params.contactId,
+          campaign_id: (contact.bd_campaigns as any).id,
+          message_type: params.messageType,
+          user_context: params.userContext || null,
+          message_variants: result.message_variants as any,
+          recommended_variant: result.recommended_variant,
+          reasoning: result.reasoning || null,
+          send_timing_suggestion: result.send_timing_suggestion || null,
+          follow_up_strategy: result.follow_up_strategy || null,
+          generation_context: executionContext as any,
+          generated_by: userData.user?.id || null,
+        }]);
+
+      if (saveError) {
+        console.error('Failed to save message:', saveError);
+      }
+
+      return result;
     },
-    onSuccess: () => {
-      toast.success("LinkedIn messages generated", {
-        description: "Choose your preferred variant and copy to clipboard",
+    onSuccess: (_, variables) => {
+      toast.success("LinkedIn messages generated & saved", {
+        description: "Messages saved to your outreach history",
+      });
+      
+      queryClient.invalidateQueries({ 
+        queryKey: ['linkedin-message-history', variables.contactId] 
       });
     },
     onError: (error: Error) => {

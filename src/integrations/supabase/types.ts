@@ -446,6 +446,72 @@ export type Database = {
           },
         ]
       }
+      campaign_contact_linkedin_messages: {
+        Row: {
+          campaign_id: string
+          contact_id: string
+          created_at: string | null
+          follow_up_strategy: string | null
+          generated_by: string | null
+          generation_context: Json | null
+          id: string
+          message_type: string
+          message_variants: Json
+          reasoning: string | null
+          recommended_variant: string
+          send_timing_suggestion: string | null
+          updated_at: string | null
+          user_context: string | null
+        }
+        Insert: {
+          campaign_id: string
+          contact_id: string
+          created_at?: string | null
+          follow_up_strategy?: string | null
+          generated_by?: string | null
+          generation_context?: Json | null
+          id?: string
+          message_type: string
+          message_variants: Json
+          reasoning?: string | null
+          recommended_variant: string
+          send_timing_suggestion?: string | null
+          updated_at?: string | null
+          user_context?: string | null
+        }
+        Update: {
+          campaign_id?: string
+          contact_id?: string
+          created_at?: string | null
+          follow_up_strategy?: string | null
+          generated_by?: string | null
+          generation_context?: Json | null
+          id?: string
+          message_type?: string
+          message_variants?: Json
+          reasoning?: string | null
+          recommended_variant?: string
+          send_timing_suggestion?: string | null
+          updated_at?: string | null
+          user_context?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_contact_linkedin_messages_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "bd_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_contact_linkedin_messages_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaign_contact_status_history: {
         Row: {
           change_trigger: string
