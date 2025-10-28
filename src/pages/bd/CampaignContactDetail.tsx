@@ -65,9 +65,17 @@ export default function CampaignContactDetail() {
   const { data: agentRuns } = useAgentRunHistory(bdAgent?.id);
   
   // Filter agent runs to only show this contact's analysis
-  const contactRuns = agentRuns?.filter(run => 
-    run.execution_context?.contactId === contact?.id
-  );
+  const contactRuns = agentRuns?.filter(run => {
+    // Access nested contact data from current structure
+    const contactData = run.execution_context?.filters?.contact_data;
+    
+    // Access legacy structure for backward compatibility
+    const legacyContactId = run.execution_context?.contactId;
+    
+    // Match by contact_name (primary) OR contactId (legacy)
+    return (contactData?.contact_name === contact?.contact_name) ||
+           (legacyContactId === contact?.id);
+  });
   const latestRun = contactRuns?.[0];
   
   const campaign = campaignData?.campaign;
