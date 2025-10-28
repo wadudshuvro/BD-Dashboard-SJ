@@ -33,10 +33,12 @@ import { EducationCard } from "@/components/contact/EducationCard";
 import { ProfessionalNetworkCard } from "@/components/contact/ProfessionalNetworkCard";
 import { EngagementCard } from "@/components/contact/EngagementCard";
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
 
 export default function CampaignContactDetail() {
   const { campaignSlug, contactSlug } = useParams<{ campaignSlug: string; contactSlug: string }>();
+  const queryClient = useQueryClient();
   const { data: contact, isLoading: contactLoading } = useCampaignContactBySlug(contactSlug);
   const { data: campaignData, isLoading: campaignLoading } = useCampaignBySlug(campaignSlug);
   const { comments, isLoading: commentsLoading, addComment, deleteComment, isAddingComment } = useCampaignContactComments(contact?.id);
@@ -60,7 +62,12 @@ export default function CampaignContactDetail() {
   const runAgent = useRunCampaignAgent();
   const bdAgent = agents?.find(a => a.slug === 'bd-research-analyst');
   const { data: agentRuns } = useAgentRunHistory(bdAgent?.id);
-  const latestRun = agentRuns?.[0];
+  
+  // Filter agent runs to only show this contact's analysis
+  const contactRuns = agentRuns?.filter(run => 
+    run.execution_context?.contactId === contact?.id
+  );
+  const latestRun = contactRuns?.[0];
   
   const campaign = campaignData?.campaign;
 
@@ -108,10 +115,16 @@ export default function CampaignContactDetail() {
       contactId: contact.id,
       contactSlug,
       executionContext: {
+        contactId: contact.id,
         user_id: contact.id,
         filters: {
           contact_data: researchData
         }
+      }
+    }, {
+      onSuccess: () => {
+        // Invalidate agent runs query to fetch fresh data
+        queryClient.invalidateQueries({ queryKey: ['ai-agent-runs', bdAgent.id] });
       }
     });
   };
@@ -567,7 +580,12 @@ export default function CampaignContactDetail() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  {latestRun?.ai_summary?.summary ? (
+                  {runAgent.isPending ? (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Analyzing contact...
+                    </div>
+                  ) : latestRun?.ai_summary?.summary ? (
                     <div className="space-y-3">
                       {/* Display summary */}
                       <div className="mb-3">
