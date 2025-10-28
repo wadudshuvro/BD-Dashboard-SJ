@@ -53,6 +53,7 @@ export type Database = {
           created_at: string
           error: string | null
           error_message: string | null
+          executed_by: string | null
           generated_tasks: Json | null
           id: string
           input: Json | null
@@ -72,6 +73,7 @@ export type Database = {
           created_at?: string
           error?: string | null
           error_message?: string | null
+          executed_by?: string | null
           generated_tasks?: Json | null
           id?: string
           input?: Json | null
@@ -91,6 +93,7 @@ export type Database = {
           created_at?: string
           error?: string | null
           error_message?: string | null
+          executed_by?: string | null
           generated_tasks?: Json | null
           id?: string
           input?: Json | null
