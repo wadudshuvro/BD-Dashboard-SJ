@@ -338,7 +338,11 @@ function CampaignCard({ campaign, niches, onEdit }: { campaign: BDCampaign; nich
         <div className="flex justify-between items-start">
           <div>
             <CardTitle>{campaign.name}</CardTitle>
-            <CardDescription>{niche?.name || 'Unknown Niche'}</CardDescription>
+            <CardDescription>
+              {campaign.brands && campaign.brands.length > 0
+                ? campaign.brands.map(b => b.name).filter(Boolean).join(", ")
+                : campaign.brand?.name || "No brand"} • {niche?.name || "Unknown Niche"}
+            </CardDescription>
           </div>
           <Badge variant={statusColors[campaign.status]} className="uppercase">
             {campaign.status}

@@ -40,6 +40,8 @@ export interface CampaignSummary {
   name: string;
   niche_id: string;
   brand_id: string | null;
+  brand_ids?: string[];
+  brands?: CampaignBrand[];
   campaign_type: CampaignType; // Legacy field
   campaign_types: CampaignTypeArray;
   status: CampaignStatus;
@@ -76,6 +78,7 @@ export interface CampaignPayload {
   name: string;
   niche_id: string;
   brand_id?: string | null;
+  brand_ids?: string[];
   campaign_type?: CampaignType; // Legacy field for backwards compatibility
   campaign_types: CampaignTypeArray;
   status?: CampaignStatus;

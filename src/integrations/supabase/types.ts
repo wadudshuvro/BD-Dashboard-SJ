@@ -375,6 +375,42 @@ export type Database = {
           },
         ]
       }
+      campaign_brands: {
+        Row: {
+          brand_id: string
+          campaign_id: string
+          created_at: string
+          id: string
+        }
+        Insert: {
+          brand_id: string
+          campaign_id: string
+          created_at?: string
+          id?: string
+        }
+        Update: {
+          brand_id?: string
+          campaign_id?: string
+          created_at?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_brands_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_brands_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "bd_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaign_contact_comments: {
         Row: {
           comment: string

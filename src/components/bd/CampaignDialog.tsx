@@ -93,7 +93,7 @@ const campaignFormSchema = z
   .object({
     name: z.string().min(1, 'Campaign name is required'),
     nicheId: z.string().uuid('Please select a niche'),
-    brandId: optionalUuid,
+    brandIds: z.array(z.string().uuid()).default([]),
     campaignTypes: z.array(z.enum(['email_outbound', 'linkedin_outbound', 'cold_calling', 'abm', 'other'] as const)).min(1, 'Select at least one campaign type'),
     startDate: optionalDate,
     endDate: optionalDate,
@@ -138,7 +138,7 @@ export function CampaignDialog({ open, onOpenChange, niches, campaign, mode = 'c
     defaultValues: {
       name: '',
       nicheId: '',
-      brandId: undefined,
+      brandIds: [],
       campaignTypes: [],
       startDate: undefined,
       endDate: undefined,
@@ -169,7 +169,7 @@ export function CampaignDialog({ open, onOpenChange, niches, campaign, mode = 'c
       form.reset({
         name: '',
         nicheId: '',
-        brandId: undefined,
+        brandIds: [],
         campaignTypes: [],
         startDate: undefined,
         endDate: undefined,
@@ -183,7 +183,7 @@ export function CampaignDialog({ open, onOpenChange, niches, campaign, mode = 'c
       form.reset({
         name: campaign.name,
         nicheId: campaign.niche_id,
-        brandId: campaign.brand_id || undefined,
+        brandIds: campaign.brand_ids || (campaign.brand_id ? [campaign.brand_id] : []),
         campaignTypes: campaign.campaign_types || [campaign.campaign_type],
         startDate: campaign.start_date || undefined,
         endDate: campaign.end_date || undefined,
@@ -200,7 +200,7 @@ export function CampaignDialog({ open, onOpenChange, niches, campaign, mode = 'c
       const payload = {
         name: values.name,
         niche_id: values.nicheId,
-        brand_id: values.brandId ?? null,
+        brand_ids: values.brandIds,
         campaign_type: values.campaignTypes[0], // Legacy field - use first type
         campaign_types: values.campaignTypes,
         start_date: values.startDate ?? null,
@@ -305,28 +305,34 @@ export function CampaignDialog({ open, onOpenChange, niches, campaign, mode = 'c
 
               <FormField
                 control={form.control}
-                name="brandId"
+                name="brandIds"
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Brand (optional)</FormLabel>
-                    <Select
-                      onValueChange={(value) => field.onChange(value === 'none' ? undefined : value)}
-                      value={field.value ?? 'none'}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder={brandsLoading ? 'Loading...' : 'Select a brand'} />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="none">No brand</SelectItem>
-                        {brands.map((brand) => (
-                          <SelectItem key={brand.id} value={brand.id}>
-                            {brand.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                  <FormItem className="md:col-span-2">
+                    <FormLabel>Brands (Optional)</FormLabel>
+                    <div className="border rounded-md p-3 max-h-60 overflow-y-auto space-y-2">
+                      {brandsLoading ? (
+                        <p className="text-sm text-muted-foreground">Loading brands...</p>
+                      ) : brands.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">No brands available</p>
+                      ) : (
+                        brands.map((brand) => (
+                          <div key={brand.id} className="flex items-center space-x-2">
+                            <Checkbox
+                              checked={field.value?.includes(brand.id)}
+                              onCheckedChange={(checked) => {
+                                const newValue = checked
+                                  ? [...(field.value || []), brand.id]
+                                  : (field.value || []).filter((id) => id !== brand.id);
+                                field.onChange(newValue);
+                              }}
+                            />
+                            <label className="text-sm cursor-pointer flex-1">
+                              {brand.name}
+                            </label>
+                          </div>
+                        ))
+                      )}
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}

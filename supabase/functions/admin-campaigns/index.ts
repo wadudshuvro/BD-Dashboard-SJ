@@ -78,6 +78,7 @@ const CampaignInsertSchema = CampaignBaseSchema.pick({
   owned_by: true,
 }).extend({
   created_by: z.string().uuid().nullable().optional(),
+  brand_ids: z.array(z.string().uuid()).optional(),
 });
 
 const CampaignUpdateSchema = CampaignInsertSchema.partial();
@@ -127,6 +128,8 @@ interface HydratedCampaign {
   name: string;
   niche_id: string;
   brand_id: string | null;
+  brand_ids?: string[];
+  brands?: BrandRow[];
   campaign_type: string;
   status: string;
   ghl_campaign_id: string | null;
@@ -289,97 +292,48 @@ async function fetchRelatedMaps(client: SupabaseClient, campaigns: CampaignDatab
     }
   }
 
+  const campaignIds = campaigns.map((c) => c.id);
+
+  const [brandsRes, campaignBrandsRes, profilesRes] = await Promise.all([
+    brandIds.size > 0
+      ? client.from("brands").select("id, name, slug").in("id", Array.from(brandIds))
+      : { data: [], error: null },
+    client.from("campaign_brands").select("campaign_id, brand_id, clients!inner(id, name, slug)").in("campaign_id", campaignIds),
+    profileIds.size > 0
+      ? client.from("profiles").select("id, full_name, email, avatar_url").in("id", Array.from(profileIds))
+      : { data: [], error: null },
+  ]);
+
   const brandMap = new Map<string, BrandRow>();
-  if (brandIds.size > 0) {
-    try {
-      const { data, error } = await client
-        .from("brands")
-        .select("id, name, slug")
-        .in("id", Array.from(brandIds));
-      if (!error && data) {
-        for (const brand of data as BrandRow[]) {
-          brandMap.set(brand.id, brand);
-        }
+  if (!brandsRes.error && brandsRes.data) {
+    for (const brand of brandsRes.data as BrandRow[]) {
+      brandMap.set(brand.id, brand);
+    }
+  }
+
+  const campaignBrandsMap = new Map<string, string[]>();
+  if (!campaignBrandsRes.error && campaignBrandsRes.data) {
+    for (const cb of campaignBrandsRes.data) {
+      const arr = campaignBrandsMap.get(cb.campaign_id) || [];
+      arr.push(cb.brand_id);
+      campaignBrandsMap.set(cb.campaign_id, arr);
+      if (cb.clients) {
+        brandMap.set(cb.clients.id, cb.clients as unknown as BrandRow);
       }
-    } catch (error) {
-      console.warn("[admin-campaigns] Unable to load brands", error);
     }
   }
 
   const profileMap = new Map<string, ProfileRow>();
-  if (profileIds.size > 0) {
-    try {
-      const { data, error } = await client
-        .from("profiles")
-        .select("id, full_name, email, avatar_url")
-        .in("id", Array.from(profileIds));
-      if (!error && data) {
-        for (const profile of data as ProfileRow[]) {
-          profileMap.set(profile.id, profile);
-        }
-      }
-    } catch (error) {
-      console.warn("[admin-campaigns] Unable to load profiles", error);
+  if (!profilesRes.error && profilesRes.data) {
+    for (const profile of profilesRes.data as ProfileRow[]) {
+      profileMap.set(profile.id, profile);
     }
   }
-
-  const campaignIds = campaigns.map((campaign) => campaign.id);
 
   const kpiMap = new Map<string, KpiRow[]>();
-  if (campaignIds.length > 0) {
-    try {
-      const { data, error } = await client
-        .from("kpis")
-        .select("id, project_id, name, current_value, target_value, unit, description, updated_at")
-        .in("project_id", campaignIds);
-      if (!error && data) {
-        for (const row of data as KpiRow[]) {
-          const list = kpiMap.get(row.project_id) ?? [];
-          list.push(row);
-          kpiMap.set(row.project_id, list);
-        }
-      }
-    } catch (error) {
-      console.warn("[admin-campaigns] Unable to load KPIs", error);
-    }
-  }
-
-  // Batch fetch all analytics data in a single query
   const analyticsMap = new Map<string, AnalyticsSummary[]>();
-  if (campaignIds.length > 0) {
-    try {
-      const { data, error } = await client
-        .from("analytics_data")
-        .select("id, metric_name, metric_value, recorded_at, dimensions");
-      
-      if (!error && data) {
-        // Group analytics by campaign_id from dimensions
-        const analyticsGrouped = new Map<string, AnalyticsRow[]>();
-        for (const row of data as AnalyticsRow[]) {
-          const campaignId = row.dimensions?.campaign_id as string | undefined;
-          if (campaignId && campaignIds.includes(campaignId)) {
-            const list = analyticsGrouped.get(campaignId) ?? [];
-            list.push(row);
-            analyticsGrouped.set(campaignId, list);
-          }
-        }
-        
-        // Summarize analytics for each campaign
-        for (const [campaignId, rows] of analyticsGrouped.entries()) {
-          const summary = summarizeAnalytics(rows);
-          analyticsMap.set(campaignId, summary);
-        }
-      }
-    } catch (error) {
-      if ((error as { code?: string }).code === "42P01") {
-        console.warn("[admin-campaigns] analytics_data table missing, skipping");
-      } else {
-        console.warn("[admin-campaigns] Unable to load analytics", error);
-      }
-    }
-  }
 
-  return { brandMap, profileMap, kpiMap, analyticsMap };
+  return { brandMap, campaignBrandsMap, profileMap, kpiMap, analyticsMap };
 }
 
 function summarizeAnalytics(rows: AnalyticsRow[]): AnalyticsSummary[] {
@@ -411,19 +365,21 @@ async function hydrateCampaigns(
   }
 
   const baseCampaigns = campaigns.map((campaign) => ({ ...campaign }));
-  const { brandMap, profileMap, kpiMap, analyticsMap } = await fetchRelatedMaps(client, baseCampaigns);
+  const { brandMap, campaignBrandsMap, profileMap } = await fetchRelatedMaps(client, baseCampaigns);
 
-  // Campaign contacts removed from list view for performance
-  const campaignIds = campaigns.map((c) => c.id);
-
-  return baseCampaigns.map((campaign) => ({
-    ...campaign,
-    brand: campaign.brand_id ? brandMap.get(campaign.brand_id) ?? null : null,
-    owner: campaign.owned_by ? profileMap.get(campaign.owned_by) ?? null : null,
-    creator: campaign.created_by ? profileMap.get(campaign.created_by) ?? null : null,
-    kpis: kpiMap.get(campaign.id) ?? [],
-    analytics_summary: analyticsMap.get(campaign.id) ?? [],
-  }));
+  return baseCampaigns.map((campaign) => {
+    const brandIds = campaignBrandsMap.get(campaign.id) || [];
+    return {
+      ...campaign,
+      brand_ids: brandIds,
+      brands: brandIds.map(id => brandMap.get(id)).filter((b): b is BrandRow => !!b),
+      brand: campaign.brand_id ? brandMap.get(campaign.brand_id) ?? null : null,
+      owner: campaign.owned_by ? profileMap.get(campaign.owned_by) ?? null : null,
+      creator: campaign.created_by ? profileMap.get(campaign.created_by) ?? null : null,
+      kpis: [],
+      analytics_summary: [],
+    };
+  });
 }
 
 async function handleList(req: Request, client: SupabaseClient) {
@@ -553,15 +509,19 @@ async function handleCreate(req: Request, client: SupabaseClient, userId: string
   const payload = CreateRequestSchema.parse(await req.json());
   const { campaign: campaignInput, options } = payload;
 
+  const brandIds = campaignInput.brand_ids || (campaignInput.brand_id ? [campaignInput.brand_id] : []);
+  
   const now = new Date().toISOString();
   const insertPayload = {
     ...campaignInput,
+    brand_id: brandIds[0] || null,
     status: campaignInput.status ?? "planning",
     created_by: campaignInput.created_by ?? userId,
     owned_by: campaignInput.owned_by ?? userId,
     created_at: now,
     updated_at: now,
   };
+  delete insertPayload.brand_ids;
 
   const { data, error } = await client
     .from("bd_campaigns")
@@ -571,6 +531,14 @@ async function handleCreate(req: Request, client: SupabaseClient, userId: string
 
   if (error) {
     throw error;
+  }
+
+  if (brandIds.length > 0) {
+    const brandRelations = brandIds.map(brand_id => ({
+      campaign_id: data.id,
+      brand_id,
+    }));
+    await client.from("campaign_brands").insert(brandRelations);
   }
 
   await ensureCampaignKpis(client, data.id, { seedIfMissing: options?.seedKpis ?? true });
@@ -626,6 +594,22 @@ async function handleUpdate(
 
   if (!existing) {
     throw new Error("Campaign not found");
+  }
+
+  const brandIds = updates.brand_ids;
+  if (brandIds !== undefined) {
+    await client.from("campaign_brands").delete().eq("campaign_id", campaignId);
+    if (brandIds.length > 0) {
+      const brandRelations = brandIds.map(brand_id => ({
+        campaign_id: campaignId,
+        brand_id,
+      }));
+      await client.from("campaign_brands").insert(brandRelations);
+      updates.brand_id = brandIds[0];
+    } else {
+      updates.brand_id = null;
+    }
+    delete updates.brand_ids;
   }
 
   const previousStatus = existing.status as string | null;
