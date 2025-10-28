@@ -211,6 +211,85 @@ const bdAnalysisToolSchema = {
   }
 };
 
+// Tool calling schema for LinkedIn message generation
+const linkedInMessageToolSchema = {
+  type: "function" as const,
+  function: {
+    name: "generate_linkedin_messages",
+    description: "Generate personalized LinkedIn outreach messages with 3 variants",
+    parameters: {
+      type: "object",
+      properties: {
+        message_variants: {
+          type: "array",
+          description: "Exactly 3 message variants with different tones",
+          items: {
+            type: "object",
+            properties: {
+              variant_name: {
+                type: "string",
+                enum: ["Direct Professional", "Warm Conversational", "Value-Focused"],
+                description: "Name of the variant"
+              },
+              message: {
+                type: "string",
+                description: "The complete LinkedIn message text"
+              },
+              character_count: {
+                type: "integer",
+                description: "Total character count of the message"
+              },
+              tone: {
+                type: "string",
+                enum: ["professional", "friendly", "consultative", "direct"],
+                description: "Tone of the message"
+              },
+              key_hooks: {
+                type: "array",
+                items: { type: "string" },
+                description: "2-3 key hooks used in the message"
+              },
+              personalization_elements: {
+                type: "array",
+                items: { type: "string" },
+                description: "Specific personalization elements included"
+              }
+            },
+            required: ["variant_name", "message", "character_count", "tone", "key_hooks", "personalization_elements"]
+          },
+          minItems: 3,
+          maxItems: 3
+        },
+        recommended_variant: {
+          type: "string",
+          enum: ["Direct Professional", "Warm Conversational", "Value-Focused"],
+          description: "Which variant is recommended based on the context"
+        },
+        reasoning: {
+          type: "string",
+          description: "Why the recommended variant is best for this contact"
+        },
+        send_timing_suggestion: {
+          type: "string",
+          enum: ["morning", "afternoon", "evening", "anytime"],
+          description: "Best time to send based on contact's activity patterns"
+        },
+        follow_up_strategy: {
+          type: "string",
+          description: "Suggested follow-up approach if no response"
+        }
+      },
+      required: [
+        "message_variants",
+        "recommended_variant",
+        "reasoning",
+        "send_timing_suggestion",
+        "follow_up_strategy"
+      ]
+    }
+  }
+};
+
 type SupabaseClient = ReturnType<typeof createClient>;
 
 interface DatabaseAgent {
@@ -911,6 +990,82 @@ serve(async (req) => {
           }
         } catch (toolError) {
           console.error('Tool calling failed, falling back to standard provider chain:', toolError);
+          const latencyMs = Date.now() - startTime;
+          telemetry.push({
+            provider: 'openai',
+            model: 'gpt-4o-mini',
+            latencyMs,
+            error: { message: toolError instanceof Error ? toolError.message : 'Tool calling failed' },
+          });
+        }
+      }
+    }
+
+    // Check if this is LinkedIn message generation - use tool calling for structured output
+    const isLinkedInMessage = (agent as any).slug === 'linkedin-message-generator' || agent.category === 'linkedin_outreach';
+
+    if (isLinkedInMessage && !parsedResponse) {
+      // Use OpenAI with tool calling for LinkedIn messages
+      const openaiKey = Deno.env.get('OPENAI_API_KEY');
+      
+      if (openaiKey) {
+        const startTime = Date.now();
+        try {
+          const toolCallResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${openaiKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: 'gpt-4o-mini',
+              messages,
+              tools: [linkedInMessageToolSchema],
+              tool_choice: { type: "function", function: { name: "generate_linkedin_messages" } },
+              temperature: 0.8,
+            }),
+          });
+
+          const toolCallResult = await toolCallResponse.json();
+          const latencyMs = Date.now() - startTime;
+          
+          telemetry.push({
+            provider: 'openai',
+            model: 'gpt-4o-mini',
+            latencyMs,
+            tokenUsage: {
+              promptTokens: toolCallResult.usage?.prompt_tokens,
+              completionTokens: toolCallResult.usage?.completion_tokens,
+              totalTokens: toolCallResult.usage?.total_tokens,
+            },
+          });
+          rawOutputs.push(toolCallResult);
+
+          const toolCall = toolCallResult.choices?.[0]?.message?.tool_calls?.[0];
+          if (toolCall && toolCall.function.name === "generate_linkedin_messages") {
+            const linkedInData = JSON.parse(toolCall.function.arguments);
+            
+            // Return the structured LinkedIn message output
+            parsedResponse = {
+              summary: `Generated ${linkedInData.message_variants?.length || 0} LinkedIn message variants`,
+              findings: [],
+              recommendations: [],
+              action_items: [],
+              metrics: {
+                total_items_analyzed: linkedInData.message_variants?.length || 0,
+                high_priority_issues: 0,
+                anomalies_found: 0
+              },
+              confidence_score: 0.9,
+              structured_output: linkedInData
+            };
+            
+            console.log('✅ LinkedIn message generation completed with tool calling');
+          } else {
+            console.warn('⚠️ LinkedIn tool call did not return expected format, falling back to standard flow');
+          }
+        } catch (toolError) {
+          console.error('LinkedIn tool calling failed, falling back to standard provider chain:', toolError);
           const latencyMs = Date.now() - startTime;
           telemetry.push({
             provider: 'openai',
