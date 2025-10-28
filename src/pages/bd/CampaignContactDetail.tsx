@@ -1,5 +1,8 @@
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft, Loader2, Mail, Linkedin, Phone, Sparkles, MessageSquare, Trash2, Calendar, Users, Network, Briefcase, FileText, Award, Globe, Brain } from "lucide-react";
+import { StatusBadgeWithIcon } from "@/components/bd/StatusBadgeWithIcon";
+import { StatusProgressBar } from "@/components/bd/StatusProgressBar";
+import type { CampaignContactStatus } from "@/features/campaign-detail/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,7 +18,7 @@ import { useCampaignContactResearch } from "@/hooks/useCampaignContactResearch";
 import { useDeleteCampaignContact } from "@/hooks/useDeleteCampaignContact";
 import { useCampaignContactUpdate } from "@/hooks/useCampaignContactUpdate";
 import { useAgentList } from "@/hooks/useAgentList";
-import { useRunAIAgent } from "@/hooks/useRunAIAgent";
+import { useRunCampaignAgent } from "@/hooks/useRunCampaignAgent";
 import { useAgentRunHistory } from "@/hooks/useAgentRunHistory";
 import { toast } from "sonner";
 import { parseLinkedInProfile } from "@/utils/parseLinkedInData";
@@ -42,7 +45,7 @@ export default function CampaignContactDetail() {
   
   // AI Agent hooks
   const { data: agents } = useAgentList();
-  const runAgent = useRunAIAgent();
+  const runAgent = useRunCampaignAgent();
   const bdAgent = agents?.find(a => a.slug === 'bd-research-analyst');
   const { data: agentRuns } = useAgentRunHistory(bdAgent?.id);
   const latestRun = agentRuns?.[0];
@@ -74,35 +77,31 @@ export default function CampaignContactDetail() {
   };
 
   const handleRunAgent = async () => {
-    if (!bdAgent || !contact) return;
+    if (!bdAgent || !contact || !contactSlug) return;
     
-    try {
-      const researchData = {
-        contact_name: contact.contact_name,
-        company: contact.contact_company,
-        title: contact.contact_title,
-        linkedin_about: contact.linkedin_about,
-        linkedin_headline: contact.linkedin_headline,
-        total_years_experience: contact.total_years_experience,
-        linkedin_skills: contact.linkedin_skills,
-        education_summary: contact.education_summary,
-        metadata: contact.metadata
-      };
+    const researchData = {
+      contact_name: contact.contact_name,
+      company: contact.contact_company,
+      title: contact.contact_title,
+      linkedin_about: contact.linkedin_about,
+      linkedin_headline: contact.linkedin_headline,
+      total_years_experience: contact.total_years_experience,
+      linkedin_skills: contact.linkedin_skills,
+      education_summary: contact.education_summary,
+      metadata: contact.metadata
+    };
 
-      await runAgent.mutateAsync({
-        agent_id: bdAgent.id,
-        execution_context: {
-          user_id: contact.id,
-          filters: {
-            contact_data: researchData
-          }
+    runAgent.mutate({
+      agentId: bdAgent.id,
+      contactId: contact.id,
+      contactSlug,
+      executionContext: {
+        user_id: contact.id,
+        filters: {
+          contact_data: researchData
         }
-      });
-      
-      toast.success("AI analysis complete");
-    } catch (error: any) {
-      toast.error(error.message || "Failed to run AI analysis");
-    }
+      }
+    });
   };
   
   if (contactLoading || campaignLoading) {
@@ -200,21 +199,43 @@ export default function CampaignContactDetail() {
               disabled={updateMutation.isPending}
             >
               <SelectTrigger className="w-[220px]">
-                <SelectValue />
+                <SelectValue>
+                  <StatusBadgeWithIcon status={contact.status as CampaignContactStatus} />
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="identified">Identified</SelectItem>
-                <SelectItem value="researched">Researched</SelectItem>
-                <SelectItem value="contacted_linkedin">LinkedIn Request Sent</SelectItem>
-                <SelectItem value="connected">Connected</SelectItem>
-                <SelectItem value="messaged">Message Sent</SelectItem>
-                <SelectItem value="contacted_email">Email Sent</SelectItem>
-                <SelectItem value="responded">Responded</SelectItem>
-                <SelectItem value="meeting_booked">Meeting Booked</SelectItem>
+                <SelectItem value="identified">
+                  <StatusBadgeWithIcon status="identified" />
+                </SelectItem>
+                <SelectItem value="researched">
+                  <StatusBadgeWithIcon status="researched" />
+                </SelectItem>
+                <SelectItem value="contacted_linkedin">
+                  <StatusBadgeWithIcon status="contacted_linkedin" />
+                </SelectItem>
+                <SelectItem value="connected">
+                  <StatusBadgeWithIcon status="connected" />
+                </SelectItem>
+                <SelectItem value="messaged">
+                  <StatusBadgeWithIcon status="messaged" />
+                </SelectItem>
+                <SelectItem value="contacted_email">
+                  <StatusBadgeWithIcon status="contacted_email" />
+                </SelectItem>
+                <SelectItem value="responded">
+                  <StatusBadgeWithIcon status="responded" />
+                </SelectItem>
+                <SelectItem value="meeting_booked">
+                  <StatusBadgeWithIcon status="meeting_booked" />
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>
         </CardHeader>
+        
+        <CardContent className="pb-6">
+          <StatusProgressBar currentStatus={contact.status as CampaignContactStatus} />
+        </CardContent>
         
         <CardContent>
           <Tabs value={activeTab} onValueChange={setActiveTab}>

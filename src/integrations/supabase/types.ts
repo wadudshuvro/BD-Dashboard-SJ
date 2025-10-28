@@ -398,8 +398,53 @@ export type Database = {
           },
         ]
       }
+      campaign_contact_status_history: {
+        Row: {
+          change_trigger: string
+          changed_at: string
+          changed_by: string | null
+          contact_id: string
+          created_at: string
+          id: string
+          new_status: string
+          notes: string | null
+          old_status: string | null
+        }
+        Insert: {
+          change_trigger?: string
+          changed_at?: string
+          changed_by?: string | null
+          contact_id: string
+          created_at?: string
+          id?: string
+          new_status: string
+          notes?: string | null
+          old_status?: string | null
+        }
+        Update: {
+          change_trigger?: string
+          changed_at?: string
+          changed_by?: string | null
+          contact_id?: string
+          created_at?: string
+          id?: string
+          new_status?: string
+          notes?: string | null
+          old_status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_contact_status_history_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaign_contacts: {
         Row: {
+          auto_status_enabled: boolean | null
           campaign_id: string
           contact_company: string | null
           contact_email: string | null
@@ -420,6 +465,7 @@ export type Database = {
           languages: string[] | null
           last_enriched_at: string | null
           last_linkedin_activity_date: string | null
+          last_status_change_at: string | null
           linkedin_about: string | null
           linkedin_connection_count: number | null
           linkedin_follower_count: number | null
@@ -438,6 +484,7 @@ export type Database = {
           years_in_current_role: number | null
         }
         Insert: {
+          auto_status_enabled?: boolean | null
           campaign_id: string
           contact_company?: string | null
           contact_email?: string | null
@@ -458,6 +505,7 @@ export type Database = {
           languages?: string[] | null
           last_enriched_at?: string | null
           last_linkedin_activity_date?: string | null
+          last_status_change_at?: string | null
           linkedin_about?: string | null
           linkedin_connection_count?: number | null
           linkedin_follower_count?: number | null
@@ -476,6 +524,7 @@ export type Database = {
           years_in_current_role?: number | null
         }
         Update: {
+          auto_status_enabled?: boolean | null
           campaign_id?: string
           contact_company?: string | null
           contact_email?: string | null
@@ -496,6 +545,7 @@ export type Database = {
           languages?: string[] | null
           last_enriched_at?: string | null
           last_linkedin_activity_date?: string | null
+          last_status_change_at?: string | null
           linkedin_about?: string | null
           linkedin_connection_count?: number | null
           linkedin_follower_count?: number | null
