@@ -1,5 +1,5 @@
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, Loader2, Mail, Linkedin, Phone, Sparkles, MessageSquare, Trash2, Calendar, Users, Network, Briefcase, FileText, Award, Globe, Brain, Copy, Lightbulb } from "lucide-react";
+import { ArrowLeft, Loader2, Mail, Linkedin, Phone, Sparkles, MessageSquare, Trash2, Calendar, Users, Network, Briefcase, FileText, Award, Globe, Brain, Copy, Lightbulb, CheckSquare, BarChart3, Target } from "lucide-react";
 import { StatusBadgeWithIcon } from "@/components/bd/StatusBadgeWithIcon";
 import { StatusProgressBar } from "@/components/bd/StatusProgressBar";
 import { StatusHistoryTimeline } from "@/components/bd/StatusHistoryTimeline";
@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -617,8 +618,74 @@ export default function CampaignContactDetail() {
                           ))}
                         </div>
                       )}
+
+                      {/* Display action items */}
+                      {latestRun.ai_summary.action_items && latestRun.ai_summary.action_items.length > 0 && (
+                        <div className="mt-3 space-y-1.5">
+                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Action Items</p>
+                          {latestRun.ai_summary.action_items.map((item: string, idx: number) => (
+                            <div key={idx} className="flex items-start gap-2 text-sm">
+                              <CheckSquare className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                              <span className="flex-1">{item}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                       
                       <Separator className="my-3" />
+
+                      {/* Analysis metrics */}
+                      {latestRun.ai_summary.metrics && (
+                        <div className="mb-3">
+                          <div className="flex items-center gap-2 mb-2">
+                            <BarChart3 className="h-4 w-4 text-muted-foreground" />
+                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Analysis Metrics</p>
+                          </div>
+                          <div className="grid grid-cols-3 gap-3">
+                            <div className="text-center p-2 rounded-md bg-muted/30">
+                              <p className="text-xs text-muted-foreground mb-1">Data Points</p>
+                              <p className="text-lg font-bold">{latestRun.ai_summary.metrics.total_items_analyzed || 0}</p>
+                            </div>
+                            <div className="text-center p-2 rounded-md bg-muted/30">
+                              <p className="text-xs text-muted-foreground mb-1">High Priority</p>
+                              <p className="text-lg font-bold">{latestRun.ai_summary.metrics.high_priority_issues || 0}</p>
+                            </div>
+                            <div className="text-center p-2 rounded-md bg-muted/30">
+                              <p className="text-xs text-muted-foreground mb-1">Anomalies</p>
+                              <p className="text-lg font-bold">{latestRun.ai_summary.metrics.anomalies_found || 0}</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Confidence score */}
+                      {latestRun.ai_summary.confidence_score !== undefined && (
+                        <div className="mb-3">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <Target className="h-4 w-4 text-muted-foreground" />
+                              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Confidence Score</p>
+                            </div>
+                            <span className="text-sm font-bold">
+                              {Math.round(latestRun.ai_summary.confidence_score * 100)}%
+                            </span>
+                          </div>
+                          <Progress 
+                            value={latestRun.ai_summary.confidence_score * 100} 
+                            className={
+                              latestRun.ai_summary.confidence_score >= 0.76 ? "[&>div]:bg-green-500" :
+                              latestRun.ai_summary.confidence_score >= 0.51 ? "[&>div]:bg-yellow-500" :
+                              "[&>div]:bg-red-500"
+                            }
+                          />
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {latestRun.ai_summary.confidence_score >= 0.76 ? "High Confidence" :
+                             latestRun.ai_summary.confidence_score >= 0.51 ? "Medium Confidence" :
+                             "Low Confidence"}
+                          </p>
+                        </div>
+                      )}
+
                       <p className="text-xs text-muted-foreground">
                         Last analyzed: {new Date(latestRun.created_at).toLocaleString()}
                       </p>
