@@ -130,7 +130,7 @@ const Layout = ({ userRole }: LayoutProps) => {
         current: false,
         subItems: [
           { name: "My Performance", href: "/bd/performance/personal", icon: TrendingUp, current: false },
-          { name: "Meetings & Follow-Ups", href: "/bd/performance/followups", icon: Calendar, current: false },
+          { name: "Meetings & Follow-Ups", href: "/follow-ups", icon: Calendar, current: false },
           { name: "Reports & Exports", href: "/bd/performance/reports", icon: FileDown, current: false },
         ]
       },

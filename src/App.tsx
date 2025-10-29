@@ -157,7 +157,6 @@ const App = () => (
               
               {/* Performance */}
               <Route path="performance/personal" element={<PersonalDashboard />} />
-              <Route path="performance/followups" element={<FollowUps />} />
               
               {/* Actions */}
               <Route path="actions/tasks" element={<ActionsTasks />} />
@@ -216,6 +215,15 @@ const App = () => (
   </ProtectedRoute>
 }>
   <Route index element={<ClientDetail />} />
+</Route>
+
+{/* Follow-Ups Route */}
+<Route path="/follow-ups" element={
+  <ProtectedRoute requiredMinimumRole="user">
+    <Layout />
+  </ProtectedRoute>
+}>
+  <Route index element={<FollowUps />} />
 </Route>
 
 <Route path="/leads/:slug" element={
