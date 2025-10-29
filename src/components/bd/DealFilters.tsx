@@ -72,6 +72,7 @@ function getActiveFilterCount(filters: DealFiltersState): number {
   if (filters.createdDateFrom || filters.createdDateTo) count++;
   if (filters.syncedOnly) count++;
   if (filters.hideStaleDeals) count++;
+  if (filters.statuses && filters.statuses.length > 0 && filters.statuses.length < 4) count++;
   if (filters.search) count++;
   return count;
 }

@@ -447,6 +447,7 @@ export interface LocalDealFilters {
   pmIds?: string[];
   syncedOnly?: boolean;
   hideStaleDeals?: boolean;
+  statuses?: string[];
   dateFrom?: Date | null;
   dateTo?: Date | null;
   createdDateFrom?: Date | null;
@@ -504,8 +505,19 @@ export function useLocalDealsByStage(
           `,
             { count: 'exact' }
           )
-          .eq('stage', stage)
-          .eq('status', 'active');
+          .eq('stage', stage);
+        
+        // Smart status filtering - default to active + on_hold (matches Control Tower)
+        let statusFilter = filters?.statuses || ['active', 'on_hold'];
+        
+        // If hideStaleDeals is enabled, remove 'on_hold' from filter
+        if (filters?.hideStaleDeals) {
+          statusFilter = statusFilter.filter(s => s !== 'on_hold');
+        }
+        
+        if (statusFilter.length > 0) {
+          query = query.in('status', statusFilter);
+        }
 
         // Apply filters
         if (filters?.categories?.length) {
@@ -546,11 +558,6 @@ export function useLocalDealsByStage(
 
         if (filters?.createdDateTo) {
           query = query.lte('created_at', filters.createdDateTo.toISOString());
-        }
-
-        if (filters?.hideStaleDeals) {
-          // Exclude on_hold deals (marked as stale by sync)
-          query = query.neq('status', 'on_hold');
         }
 
         if (filters?.search) {

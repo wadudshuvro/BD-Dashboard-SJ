@@ -10,6 +10,7 @@ import { DealFilters, DealFiltersState } from '@/components/bd/DealFilters';
 import { useAdminUsers } from '@/hooks/useAdminUsers';
 import { usePods } from '@/hooks/usePods';
 import { useCategories } from '@/hooks/useCategories';
+import { AlertCircle } from 'lucide-react';
 
 interface StagePipelineTableProps {
   stage: 'prospecting' | 'qualification' | 'proposal' | 'negotiation';
@@ -47,10 +48,26 @@ export function StagePipelineTable({ stage, title, description }: StagePipelineT
     }).format(value);
   };
 
-  const formatDate = (value: any) => {
+  const formatDate = (value: any, row?: any) => {
     if (!value) return '-';
     try {
-      return format(new Date(value), 'MMM dd, yyyy');
+      const dateObj = new Date(value);
+      const formattedDate = format(dateObj, 'MMM dd, yyyy');
+      
+      // Highlight past-due dates for active deals (close_date column only)
+      if (row && row.status === 'active') {
+        const isPastDue = dateObj < new Date();
+        if (isPastDue) {
+          return (
+            <span className="text-destructive font-semibold flex items-center gap-1">
+              <AlertCircle className="h-3 w-3" />
+              {formattedDate}
+            </span>
+          );
+        }
+      }
+      
+      return formattedDate;
     } catch {
       return '-';
     }
@@ -110,6 +127,21 @@ export function StagePipelineTable({ stage, title, description }: StagePipelineT
       }
     },
     { 
+      key: 'status' as const, 
+      label: 'Status',
+      render: (value: string) => {
+        const statusConfig: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
+          active: { label: 'Active', variant: 'default' },
+          on_hold: { label: 'Stale', variant: 'secondary' },
+          won: { label: 'Won', variant: 'default' },
+          lost: { label: 'Lost', variant: 'destructive' },
+        };
+        
+        const config = statusConfig[value] || { label: value, variant: 'outline' };
+        return <Badge variant={config.variant}>{config.label}</Badge>;
+      }
+    },
+    { 
       key: 'dealtype' as const, 
       label: 'Type',
       render: (value: string) => {
@@ -130,7 +162,7 @@ export function StagePipelineTable({ stage, title, description }: StagePipelineT
     { 
       key: 'close_date' as const, 
       label: 'Close Date', 
-      render: formatDate 
+      render: (value: any, row: any) => formatDate(value, row)
     },
     { 
       key: 'pod_name' as const, 
