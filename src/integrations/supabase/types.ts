@@ -817,24 +817,27 @@ export type Database = {
           created_at: string
           id: string
           is_active: boolean
+          items: Json | null
           name: string
-          stage: string
+          stage: string | null
           updated_at: string
         }
         Insert: {
           created_at?: string
           id?: string
           is_active?: boolean
+          items?: Json | null
           name: string
-          stage: string
+          stage?: string | null
           updated_at?: string
         }
         Update: {
           created_at?: string
           id?: string
           is_active?: boolean
+          items?: Json | null
           name?: string
-          stage?: string
+          stage?: string | null
           updated_at?: string
         }
         Relationships: []
