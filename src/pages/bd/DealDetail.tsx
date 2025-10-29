@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import { useQueryClient, useQuery, useMutation } from '@tanstack/react-query';
 import { format, formatDistanceToNow } from 'date-fns';
@@ -52,6 +52,7 @@ import { useSyncControlTowerDeals } from '@/hooks/useSyncControlTowerDeals';
 import { useRunBDAgent } from '@/hooks/useRunBDAgent';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import AiLeadEvaluation from '@/features/pipeline/AiLeadEvaluation';
 import { AIAgentModal } from '@/components/ai/AIAgentModal';
 import type { DealFile } from '@/hooks/useDeals';
 import { DEAL_STATUSES, STATUS_LABELS, STAGE_LABELS, type DealStatus } from '@/lib/dealStages';
@@ -213,19 +214,7 @@ const QuickActionsPanel = ({ dealId, controlTowerId: _controlTowerId, externalLi
     },
   });
 
-  const { data: deal } = useQuery({
-    queryKey: ['deal', dealId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('deals')
-        .select('*, clients(*)')
-        .eq('id', dealId)
-        .single();
-      
-      if (error) throw error;
-      return data;
-    },
-  });
+  const canViewAiLeadEvaluation = Boolean(user && ['super_admin', 'manager', 'bd_user'].includes(user.role));
 
   const runAgent = useRunBDAgent();
 
@@ -569,9 +558,9 @@ export default function DealDetail() {
   const { data: comments, isLoading: commentsLoading } = useDealComments(dealId);
   const { data: checklistItems, isLoading: checklistLoading } = useDealChecklist(dealId);
   const { data: systemInfo, isLoading: systemInfoLoading } = useDealSystemInfo(dealId, deal?.title);
-  const { files, loading: filesLoading, refetch: refetchFiles } = useDealFiles({ 
+  const { files, loading: filesLoading, refetch: refetchFiles } = useDealFiles({
     dealId: deal?.id,
-    enabled: !!deal?.id 
+    enabled: !!deal?.id
   });
   const addCommentMutation = useAddComment(dealId);
   const deleteCommentMutation = useDeleteComment(dealId);
@@ -579,6 +568,38 @@ export default function DealDetail() {
   const toggleChecklistMutation = useToggleChecklistItem(dealId);
   const deleteChecklistMutation = useDeleteChecklistItem(dealId);
   const { syncDeals: syncSingleDeal, isSyncing: isSyncingSingle } = useSyncControlTowerDeals(dealId);
+
+  const refreshDealDetails = useCallback(async () => {
+    if (!dealId) return;
+
+    try {
+      const { data: refreshedDeal, error: refreshedDealError } = await supabase
+        .from('deals')
+        .select('*, clients(*)')
+        .eq('id', dealId)
+        .single();
+
+      if (refreshedDealError) throw refreshedDealError;
+
+      if (refreshedDeal) {
+        setDeal(refreshedDeal as Deal);
+      }
+
+      if (refreshedDeal?.client_id) {
+        const { data: refreshedClient, error: refreshedClientError } = await supabase
+          .from('clients')
+          .select('*')
+          .eq('id', refreshedDeal.client_id)
+          .single();
+
+        if (!refreshedClientError && refreshedClient) {
+          setClient(refreshedClient as Client);
+        }
+      }
+    } catch (refreshError) {
+      console.error('Failed to refresh deal after AI evaluation:', refreshError);
+    }
+  }, [dealId]);
 
   useEffect(() => {
     async function fetchDeal() {
@@ -1145,6 +1166,23 @@ export default function DealDetail() {
 
         {/* Overview Tab */}
         <TabsContent value="overview" className="space-y-6 mt-6">
+          {deal?.client_id && (
+            <AiLeadEvaluation
+              dealId={deal.id}
+              clientId={deal.client_id}
+              companyName={
+                deal.clients?.company?.trim() ||
+                deal.clients?.name?.trim() ||
+                deal.title ||
+                'Unnamed Deal'
+              }
+              website={deal.clients?.website}
+              probability={deal.probability}
+              status={deal.status}
+              canAccess={canViewAiLeadEvaluation}
+              onDealRefetch={refreshDealDetails}
+            />
+          )}
           <DealStageProgress currentStage={deal.stage} />
 
           <div className="grid gap-6 md:grid-cols-2">
