@@ -344,16 +344,16 @@ async function fetchExaResearch(apiKey: string, company: string, website: string
 
   const query = queryParts.join(" OR ");
 
-  const searchOptions: Record<string, unknown> = {
+  const searchOptions = {
     numResults: 5,
-    type: "auto",
+    type: "auto" as const,
     text: true,
     highlights: { numSentences: 2 },
   };
 
   let response: ExaSearchResponse | null = null;
   try {
-    response = (await exa.searchAndContents(query, searchOptions as unknown)) as ExaSearchResponse;
+    response = (await exa.searchAndContents(query, searchOptions as any)) as ExaSearchResponse;
   } catch (error) {
     console.error("[lead-research-evaluate] Exa search failed", error);
     throw new HttpError(502, "Failed to fetch research data");
