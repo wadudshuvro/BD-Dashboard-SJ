@@ -1169,7 +1169,7 @@ export default function DealDetail() {
             </div>
           </TabsTrigger>
           <TabsTrigger value="systems" colorIndicator="orange">
-            Systems
+            Action
           </TabsTrigger>
         </TabsList>
 
@@ -1814,7 +1814,7 @@ export default function DealDetail() {
           </Card>
         </TabsContent>
 
-        {/* Systems Tab */}
+        {/* Action Tab */}
         <TabsContent value="systems" className="space-y-6 mt-6">
           <QuickActionsPanel
             dealId={deal.id}
