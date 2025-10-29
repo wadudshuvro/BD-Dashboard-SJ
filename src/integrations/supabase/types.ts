@@ -563,7 +563,6 @@ export type Database = {
           company_description: string | null
           company_founded_year: number | null
           company_headquarters: string | null
-          company_id: string | null
           company_industry: string | null
           company_linkedin_url: string | null
           company_size: string | null
@@ -611,7 +610,6 @@ export type Database = {
           company_description?: string | null
           company_founded_year?: number | null
           company_headquarters?: string | null
-          company_id?: string | null
           company_industry?: string | null
           company_linkedin_url?: string | null
           company_size?: string | null
@@ -659,7 +657,6 @@ export type Database = {
           company_description?: string | null
           company_founded_year?: number | null
           company_headquarters?: string | null
-          company_id?: string | null
           company_industry?: string | null
           company_linkedin_url?: string | null
           company_size?: string | null
@@ -707,13 +704,6 @@ export type Database = {
             columns: ["campaign_id"]
             isOneToOne: false
             referencedRelation: "bd_campaigns"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fk_campaign_contacts_company"
-            columns: ["company_id"]
-            isOneToOne: false
-            referencedRelation: "companies"
             referencedColumns: ["id"]
           },
         ]
@@ -852,21 +842,28 @@ export type Database = {
           control_tower_id: string | null
           country: string | null
           created_at: string
+          description: string | null
           email: string | null
           employee_count: number | null
           hubspot_id: string | null
           id: string
           industry: string | null
           last_contact_date: string | null
+          last_researched_at: string | null
+          linkedin_url: string | null
+          logo_url: string | null
           name: string
           notes: string | null
           owner_id: string | null
           phone: string | null
           postal_code: string | null
+          research_summary: Json | null
           revenue: number | null
           slug: string | null
+          specialties: string[] | null
           state: string | null
           status: string | null
+          technologies: string[] | null
           updated_at: string
           website: string | null
         }
@@ -879,21 +876,28 @@ export type Database = {
           control_tower_id?: string | null
           country?: string | null
           created_at?: string
+          description?: string | null
           email?: string | null
           employee_count?: number | null
           hubspot_id?: string | null
           id?: string
           industry?: string | null
           last_contact_date?: string | null
+          last_researched_at?: string | null
+          linkedin_url?: string | null
+          logo_url?: string | null
           name: string
           notes?: string | null
           owner_id?: string | null
           phone?: string | null
           postal_code?: string | null
+          research_summary?: Json | null
           revenue?: number | null
           slug?: string | null
+          specialties?: string[] | null
           state?: string | null
           status?: string | null
+          technologies?: string[] | null
           updated_at?: string
           website?: string | null
         }
@@ -906,21 +910,28 @@ export type Database = {
           control_tower_id?: string | null
           country?: string | null
           created_at?: string
+          description?: string | null
           email?: string | null
           employee_count?: number | null
           hubspot_id?: string | null
           id?: string
           industry?: string | null
           last_contact_date?: string | null
+          last_researched_at?: string | null
+          linkedin_url?: string | null
+          logo_url?: string | null
           name?: string
           notes?: string | null
           owner_id?: string | null
           phone?: string | null
           postal_code?: string | null
+          research_summary?: Json | null
           revenue?: number | null
           slug?: string | null
+          specialties?: string[] | null
           state?: string | null
           status?: string | null
+          technologies?: string[] | null
           updated_at?: string
           website?: string | null
         }
@@ -1009,72 +1020,6 @@ export type Database = {
           last_synced_at?: string | null
           updated_at?: string
           user_id?: string
-        }
-        Relationships: []
-      }
-      companies: {
-        Row: {
-          created_at: string
-          created_by: string | null
-          description: string | null
-          employee_count: string | null
-          founded_year: number | null
-          headquarters: string | null
-          id: string
-          industry: string | null
-          last_researched_at: string | null
-          linkedin_url: string | null
-          logo_url: string | null
-          name: string
-          research_summary: Json | null
-          revenue_range: string | null
-          slug: string
-          specialties: string[] | null
-          technologies: string[] | null
-          updated_at: string
-          website: string | null
-        }
-        Insert: {
-          created_at?: string
-          created_by?: string | null
-          description?: string | null
-          employee_count?: string | null
-          founded_year?: number | null
-          headquarters?: string | null
-          id?: string
-          industry?: string | null
-          last_researched_at?: string | null
-          linkedin_url?: string | null
-          logo_url?: string | null
-          name: string
-          research_summary?: Json | null
-          revenue_range?: string | null
-          slug: string
-          specialties?: string[] | null
-          technologies?: string[] | null
-          updated_at?: string
-          website?: string | null
-        }
-        Update: {
-          created_at?: string
-          created_by?: string | null
-          description?: string | null
-          employee_count?: string | null
-          founded_year?: number | null
-          headquarters?: string | null
-          id?: string
-          industry?: string | null
-          last_researched_at?: string | null
-          linkedin_url?: string | null
-          logo_url?: string | null
-          name?: string
-          research_summary?: Json | null
-          revenue_range?: string | null
-          slug?: string
-          specialties?: string[] | null
-          technologies?: string[] | null
-          updated_at?: string
-          website?: string | null
         }
         Relationships: []
       }

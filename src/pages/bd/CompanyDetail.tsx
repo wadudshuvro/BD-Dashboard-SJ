@@ -1,5 +1,5 @@
 import { useParams, Link } from "react-router-dom";
-import { useCompanyBySlug } from "@/hooks/useCompanyById";
+import { useClientBySlug } from "@/hooks/useClientBySlug";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,13 +22,13 @@ import {
 
 export default function CompanyDetail() {
   const { slug } = useParams<{ slug: string }>();
-  const { data: company, isLoading } = useCompanyBySlug(slug);
+  const { data: company, isLoading } = useClientBySlug(slug);
 
-  // Fetch contacts for this company
+  // Fetch contacts for this company via client name match
   const { data: contacts = [], isLoading: contactsLoading } = useQuery({
-    queryKey: ["company-contacts", company?.id],
+    queryKey: ["company-contacts", company?.company],
     queryFn: async () => {
-      if (!company?.id) return [];
+      if (!company?.company) return [];
       
       const { data, error } = await supabase
         .from("campaign_contacts")
@@ -47,13 +47,13 @@ export default function CompanyDetail() {
             slug
           )
         `)
-        .eq("company_id", company.id)
+        .eq("contact_company", company.company)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
       return data || [];
     },
-    enabled: !!company?.id,
+    enabled: !!company?.company,
   });
 
   if (isLoading) {
@@ -106,7 +106,7 @@ export default function CompanyDetail() {
               {company.logo_url ? (
                 <img 
                   src={company.logo_url} 
-                  alt={`${company.name} logo`}
+                  alt={`${company.company || company.name} logo`}
                   className="h-16 w-16 rounded-lg object-cover border"
                 />
               ) : (
@@ -116,7 +116,7 @@ export default function CompanyDetail() {
               )}
               
               <div className="space-y-2">
-                <h1 className="text-3xl font-bold">{company.name}</h1>
+                <h1 className="text-3xl font-bold">{company.company || company.name}</h1>
                 <div className="flex flex-wrap gap-2">
                   {company.industry && (
                     <Badge variant="secondary">
@@ -127,13 +127,13 @@ export default function CompanyDetail() {
                   {company.employee_count && (
                     <Badge variant="secondary">
                       <Users className="h-3 w-3 mr-1" />
-                      {company.employee_count} employees
+                      {company.employee_count}
                     </Badge>
                   )}
-                  {company.headquarters && (
+                  {(company.city || company.state || company.country) && (
                     <Badge variant="secondary">
                       <MapPin className="h-3 w-3 mr-1" />
-                      {company.headquarters}
+                      {[company.city, company.state, company.country].filter(Boolean).join(', ')}
                     </Badge>
                   )}
                 </div>
@@ -179,21 +179,21 @@ export default function CompanyDetail() {
                 </p>
               )}
               <div className="grid grid-cols-2 gap-4 pt-4 border-t">
-                {company.founded_year && (
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-1">Founded</p>
-                    <p className="text-sm font-medium flex items-center gap-1">
-                      <Calendar className="h-3.5 w-3.5" />
-                      {company.founded_year}
-                    </p>
-                  </div>
-                )}
-                {company.revenue_range && (
+                {company.revenue && (
                   <div>
                     <p className="text-xs text-muted-foreground mb-1">Revenue</p>
                     <p className="text-sm font-medium flex items-center gap-1">
                       <TrendingUp className="h-3.5 w-3.5" />
-                      {company.revenue_range}
+                      ${company.revenue.toLocaleString()}
+                    </p>
+                  </div>
+                )}
+                {company.employee_count && (
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Employees</p>
+                    <p className="text-sm font-medium flex items-center gap-1">
+                      <Users className="h-3.5 w-3.5" />
+                      {company.employee_count}
                     </p>
                   </div>
                 )}
@@ -265,7 +265,7 @@ export default function CompanyDetail() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <User className="h-5 w-5" />
-              Contacts at {company.name} ({contacts.length})
+              Contacts at {company.company || company.name} ({contacts.length})
             </CardTitle>
           </CardHeader>
           <CardContent>
