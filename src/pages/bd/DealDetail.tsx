@@ -1666,7 +1666,7 @@ export default function DealDetail() {
                     <div key={item.id} className="flex items-center gap-2 p-2 hover:bg-muted rounded-lg group">
                       <Checkbox
                         checked={item.is_completed}
-                        onCheckedChange={(checked) => handleToggleChecklistItem(item.id, Boolean(checked))}
+                        onCheckedChange={() => handleToggleChecklistItem(item.id, item.is_completed)}
                       />
                       <label className={`flex-1 text-sm cursor-pointer ${item.is_completed ? 'line-through text-muted-foreground' : ''}`}>
                         {item.title}
