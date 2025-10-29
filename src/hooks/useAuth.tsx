@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { User as SupabaseUser, Session } from '@supabase/supabase-js';
 
-type UserRole = 'super_admin' | 'manager' | 'brand_manager' | 'pm' | 'user';
+type UserRole = 'super_admin' | 'manager' | 'bd_user' | 'brand_manager' | 'pm' | 'user';
 
 interface User {
   id: string;
@@ -34,10 +34,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Role hierarchy for permission checking
   const roleHierarchy: Record<UserRole, number> = {
     'user': 1,
-    'pm': 2,
-    'brand_manager': 3,
-    'manager': 4,
-    'super_admin': 5
+    'bd_user': 2,
+    'pm': 3,
+    'brand_manager': 4,
+    'manager': 5,
+    'super_admin': 6
   };
 
   // Fetch user profile from profiles table and role from user_roles table
