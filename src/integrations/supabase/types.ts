@@ -1591,41 +1591,156 @@ export type Database = {
           },
         ]
       }
+      followup_suggestions: {
+        Row: {
+          accepted_at: string | null
+          ai_message_draft: string | null
+          campaign_contact_id: string | null
+          created_at: string
+          created_followup_id: string | null
+          deal_id: string | null
+          id: string
+          reasoning: string
+          rejected_at: string | null
+          suggested_date: string
+          suggested_priority: string
+          suggested_type: string
+          user_id: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          ai_message_draft?: string | null
+          campaign_contact_id?: string | null
+          created_at?: string
+          created_followup_id?: string | null
+          deal_id?: string | null
+          id?: string
+          reasoning: string
+          rejected_at?: string | null
+          suggested_date: string
+          suggested_priority: string
+          suggested_type: string
+          user_id: string
+        }
+        Update: {
+          accepted_at?: string | null
+          ai_message_draft?: string | null
+          campaign_contact_id?: string | null
+          created_at?: string
+          created_followup_id?: string | null
+          deal_id?: string | null
+          id?: string
+          reasoning?: string
+          rejected_at?: string | null
+          suggested_date?: string
+          suggested_priority?: string
+          suggested_type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "followup_suggestions_campaign_contact_id_fkey"
+            columns: ["campaign_contact_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "followup_suggestions_created_followup_id_fkey"
+            columns: ["created_followup_id"]
+            isOneToOne: false
+            referencedRelation: "followups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "followup_suggestions_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       followups: {
         Row: {
+          ai_generated_message: string | null
+          auto_generated: boolean
+          campaign_contact_id: string | null
+          completed_at: string | null
           contact: string
           created_at: string
           date: string
+          deal_id: string | null
+          followup_type: string
           id: string
+          metadata: Json | null
           next_step: string | null
           outcome: string | null
+          priority: string
+          reminder_sent: boolean
+          status: string
           topic: string
           updated_at: string
           user_id: string
         }
         Insert: {
+          ai_generated_message?: string | null
+          auto_generated?: boolean
+          campaign_contact_id?: string | null
+          completed_at?: string | null
           contact: string
           created_at?: string
           date: string
+          deal_id?: string | null
+          followup_type?: string
           id?: string
+          metadata?: Json | null
           next_step?: string | null
           outcome?: string | null
+          priority?: string
+          reminder_sent?: boolean
+          status?: string
           topic: string
           updated_at?: string
           user_id: string
         }
         Update: {
+          ai_generated_message?: string | null
+          auto_generated?: boolean
+          campaign_contact_id?: string | null
+          completed_at?: string | null
           contact?: string
           created_at?: string
           date?: string
+          deal_id?: string | null
+          followup_type?: string
           id?: string
+          metadata?: Json | null
           next_step?: string | null
           outcome?: string | null
+          priority?: string
+          reminder_sent?: boolean
+          status?: string
           topic?: string
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "followups_campaign_contact_id_fkey"
+            columns: ["campaign_contact_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "followups_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       google_drive_sync_log: {
         Row: {
@@ -2477,6 +2592,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      update_overdue_followups: { Args: never; Returns: undefined }
     }
     Enums: {
       app_role:
