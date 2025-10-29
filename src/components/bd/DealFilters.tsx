@@ -39,6 +39,7 @@ export interface DealFiltersState {
   createdDateFrom?: Date | null;
   createdDateTo?: Date | null;
   syncedOnly?: boolean;
+  hideStaleDeals?: boolean;
   search?: string;
 }
 
@@ -70,6 +71,7 @@ function getActiveFilterCount(filters: DealFiltersState): number {
   if (filters.dateFrom || filters.dateTo) count++;
   if (filters.createdDateFrom || filters.createdDateTo) count++;
   if (filters.syncedOnly) count++;
+  if (filters.hideStaleDeals) count++;
   if (filters.search) count++;
   return count;
 }
@@ -446,6 +448,19 @@ export function DealFilters({ filters, onFiltersChange, owners, pms, pods, categ
             }
           />
           Synced from Control Tower
+        </Label>
+
+        <Label className="flex items-center gap-2 text-sm font-medium">
+          <Checkbox
+            checked={filters.hideStaleDeals ?? false}
+            onCheckedChange={(checked) =>
+              onFiltersChange({
+                ...filters,
+                hideStaleDeals: Boolean(checked),
+              })
+            }
+          />
+          Hide Stale Deals
         </Label>
       </div>
 

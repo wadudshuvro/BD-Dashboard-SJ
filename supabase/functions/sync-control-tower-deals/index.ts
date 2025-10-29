@@ -216,14 +216,31 @@ function extractDriveFolderId(ctDeal: any): string | null {
 /**
  * Maps Control Tower stage to local deal status
  */
-function mapStatus(ctStage: any): string {
+function mapStatus(ctStage: any, closeDate: any, lastActivity: any): string {
   const stageStr = String(ctStage || '').toLowerCase().trim();
   
-  // Map closed stages to won/lost status
+  // Trust Control Tower closed stages
   if (stageStr === 'closedwon') return 'won';
   if (stageStr === 'closedlost') return 'lost';
   
-  // All other stages are "active" deals
+  // Check if deal is stale (close_date passed + no recent activity)
+  if (closeDate) {
+    const closeDateObj = new Date(closeDate);
+    const now = new Date();
+    
+    if (closeDateObj < now) {
+      // Close date has passed - check for recent activity
+      const lastActivityDate = lastActivity ? new Date(lastActivity) : null;
+      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      
+      if (!lastActivityDate || lastActivityDate < thirtyDaysAgo) {
+        console.log('[Sync] Deal marked as stale (past close date + no recent activity):', { closeDate, lastActivity });
+        return 'on_hold'; // Stale deal
+      }
+    }
+  }
+  
+  // Active deal
   return 'active';
 }
 
@@ -687,8 +704,12 @@ async function performSync(
           last_synced_at: new Date().toISOString(),
           probability: ctDeal.probability ? parseFloat(ctDeal.probability) : null,
           
-          // Map dealstage to local status field
-          status: mapStatus(ctDeal.dealstage || ctDeal.status),
+          // Map dealstage to local status field with stale detection
+          status: mapStatus(
+            ctDeal.dealstage || ctDeal.status,
+            expectedCloseDate,
+            ctDeal.updated_at || ctDeal.hs_lastmodifieddate
+          ),
 
           // Timestamps from Control Tower
           created_at: ctDeal.createdate || ctDeal.created_at || new Date().toISOString(),

@@ -446,6 +446,7 @@ export interface LocalDealFilters {
   ownerIds?: string[];
   pmIds?: string[];
   syncedOnly?: boolean;
+  hideStaleDeals?: boolean;
   dateFrom?: Date | null;
   dateTo?: Date | null;
   createdDateFrom?: Date | null;
@@ -545,6 +546,11 @@ export function useLocalDealsByStage(
 
         if (filters?.createdDateTo) {
           query = query.lte('created_at', filters.createdDateTo.toISOString());
+        }
+
+        if (filters?.hideStaleDeals) {
+          // Exclude on_hold deals (marked as stale by sync)
+          query = query.neq('status', 'on_hold');
         }
 
         if (filters?.search) {
