@@ -127,6 +127,14 @@ interface Deal {
     id: string;
     name: string;
   } | null;
+  
+  // Client relationship
+  client?: {
+    id: string;
+    name: string | null;
+    company?: string | null;
+    website?: string | null;
+  } | null;
 }
 
 interface Client {
@@ -150,6 +158,7 @@ interface UserProfile {
 
 interface QuickActionsPanelProps {
   dealId: string;
+  deal: Deal | null;
   controlTowerId?: string | null;
   externalLinks?: DealExternalLinks | null;
 }
@@ -193,11 +202,10 @@ const actionItems = [
   },
 ];
 
-const QuickActionsPanel = ({ dealId, controlTowerId: _controlTowerId, externalLinks: _externalLinks }: QuickActionsPanelProps) => {
+const QuickActionsPanel = ({ dealId, deal, controlTowerId: _controlTowerId, externalLinks: _externalLinks }: QuickActionsPanelProps) => {
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const [activeAgent, setActiveAgent] = useState<{ id: string; name: string; description: string } | null>(null);
   const [agentResult, setAgentResult] = useState<any>(null);
-  const { user } = useAuth();
   
   const { data: agents, isLoading: agentsLoading } = useQuery({
     queryKey: ['bd-ai-agents'],
@@ -213,8 +221,6 @@ const QuickActionsPanel = ({ dealId, controlTowerId: _controlTowerId, externalLi
       return data;
     },
   });
-
-  const canViewAiLeadEvaluation = Boolean(user && ['super_admin', 'manager', 'bd_user'].includes(user.role));
 
   const runAgent = useRunBDAgent();
 
@@ -238,7 +244,7 @@ const QuickActionsPanel = ({ dealId, controlTowerId: _controlTowerId, externalLi
         agentId: activeAgent.id,
         dealId: deal.id,
         dealTitle: deal.title,
-        clientName: (deal as any).clients?.name,
+        clientName: deal.client?.name,
         dealStage: deal.stage || undefined,
         fileIds,
         userContext,
@@ -551,6 +557,9 @@ export default function DealDetail() {
   const [syncingFolder, setSyncingFolder] = useState(false);
   const [showMapFolderDialog, setShowMapFolderDialog] = useState(false);
   const [folderUrl, setFolderUrl] = useState("");
+
+  // Permission check for AI Lead Evaluation
+  const canViewAiLeadEvaluation = Boolean(user && ['super_admin', 'manager', 'bd_user'].includes(user.role));
 
   const parts = slug?.split('-') || [];
   const dealId = parts.length >= 5 ? parts.slice(-5).join('-') : '';
@@ -1171,12 +1180,12 @@ export default function DealDetail() {
               dealId={deal.id}
               clientId={deal.client_id}
               companyName={
-                deal.clients?.company?.trim() ||
-                deal.clients?.name?.trim() ||
+                deal.client?.company?.trim() ||
+                deal.client?.name?.trim() ||
                 deal.title ||
                 'Unnamed Deal'
               }
-              website={deal.clients?.website}
+              website={deal.client?.website}
               probability={deal.probability}
               status={deal.status}
               canAccess={canViewAiLeadEvaluation}
@@ -1924,6 +1933,7 @@ export default function DealDetail() {
         <TabsContent value="systems" className="space-y-6 mt-6">
           <QuickActionsPanel
             dealId={deal.id}
+            deal={deal}
             controlTowerId={deal.control_tower_id}
             externalLinks={deal.external_links}
           />
