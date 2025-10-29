@@ -199,17 +199,22 @@ const AiLeadEvaluation = ({
 
   const mutation = useMutation({
     mutationFn: async () => {
-      if (!selectedContactId) {
-        throw new Error("Select a contact to run research");
-      }
-
-      const payload = {
+      const payload: {
+        client_id: string;
+        contact_id?: string;
+        company: string;
+        website?: string;
+        deal_id: string;
+      } = {
         client_id: clientId,
-        contact_id: selectedContactId,
         company: companyName,
         website: website ?? undefined,
         deal_id: dealId,
       };
+
+      if (selectedContactId) {
+        payload.contact_id = selectedContactId;
+      }
 
       const { data } = await axiosPrivate.post<LeadResearchResponse>("/lead-research-evaluate", payload);
       return data;
@@ -276,13 +281,13 @@ const AiLeadEvaluation = ({
                 )}
               </SelectContent>
             </Select>
-            <Button onClick={() => mutation.mutate()} disabled={mutation.isPending || !selectedContactId}>
+            <Button onClick={() => mutation.mutate()} disabled={mutation.isPending}>
               {mutation.isPending ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
                 <RefreshCw className="mr-2 h-4 w-4" />
               )}
-              Run AI Research
+              {selectedContactId ? "Evaluate Contact" : "Research Company"}
             </Button>
           </div>
         </div>
@@ -378,16 +383,20 @@ const AiLeadEvaluation = ({
               </div>
               <Separator />
               <div>
-                <h4 className="text-sm font-semibold">Reasoning</h4>
+                <h4 className="text-sm font-semibold">
+                  {selectedContactId ? "Contact Fit Analysis" : "Company Insights"}
+                </h4>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  {fitSummary ?? "Run the evaluation to see detailed reasoning."}
+                  {fitSummary ?? (selectedContactId 
+                    ? "Run the evaluation to see contact fit reasoning." 
+                    : "Run company research to gather insights.")}
                 </p>
               </div>
             </div>
           </TabsContent>
 
           <TabsContent value="email" className="mt-4 space-y-4">
-            {currentFitScore === "Great Fit" ? (
+            {emailTask && selectedContactId ? (
               <div className="space-y-3">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Mail className="h-4 w-4" />
@@ -402,7 +411,9 @@ const AiLeadEvaluation = ({
               </div>
             ) : (
               <div className="flex h-32 items-center justify-center rounded-md border border-dashed text-sm text-muted-foreground">
-                An email draft will appear when the lead is marked as a Great Fit.
+                {selectedContactId 
+                  ? "Run AI research to generate an email draft for this contact." 
+                  : "Select a contact to generate a personalized email draft."}
               </div>
             )}
           </TabsContent>

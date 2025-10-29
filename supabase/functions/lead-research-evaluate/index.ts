@@ -33,7 +33,7 @@ type ContactRow = {
 
 const RequestSchema = z.object({
   client_id: z.string().uuid(),
-  contact_id: z.string().uuid(),
+  contact_id: z.string().uuid().optional(),
   company: z.string().min(1),
   website: z.string().url().optional().nullable(),
   deal_id: z.string().uuid().optional(),
@@ -155,12 +155,14 @@ serve(async (req) => {
     const rawBody = await req.json();
     const payload = RequestSchema.parse(rawBody);
 
-    const [client, contact] = await Promise.all([
-      fetchClient(supabase, payload.client_id),
-      fetchContact(supabase, payload.contact_id, payload.client_id),
-    ]);
+    const client = await fetchClient(supabase, payload.client_id);
+    const contact = payload.contact_id 
+      ? await fetchContact(supabase, payload.contact_id, payload.client_id)
+      : null;
 
     const dealId = await resolveDealId(supabase, payload.deal_id, payload.client_id);
+
+    console.log(`[lead-research-evaluate] Mode: ${contact ? "Contact Evaluation" : "Company Research Only"}`);
 
     const exaResearch = await fetchExaResearch(exaApiKey, payload.company, payload.website ?? client.website ?? null);
     const perplexityResearch = await fetchPerplexityResearch(
@@ -172,17 +174,35 @@ serve(async (req) => {
     );
 
     const research = mergeResearch(exaResearch, perplexityResearch);
-    const fitEvaluation = evaluateFit(research.metrics, research.linkedin ?? null, contact.position);
-    research.fit_score = fitEvaluation.fitScore;
-    research.reasoning = fitEvaluation.reasoning;
+    
+    let fitEvaluation: FitEvaluation;
+    if (contact) {
+      fitEvaluation = evaluateFit(research.metrics, research.linkedin ?? null, contact.position);
+      research.fit_score = fitEvaluation.fitScore;
+      research.reasoning = fitEvaluation.reasoning;
+    } else {
+      fitEvaluation = {
+        fitScore: "Possible Fit",
+        probability: 50,
+        reasoning: "Company research completed - no contact evaluated yet",
+        criteria: {
+          geography: false,
+          employeeCount: false,
+          revenueRange: false,
+          seniorContact: false,
+        },
+      };
+      research.fit_score = "Possible Fit";
+      research.reasoning = "Company research completed - add a contact to evaluate fit";
+    }
 
-    await Promise.all([
-      updateDealFit(supabase, dealId, fitEvaluation),
-      updateClientProfile(supabase, client.id, research.metrics),
-    ]);
+    if (contact) {
+      await updateDealFit(supabase, dealId, fitEvaluation);
+    }
+    await updateClientProfile(supabase, client.id, research.metrics);
 
     const generatedTasks =
-      fitEvaluation.fitScore === "Great Fit" && perplexityResearch.email_draft
+      contact && fitEvaluation.fitScore === "Great Fit" && perplexityResearch.email_draft
         ? [
             {
               type: "email_draft",
@@ -192,10 +212,20 @@ serve(async (req) => {
           ]
         : null;
 
+    const executionContext: Record<string, string> = {
+      deal_id: dealId,
+      client_id: payload.client_id,
+      mode: contact ? "contact_evaluation" : "company_research",
+    };
+    
+    if (payload.contact_id) {
+      executionContext.contact_id = payload.contact_id;
+    }
+
     const { data: runRecord } = await supabase
       .from("ai_agent_runs")
       .insert({
-        title: `Lead evaluation for ${payload.company}`,
+        title: contact ? `Lead evaluation for ${payload.company}` : `Company research for ${payload.company}`,
         category: "lead_evaluation",
         status: "completed",
         executed_by: user.id,
@@ -207,11 +237,7 @@ serve(async (req) => {
           fit_summary: fitEvaluation.reasoning,
         } as Json,
         generated_tasks: generatedTasks as unknown as Json,
-        execution_context: {
-          deal_id: dealId,
-          client_id: payload.client_id,
-          contact_id: payload.contact_id,
-        } as Json,
+        execution_context: executionContext as Json,
       })
       .select("id")
       .single();
@@ -398,7 +424,7 @@ async function fetchPerplexityResearch(
   company: string,
   website: string | null,
   exaResearch: ExaResearch,
-  contact: ContactRow,
+  contact: ContactRow | null,
 ): Promise<PerplexityResearch> {
   const prompt = buildPerplexityPrompt(company, website, exaResearch, contact);
 
@@ -464,8 +490,39 @@ function buildPerplexityPrompt(
   company: string,
   website: string | null,
   exaResearch: ExaResearch,
-  contact: ContactRow,
+  contact: ContactRow | null,
 ) {
+  if (!contact) {
+    // Company-only research mode
+    const instructions = {
+      task: "Provide a concise company briefing",
+      required_fields: {
+        company_overview: "2-3 sentence overview focusing on offerings and market",
+        recent_news: "Key developments in the last 12 months",
+        metrics: {
+          employees: "Approximate employee count as a number",
+          revenue: "Annual revenue in USD as a number",
+          location: "Primary operating geography",
+          industry: "Primary industry or sector",
+        },
+        linkedin: "Official LinkedIn company profile URL if available",
+      },
+      formatting: "Return ONLY valid JSON with the fields above.",
+    };
+
+    const contextSections = [
+      `Company: ${company}`,
+      website ? `Website: ${website}` : null,
+      exaResearch.linkedin ? `LinkedIn from research: ${exaResearch.linkedin}` : null,
+      exaResearch.context ? `Supporting research snippets:\n${exaResearch.context}` : null,
+    ]
+      .filter(Boolean)
+      .join("\n\n");
+
+    return `${contextSections}\n\nInstructions:\n${JSON.stringify(instructions, null, 2)}`;
+  }
+
+  // Contact evaluation mode
   const contactName = [contact.first_name, contact.last_name].filter(Boolean).join(" ") || "Unknown contact";
   const position = contact.position ? ` (${contact.position})` : "";
 
