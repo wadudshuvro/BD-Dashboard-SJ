@@ -1738,24 +1738,6 @@ export default function DealDetail() {
                   )}
                   <div className="flex gap-2">
                     <Button
-                      onClick={handleSyncDealFromControlTower}
-                      disabled={isSyncingDeal || isSyncingSingle}
-                      variant="outline"
-                      size="sm"
-                    >
-                      {isSyncingDeal || isSyncingSingle ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Syncing...
-                        </>
-                      ) : (
-                        <>
-                          <RefreshCw className="mr-2 h-4 w-4" />
-                          Sync Deal
-                        </>
-                      )}
-                    </Button>
-                    <Button
                       onClick={handleResyncChecklist}
                       disabled={resyncingChecklist || !deal?.synced_from_control_tower}
                       variant="outline"
