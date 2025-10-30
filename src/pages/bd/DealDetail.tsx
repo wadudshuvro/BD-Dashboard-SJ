@@ -58,6 +58,7 @@ import { useDealSystemInfo } from '@/hooks/useDealSystemInfo';
 import { useDealFiles } from '@/hooks/useDealFiles';
 import { useSyncControlTowerDeals } from '@/hooks/useSyncControlTowerDeals';
 import { useRunBDAgent } from '@/hooks/useRunBDAgent';
+import { useDealBySlug } from '@/hooks/useDealBySlug';
 import { DealControlTowerSync } from '@/components/bd/DealControlTowerSync';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -576,12 +577,14 @@ export default function DealDetail() {
   const searchParams = new URLSearchParams(location.search);
   const activeTab = searchParams.get('tab') || 'overview';
 
+  // Use the new hook to load deal by slug
+  const { deal: dealData, isLoading: loadingDeal, error: dealError, dealId } = useDealBySlug(slug);
+  
   const [deal, setDeal] = useState<Deal | null>(null);
   const [client, setClient] = useState<Client | null>(null);
   const [owner, setOwner] = useState<UserProfile | null>(null);
   const [pm, setPm] = useState<UserProfile | null>(null);
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [newComment, setNewComment] = useState('');
   const [newChecklistItem, setNewChecklistItem] = useState('');
@@ -594,9 +597,6 @@ export default function DealDetail() {
 
   // Permission check for AI Lead Evaluation
   const canViewAiLeadEvaluation = Boolean(user && ['super_admin', 'manager', 'bd_user'].includes(user.role));
-
-  const parts = slug?.split('-') || [];
-  const dealId = parts.length >= 5 ? parts.slice(-5).join('-') : '';
 
   const { data: comments, isLoading: commentsLoading } = useDealComments(dealId);
   const { data: checklistItems, isLoading: checklistLoading } = useDealChecklist(dealId);
@@ -665,106 +665,61 @@ export default function DealDetail() {
     }
   }, [dealId]);
 
+  // Load deal from hook and fetch related data
   useEffect(() => {
-    async function fetchDeal() {
-      try {
-        setLoading(true);
-        setError(null);
+    async function loadRelatedData() {
+      if (!dealData) return;
 
-        if (!slug) {
-          setError('Invalid deal URL');
-          return;
-        }
+      setDeal(dealData as Deal);
 
-        const idParts = slug.split('-');
-        if (idParts.length < 5) {
-          setError('Invalid deal URL format');
-          return;
-        }
+      // Fetch client
+      if (dealData.client_id) {
+        const { data: clientData } = await supabase
+          .from('clients')
+          .select('*')
+          .eq('id', dealData.client_id)
+          .maybeSingle();
+        if (clientData) setClient(clientData as Client);
+      }
 
-        const extractedDealId = idParts.slice(-5).join('-');
-
-        const { data: dealData, error: dealError } = await supabase
-          .from('deals')
-          .select(`
-            *,
-            pods(id, name),
-            deal_files:deal_files(
-              id,
-              deal_id,
-              client_id,
-              category,
-              drive_file_id,
-              drive_folder_id,
-              drive_file_name,
-              drive_file_type,
-              drive_last_modified_at,
-              drive_created_at,
-              storage_bucket_path,
-              json_snapshot_path,
-              file_size,
-              checksum,
-              metadata,
-              drive_folder_url,
-              created_at,
-              updated_at
-            )
-          `)
-          .eq('id', extractedDealId)
-          .single();
-
-        if (dealError) throw dealError;
-        if (!dealData) {
-          setError('Deal not found');
-          return;
-        }
-
-        setDeal(dealData as Deal);
-
-        if (dealData.client_id) {
-          const { data: clientData } = await supabase
-            .from('clients')
-            .select('*')
-            .eq('id', dealData.client_id)
-            .single();
-          if (clientData) setClient(clientData as Client);
-        }
-
-        if (dealData.owner_id) {
-          const { data: ownerData } = await supabase
-            .from('users')
-            .select('id, first_name, last_name, email')
-            .eq('id', dealData.owner_id)
-            .single();
-          if (ownerData) setOwner(ownerData as UserProfile);
-        }
-
-        if (dealData.pm_assigned_id) {
-          const { data: pmData } = await supabase
-            .from('users')
-            .select('id, first_name, last_name, email')
-            .eq('id', dealData.pm_assigned_id)
-            .single();
-          if (pmData) setPm(pmData as UserProfile);
-        }
-
-        // Fetch all users for PM assignment dropdown
-        const { data: usersData } = await supabase
+      // Fetch owner
+      if (dealData.owner_id) {
+        const { data: ownerData } = await supabase
           .from('users')
           .select('id, first_name, last_name, email')
-          .eq('status', 'active')
-          .order('first_name');
-        if (usersData) setAllUsers(usersData as UserProfile[]);
-      } catch (err) {
-        console.error('Error fetching deal:', err);
-        setError(err instanceof Error ? err.message : 'Failed to load deal');
-      } finally {
-        setLoading(false);
+          .eq('id', dealData.owner_id)
+          .maybeSingle();
+        if (ownerData) setOwner(ownerData as UserProfile);
       }
+
+      // Fetch PM
+      if (dealData.pm_assigned_id) {
+        const { data: pmData } = await supabase
+          .from('users')
+          .select('id, first_name, last_name, email')
+          .eq('id', dealData.pm_assigned_id)
+          .maybeSingle();
+        if (pmData) setPm(pmData as UserProfile);
+      }
+
+      // Fetch all users for PM assignment dropdown
+      const { data: usersData } = await supabase
+        .from('users')
+        .select('id, first_name, last_name, email')
+        .eq('status', 'active')
+        .order('first_name');
+      if (usersData) setAllUsers(usersData as UserProfile[]);
     }
 
-    fetchDeal();
-  }, [slug]);
+    loadRelatedData();
+  }, [dealData]);
+
+  // Handle errors from the hook
+  useEffect(() => {
+    if (dealError) {
+      setError(dealError instanceof Error ? dealError.message : 'Failed to load deal');
+    }
+  }, [dealError]);
 
   useEffect(() => {
     const autoApplyTemplate = async () => {
@@ -1140,7 +1095,7 @@ export default function DealDetail() {
     return variants[currentStage ?? ''] || 'secondary';
   };
 
-  if (loading) {
+  if (loadingDeal) {
     return (
       <div className="container mx-auto py-8">
         <div className="flex items-center justify-center h-64">
@@ -2217,7 +2172,7 @@ export default function DealDetail() {
 
         {/* Tasks Tab */}
         <TabsContent value="tasks" className="space-y-6 mt-6">
-          {loading ? (
+          {loadingDeal ? (
             <Card>
               <CardContent className="py-8">
                 <div className="flex items-center justify-center">
