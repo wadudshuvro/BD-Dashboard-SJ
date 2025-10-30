@@ -18,7 +18,29 @@ export const useDealBySlug = (slug: string | undefined) => {
         return { deal_id: slug };
       }
 
-      // Otherwise, look it up in deal_system_info
+      // Check if it's a compound slug (readable-slug-full-uuid)
+      const parts = slug.split("-");
+      if (parts.length >= 5) {
+        const potentialUuid = parts.slice(-5).join("-");
+        
+        if (isValidUUID(potentialUuid)) {
+          // First check if this UUID exists in deal_system_info
+          const { data: systemData, error: systemError } = await supabase
+            .from("deal_system_info")
+            .select("deal_id")
+            .eq("deal_id", potentialUuid)
+            .maybeSingle();
+
+          if (systemData) {
+            return { deal_id: systemData.deal_id };
+          }
+
+          // Fallback to direct UUID if not in system_info
+          return { deal_id: potentialUuid };
+        }
+      }
+
+      // Otherwise, look it up in deal_system_info by slug
       const { data, error } = await supabase
         .from("deal_system_info")
         .select("deal_id")
