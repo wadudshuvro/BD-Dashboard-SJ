@@ -7,6 +7,7 @@ type GHLIntegrationRow = {
   user_id: string;
   api_key_encrypted: string;
   location_id: string | null;
+  location_name: string | null;
   is_active: boolean | null;
   created_at: string;
   updated_at: string;
@@ -289,14 +290,13 @@ async function handleGetIntegration(req: Request): Promise<Response> {
 
     const { data } = await client
       .from("gohighlevel_integrations")
-      .select("id, location_id, is_active, updated_at")
+      .select("id, location_id, location_name, is_active, updated_at")
       .eq("user_id", userId)
-      .eq("is_active", true)
-      .maybeSingle();
+      .eq("is_active", true);
 
     return new Response(JSON.stringify({
       ok: true,
-      integration: data ?? null,
+      integrations: data ?? [],
     }), { headers });
   } catch (error) {
     console.error("[GHL] GET integration", error);
@@ -309,6 +309,7 @@ async function handleCreateIntegration(req: Request): Promise<Response> {
   const body = await req.json();
   const apiKey = body?.apiKey;
   const locationId = body?.locationId ?? null;
+  const locationName = body?.locationName ?? null;
 
   if (!apiKey) {
     return new Response(JSON.stringify({ ok: false, error: "API key required" }), { headers, status: 400 });
@@ -325,20 +326,16 @@ async function handleCreateIntegration(req: Request): Promise<Response> {
 
     const encryptedKey = await encryptSecret(apiKey);
 
-    await client
-      .from("gohighlevel_integrations")
-      .update({ is_active: false })
-      .eq("user_id", userId);
-
     const { data, error } = await client
       .from("gohighlevel_integrations")
       .insert({
         user_id: userId,
         api_key_encrypted: encryptedKey,
         location_id: locationId,
+        location_name: locationName,
         is_active: true,
       })
-      .select("id, location_id, is_active, updated_at")
+      .select("id, location_id, location_name, is_active, updated_at")
       .single();
 
     if (error) throw error;
@@ -410,12 +407,20 @@ async function handleSyncContacts(req: Request): Promise<Response> {
       return new Response(JSON.stringify({ ok: false, error: "Unauthorized" }), { headers, status: 401 });
     }
 
-    const { data: integration, error } = await client
+    const body = await req.json().catch(() => ({}));
+    const integrationId = body?.integration_id;
+
+    let query = client
       .from("gohighlevel_integrations")
-      .select("id, user_id, api_key_encrypted, location_id, is_active, created_at, updated_at")
+      .select("id, user_id, api_key_encrypted, location_id, location_name, is_active, created_at, updated_at")
       .eq("user_id", userId)
-      .eq("is_active", true)
-      .maybeSingle();
+      .eq("is_active", true);
+
+    if (integrationId) {
+      query = query.eq("id", integrationId);
+    }
+
+    const { data: integration, error } = await query.maybeSingle();
 
     if (error) throw error;
     if (!integration) {
@@ -461,7 +466,7 @@ async function handleWebhook(req: Request): Promise<Response> {
     const client = await createSupabaseClient(undefined, true);
     const { data: integration } = await client
       .from("gohighlevel_integrations")
-      .select("id, user_id, api_key_encrypted, location_id, is_active, created_at, updated_at")
+      .select("id, user_id, api_key_encrypted, location_id, location_name, is_active, created_at, updated_at")
       .eq("location_id", locationId)
       .eq("is_active", true)
       .maybeSingle();

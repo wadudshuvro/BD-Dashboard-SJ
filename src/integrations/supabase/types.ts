@@ -2032,6 +2032,83 @@ export type Database = {
           },
         ]
       }
+      gohighlevel_contacts: {
+        Row: {
+          contact_id: string
+          created_at: string
+          email: string | null
+          id: string
+          integration_id: string
+          name: string
+          phone: string | null
+          status: string | null
+          updated_at: string
+        }
+        Insert: {
+          contact_id: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          integration_id: string
+          name: string
+          phone?: string | null
+          status?: string | null
+          updated_at?: string
+        }
+        Update: {
+          contact_id?: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          integration_id?: string
+          name?: string
+          phone?: string | null
+          status?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gohighlevel_contacts_integration_id_fkey"
+            columns: ["integration_id"]
+            isOneToOne: false
+            referencedRelation: "gohighlevel_integrations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gohighlevel_integrations: {
+        Row: {
+          api_key_encrypted: string
+          created_at: string
+          id: string
+          is_active: boolean | null
+          location_id: string | null
+          location_name: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          api_key_encrypted: string
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          location_id?: string | null
+          location_name?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          api_key_encrypted?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          location_id?: string | null
+          location_name?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       google_drive_sync_log: {
         Row: {
           completed_at: string | null

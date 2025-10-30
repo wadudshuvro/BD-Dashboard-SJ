@@ -153,7 +153,8 @@ const IntegrationManager = () => {
   const [isCrmLoading, setIsCrmLoading] = useState(false);
   const [crmSyncing, setCrmSyncing] = useState<Record<string, boolean>>({});
   const [crmToggling, setCrmToggling] = useState<Record<string, boolean>>({});
-  const [ghlForm, setGhlForm] = useState({ apiKey: "", locationId: "" });
+  const [ghlForm, setGhlForm] = useState({ apiKey: "", locationId: "", locationName: "" });
+  const [ghlIntegrations, setGhlIntegrations] = useState<any[]>([]);
   const [isConnectingGhl, setIsConnectingGhl] = useState(false);
   const [isLogsDialogOpen, setIsLogsDialogOpen] = useState(false);
   const [selectedLogSource, setSelectedLogSource] = useState<"hubspot" | "gohighlevel" | null>(null);
@@ -176,7 +177,6 @@ const IntegrationManager = () => {
   const [exaTestResult, setExaTestResult] = useState<any>(null);
 
   const hubspotIntegration = crmIntegrations.find((integration) => integration.type === "hubspot");
-  const goHighLevelIntegration = crmIntegrations.find((integration) => integration.type === "gohighlevel");
 
   useEffect(() => {
     void loadIntegrations();
@@ -309,6 +309,16 @@ const IntegrationManager = () => {
       console.error("Failed to load EXA config", error);
     }
 
+    // Load GoHighLevel integrations
+    try {
+      const { data, error } = await supabase.functions.invoke("gohighlevel-manage/integration", { method: "GET" });
+      if (!error && data?.integrations) {
+        setGhlIntegrations(Array.isArray(data.integrations) ? data.integrations : []);
+      }
+    } catch (error) {
+      console.error("Failed to load GoHighLevel integrations", error);
+    }
+
     setGlobalIntegrations(nextGlobal);
   };
 
@@ -388,6 +398,7 @@ const IntegrationManager = () => {
         body: {
           apiKey: ghlForm.apiKey.trim(),
           locationId: ghlForm.locationId.trim() || null,
+          locationName: ghlForm.locationName.trim() || null,
         },
       });
       if (error) throw error;
@@ -395,7 +406,7 @@ const IntegrationManager = () => {
         throw new Error(data?.error || "Unable to connect GoHighLevel");
       }
       toast({ title: "GoHighLevel connected", description: "Credentials saved successfully." });
-      setGhlForm({ apiKey: "", locationId: "" });
+      setGhlForm({ apiKey: "", locationId: "", locationName: "" });
       await loadIntegrations();
     } catch (error) {
       console.error("GoHighLevel connection failed", error);
@@ -1007,71 +1018,123 @@ const IntegrationManager = () => {
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
-            <div>
-              <CardTitle className="text-lg">GoHighLevel</CardTitle>
-              <CardDescription>Sync contacts and opportunities from GoHighLevel.</CardDescription>
-            </div>
-            <div className="flex items-center gap-3">
-              <Switch
-                checked={goHighLevelIntegration?.is_active ?? false}
-                disabled={!goHighLevelIntegration || Boolean(crmToggling[goHighLevelIntegration.id]) || isCrmLoading}
-                onCheckedChange={() => goHighLevelIntegration && handleToggleCrmIntegration(goHighLevelIntegration)}
-              />
-              <Badge variant={goHighLevelIntegration?.is_active ? "default" : "outline"}>
-                {goHighLevelIntegration?.is_active ? "Active" : "Inactive"}
-              </Badge>
-            </div>
+          <CardHeader>
+            <CardTitle className="text-lg">GoHighLevel</CardTitle>
+            <CardDescription>Manage multiple GoHighLevel locations with individual API keys.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="grid gap-2 md:grid-cols-2">
-              <div className="grid gap-2">
-                <Label htmlFor="ghl-api-key">API key</Label>
-                <Input
-                  id="ghl-api-key"
-                  placeholder="Enter GoHighLevel API key"
-                  value={ghlForm.apiKey}
-                  onChange={(event) => setGhlForm((prev) => ({ ...prev, apiKey: event.target.value }))}
-                  disabled={isConnectingGhl}
-                />
+            {/* Add new location form */}
+            <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
+              <h4 className="text-sm font-medium">Add New Location</h4>
+              <div className="grid gap-3 md:grid-cols-3">
+                <div className="grid gap-2">
+                  <Label htmlFor="ghl-api-key">API Key</Label>
+                  <Input
+                    id="ghl-api-key"
+                    placeholder="Enter API key"
+                    value={ghlForm.apiKey}
+                    onChange={(event) => setGhlForm((prev) => ({ ...prev, apiKey: event.target.value }))}
+                    disabled={isConnectingGhl}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="ghl-location-name">Location Name</Label>
+                  <Input
+                    id="ghl-location-name"
+                    placeholder="e.g., Austin Office"
+                    value={ghlForm.locationName}
+                    onChange={(event) => setGhlForm((prev) => ({ ...prev, locationName: event.target.value }))}
+                    disabled={isConnectingGhl}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="ghl-location-id">Location ID (optional)</Label>
+                  <Input
+                    id="ghl-location-id"
+                    placeholder="Location ID"
+                    value={ghlForm.locationId}
+                    onChange={(event) => setGhlForm((prev) => ({ ...prev, locationId: event.target.value }))}
+                    disabled={isConnectingGhl}
+                  />
+                </div>
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="ghl-location-id">Location ID (optional)</Label>
-                <Input
-                  id="ghl-location-id"
-                  placeholder="Location ID"
-                  value={ghlForm.locationId}
-                  onChange={(event) => setGhlForm((prev) => ({ ...prev, locationId: event.target.value }))}
-                  disabled={isConnectingGhl}
-                />
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-2">
               <Button onClick={handleConnectGoHighLevel} disabled={isConnectingGhl}>
-                {isConnectingGhl ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plug className="mr-2 h-4 w-4" />}Connect
-              </Button>
-              <Button
-                onClick={() => goHighLevelIntegration && handleSyncCrmIntegration(goHighLevelIntegration)}
-                disabled={!goHighLevelIntegration || Boolean(crmSyncing.gohighlevel)}
-              >
-                {crmSyncing.gohighlevel ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                )}
-                Sync now
-              </Button>
-              <Button variant="outline" onClick={() => handleOpenIntegrationLogs("gohighlevel")}>
-                <ScrollText className="mr-2 h-4 w-4" /> View logs
+                {isConnectingGhl ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plug className="mr-2 h-4 w-4" />}
+                Add Location
               </Button>
             </div>
-            <div className="space-y-1 text-sm text-muted-foreground">
-              <span>Last sync: {formatDateTime(goHighLevelIntegration?.last_sync)}</span>
-              {goHighLevelIntegration?.metadata?.location_id && (
-                <span>Location: {goHighLevelIntegration.metadata.location_id}</span>
-              )}
-              <span>Status: {goHighLevelIntegration?.status ?? "Unknown"}</span>
-            </div>
+
+            {/* List of existing locations */}
+            {ghlIntegrations.length > 0 && (
+              <div className="space-y-3">
+                <h4 className="text-sm font-medium">Connected Locations ({ghlIntegrations.length})</h4>
+                <div className="space-y-2">
+                  {ghlIntegrations.map((integration: any) => (
+                    <div key={integration.id} className="rounded-lg border p-4 space-y-2">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h5 className="font-medium">
+                              {integration.location_name || "Unnamed Location"}
+                            </h5>
+                            <Badge variant={integration.is_active ? "default" : "outline"}>
+                              {integration.is_active ? "Active" : "Inactive"}
+                            </Badge>
+                          </div>
+                          {integration.location_id && (
+                            <p className="text-xs text-muted-foreground mt-1">ID: {integration.location_id}</p>
+                          )}
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={async () => {
+                              setCrmSyncing((prev) => ({ ...prev, [`ghl-${integration.id}`]: true }));
+                              try {
+                                const { data, error } = await supabase.functions.invoke("gohighlevel-manage/sync-contacts", {
+                                  method: "POST",
+                                  body: { integration_id: integration.id },
+                                });
+                                if (error) throw error;
+                                if (!data?.ok) throw new Error(data?.error || "Sync failed");
+                                toast({ title: "Sync complete", description: `${integration.location_name || "Location"} synced successfully.` });
+                                await loadIntegrations();
+                              } catch (error) {
+                                console.error("Sync failed", error);
+                                toast({
+                                  title: "Sync failed",
+                                  description: error instanceof Error ? error.message : "Unable to sync location.",
+                                  variant: "destructive",
+                                });
+                              } finally {
+                                setCrmSyncing((prev) => ({ ...prev, [`ghl-${integration.id}`]: false }));
+                              }
+                            }}
+                            disabled={Boolean(crmSyncing[`ghl-${integration.id}`])}
+                          >
+                            {crmSyncing[`ghl-${integration.id}`] ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <RefreshCw className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Last updated: {formatDateTime(integration.updated_at)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {ghlIntegrations.length === 0 && (
+              <div className="text-center py-6 text-sm text-muted-foreground">
+                No GoHighLevel locations connected yet. Add your first location above.
+              </div>
+            )}
           </CardContent>
         </Card>
       </section>
