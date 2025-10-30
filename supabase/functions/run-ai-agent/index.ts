@@ -30,6 +30,11 @@ const AgentRunRequestSchema = z.object({
   }).optional(),
   file_ids: z.array(z.string().uuid()).optional(),
   user_context: z.string().optional(),
+  conversation_history: z.array(z.object({
+    role: z.enum(['user', 'assistant']),
+    content: z.string()
+  })).optional(),
+  current_question: z.string().optional(),
 });
 
 const MetricsSchema = z.object({
@@ -463,8 +468,31 @@ function assemblePrompt(
   sharedResources: SharedResourceRow[],
   fileContents?: string,
   userContext?: string,
+  agentType?: string,
+  currentQuestion?: string,
 ) {
   let systemPrompt: string = agent.system_prompt;
+
+  // Handle document_qa type with conversational prompt
+  if (agentType === 'document_qa' && fileContents) {
+    const userPrompt = `# Deal Documents
+
+${fileContents}
+
+---
+
+# User Question
+
+${currentQuestion || userContext || 'Summarize the key points from these documents.'}
+
+**Instructions:**
+- Answer based ONLY on the documents above
+- Cite specific document names when referencing information using format [Document: filename.ext]
+- If unsure or information not present, clearly state that
+- Be concise but thorough`;
+
+    return { systemPrompt, userPrompt };
+  }
 
   const companyName = typeof businessContext["company_name"] === "string"
     ? businessContext["company_name"] as string
@@ -895,6 +923,8 @@ serve(async (req) => {
       sharedResources,
       fileContents,
       userContext,
+      agentType,
+      payload.current_question,
     );
 
     const userPromptContent = inputContext
@@ -903,14 +933,77 @@ serve(async (req) => {
 
     const providerChain = buildProviderChain(resolvedAgentConfig, defaultModel);
 
-    const messages = [
-      { role: "system" as const, content: systemPrompt },
-      { role: "user" as const, content: userPromptContent },
-    ];
+    // Build messages array with conversation history for document_qa
+    const messages = [];
+    messages.push({ role: "system" as const, content: systemPrompt });
+    
+    if (agentType === 'document_qa' && payload.conversation_history) {
+      // Add conversation history
+      for (const msg of payload.conversation_history) {
+        messages.push({ role: msg.role as 'user' | 'assistant', content: msg.content });
+      }
+    }
+    
+    messages.push({ role: "user" as const, content: userPromptContent });
 
     const telemetry: ProviderTelemetry[] = [];
     const rawOutputs: unknown[] = [];
     let parsedResponse: AgentResponse | null = null;
+
+    // Handle document_qa type with direct OpenAI call (no structured output needed)
+    if (agentType === 'document_qa') {
+      const openaiKey = Deno.env.get('OPENAI_API_KEY');
+      
+      if (openaiKey) {
+        const startTime = Date.now();
+        try {
+          const qaResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${openaiKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: 'gpt-4o',
+              messages,
+              temperature: 0.3,
+              max_tokens: 2000,
+            }),
+          });
+
+          const qaResult = await qaResponse.json();
+          const latencyMs = Date.now() - startTime;
+          
+          telemetry.push({
+            provider: 'openai',
+            model: 'gpt-4o',
+            latencyMs,
+            tokenUsage: {
+              promptTokens: qaResult.usage?.prompt_tokens,
+              completionTokens: qaResult.usage?.completion_tokens,
+              totalTokens: qaResult.usage?.total_tokens,
+            },
+          });
+          rawOutputs.push(qaResult);
+
+          const answer = qaResult.choices?.[0]?.message?.content;
+          if (answer) {
+            // For Q&A, return answer directly without persisting as run
+            return new Response(
+              JSON.stringify({
+                success: true,
+                answer,
+                telemetry,
+              }),
+              { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+        } catch (qaError) {
+          console.error('Document Q&A failed:', qaError);
+          throw new Error('Failed to process document Q&A request');
+        }
+      }
+    }
 
     // Check if this is BD contact analysis - use tool calling for structured output
     const contactData = (executionContext.filters as any)?.contact_data;

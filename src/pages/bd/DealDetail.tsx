@@ -63,6 +63,7 @@ import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import AiLeadEvaluation from '@/features/pipeline/AiLeadEvaluation';
 import { AIAgentModal } from '@/components/ai/AIAgentModal';
+import { DocumentQAModal } from '@/components/ai/DocumentQAModal';
 import type { DealFile } from '@/hooks/useDeals';
 import { DEAL_STATUSES, STATUS_LABELS, STAGE_LABELS, type DealStatus } from '@/lib/dealStages';
 import { usePMContactInfo } from '@/hooks/usePMContactInfo';
@@ -217,6 +218,7 @@ const QuickActionsPanel = ({ dealId, deal, controlTowerId: _controlTowerId, exte
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const [activeAgent, setActiveAgent] = useState<{ id: string; name: string; description: string } | null>(null);
   const [agentResult, setAgentResult] = useState<any>(null);
+  const [isQAModalOpen, setIsQAModalOpen] = useState(false);
   
   const { data: agents, isLoading: agentsLoading } = useQuery({
     queryKey: ['bd-ai-agents'],
@@ -303,6 +305,16 @@ const QuickActionsPanel = ({ dealId, deal, controlTowerId: _controlTowerId, exte
               ) : (
                 <p className="col-span-full text-xs text-muted-foreground">No agents available</p>
               )}
+              
+              {/* Document Q&A Button */}
+              <Button
+                variant="outline"
+                className="w-full justify-start gap-2 border-primary/50 hover:bg-primary/5"
+                onClick={() => setIsQAModalOpen(true)}
+              >
+                <MessageSquare className="h-4 w-4" />
+                Ask About Documents
+              </Button>
             </div>
           </div>
 
@@ -352,6 +364,13 @@ const QuickActionsPanel = ({ dealId, deal, controlTowerId: _controlTowerId, exte
           result={agentResult}
         />
       )}
+
+      <DocumentQAModal
+        open={isQAModalOpen}
+        onOpenChange={setIsQAModalOpen}
+        dealId={dealId}
+        dealTitle={deal?.title || ''}
+      />
     </>
   );
 };
