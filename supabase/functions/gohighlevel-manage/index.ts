@@ -405,6 +405,139 @@ async function handleDeleteIntegration(req: Request, integrationId: string): Pro
   }
 }
 
+async function handlePushClient(req: Request): Promise<Response> {
+  const headers = { ...corsHeaders, "Content-Type": "application/json" };
+  try {
+    const client = await createSupabaseClient(req);
+    const userId = await requireAuth(client);
+    if (!userId) {
+      return new Response(JSON.stringify({ ok: false, error: "Unauthorized" }), { headers, status: 401 });
+    }
+
+    const { clientId } = await req.json();
+    if (!clientId) {
+      return new Response(JSON.stringify({ ok: false, error: "Client ID is required" }), { headers, status: 400 });
+    }
+
+    const { data: integration, error: integrationError } = await client
+      .from("gohighlevel_integrations")
+      .select("*")
+      .eq("user_id", userId)
+      .eq("is_active", true)
+      .maybeSingle();
+
+    if (integrationError || !integration) {
+      return new Response(JSON.stringify({ ok: false, error: "No active GoHighLevel integration found" }), { headers, status: 404 });
+    }
+
+    const decryptedKey = await decryptSecret(integration.api_key_encrypted);
+    if (!decryptedKey) {
+      return new Response(JSON.stringify({ ok: false, error: "Failed to decrypt API key" }), { headers, status: 500 });
+    }
+
+    const { data: clientData, error: clientError } = await client
+      .from("clients")
+      .select("*")
+      .eq("id", clientId)
+      .single();
+
+    if (clientError || !clientData) {
+      return new Response(JSON.stringify({ ok: false, error: "Client not found" }), { headers, status: 404 });
+    }
+
+    if (!clientData.email && !clientData.phone) {
+      return new Response(JSON.stringify({ ok: false, error: "Client must have either email or phone" }), { headers, status: 400 });
+    }
+
+    let ghlContactId = clientData.gohighlevel_contact_id;
+    let action = "created";
+
+    const contactData = {
+      locationId: integration.location_id,
+      email: clientData.email || undefined,
+      phone: clientData.phone || undefined,
+      name: clientData.name || clientData.contact_person || undefined,
+      companyName: clientData.company || undefined,
+      website: clientData.website || undefined,
+      address1: clientData.address || undefined,
+      city: clientData.city || undefined,
+      state: clientData.state || undefined,
+      country: clientData.country || undefined,
+      postalCode: clientData.postal_code || undefined,
+      source: "LeadsLift CRM",
+      customFields: [
+        { key: "crm_id", value: clientData.id },
+        { key: "industry", value: clientData.industry || "" },
+      ],
+    };
+
+    if (ghlContactId) {
+      await fetchGHL(`/contacts/${ghlContactId}`, decryptedKey, "PUT", contactData);
+      action = "updated";
+    } else {
+      if (clientData.email) {
+        const searchResult = await fetchGHL(`/contacts/search`, decryptedKey, "POST", {
+          locationId: integration.location_id,
+          email: clientData.email,
+        });
+
+        if (searchResult?.contacts?.length > 0) {
+          ghlContactId = searchResult.contacts[0].id;
+          await fetchGHL(`/contacts/${ghlContactId}`, decryptedKey, "PUT", contactData);
+          action = "linked";
+        }
+      }
+
+      if (!ghlContactId) {
+        const createResult = await fetchGHL(`/contacts/`, decryptedKey, "POST", contactData);
+        ghlContactId = createResult?.contact?.id || createResult?.id;
+        action = "created";
+      }
+    }
+
+    const { error: updateError } = await client
+      .from("clients")
+      .update({
+        gohighlevel_contact_id: ghlContactId,
+        gohighlevel_last_synced_at: new Date().toISOString(),
+      })
+      .eq("id", clientId);
+
+    if (updateError) {
+      console.error("[GHL] Failed to update client sync status:", updateError);
+    }
+
+    await client.from("control_tower_sync_log").insert({
+      sync_type: "push",
+      entity_type: "client",
+      entity_id: clientId,
+      control_tower_id: ghlContactId,
+      status: "success",
+      synced_by: userId,
+      payload: { action, ghl_contact_id: ghlContactId },
+    });
+
+    return new Response(
+      JSON.stringify({
+        ok: true,
+        action,
+        ghlContactId,
+        message: `Client ${action} in GoHighLevel CRM`,
+      }),
+      { headers }
+    );
+  } catch (error) {
+    console.error("[GHL] Push client error:", error);
+    return new Response(
+      JSON.stringify({
+        ok: false,
+        error: error instanceof Error ? error.message : "Failed to push client to GoHighLevel",
+      }),
+      { headers, status: 500 }
+    );
+  }
+}
+
 async function handleSyncContacts(req: Request): Promise<Response> {
   const headers = { ...corsHeaders, "Content-Type": "application/json" };
   try {
@@ -524,6 +657,10 @@ Deno.serve(async (req) => {
 
   if (req.method === "POST" && pathname === "/sync-contacts") {
     return handleSyncContacts(req);
+  }
+
+  if (req.method === "POST" && pathname === "/push-client") {
+    return handlePushClient(req);
   }
 
   if (req.method === "POST" && pathname === "/webhook") {

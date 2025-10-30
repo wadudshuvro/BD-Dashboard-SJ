@@ -26,6 +26,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { useClientBySlug } from '@/hooks/useClientBySlug';
 import { useDeals } from '@/hooks/useDeals';
 import { useDealFiles } from '@/hooks/useDealFiles';
+import { usePushClientToGHL } from '@/hooks/usePushClientToGHL';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
 
@@ -161,6 +162,8 @@ export default function ClientDetail() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [agentOutput, setAgentOutput] = useState<AgentOutput | null>(null);
   const [isApplying, setIsApplying] = useState(false);
+  
+  const { mutate: pushToGHL, isPending: isPushingToGHL } = usePushClientToGHL();
 
   const error = fetchError ? 'Unable to load client details' : null;
 
@@ -449,6 +452,33 @@ export default function ClientDetail() {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
+                    variant="outline"
+                    onClick={() => client?.id && pushToGHL({ clientId: client.id })}
+                    disabled={!client?.id || isPushingToGHL || isLoadingClient}
+                  >
+                    {isPushingToGHL ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Pushing...
+                      </>
+                    ) : client?.gohighlevel_contact_id ? (
+                      'Update in GHL'
+                    ) : (
+                      'Push to GHL'
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {client?.gohighlevel_contact_id
+                    ? 'Update this client in GoHighLevel CRM'
+                    : 'Push this client to GoHighLevel CRM'}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
                     onClick={handleRunAgent}
                     disabled={!client?.id || isRunning || isApplying || isLoadingClient}
                   >
@@ -536,6 +566,27 @@ export default function ClientDetail() {
                   </span>
                 </div>
               </div>
+
+              {client?.gohighlevel_contact_id && (
+                <>
+                  <Separator />
+                  <div className="grid gap-2">
+                    <p className="text-xs font-medium uppercase text-muted-foreground">GHL CRM Sync</p>
+                    <div className="grid gap-1 text-sm">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                          Synced
+                        </Badge>
+                      </div>
+                      {client.gohighlevel_last_synced_at && (
+                        <span className="text-muted-foreground">
+                          Last synced: {formatDate(client.gohighlevel_last_synced_at, true)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
 

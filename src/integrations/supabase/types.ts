@@ -911,6 +911,8 @@ export type Database = {
           description: string | null
           email: string | null
           employee_count: number | null
+          gohighlevel_contact_id: string | null
+          gohighlevel_last_synced_at: string | null
           hubspot_id: string | null
           id: string
           industry: string | null
@@ -945,6 +947,8 @@ export type Database = {
           description?: string | null
           email?: string | null
           employee_count?: number | null
+          gohighlevel_contact_id?: string | null
+          gohighlevel_last_synced_at?: string | null
           hubspot_id?: string | null
           id?: string
           industry?: string | null
@@ -979,6 +983,8 @@ export type Database = {
           description?: string | null
           email?: string | null
           employee_count?: number | null
+          gohighlevel_contact_id?: string | null
+          gohighlevel_last_synced_at?: string | null
           hubspot_id?: string | null
           id?: string
           industry?: string | null
