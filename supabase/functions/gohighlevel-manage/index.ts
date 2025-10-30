@@ -15,7 +15,7 @@ type GHLIntegrationRow = {
 
 type TriggerSource = "manual" | "webhook";
 
-const GHL_API_BASE = "https://services.leadconnectorhq.com";
+const GHL_API_BASE = "https://rest.gohighlevel.com";
 
 async function createSupabaseClient(req?: Request, forWebhook = false) {
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
@@ -98,6 +98,7 @@ async function fetchGHL(endpoint: string, apiKey: string, method: string = "GET"
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
+      Version: "2021-07-28",
     },
   });
 
@@ -120,8 +121,11 @@ async function syncGoHighLevel({
   apiKey: string;
   triggeredBy: TriggerSource;
 }) {
-  const locationParam = integration.location_id ? `?locationId=${integration.location_id}` : "";
-  const contactsPayload = await fetchGHL(`/contacts/${locationParam ? locationParam : ""}`, apiKey);
+  if (!integration.location_id) {
+    throw new Error("Location ID is required for syncing GoHighLevel data");
+  }
+
+  const contactsPayload = await fetchGHL(`/v2/contacts?locationId=${integration.location_id}`, apiKey);
   const contacts = Array.isArray(contactsPayload?.contacts) ? contactsPayload.contacts : (Array.isArray(contactsPayload) ? contactsPayload : []);
 
   const contactsToInsert = contacts.map((contact: any) => {
@@ -203,7 +207,7 @@ async function syncGoHighLevel({
     }
   }
 
-  const opportunitiesPayload = await fetchGHL(`/opportunities/${locationParam ? locationParam : ""}`, apiKey);
+  const opportunitiesPayload = await fetchGHL(`/v2/opportunities?locationId=${integration.location_id}`, apiKey);
   const opportunities = Array.isArray(opportunitiesPayload?.opportunities)
     ? opportunitiesPayload.opportunities
     : (Array.isArray(opportunitiesPayload) ? opportunitiesPayload : []);
@@ -315,11 +319,30 @@ async function handleCreateIntegration(req: Request): Promise<Response> {
     return new Response(JSON.stringify({ ok: false, error: "API key required" }), { headers, status: 400 });
   }
 
+  if (!locationId) {
+    return new Response(JSON.stringify({ ok: false, error: "Location ID required" }), { headers, status: 400 });
+  }
+
   try {
     const client = await createSupabaseClient(req);
     const userId = await requireAuth(client);
     if (!userId) {
       return new Response(JSON.stringify({ ok: false, error: "Unauthorized" }), { headers, status: 401 });
+    }
+
+    // Validate location and get location details
+    let validatedLocationName = locationName;
+    try {
+      const locationData = await fetchGHL(`/v2/locations/${locationId}`, apiKey);
+      if (locationData?.location?.name) {
+        validatedLocationName = locationData.location.name;
+      }
+    } catch (error) {
+      console.error("[GHL] Location validation failed:", error);
+      return new Response(JSON.stringify({ 
+        ok: false, 
+        error: `Invalid location ID or API key. Please verify your credentials.` 
+      }), { headers, status: 400 });
     }
 
     const encryptedKey = await encryptSecret(apiKey);
@@ -330,7 +353,7 @@ async function handleCreateIntegration(req: Request): Promise<Response> {
         user_id: userId,
         api_key_encrypted: encryptedKey,
         location_id: locationId,
-        location_name: locationName,
+        location_name: validatedLocationName,
         is_active: true,
       })
       .select("id, location_id, location_name, is_active, updated_at")

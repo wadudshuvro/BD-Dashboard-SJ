@@ -1038,22 +1038,25 @@ const IntegrationManager = () => {
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="ghl-location-name">Location Name</Label>
+                  <Label htmlFor="ghl-location-id">Location ID *</Label>
+                  <Input
+                    id="ghl-location-id"
+                    placeholder="e.g., fZgMNJT9I9gVG0wDd1oi"
+                    value={ghlForm.locationId}
+                    onChange={(event) => setGhlForm((prev) => ({ ...prev, locationId: event.target.value }))}
+                    disabled={isConnectingGhl}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Find this in your GHL URL: .../location/<strong>YOUR_LOCATION_ID</strong>/...
+                  </p>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="ghl-location-name">Location Name (optional)</Label>
                   <Input
                     id="ghl-location-name"
                     placeholder="e.g., Austin Office"
                     value={ghlForm.locationName}
                     onChange={(event) => setGhlForm((prev) => ({ ...prev, locationName: event.target.value }))}
-                    disabled={isConnectingGhl}
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="ghl-location-id">Location ID (optional)</Label>
-                  <Input
-                    id="ghl-location-id"
-                    placeholder="Location ID"
-                    value={ghlForm.locationId}
-                    onChange={(event) => setGhlForm((prev) => ({ ...prev, locationId: event.target.value }))}
                     disabled={isConnectingGhl}
                   />
                 </div>
