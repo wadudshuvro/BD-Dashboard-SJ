@@ -1251,6 +1251,8 @@ export type Database = {
           created_at: string
           deal_id: string
           id: string
+          mentioned_user_emails: string[] | null
+          mentioned_users: string[] | null
           synced_to_control_tower: boolean
           updated_at: string
           user_id: string
@@ -1260,6 +1262,8 @@ export type Database = {
           created_at?: string
           deal_id: string
           id?: string
+          mentioned_user_emails?: string[] | null
+          mentioned_users?: string[] | null
           synced_to_control_tower?: boolean
           updated_at?: string
           user_id: string
@@ -1269,6 +1273,8 @@ export type Database = {
           created_at?: string
           deal_id?: string
           id?: string
+          mentioned_user_emails?: string[] | null
+          mentioned_users?: string[] | null
           synced_to_control_tower?: boolean
           updated_at?: string
           user_id?: string
