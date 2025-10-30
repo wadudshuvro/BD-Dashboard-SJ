@@ -79,16 +79,42 @@ serve(async (req) => {
       });
     }
 
-    const checklistItems = items.map((item) => ({
-      deal_id: payload.dealId,
-      title: item.title,
-      order_index: item.order_index ?? 0,
-      is_completed: false,
-    }));
+    // Step 3: Fetch existing checklist items to prevent duplicates
+    const { data: existingItems } = await supabase
+      .from("deal_checklist_items")
+      .select("title")
+      .eq("deal_id", payload.dealId);
+
+    const existingTitles = new Set(
+      (existingItems || []).map(item => item.title.toLowerCase().trim())
+    );
+
+    // Filter out items that already exist
+    const itemsToInsert = items
+      .filter(item => !existingTitles.has(item.title.toLowerCase().trim()))
+      .map((item, index) => ({
+        deal_id: payload.dealId,
+        title: item.title,
+        order_index: item.order_index ?? index,
+        is_completed: false,
+      }));
+
+    // Only insert if we have new items
+    if (itemsToInsert.length === 0) {
+      return new Response(JSON.stringify({ 
+        success: true, 
+        items: [], 
+        message: "All template items already exist" 
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    console.log(`[Template] Inserting ${itemsToInsert.length} new items (${items.length - itemsToInsert.length} already exist)`);
 
     const { data: insertedItems, error: insertError } = await supabase
       .from("deal_checklist_items")
-      .insert(checklistItems)
+      .insert(itemsToInsert)
       .select();
 
     if (insertError) {

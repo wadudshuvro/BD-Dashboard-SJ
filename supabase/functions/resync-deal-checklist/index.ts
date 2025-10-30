@@ -98,17 +98,18 @@ serve(async (req) => {
     // Initialize Control Tower client
     const controlTowerClient = createClient(controlTowerUrl, controlTowerApiKey);
 
-    // Step 1: Delete all existing checklist items for this deal
+    // Step 5: Delete ONLY Control Tower items (preserve locally-created items)
     const { error: deleteError, count: deletedCount } = await supabase
       .from('deal_checklist_items')
       .delete({ count: 'exact' })
-      .eq('deal_id', dealId);
+      .eq('deal_id', dealId)
+      .not('control_tower_item_id', 'is', null);
 
     if (deleteError) {
-      throw new Error(`Failed to delete existing items: ${deleteError.message}`);
+      throw new Error(`Failed to delete existing Control Tower items: ${deleteError.message}`);
     }
 
-    console.log(`[Resync] Deleted ${deletedCount || 0} existing checklist items`);
+    console.log(`[Resync] Deleted ${deletedCount || 0} Control Tower checklist items (local items preserved)`);
 
     // Step 2: Fetch checklist from Control Tower
     const { data: ctChecklist, error: ctChecklistError } = await controlTowerClient

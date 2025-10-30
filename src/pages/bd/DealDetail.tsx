@@ -721,13 +721,28 @@ export default function DealDetail() {
     }
   }, [dealError]);
 
+  // Step 2: Fixed template auto-application with localStorage-based tracking per deal
   useEffect(() => {
     const autoApplyTemplate = async () => {
-      if (!deal?.id || !deal.stage) return;
-      if ((checklistItems?.length ?? 0) > 0) return;
-      if (autoApplyAttemptedRef.current) return;
-
-      autoApplyAttemptedRef.current = true;
+      // Wait for all data to load
+      if (!deal?.id || !deal.stage || checklistLoading) return;
+      
+      // Check if we've already attempted for THIS specific deal
+      const storageKey = `checklist-template-applied-${deal.id}`;
+      if (localStorage.getItem(storageKey)) {
+        console.log(`[Checklist] Template already applied for deal ${deal.id}`);
+        return;
+      }
+      
+      // Only apply if checklist is truly empty (not loading)
+      if (checklistItems && checklistItems.length > 0) {
+        console.log(`[Checklist] Checklist already has ${checklistItems.length} items, skipping template`);
+        return;
+      }
+      
+      // Mark as attempted BEFORE calling the function to prevent race conditions
+      localStorage.setItem(storageKey, 'true');
+      console.log(`[Checklist] Applying template for deal ${deal.id}, stage: ${deal.stage}`);
 
       try {
         const { data, error } = await supabase.functions.invoke('apply-checklist-template', {
@@ -736,16 +751,21 @@ export default function DealDetail() {
 
         if (error) throw error;
         if (data?.success) {
+          console.log(`[Checklist] Template applied successfully:`, data);
           toast({ title: 'Checklist template applied' });
           queryClient.invalidateQueries({ queryKey: ['deal-checklist', deal.id] });
+        } else {
+          console.log(`[Checklist] Template application result:`, data);
         }
       } catch (err) {
-        console.error('Failed to apply checklist template:', err);
+        console.error('[Checklist] Failed to apply template:', err);
+        // On error, clear the flag so it can be retried
+        localStorage.removeItem(storageKey);
       }
     };
 
     autoApplyTemplate();
-  }, [deal?.id, deal?.stage, checklistItems?.length, queryClient]);
+  }, [deal?.id, deal?.stage, checklistItems, checklistLoading, queryClient]);
 
   const formatCurrency = (value?: number | null) => {
     if (value === null || value === undefined) return '-';
