@@ -321,7 +321,7 @@ async function handleCreateIntegration(req: Request): Promise<Response> {
       return new Response(JSON.stringify({ ok: false, error: "Unauthorized" }), { headers, status: 401 });
     }
 
-    await fetchGHL("/locations/", apiKey);
+    await fetchGHL("/locations", apiKey);
 
     const encryptedKey = await encryptSecret(apiKey);
 
