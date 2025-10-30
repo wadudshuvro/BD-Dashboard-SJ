@@ -39,9 +39,21 @@ export const usePushToControlTower = (dealId?: string) => {
       }
     },
     onError: (error: Error) => {
-      toast.error('Push failed', {
-        description: error.message
-      });
+      if (error.message.includes('Control Tower not configured')) {
+        toast.error('Configuration Error', {
+          description: 'Control Tower credentials are not accessible. Please contact your administrator.',
+          duration: 8000,
+        });
+      } else if (error.message.includes('control_tower_id') || error.message.includes('Control Tower ID')) {
+        toast.error('Cannot Push', {
+          description: 'This deal was not synced from Control Tower.',
+          duration: 6000,
+        });
+      } else {
+        toast.error('Push failed', {
+          description: error.message || 'An unexpected error occurred.'
+        });
+      }
     }
   });
 

@@ -2,9 +2,11 @@ import { RefreshCw, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useSyncControlTowerDeals } from '@/hooks/useSyncControlTowerDeals';
 import { usePushToControlTower } from '@/hooks/usePushToControlTower';
 import { formatDistanceToNow } from 'date-fns';
+import { useMemo } from 'react';
 
 interface DealControlTowerSyncProps {
   dealId: string;
@@ -26,6 +28,24 @@ export function DealControlTowerSync({
   const hasPendingChanges = updatedAt && lastSyncedAt 
     ? new Date(updatedAt) > new Date(lastSyncedAt)
     : false;
+
+  // Smart button validation
+  const canPush = useMemo(() => {
+    if (!dealId) return false;
+    if (!syncedFromControlTower) return false;
+    if (!hasPendingChanges) return false;
+    return true;
+  }, [dealId, syncedFromControlTower, hasPendingChanges]);
+
+  const pushTooltip = useMemo(() => {
+    if (!syncedFromControlTower) {
+      return "This deal was not synced from Control Tower and cannot be pushed back";
+    }
+    if (!hasPendingChanges) {
+      return "No local changes to push";
+    }
+    return "Push local changes back to Control Tower";
+  }, [syncedFromControlTower, hasPendingChanges]);
 
   if (!syncedFromControlTower) {
     return null;
@@ -68,16 +88,21 @@ export function DealControlTowerSync({
             {isSyncing ? 'Pulling...' : 'Pull'}
           </Button>
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => pushDeal()}
-            disabled={isPushing || isSyncing}
-            className="w-full"
-          >
-            <Upload className={`h-4 w-4 mr-2 ${isPushing ? 'animate-spin' : ''}`} />
-            {isPushing ? 'Pushing...' : 'Push'}
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => pushDeal()}
+                disabled={!canPush || isPushing || isSyncing}
+                className="w-full"
+              >
+                <Upload className={`h-4 w-4 mr-2 ${isPushing ? 'animate-spin' : ''}`} />
+                {isPushing ? 'Pushing...' : 'Push'}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{pushTooltip}</TooltipContent>
+          </Tooltip>
         </div>
 
         <div className="text-xs text-muted-foreground space-y-1">

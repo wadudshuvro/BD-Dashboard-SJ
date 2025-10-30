@@ -118,8 +118,22 @@ serve(async (req) => {
       typeof configData.anon_key === "string" ? configData.anon_key : Deno.env.get("CONTROLTOWERAPIKEY");
 
     if (!controlTowerUrl || !controlTowerKey) {
-      throw new Error("Control Tower not configured");
+      console.error('[Push] Missing Control Tower config', {
+        hasUrl: !!controlTowerUrl,
+        hasKey: !!controlTowerKey,
+        fromDB: !!(configData?.url && configData?.anon_key),
+        fromEnv: !!(Deno.env.get("Controltowerurl") && Deno.env.get("CONTROLTOWERAPIKEY"))
+      });
+      throw new Error(
+        "Control Tower credentials not accessible. " +
+        "Ensure Controltowerurl and CONTROLTOWERAPIKEY secrets are set."
+      );
     }
+    
+    console.log('[Push] Control Tower client initialized', {
+      url: controlTowerUrl.substring(0, 30) + '...',
+      source: configData?.url ? 'database' : 'environment'
+    });
 
     const controlTowerClient = createClient(controlTowerUrl, controlTowerKey);
 
@@ -197,6 +211,7 @@ serve(async (req) => {
             synced_by: userId,
           });
 
+          console.log(`[Push] Successfully synced comment ${comment.id} to Control Tower`);
           results.comments.synced += 1;
         } catch (error) {
           const message = error instanceof Error ? error.message : "Failed to push comment";
@@ -403,6 +418,7 @@ serve(async (req) => {
             synced_by: userId,
           });
 
+          console.log(`[Push] Successfully synced deal ${deal.id} (${Object.keys(updatePayload).length} fields) to Control Tower`);
           results.deal_fields!.synced += 1;
         } catch (error) {
           const message = error instanceof Error ? error.message : "Failed to push deal fields";
@@ -428,6 +444,12 @@ serve(async (req) => {
         console.log("[Push] Stage change sync is not yet implemented");
       }
     }
+
+    console.log('[Push] Sync completed', {
+      comments: `${results.comments.synced} synced, ${results.comments.failed} failed`,
+      checklist: `${results.checklist.synced} synced, ${results.checklist.failed} failed`,
+      deal_fields: `${results.deal_fields?.synced || 0} synced, ${results.deal_fields?.failed || 0} failed`
+    });
 
     return new Response(JSON.stringify(results), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
