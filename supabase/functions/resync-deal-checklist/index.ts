@@ -114,8 +114,7 @@ serve(async (req) => {
     const { data: ctChecklist, error: ctChecklistError } = await controlTowerClient
       .from('deal_checklist')
       .select('*')
-      .eq('deal_id', deal.control_tower_id)
-      .order('order_index', { ascending: true });
+      .eq('deal_id', deal.control_tower_id);
 
     if (ctChecklistError) {
       throw new Error(`Failed to fetch checklist from Control Tower: ${ctChecklistError.message}`);
@@ -134,8 +133,19 @@ serve(async (req) => {
       );
     }
 
-    // Step 3: Insert items from Control Tower
-    const itemsToInsert = ctChecklist.map((item: any, index: number) => ({
+    // Step 3: Insert items from Control Tower (sort by id as fallback for order)
+    const sortedChecklist = (ctChecklist || []).sort((a: any, b: any) => {
+      // Use order_index if available, otherwise use created timestamp or id
+      if (a.order_index !== undefined && b.order_index !== undefined) {
+        return a.order_index - b.order_index;
+      }
+      if (a.created_at && b.created_at) {
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      }
+      return String(a.id).localeCompare(String(b.id));
+    });
+
+    const itemsToInsert = sortedChecklist.map((item: any, index: number) => ({
       deal_id: dealId,
       control_tower_item_id: item.id,
       title: item.title || item.name || item.description || `Task ${index + 1}`,
