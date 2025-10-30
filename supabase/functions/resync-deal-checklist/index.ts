@@ -124,7 +124,7 @@ serve(async (req) => {
     const itemsToInsert = ctChecklist.map((item: any, index: number) => ({
       deal_id: dealId,
       control_tower_item_id: item.id,
-      title: item.title || `Checklist Item ${index + 1}`,
+      title: item.title || item.name || item.description || `Task ${index + 1}`,
       is_completed: item.is_completed || false,
       completed_by: item.completed_by || null,
       completed_at: item.completed_at || null,

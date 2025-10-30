@@ -903,7 +903,7 @@ async function performSync(
             return {
               deal_id: deal.id,
               control_tower_item_id: item.id, // Store Control Tower item ID
-              title: item.title || `Checklist Item ${index + 1}`,
+              title: item.title || item.name || item.description || `Task ${index + 1}`,
               is_completed: isCompleted,
               completed_by: completedBy,
               completed_at: completedAt,
