@@ -42,6 +42,7 @@ import {
   Power,
   RefreshCw,
   ScrollText,
+  Trash2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -417,6 +418,35 @@ const IntegrationManager = () => {
       });
     } finally {
       setIsConnectingGhl(false);
+    }
+  };
+
+  const handleDeleteGhlIntegration = async (integrationId: string, locationName: string) => {
+    if (!confirm(`Delete ${locationName || 'this location'}? This will remove the API key and all sync settings.`)) {
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase.functions.invoke("gohighlevel-manage/integration", {
+        method: "DELETE",
+        body: { integration_id: integrationId },
+      });
+      if (error) throw error;
+      if (!data?.ok) {
+        throw new Error(data?.error || "Unable to delete integration");
+      }
+      toast({ 
+        title: "Integration deleted", 
+        description: `${locationName || 'Location'} has been removed.` 
+      });
+      await loadIntegrations();
+    } catch (error) {
+      console.error("Delete failed", error);
+      toast({
+        title: "Delete failed",
+        description: error instanceof Error ? error.message : "Unable to delete integration.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -1121,6 +1151,13 @@ const IntegrationManager = () => {
                             ) : (
                               <RefreshCw className="h-4 w-4" />
                             )}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => handleDeleteGhlIntegration(integration.id, integration.location_name)}
+                          >
+                            Delete
                           </Button>
                         </div>
                       </div>

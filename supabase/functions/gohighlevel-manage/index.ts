@@ -650,8 +650,15 @@ Deno.serve(async (req) => {
     return handleCreateIntegration(req);
   }
 
-  if (req.method === "DELETE" && pathname.startsWith("/integration/")) {
-    const integrationId = pathname.split("/")[2];
+  if (req.method === "DELETE" && pathname === "/integration") {
+    const body = await req.json();
+    const integrationId = body?.integration_id;
+    if (!integrationId) {
+      return new Response(JSON.stringify({ ok: false, error: "integration_id required" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400,
+      });
+    }
     return handleDeleteIntegration(req, integrationId);
   }
 
