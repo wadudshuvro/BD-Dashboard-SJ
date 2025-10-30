@@ -519,6 +519,18 @@ async function performSync(
     // Build user mapping cache
     const userMappingCache = await buildUserMappingCache(supabase);
     
+    // Build employee mapping cache (Control Tower ID -> local employee ID)
+    const { data: employeesData } = await supabase
+      .from('employees')
+      .select('id, control_tower_id, email');
+    const employeeMappingCache = new Map<string, string>();
+    employeesData?.forEach((emp: any) => {
+      if (emp.control_tower_id) {
+        employeeMappingCache.set(emp.control_tower_id, emp.id);
+      }
+    });
+    console.log(`[Sync] Built employee mapping cache with ${employeeMappingCache.size} employees`);
+    
     // Build POD mapping cache (by name)
     const { data: podsData } = await supabase.from('pods').select('id, name');
     const podMappingCache = new Map<string, string>();
@@ -623,7 +635,14 @@ async function performSync(
           }
         }
         
-        // Map owner via email
+        // Extract owner Control Tower ID
+        const ownerControlTowerId = 
+          ctDeal.actual_deal_owner_id || 
+          ctDeal.owner_id || 
+          ctDeal.ownerId ||
+          null;
+        
+        // Map owner via email (tier 1: users table)
         const ownerEmail = 
           ctDeal.actual_deal_owner_email || 
           ctDeal.dealOwnerEmail || 
@@ -632,20 +651,42 @@ async function performSync(
         let localOwnerId = null;
         if (ownerEmail) {
           localOwnerId = userMappingCache.get(ownerEmail.toLowerCase().trim()) || null;
-          if (!localOwnerId) {
-            console.warn(`[Sync] No local user found for owner email: ${ownerEmail}`);
-            unmappedOwners.push({
-              email: ownerEmail,
-              name: ctDeal.actual_deal_owner_name || ctDeal.dealOwnerName || null
-            });
-          }
         }
         
-        // Map PM via email
-        const pmEmail = ctDeal.pm_email || ctDeal.pm_assigned_email;
+        // If not found in users, try employees table (tier 2)
+        if (!localOwnerId && ownerControlTowerId) {
+          localOwnerId = employeeMappingCache.get(ownerControlTowerId) || null;
+        }
+        
+        if (!localOwnerId) {
+          console.warn(`[Sync] No mapping found for owner:`, {
+            email: ownerEmail,
+            control_tower_id: ownerControlTowerId,
+            name: ctDeal.actual_deal_owner_name || ctDeal.dealOwnerName || null
+          });
+          unmappedOwners.push({
+            email: ownerEmail,
+            name: ctDeal.actual_deal_owner_name || ctDeal.dealOwnerName || null
+          });
+        }
+        
+        // Extract PM Control Tower ID
+        const pmControlTowerId = 
+          ctDeal.pm_assigned_id || 
+          ctDeal.pm_id || 
+          ctDeal.project_manager_id ||
+          null;
+        
+        // Map PM via email (tier 1: users table)
+        const pmEmail = ctDeal.pm_email || ctDeal.pm_assigned_email || ctDeal.project_manager_email;
         let localPmId = null;
         if (pmEmail) {
           localPmId = userMappingCache.get(pmEmail.toLowerCase().trim()) || null;
+        }
+        
+        // If not found in users, try employees table (tier 2)
+        if (!localPmId && pmControlTowerId) {
+          localPmId = employeeMappingCache.get(pmControlTowerId) || null;
         }
         
         // Map POD via name
@@ -679,7 +720,8 @@ async function performSync(
 
           // Store Control Tower references for tracking
           control_tower_client_id: ctDeal.client_id || ctDeal.clientId || null,
-          control_tower_owner_id: ctDeal.actual_deal_owner_id || ctDeal.owner_id || ctDeal.ownerId || null,
+          control_tower_owner_id: ownerControlTowerId,
+          pm_control_tower_id: pmControlTowerId,
           control_tower_status: ctDeal.dealstage || ctDeal.status || 'active',
 
           notes: ctDeal.notes || ctDeal.description || null,

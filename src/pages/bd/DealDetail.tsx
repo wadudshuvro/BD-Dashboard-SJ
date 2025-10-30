@@ -65,6 +65,7 @@ import AiLeadEvaluation from '@/features/pipeline/AiLeadEvaluation';
 import { AIAgentModal } from '@/components/ai/AIAgentModal';
 import type { DealFile } from '@/hooks/useDeals';
 import { DEAL_STATUSES, STATUS_LABELS, STAGE_LABELS, type DealStatus } from '@/lib/dealStages';
+import { usePMContactInfo } from '@/hooks/usePMContactInfo';
 
 interface DealExternalLinks {
   n8n_workflow_url?: string | null;
@@ -88,6 +89,7 @@ interface Deal {
   control_tower_status: string | null;
   control_tower_client_id: string | null;
   control_tower_owner_id: string | null;
+  pm_control_tower_id?: string | null;
   synced_from_control_tower: boolean | null;
   last_synced_at: string | null;
   last_activity_at?: string | null;
@@ -592,6 +594,10 @@ export default function DealDetail() {
   const { syncDeals: syncSingleDeal, isSyncing: isSyncingSingle } = useSyncControlTowerDeals(dealId);
   const [isSyncingDeal, setIsSyncingDeal] = useState(false);
   const [resyncingChecklist, setResyncingChecklist] = useState(false);
+  
+  // Fetch PM and Owner contact info from both users and employees tables
+  const { data: ownerContactInfo } = usePMContactInfo(deal?.owner_id, deal?.control_tower_owner_id);
+  const { data: pmContactInfo } = usePMContactInfo(deal?.pm_assigned_id, deal?.pm_control_tower_id);
 
   // Handle tab changes and update URL
   const handleTabChange = (newTab: string) => {
@@ -1446,7 +1452,7 @@ export default function DealDetail() {
                   <div>
                     <div className="flex items-center justify-between mb-1">
                       <p className="text-xs text-muted-foreground">Deal Owner</p>
-                      {owner?.id !== user?.id && (
+                      {owner?.id !== user?.id && ownerContactInfo?.source === 'local_user' && (
                         <Button 
                           size="sm" 
                           variant="ghost" 
@@ -1457,7 +1463,26 @@ export default function DealDetail() {
                         </Button>
                       )}
                     </div>
-                    {owner ? (
+                    {ownerContactInfo ? (
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium">{ownerContactInfo.full_name}</p>
+                          {ownerContactInfo.source === 'control_tower' && (
+                            <Badge variant="outline" className="text-xs h-4 px-1">CT</Badge>
+                          )}
+                        </div>
+                        {ownerContactInfo.email && (
+                          <a href={`mailto:${ownerContactInfo.email}`} className="text-xs text-muted-foreground hover:underline block">
+                            {ownerContactInfo.email}
+                          </a>
+                        )}
+                        {ownerContactInfo.phone && (
+                          <a href={`tel:${ownerContactInfo.phone}`} className="text-xs text-muted-foreground hover:underline block">
+                            {ownerContactInfo.phone}
+                          </a>
+                        )}
+                      </div>
+                    ) : owner ? (
                       <div>
                         <p className="text-sm font-medium">{owner.first_name} {owner.last_name}</p>
                         <p className="text-xs text-muted-foreground">{owner.email}</p>
@@ -1471,7 +1496,7 @@ export default function DealDetail() {
                   <div>
                     <div className="flex items-center justify-between mb-1">
                       <p className="text-xs text-muted-foreground">Project Manager</p>
-                      {pm?.id !== user?.id && (
+                      {pm?.id !== user?.id && pmContactInfo?.source === 'local_user' && (
                         <Button 
                           size="sm" 
                           variant="ghost" 
@@ -1482,25 +1507,71 @@ export default function DealDetail() {
                         </Button>
                       )}
                     </div>
-                    <Select
-                      value={pm?.id || 'unassigned'}
-                      onValueChange={handleAssignPm}
-                      disabled={assignPmMutation.isPending}
-                    >
-                      <SelectTrigger className="h-8 text-xs">
-                        <SelectValue placeholder="Select PM" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="unassigned" className="text-xs">
-                          Unassigned
-                        </SelectItem>
-                        {allUsers.map((u) => (
-                          <SelectItem key={u.id} value={u.id} className="text-xs">
-                            {u.first_name} {u.last_name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    {pmContactInfo ? (
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium">{pmContactInfo.full_name}</p>
+                          {pmContactInfo.source === 'control_tower' && (
+                            <Badge variant="outline" className="text-xs h-4 px-1">CT</Badge>
+                          )}
+                        </div>
+                        {pmContactInfo.email && (
+                          <a href={`mailto:${pmContactInfo.email}`} className="text-xs text-muted-foreground hover:underline block">
+                            {pmContactInfo.email}
+                          </a>
+                        )}
+                        {pmContactInfo.phone && (
+                          <a href={`tel:${pmContactInfo.phone}`} className="text-xs text-muted-foreground hover:underline block">
+                            {pmContactInfo.phone}
+                          </a>
+                        )}
+                        {pmContactInfo.source === 'local_user' && (
+                          <Select
+                            value={pm?.id || 'unassigned'}
+                            onValueChange={handleAssignPm}
+                            disabled={assignPmMutation.isPending}
+                          >
+                            <SelectTrigger className="h-8 text-xs mt-2">
+                              <SelectValue placeholder="Select PM" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="unassigned" className="text-xs">
+                                Unassigned
+                              </SelectItem>
+                              {allUsers.map((u) => (
+                                <SelectItem key={u.id} value={u.id} className="text-xs">
+                                  {u.first_name} {u.last_name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      </div>
+                    ) : pm ? (
+                      <div>
+                        <Select
+                          value={pm?.id || 'unassigned'}
+                          onValueChange={handleAssignPm}
+                          disabled={assignPmMutation.isPending}
+                        >
+                          <SelectTrigger className="h-8 text-xs">
+                            <SelectValue placeholder="Select PM" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="unassigned" className="text-xs">
+                              Unassigned
+                            </SelectItem>
+                            {allUsers.map((u) => (
+                              <SelectItem key={u.id} value={u.id} className="text-xs">
+                                {u.first_name} {u.last_name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">Not assigned</p>
+                    )}
                   </div>
                 </div>
               </CardContent>

@@ -1368,6 +1368,63 @@ export type Database = {
           },
         ]
       }
+      deal_reminders: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          deal_id: string | null
+          id: string
+          message: string | null
+          recipient_email: string
+          recipient_id: string | null
+          reminder_date: string
+          reminder_type: string
+          sent_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          deal_id?: string | null
+          id?: string
+          message?: string | null
+          recipient_email: string
+          recipient_id?: string | null
+          reminder_date: string
+          reminder_type?: string
+          sent_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          deal_id?: string | null
+          id?: string
+          message?: string | null
+          recipient_email?: string
+          recipient_id?: string | null
+          reminder_date?: string
+          reminder_type?: string
+          sent_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deal_reminders_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deal_reminders_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deal_system_info: {
         Row: {
           created_at: string
@@ -1442,10 +1499,12 @@ export type Database = {
           pandadoc_proposal_url: string | null
           pipeline: string | null
           pm_assigned_id: string | null
+          pm_control_tower_id: string | null
           pod_id: string | null
           potential_amount: number | null
           priority: string | null
           probability: number | null
+          slug: string | null
           stage: string | null
           status: string | null
           synced_from_control_tower: boolean | null
@@ -1493,10 +1552,12 @@ export type Database = {
           pandadoc_proposal_url?: string | null
           pipeline?: string | null
           pm_assigned_id?: string | null
+          pm_control_tower_id?: string | null
           pod_id?: string | null
           potential_amount?: number | null
           priority?: string | null
           probability?: number | null
+          slug?: string | null
           stage?: string | null
           status?: string | null
           synced_from_control_tower?: boolean | null
@@ -1544,10 +1605,12 @@ export type Database = {
           pandadoc_proposal_url?: string | null
           pipeline?: string | null
           pm_assigned_id?: string | null
+          pm_control_tower_id?: string | null
           pod_id?: string | null
           potential_amount?: number | null
           priority?: string | null
           probability?: number | null
+          slug?: string | null
           stage?: string | null
           status?: string | null
           synced_from_control_tower?: boolean | null
@@ -1573,6 +1636,54 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      employees: {
+        Row: {
+          control_tower_id: string | null
+          created_at: string | null
+          department: string | null
+          email: string | null
+          full_name: string
+          id: string
+          is_active: boolean | null
+          last_synced_at: string | null
+          metadata: Json | null
+          phone: string | null
+          role: string | null
+          synced_from_control_tower: boolean | null
+          updated_at: string | null
+        }
+        Insert: {
+          control_tower_id?: string | null
+          created_at?: string | null
+          department?: string | null
+          email?: string | null
+          full_name: string
+          id?: string
+          is_active?: boolean | null
+          last_synced_at?: string | null
+          metadata?: Json | null
+          phone?: string | null
+          role?: string | null
+          synced_from_control_tower?: boolean | null
+          updated_at?: string | null
+        }
+        Update: {
+          control_tower_id?: string | null
+          created_at?: string | null
+          department?: string | null
+          email?: string | null
+          full_name?: string
+          id?: string
+          is_active?: boolean | null
+          last_synced_at?: string | null
+          metadata?: Json | null
+          phone?: string | null
+          role?: string | null
+          synced_from_control_tower?: boolean | null
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       eod_submissions: {
         Row: {
@@ -2614,7 +2725,19 @@ export type Database = {
     Functions: {
       cleanup_old_sync_logs: { Args: never; Returns: undefined }
       clear_all_sync_logs: { Args: never; Returns: undefined }
+      generate_deal_slug: {
+        Args: { deal_id: string; deal_title: string }
+        Returns: string
+      }
       generate_slug_numeric: { Args: { base_text: string }; Returns: string }
+      get_employee_by_ct_id: {
+        Args: { ct_id: string }
+        Returns: {
+          email: string
+          full_name: string
+          phone: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
