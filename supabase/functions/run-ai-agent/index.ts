@@ -855,21 +855,39 @@ serve(async (req) => {
     }
 
     if (!agent) {
-      if (!agentId) {
-        throw new Error("Agent ID is required for this request");
+      // If agent_type is provided but no agent_id, resolve by type
+      if (agentType && !agentId) {
+        const { data: resolvedAgent, error: resolvedAgentError } = await client
+          .from("ai_agents")
+          .select("*, config, prompt_template")
+          .eq("type", agentType)
+          .eq("is_active", true)
+          .limit(1)
+          .maybeSingle();
+
+        if (resolvedAgentError) throw resolvedAgentError;
+        if (!resolvedAgent) {
+          throw new Error(`No active ${agentType} agent found`);
+        }
+
+        agent = resolvedAgent as unknown as DatabaseAgent;
+        agentId = resolvedAgent.id;
+      } else if (agentId) {
+        // Resolve by agent_id
+        const { data: fetchedAgent, error: agentError } = await client
+          .from("ai_agents")
+          .select("*, config, prompt_template")
+          .eq("id", agentId)
+          .single();
+
+        if (agentError || !fetchedAgent) {
+          throw new Error("Agent not found or access denied");
+        }
+
+        agent = fetchedAgent as unknown as DatabaseAgent;
+      } else {
+        throw new Error("Either agent_id or agent_type is required");
       }
-
-      const { data: fetchedAgent, error: agentError } = await client
-        .from("ai_agents")
-        .select("*, config, prompt_template")
-        .eq("id", agentId)
-        .single();
-
-      if (agentError || !fetchedAgent) {
-        throw new Error("Agent not found or access denied");
-      }
-
-      agent = fetchedAgent as unknown as DatabaseAgent;
     }
 
     if (!agent || !agentId) {
