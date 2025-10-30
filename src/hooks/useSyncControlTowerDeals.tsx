@@ -35,11 +35,25 @@ export const useSyncControlTowerDeals = (dealId?: string) => {
 
       return data as SyncResult;
     },
-    onSuccess: (result) => {
+    onSuccess: async (result) => {
       queryClient.invalidateQueries({ queryKey: ['deals'] });
       if (dealId) {
+        // Invalidate all deal-related queries
         queryClient.invalidateQueries({ queryKey: ['deal-checklist', dealId] });
         queryClient.invalidateQueries({ queryKey: ['deal-comments', dealId] });
+        queryClient.invalidateQueries({ queryKey: ['deal-files', dealId] });
+        
+        // Invalidate the deal detail query to refresh last_synced_at
+        // We need to find the deal's slug from cache or fetch it
+        const dealsCache = queryClient.getQueryData(['deals']) as any;
+        if (dealsCache) {
+          const deal = Array.isArray(dealsCache) 
+            ? dealsCache.find((d: any) => d.id === dealId)
+            : null;
+          if (deal?.slug) {
+            queryClient.invalidateQueries({ queryKey: ['deal', deal.slug] });
+          }
+        }
       }
       
       const summary = dealId

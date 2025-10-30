@@ -577,6 +577,7 @@ export default function DealDetail() {
   const toggleChecklistMutation = useToggleChecklistItem(dealId);
   const deleteChecklistMutation = useDeleteChecklistItem(dealId);
   const { syncDeals: syncSingleDeal, isSyncing: isSyncingSingle } = useSyncControlTowerDeals(dealId);
+  const [isSyncingDeal, setIsSyncingDeal] = useState(false);
 
   const refreshDealDetails = useCallback(async () => {
     if (!dealId) return;
@@ -912,6 +913,45 @@ export default function DealDetail() {
       title: 'Copied!',
       description: `${label} copied to clipboard.`,
     });
+  };
+
+  const handleSyncDealFromControlTower = async () => {
+    if (!deal?.control_tower_id) {
+      toast({
+        title: 'Cannot sync',
+        description: 'This deal is not linked to Control Tower',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    setIsSyncingDeal(true);
+    try {
+      await syncSingleDeal();
+      // Refresh all deal data after sync
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['deal', slug] }),
+        queryClient.invalidateQueries({ queryKey: ['deal-checklist', dealId] }),
+        queryClient.invalidateQueries({ queryKey: ['deal-comments', dealId] }),
+        queryClient.invalidateQueries({ queryKey: ['deal-files', dealId] })
+      ]);
+      
+      // Refresh the deal data locally
+      await refreshDealDetails();
+      
+      toast({
+        title: 'Sync complete',
+        description: 'Deal data updated from Control Tower'
+      });
+    } catch (error) {
+      toast({
+        title: 'Sync failed',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsSyncingDeal(false);
+    }
   };
 
   const handleMapGoogleDriveFolder = async () => {
@@ -1636,13 +1676,44 @@ export default function DealDetail() {
         <TabsContent value="tasks" className="space-y-6 mt-6">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CheckSquare className="h-5 w-5" />
-                Deal Checklist
-                {checklistItems && checklistItems.length > 0 && (
-                  <Badge variant="secondary">{checklistItems.length}</Badge>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <CheckSquare className="h-5 w-5" />
+                  <CardTitle>Deal Checklist</CardTitle>
+                  {checklistItems && checklistItems.length > 0 && (
+                    <Badge variant="secondary">{checklistItems.length}</Badge>
+                  )}
+                </div>
+                
+                {/* Sync Button - Only show if deal is synced from Control Tower */}
+                {deal?.synced_from_control_tower && deal?.control_tower_id && (
+                  <div className="flex items-center gap-2">
+                    {deal.last_synced_at && (
+                      <span className="text-xs text-muted-foreground">
+                        Synced {formatDistanceToNow(new Date(deal.last_synced_at), { addSuffix: true })}
+                      </span>
+                    )}
+                    <Button
+                      onClick={handleSyncDealFromControlTower}
+                      disabled={isSyncingDeal || isSyncingSingle}
+                      variant="outline"
+                      size="sm"
+                    >
+                      {isSyncingDeal || isSyncingSingle ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Syncing...
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCw className="mr-2 h-4 w-4" />
+                          Sync from Control Tower
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 )}
-              </CardTitle>
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
               {checklistItems && checklistItems.length > 0 && (
@@ -1822,6 +1893,62 @@ export default function DealDetail() {
             controlTowerId={deal.control_tower_id}
             externalLinks={deal.external_links}
           />
+
+          {/* Control Tower Sync Card */}
+          {deal?.synced_from_control_tower && deal?.control_tower_id && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Workflow className="h-5 w-5" />
+                  Control Tower Sync
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium">Last Sync Status</p>
+                      <p className="text-xs text-muted-foreground">
+                        {deal.last_synced_at 
+                          ? `Synced ${formatDistanceToNow(new Date(deal.last_synced_at), { addSuffix: true })}`
+                          : 'Never synced'}
+                      </p>
+                    </div>
+                    <Badge variant="secondary">
+                      {deal.control_tower_status || 'Active'}
+                    </Badge>
+                  </div>
+                  
+                  <Separator />
+                  
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase">Sync Actions</p>
+                    <Button
+                      onClick={handleSyncDealFromControlTower}
+                      disabled={isSyncingDeal || isSyncingSingle}
+                      variant="outline"
+                      className="w-full justify-start"
+                    >
+                      {isSyncingDeal || isSyncingSingle ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Pulling latest data...
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCw className="mr-2 h-4 w-4" />
+                          Pull Latest from Control Tower
+                        </>
+                      )}
+                    </Button>
+                    <p className="text-xs text-muted-foreground">
+                      Sync deal details, checklist items, and comments from Control Tower
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           <ExternalLinksSection
             externalLinks={deal.external_links}
