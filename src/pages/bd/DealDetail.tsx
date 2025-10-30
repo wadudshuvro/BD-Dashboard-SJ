@@ -1294,15 +1294,22 @@ export default function DealDetail() {
                 type="number"
                 min="0"
                 max="100"
+                step="1"
                 className="h-8 text-sm text-right"
-                value={deal.probability || ''}
-                onChange={async (e) => {
+                value={deal.probability ?? ''}
+                onBlur={async (e) => {
+                  const newValue = e.target.value ? parseFloat(e.target.value) : null;
+                  if (newValue !== null && (newValue < 0 || newValue > 100)) {
+                    toast({ title: 'Probability must be between 0 and 100', variant: 'destructive' });
+                    return;
+                  }
                   try {
                     await supabase
                       .from('deals')
-                      .update({ probability: parseFloat(e.target.value) || null })
+                      .update({ probability: newValue })
                       .eq('id', deal.id);
-                    queryClient.invalidateQueries({ queryKey: ['deal', slug] });
+                    queryClient.invalidateQueries({ queryKey: ['deal', dealId] });
+                    toast({ title: 'Probability updated successfully' });
                   } catch (error) {
                     toast({ title: 'Failed to update probability', variant: 'destructive' });
                   }
