@@ -44,6 +44,14 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 import { useDealComments, useAddComment, useDeleteComment, AddCommentPayload } from '@/hooks/useDealComments';
 import { useDealChecklist, useAddChecklistItem, useToggleChecklistItem, useDeleteChecklistItem } from '@/hooks/useDealChecklist';
 import { useDealSystemInfo } from '@/hooks/useDealSystemInfo';
@@ -543,6 +551,10 @@ export default function DealDetail() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
+  // Extract active tab from URL
+  const searchParams = new URLSearchParams(location.search);
+  const activeTab = searchParams.get('tab') || 'overview';
+
   const [deal, setDeal] = useState<Deal | null>(null);
   const [client, setClient] = useState<Client | null>(null);
   const [owner, setOwner] = useState<UserProfile | null>(null);
@@ -580,6 +592,21 @@ export default function DealDetail() {
   const { syncDeals: syncSingleDeal, isSyncing: isSyncingSingle } = useSyncControlTowerDeals(dealId);
   const [isSyncingDeal, setIsSyncingDeal] = useState(false);
   const [resyncingChecklist, setResyncingChecklist] = useState(false);
+
+  // Handle tab changes and update URL
+  const handleTabChange = (newTab: string) => {
+    const newSearchParams = new URLSearchParams(location.search);
+    if (newTab === 'overview') {
+      newSearchParams.delete('tab');
+    } else {
+      newSearchParams.set('tab', newTab);
+    }
+    navigate({
+      pathname: location.pathname,
+      search: newSearchParams.toString()
+    }, { replace: true });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const refreshDealDetails = useCallback(async () => {
     if (!dealId) return;
@@ -965,8 +992,10 @@ export default function DealDetail() {
 
       if (error) throw error;
 
-      // Refresh checklist
+      // Refresh checklist and deal data
       await queryClient.invalidateQueries({ queryKey: ['deal-checklist', dealId] });
+      await queryClient.invalidateQueries({ queryKey: ['deal', dealId] });
+      await refreshDealDetails();
       
       toast({
         title: 'Checklist re-synced',
@@ -1120,6 +1149,40 @@ export default function DealDetail() {
 
   return (
     <div className="container mx-auto py-8 space-y-6">
+      <Breadcrumb className="mb-4">
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink href="/">Home</BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbLink href="/bd/dashboard">Business Development</BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbLink href={`/${stage}`}>
+              {STAGE_LABELS[stage as keyof typeof STAGE_LABELS] || stage}
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage className="max-w-[300px] truncate">
+              {deal?.title || 'Loading...'}
+            </BreadcrumbPage>
+          </BreadcrumbItem>
+          {activeTab !== 'overview' && (
+            <>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage className="capitalize">
+                  {activeTab}
+                </BreadcrumbPage>
+              </BreadcrumbItem>
+            </>
+          )}
+        </BreadcrumbList>
+      </Breadcrumb>
+      
       <div className="flex items-center justify-between">
         <Button onClick={() => navigate(-1)} variant="ghost" size="sm">
           <ArrowLeft className="mr-2 h-4 w-4" />
@@ -1202,7 +1265,7 @@ export default function DealDetail() {
       </div>
 
       {/* Tabs Navigation */}
-      <Tabs defaultValue="overview" className="w-full">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
         <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="overview" colorIndicator="blue">
             Overview
@@ -1717,12 +1780,21 @@ export default function DealDetail() {
 
         {/* Tasks Tab */}
         <TabsContent value="tasks" className="space-y-6 mt-6">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <CheckSquare className="h-5 w-5" />
-                  <CardTitle>Deal Checklist</CardTitle>
+          {loading ? (
+            <Card>
+              <CardContent className="py-8">
+                <div className="flex items-center justify-center">
+                  <Loader2 className="h-8 w-8 animate-spin" />
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <CheckSquare className="h-5 w-5" />
+                    <CardTitle>Deal Checklist</CardTitle>
                   {checklistItems && checklistItems.length > 0 && (
                     <Badge variant="secondary">{checklistItems.length}</Badge>
                   )}
@@ -1836,6 +1908,7 @@ export default function DealDetail() {
               </div>
             </CardContent>
           </Card>
+          )}
         </TabsContent>
 
         {/* Documents Tab */}
