@@ -903,11 +903,11 @@ async function performSync(
             return {
               deal_id: deal.id,
               control_tower_item_id: item.id, // Store Control Tower item ID
-              title: item.title || item.name || item.description || `Task ${index + 1}`,
+              title: item.label || item.title || item.name || item.description || `Task ${index + 1}`,
               is_completed: isCompleted,
               completed_by: completedBy,
               completed_at: completedAt,
-              order_index: item.order_index ?? index,
+              order_index: item.sort_order ?? item.order_index ?? index,
             };
           });
 
