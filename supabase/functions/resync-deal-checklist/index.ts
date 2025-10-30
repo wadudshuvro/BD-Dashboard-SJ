@@ -67,19 +67,33 @@ serve(async (req) => {
     }
 
     // Get Control Tower integration config
-    const { data: ctConfig, error: ctConfigError } = await supabase
-      .from('integration_configs')
-      .select('config')
-      .eq('integration_type', 'control_tower')
-      .eq('is_active', true)
-      .single();
+    let controlTowerUrl: string | undefined;
+    let controlTowerApiKey: string | undefined;
 
-    if (ctConfigError || !ctConfig) {
-      throw new Error('Control Tower integration not configured');
+    // Try to get config from ai_configurations table
+    const { data: configData, error: configError } = await supabase
+      .from('ai_configurations')
+      .select('configuration_data')
+      .eq('configuration_type', 'control_tower')
+      .maybeSingle();
+
+    if (!configError && configData) {
+      const config = configData.configuration_data as any;
+      controlTowerUrl = config?.url;
+      controlTowerApiKey = config?.anon_key;
     }
 
-    const controlTowerUrl = ctConfig.config.base_url;
-    const controlTowerApiKey = ctConfig.config.api_key;
+    // Fall back to environment variables if not in database
+    if (!controlTowerUrl || !controlTowerApiKey) {
+      controlTowerUrl = Deno.env.get('Controltowerurl');
+      controlTowerApiKey = Deno.env.get('CONTROLTOWERAPIKEY');
+    }
+
+    if (!controlTowerUrl || !controlTowerApiKey) {
+      throw new Error('Control Tower credentials not configured in database or edge secrets');
+    }
+
+    console.log(`[Resync] Using Control Tower credentials from ${configData ? 'database' : 'edge secrets'}`);
 
     // Initialize Control Tower client
     const controlTowerClient = createClient(controlTowerUrl, controlTowerApiKey);
