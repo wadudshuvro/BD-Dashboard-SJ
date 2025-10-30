@@ -1120,6 +1120,36 @@ export type Database = {
           },
         ]
       }
+      control_tower_sync_state: {
+        Row: {
+          created_at: string
+          deals_synced: number | null
+          id: string
+          last_successful_sync_at: string
+          last_sync_error: string | null
+          last_sync_status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          deals_synced?: number | null
+          id?: string
+          last_successful_sync_at?: string
+          last_sync_error?: string | null
+          last_sync_status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          deals_synced?: number | null
+          id?: string
+          last_successful_sync_at?: string
+          last_sync_error?: string | null
+          last_sync_status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       control_tower_user_mappings: {
         Row: {
           control_tower_email: string

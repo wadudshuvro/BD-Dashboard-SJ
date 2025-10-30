@@ -65,6 +65,7 @@ serve(async (req) => {
     }
     const dealId = body.dealId || null;
     const forceFullSync = body.forceFullSync || false;
+    const mode = body.mode || 'full'; // 'incremental' or 'full'
 
     if (userId) {
       console.log(`[Sync] Starting Control Tower sync for user: ${userId}${dealId ? ` (single deal: ${dealId})` : ''}`);
@@ -100,7 +101,7 @@ serve(async (req) => {
     // Create Control Tower client with server-side credentials
     const ctClient = createClient(envUrl, envKey);
 
-    return await performSync(ctClient, supabase, userId, supabaseKey, dealId, forceFullSync);
+    return await performSync(ctClient, supabase, userId, supabaseKey, dealId, forceFullSync, mode);
 
   } catch (error) {
     console.error('[Sync] Error:', error);
@@ -326,7 +327,8 @@ async function performSync(
   userId: string | null,
   serviceRoleKey: string,
   singleDealId?: string | null,
-  forceFullSync?: boolean
+  forceFullSync?: boolean,
+  mode?: string
 ): Promise<Response> {
   const startTime = Date.now();
   
@@ -357,8 +359,29 @@ async function performSync(
     
     console.log('[Sync] Final stage mapping:', STAGE_MAPPING);
 
+    // Fetch last sync timestamp for incremental mode
+    let lastSyncTimestamp: string | null = null;
+    if (mode === 'incremental' && !singleDealId) {
+      const { data: syncState } = await supabase
+        .from('control_tower_sync_state')
+        .select('last_successful_sync_at')
+        .order('last_successful_sync_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      
+      lastSyncTimestamp = syncState?.last_successful_sync_at || null;
+      console.log(`[Sync] Incremental mode: syncing deals updated since ${lastSyncTimestamp || 'beginning'}`);
+    }
+
     // Fetch deals from Control Tower (all or single)
-    console.log(`[Sync] Fetching deals from Control Tower${singleDealId ? ` (single: ${singleDealId})` : forceFullSync ? ' (FULL SYNC - all statuses)' : ' (active only)'}...`);
+    const syncModeLabel = singleDealId 
+      ? ` (single: ${singleDealId})` 
+      : mode === 'incremental' 
+        ? ` (INCREMENTAL since ${lastSyncTimestamp || 'beginning'})`
+        : forceFullSync 
+          ? ' (FULL SYNC - all statuses)' 
+          : ' (active only)';
+    console.log(`[Sync] Fetching deals from Control Tower${syncModeLabel}...`);
     
     let ctDealsQuery = ctClient.from('Deal').select('*');
     
@@ -376,6 +399,10 @@ async function performSync(
       } else {
         throw new Error('Deal not found or has no Control Tower ID');
       }
+    } else if (mode === 'incremental' && lastSyncTimestamp) {
+      // Incremental mode: only fetch deals updated since last sync
+      ctDealsQuery = ctDealsQuery.gte('updated_at', lastSyncTimestamp);
+      console.log(`[Sync] Filtering deals with updated_at >= ${lastSyncTimestamp}`);
     } else if (!forceFullSync) {
       // Default mode: only fetch active deals (exclude closed won/lost)
       ctDealsQuery = ctDealsQuery
@@ -954,6 +981,37 @@ async function performSync(
       });
     } catch (logError) {
       console.warn('[Sync] Failed to log control_tower_sync_log record:', logError);
+    }
+
+    // Update sync state for incremental mode
+    if (mode === 'incremental' && !singleDealId) {
+      try {
+        const now = new Date().toISOString();
+        const { error: updateError } = await supabase
+          .from('control_tower_sync_state')
+          .update({
+            last_successful_sync_at: now,
+            last_sync_status: 'success',
+            last_sync_error: null,
+            deals_synced: syncedCount,
+            updated_at: now
+          })
+          .eq('id', (await supabase
+            .from('control_tower_sync_state')
+            .select('id')
+            .order('last_successful_sync_at', { ascending: false })
+            .limit(1)
+            .single()
+          ).data?.id);
+        
+        if (updateError) {
+          console.warn('[Sync] Failed to update sync state:', updateError);
+        } else {
+          console.log(`[Sync] Updated sync state: last_successful_sync_at = ${now}`);
+        }
+      } catch (stateError) {
+        console.warn('[Sync] Error updating sync state:', stateError);
+      }
     }
 
     const result: SyncResult = {
