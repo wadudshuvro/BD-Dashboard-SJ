@@ -916,15 +916,6 @@ export default function DealDetail() {
   };
 
   const handleSyncDealFromControlTower = async () => {
-    if (!deal?.control_tower_id) {
-      toast({
-        title: 'Cannot sync',
-        description: 'This deal is not linked to Control Tower',
-        variant: 'destructive'
-      });
-      return;
-    }
-
     setIsSyncingDeal(true);
     try {
       await syncSingleDeal();
@@ -1686,33 +1677,32 @@ export default function DealDetail() {
                 </div>
                 
                 {/* Sync Button - Only show if deal is synced from Control Tower */}
-                {deal?.synced_from_control_tower && deal?.control_tower_id && (
-                  <div className="flex items-center gap-2">
-                    {deal.last_synced_at && (
-                      <span className="text-xs text-muted-foreground">
-                        Synced {formatDistanceToNow(new Date(deal.last_synced_at), { addSuffix: true })}
-                      </span>
+                {/* Sync Button */}
+                <div className="flex items-center gap-2">
+                  {deal?.last_synced_at && (
+                    <span className="text-xs text-muted-foreground">
+                      Synced {formatDistanceToNow(new Date(deal.last_synced_at), { addSuffix: true })}
+                    </span>
+                  )}
+                  <Button
+                    onClick={handleSyncDealFromControlTower}
+                    disabled={isSyncingDeal || isSyncingSingle}
+                    variant="outline"
+                    size="sm"
+                  >
+                    {isSyncingDeal || isSyncingSingle ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Syncing...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                        Sync from Control Tower
+                      </>
                     )}
-                    <Button
-                      onClick={handleSyncDealFromControlTower}
-                      disabled={isSyncingDeal || isSyncingSingle}
-                      variant="outline"
-                      size="sm"
-                    >
-                      {isSyncingDeal || isSyncingSingle ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Syncing...
-                        </>
-                      ) : (
-                        <>
-                          <RefreshCw className="mr-2 h-4 w-4" />
-                          Sync from Control Tower
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                )}
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -1895,60 +1885,60 @@ export default function DealDetail() {
           />
 
           {/* Control Tower Sync Card */}
-          {deal?.synced_from_control_tower && deal?.control_tower_id && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Workflow className="h-5 w-5" />
-                  Control Tower Sync
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium">Last Sync Status</p>
-                      <p className="text-xs text-muted-foreground">
-                        {deal.last_synced_at 
-                          ? `Synced ${formatDistanceToNow(new Date(deal.last_synced_at), { addSuffix: true })}`
-                          : 'Never synced'}
-                      </p>
-                    </div>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Workflow className="h-5 w-5" />
+                Control Tower Sync
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium">Last Sync Status</p>
+                    <p className="text-xs text-muted-foreground">
+                      {deal?.last_synced_at 
+                        ? `Synced ${formatDistanceToNow(new Date(deal.last_synced_at), { addSuffix: true })}`
+                        : 'Never synced'}
+                    </p>
+                  </div>
+                  {deal?.synced_from_control_tower && (
                     <Badge variant="secondary">
                       {deal.control_tower_status || 'Active'}
                     </Badge>
-                  </div>
-                  
-                  <Separator />
-                  
-                  <div className="space-y-2">
-                    <p className="text-xs font-semibold text-muted-foreground uppercase">Sync Actions</p>
-                    <Button
-                      onClick={handleSyncDealFromControlTower}
-                      disabled={isSyncingDeal || isSyncingSingle}
-                      variant="outline"
-                      className="w-full justify-start"
-                    >
-                      {isSyncingDeal || isSyncingSingle ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Pulling latest data...
-                        </>
-                      ) : (
-                        <>
-                          <RefreshCw className="mr-2 h-4 w-4" />
-                          Pull Latest from Control Tower
-                        </>
-                      )}
-                    </Button>
-                    <p className="text-xs text-muted-foreground">
-                      Sync deal details, checklist items, and comments from Control Tower
-                    </p>
-                  </div>
+                  )}
                 </div>
-              </CardContent>
-            </Card>
-          )}
+                
+                <Separator />
+                
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase">Sync Actions</p>
+                  <Button
+                    onClick={handleSyncDealFromControlTower}
+                    disabled={isSyncingDeal || isSyncingSingle}
+                    variant="outline"
+                    className="w-full justify-start"
+                  >
+                    {isSyncingDeal || isSyncingSingle ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Pulling latest data...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                        Pull Latest from Control Tower
+                      </>
+                    )}
+                  </Button>
+                  <p className="text-xs text-muted-foreground">
+                    Sync deal details, checklist items, and comments from Control Tower
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
           <ExternalLinksSection
             externalLinks={deal.external_links}
