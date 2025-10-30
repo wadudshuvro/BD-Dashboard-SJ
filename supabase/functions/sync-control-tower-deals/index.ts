@@ -586,8 +586,8 @@ async function performSync(
     console.log('[Sync] Transforming deals with cached client and user references...');
     const unmappedOwners: Array<{ email: string | null; name: string | null }> = [];
     
-    const transformedDeals = activeDeals
-      .map((ctDeal: any) => {
+    const transformedDeals = await Promise.all(activeDeals
+      .map(async (ctDeal: any) => {
         const ctStage = ctDeal.dealstage || ctDeal.stage;
         const ctStageName = ctDeal.dealstage_name || ctDeal.stage_name;
         
@@ -641,12 +641,39 @@ async function performSync(
           }
         }
         
-        // Map PM via email
-        const pmEmail = ctDeal.pm_email || ctDeal.pm_assigned_email;
-        let localPmId = null;
-        if (pmEmail) {
-          localPmId = userMappingCache.get(pmEmail.toLowerCase().trim()) || null;
-        }
+    // Extract PM Control Tower ID from multiple possible fields
+    const pmControlTowerId = 
+      ctDeal.pm_assigned_id || 
+      ctDeal.pm_id || 
+      ctDeal.project_manager_id ||
+      null;
+
+    // Map PM via email first
+    const pmEmail = 
+      ctDeal.pm_email || 
+      ctDeal.pm_assigned_email ||
+      ctDeal.project_manager_email ||
+      null;
+    
+    let localPmId = null;
+    
+    // Try to map via email to local users
+    if (pmEmail) {
+      localPmId = userMappingCache.get(pmEmail.toLowerCase().trim()) || null;
+    }
+    
+    // If no local user found and we have CT ID, try employees table
+    if (!localPmId && pmControlTowerId) {
+      const { data: employee } = await supabase
+        .from('employees')
+        .select('id')
+        .eq('control_tower_id', pmControlTowerId)
+        .single();
+      
+      if (employee) {
+        localPmId = employee.id;
+      }
+    }
         
         // Map POD via name
         const podName = ctDeal.pod || ctDeal.pod_name || ctDeal.team;
@@ -742,8 +769,8 @@ async function performSync(
           created_at: ctDeal.createdate || ctDeal.created_at || new Date().toISOString(),
           updated_at: ctDeal.updated_at || new Date().toISOString(),
         };
-      })
-      .filter((deal: any): deal is NonNullable<typeof deal> => deal !== null); // Remove null entries (revenue projection deals)
+      }))
+    .then(deals => deals.filter((deal): deal is NonNullable<typeof deal> => deal !== null)); // Remove null entries
     
     // Log unmapped owners
     if (unmappedOwners.length > 0) {
