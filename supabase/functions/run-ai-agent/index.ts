@@ -762,6 +762,8 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  console.log('🚀 run-ai-agent invoked');
+
   let client: any = null;
 
   try {
@@ -854,9 +856,12 @@ serve(async (req) => {
       };
     }
 
+    console.log('📍 Before agent resolution - agent:', !!agent, 'agentType:', agentType, 'agentId:', agentId);
+
     if (!agent) {
       // If agent_type is provided but no agent_id, resolve by type
       if (agentType && !agentId) {
+        console.log('🔍 Resolving agent by type:', agentType);
         const { data: resolvedAgent, error: resolvedAgentError } = await client
           .from("ai_agents")
           .select("*, config, prompt_template")
@@ -865,15 +870,21 @@ serve(async (req) => {
           .limit(1)
           .maybeSingle();
 
-        if (resolvedAgentError) throw resolvedAgentError;
+        if (resolvedAgentError) {
+          console.error('❌ Error resolving agent by type:', resolvedAgentError);
+          throw resolvedAgentError;
+        }
         if (!resolvedAgent) {
+          console.error('❌ No agent found for type:', agentType);
           throw new Error(`No active ${agentType} agent found`);
         }
 
+        console.log('✅ Agent resolved by type:', resolvedAgent.name);
         agent = resolvedAgent as unknown as DatabaseAgent;
         agentId = resolvedAgent.id;
       } else if (agentId) {
         // Resolve by agent_id
+        console.log('🔍 Resolving agent by ID:', agentId);
         const { data: fetchedAgent, error: agentError } = await client
           .from("ai_agents")
           .select("*, config, prompt_template")
@@ -881,11 +892,14 @@ serve(async (req) => {
           .single();
 
         if (agentError || !fetchedAgent) {
+          console.error('❌ Error resolving agent by ID:', agentError);
           throw new Error("Agent not found or access denied");
         }
 
+        console.log('✅ Agent resolved by ID:', fetchedAgent.name);
         agent = fetchedAgent as unknown as DatabaseAgent;
       } else {
+        console.error('❌ Neither agent_id nor agent_type provided');
         throw new Error("Either agent_id or agent_type is required");
       }
     }
