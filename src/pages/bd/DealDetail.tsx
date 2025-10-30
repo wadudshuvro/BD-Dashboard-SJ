@@ -50,6 +50,7 @@ import { useDealSystemInfo } from '@/hooks/useDealSystemInfo';
 import { useDealFiles } from '@/hooks/useDealFiles';
 import { useSyncControlTowerDeals } from '@/hooks/useSyncControlTowerDeals';
 import { useRunBDAgent } from '@/hooks/useRunBDAgent';
+import { DealControlTowerSync } from '@/components/bd/DealControlTowerSync';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import AiLeadEvaluation from '@/features/pipeline/AiLeadEvaluation';
@@ -1224,6 +1225,20 @@ export default function DealDetail() {
             />
           )}
           <DealStageProgress currentStage={deal.stage} />
+
+          <div className="grid gap-6 md:grid-cols-2">
+            {/* Control Tower Sync Card */}
+            {deal.synced_from_control_tower && (
+              <div className="md:col-span-2">
+                <DealControlTowerSync 
+                  dealId={deal.id}
+                  syncedFromControlTower={deal.synced_from_control_tower}
+                  lastSyncedAt={deal.last_synced_at}
+                  updatedAt={deal.updated_at}
+                />
+              </div>
+            )}
+          </div>
 
           <div className="grid gap-6 md:grid-cols-2">
             {/* Deal Information - Compact */}
