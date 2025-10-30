@@ -24,3 +24,9 @@ verify_jwt = true
 
 [functions.send-lead-import-notification]
 verify_jwt = false
+
+[functions.cleanup-sync-logs]
+verify_jwt = false
+
+[functions.cleanup-sync-logs.cron]
+schedule = "0 0 * * *"

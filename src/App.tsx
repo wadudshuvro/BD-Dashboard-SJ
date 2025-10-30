@@ -32,7 +32,7 @@ import CampaignDetail from "./pages/bd/CampaignDetail";
 import CampaignContactDetail from "./pages/bd/CampaignContactDetail";
 import CompanyDetail from "./pages/bd/CompanyDetail";
 import PODManagement from "./pages/admin/PODManagement";
-import DataSyncSettings from "./pages/admin/DataSyncSettings";
+
 import Prospecting from "./pages/bd/pipeline/Prospecting";
 import Qualification from "./pages/bd/pipeline/Qualification";
 import Proposal from "./pages/bd/pipeline/Proposal";
@@ -121,7 +121,6 @@ const App = () => (
               <Route path="eod-management" element={<EODManagement />} />
               <Route path="pods" element={<PODManagement />} />
               <Route path="ai/agents" element={<LinkedInAgentConfig />} />
-              <Route path="data-sync" element={<DataSyncSettings />} />
               <Route path="strategy/products" element={<ProductManagement />} />
               <Route path="strategy/niches" element={<NicheManagement />} />
               <Route path="strategy/checklist-templates" element={<ChecklistTemplateManager />} />
