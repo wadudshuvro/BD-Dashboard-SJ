@@ -24,11 +24,10 @@ Deno.serve(async (req) => {
     // Create Control Tower Supabase client
     const ctClient = createClient(CONTROL_TOWER_URL, CONTROL_TOWER_ANON_KEY);
 
-    // Fetch all pods from Control Tower
+    // Fetch all pods from Control Tower (Control Tower schema may differ, so we fetch all)
     const { data: ctPods, error: ctError } = await ctClient
       .from('pods')
-      .select('*')
-      .eq('is_active', true);
+      .select('*');
 
     if (ctError) {
       console.error('[sync-control-tower-pods] Error fetching PODs from Control Tower:', ctError);
@@ -38,17 +37,25 @@ Deno.serve(async (req) => {
     console.log(`[sync-control-tower-pods] Fetched ${ctPods?.length || 0} PODs from Control Tower`);
 
     if (!ctPods || ctPods.length === 0) {
-      console.log('[sync-control-tower-pods] No active PODs found in Control Tower');
+      console.log('[sync-control-tower-pods] No PODs found in Control Tower');
       return new Response(
         JSON.stringify({
           success: true,
           podsImported: 0,
           podNames: [],
-          message: 'No active PODs found in Control Tower',
+          message: 'No PODs found in Control Tower',
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    // Filter for active pods if the field exists in Control Tower data
+    const activePods = ctPods.filter(pod => {
+      // If is_active field exists, use it; otherwise include all pods
+      return pod.is_active === undefined || pod.is_active === true;
+    });
+
+    console.log(`[sync-control-tower-pods] Processing ${activePods.length} active PODs`);
 
     // Get existing PODs
     const { data: existingPods } = await supabaseClient
@@ -58,7 +65,7 @@ Deno.serve(async (req) => {
     const existingPodNames = new Set(existingPods?.map(p => p.name) || []);
 
     // Prepare PODs to insert (only new ones)
-    const podsToInsert = ctPods
+    const podsToInsert = activePods
       .filter(pod => !existingPodNames.has(pod.name))
       .map(pod => ({
         name: pod.name,
@@ -88,7 +95,7 @@ Deno.serve(async (req) => {
     }
 
     // Update existing PODs
-    const podsToUpdate = ctPods.filter(pod => existingPodNames.has(pod.name));
+    const podsToUpdate = activePods.filter(pod => existingPodNames.has(pod.name));
     if (podsToUpdate.length > 0) {
       console.log(`[sync-control-tower-pods] Updating ${podsToUpdate.length} existing PODs...`);
       
@@ -112,16 +119,16 @@ Deno.serve(async (req) => {
       console.log(`[sync-control-tower-pods] Successfully updated ${updatedCount} PODs`);
     }
 
-    const podNames = ctPods.map(p => p.name).sort();
+    const podNames = activePods.map(p => p.name).sort();
 
     return new Response(
       JSON.stringify({
         success: true,
         podsInserted: insertedCount,
         podsUpdated: updatedCount,
-        totalPods: ctPods.length,
+        totalPods: activePods.length,
         podNames: podNames,
-        message: `Successfully synced ${ctPods.length} PODs from Control Tower (${insertedCount} new, ${updatedCount} updated)`,
+        message: `Successfully synced ${activePods.length} PODs from Control Tower (${insertedCount} new, ${updatedCount} updated)`,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
