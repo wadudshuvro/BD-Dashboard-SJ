@@ -25,6 +25,7 @@ import {
   Sparkles,
   ClipboardList,
   UserPlus,
+  MessageSquare,
   RefreshCw,
   Package,
   ListChecks
@@ -86,8 +87,7 @@ const AdminLayout = () => {
         section: "Support",
         items: [
           { name: "Feedback Manager", href: "/adminpanel/feedback", icon: ClipboardList },
-          { name: "Submit Bug", href: "/feedback/submit?type=bug", icon: Bug },
-          { name: "Submit Feature", href: "/feedback/submit?type=feature", icon: Sparkles },
+          { name: "Submit Feedback", href: "/feedback/submit", icon: MessageSquare },
         ],
       });
     }

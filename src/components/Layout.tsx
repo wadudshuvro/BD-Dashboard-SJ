@@ -31,6 +31,7 @@ import {
   UserSearch,
   ClipboardCheck,
   Handshake,
+  MessageSquare,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useState } from "react";
@@ -167,14 +168,10 @@ const Layout = ({ userRole }: LayoutProps) => {
 
   if (feedbackEnabled) {
     navigation.push({
-      name: "Support",
-      href: "/feedback",
-      icon: Wrench,
+      name: "Submit Feedback",
+      href: "/feedback/submit",
+      icon: MessageSquare,
       current: false,
-      subItems: [
-        { name: "Submit Bug", href: "/feedback/submit?type=bug", icon: Wrench, current: false },
-        { name: "Submit Feature", href: "/feedback/submit?type=feature", icon: Sparkles, current: false },
-      ],
     });
   }
 
