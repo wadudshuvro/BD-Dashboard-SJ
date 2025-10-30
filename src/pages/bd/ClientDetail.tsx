@@ -438,6 +438,13 @@ export default function ClientDetail() {
             <ArrowLeft className="h-4 w-4" /> Back to clients
           </Button>
           <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => navigate(`/clients/${slug}/intelligence`)}
+              disabled={!client?.id}
+            >
+              Intelligence Chat
+            </Button>
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>

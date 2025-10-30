@@ -832,6 +832,72 @@ export type Database = {
         }
         Relationships: []
       }
+      client_intelligence_sessions: {
+        Row: {
+          agent_run_id: string | null
+          client_id: string
+          cost_estimate: number | null
+          created_at: string | null
+          created_by: string | null
+          id: string
+          is_archived: boolean | null
+          mode: string | null
+          processing_time_ms: number | null
+          question: string
+          response_data: Json
+          tags: string[] | null
+          tokens_used: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          agent_run_id?: string | null
+          client_id: string
+          cost_estimate?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          is_archived?: boolean | null
+          mode?: string | null
+          processing_time_ms?: number | null
+          question: string
+          response_data?: Json
+          tags?: string[] | null
+          tokens_used?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          agent_run_id?: string | null
+          client_id?: string
+          cost_estimate?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          is_archived?: boolean | null
+          mode?: string | null
+          processing_time_ms?: number | null
+          question?: string
+          response_data?: Json
+          tags?: string[] | null
+          tokens_used?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_intelligence_sessions_agent_run_id_fkey"
+            columns: ["agent_run_id"]
+            isOneToOne: false
+            referencedRelation: "ai_agent_runs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_intelligence_sessions_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           address: string | null

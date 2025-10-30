@@ -216,6 +216,14 @@ const App = () => (
   <Route index element={<ClientDetail />} />
 </Route>
 
+<Route path="/clients/:clientSlug/intelligence" element={
+  <ProtectedRoute requiredMinimumRole="manager">
+    <React.Suspense fallback={<div>Loading...</div>}>
+      {React.createElement(lazy(() => import("./pages/bd/ClientIntelligenceChat")))}
+    </React.Suspense>
+  </ProtectedRoute>
+} />
+
 {/* Follow-Ups Route */}
 <Route path="/follow-ups" element={
   <ProtectedRoute requiredMinimumRole="user">

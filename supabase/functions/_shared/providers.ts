@@ -138,13 +138,26 @@ export async function invokeProvider(
       case "openai":
       case "openai-mini": {
         const apiKey = ensureApiKey("openai");
-        const body = {
+        
+        // GPT-5 and newer models use max_completion_tokens instead of max_tokens
+        const isGPT5Model = providerConfig.model.includes('gpt-5') || 
+                           providerConfig.model.includes('o3') || 
+                           providerConfig.model.includes('o4') || 
+                           providerConfig.model.includes('gpt-4.1');
+        
+        const body: any = {
           model: providerConfig.model,
-          temperature: providerConfig.temperature ?? 0.7,
-          max_tokens: providerConfig.maxTokens ?? 2000,
           response_format: { type: "json_object" },
           messages,
         };
+        
+        // GPT-5+ models don't support temperature and use max_completion_tokens
+        if (isGPT5Model) {
+          body.max_completion_tokens = providerConfig.maxTokens ?? 2000;
+        } else {
+          body.temperature = providerConfig.temperature ?? 0.7;
+          body.max_tokens = providerConfig.maxTokens ?? 2000;
+        }
         const response = await fetch("https://api.openai.com/v1/chat/completions", {
           method: "POST",
           headers: {

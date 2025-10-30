@@ -16,8 +16,10 @@ import {
 const AgentRunRequestSchema = z.object({
   agent_id: z.string().uuid().optional(),
   agent_type: z.string().optional(),
-  target: z.enum(["deal", "client"]).optional(),
+  target: z.enum(["deal", "client", "client_intelligence"]).optional(),
   client_id: z.string().uuid().optional(),
+  question: z.string().optional(),
+  mode: z.enum(["quick", "deep"]).optional(),
   execution_context: z.object({
     timeframe: z.string().optional(),
     filters: z.record(z.any()).optional(),
@@ -800,7 +802,67 @@ serve(async (req) => {
     let integrationOverride: IntegrationRow | null = null;
     let inputContext: Record<string, unknown> | null = null;
 
-    if (target === "client") {
+    if (target === "client_intelligence") {
+      // Client Intelligence Agent - gather comprehensive context
+      if (!clientId) {
+        throw new Error("client_id is required for intelligence analysis");
+      }
+      
+      const question = payload.question || "Provide general client intelligence analysis";
+      const mode = payload.mode || "quick";
+      
+      // Fetch Intelligence Agent
+      const { data: intelligenceAgent, error: agentError } = await client
+        .from("ai_agents")
+        .select("*, config, prompt_template")
+        .eq("slug", "client-intelligence")
+        .eq("is_active", true)
+        .single();
+        
+      if (agentError || !intelligenceAgent) {
+        throw new Error("Client Intelligence Agent not configured");
+      }
+      
+      agent = intelligenceAgent as unknown as DatabaseAgent;
+      agentId = intelligenceAgent.id;
+      
+      // Gather multi-source context
+      const last90Days = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+      
+      const [
+        clientData,
+        dealsData,
+        filesData,
+      ] = await Promise.all([
+        client.from("clients").select("*").eq("id", clientId).single(),
+        client.from("deals").select("*").eq("client_id", clientId).order("created_at", { ascending: false }).limit(20),
+        client.from("deal_files").select("drive_file_name, drive_file_type, drive_folder_url, created_at").eq("client_id", clientId).limit(20),
+      ]);
+      
+      if (clientData.error) throw clientData.error;
+      if (!clientData.data) throw new Error("Client not found");
+      
+      clientProfile = clientData.data as ClientRow;
+      
+      // Build intelligence context
+      inputContext = {
+        client: clientProfile,
+        deals: dealsData.data || [],
+        documents: filesData.data || [],
+        question,
+        mode,
+        timeframe: "Last 90 days",
+      };
+      
+      executionContext = {
+        ...executionContext,
+        client_id: clientId,
+        client_name: clientProfile.name,
+        question,
+        mode,
+        input_context: inputContext,
+      };
+    } else if (target === "client") {
       if (!clientId) {
         throw new Error("client_id is required when target is 'client'");
       }
