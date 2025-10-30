@@ -10,7 +10,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from '@/hooks/use-toast';
 import { formatDistanceToNow, format } from 'date-fns';
-import { Loader2, RefreshCw, CloudUpload, CloudDownload, AlertCircle, CheckCircle2, Clock, Trash2, Network, Activity, Settings, History, Calendar } from 'lucide-react';
+import { Loader2, RefreshCw, CloudUpload, CloudDownload, AlertCircle, CheckCircle2, Clock, Trash2, Network, Activity, Settings, History, Calendar, Users, Package, Building2, Briefcase, ChevronDown, ChevronUp } from 'lucide-react';
+import { useSyncControlTowerFull } from '@/hooks/useSyncControlTowerFull';
+import { useSyncControlTowerDeals } from '@/hooks/useSyncControlTowerDeals';
+import { useSyncControlTowerEmployees } from '@/hooks/useSyncControlTowerEmployees';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -81,10 +85,20 @@ const ControlTowerSyncDashboard = () => {
   const [filters, setFilters] = useState({ entityType: 'all', status: 'all' });
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [refreshCountdown, setRefreshCountdown] = useState(30);
+  const [syncHealth, setSyncHealth] = useState<any>(null);
+  const [entityCounts, setEntityCounts] = useState({ employees: 0, pods: 0, clients: 0, deals: 0 });
+  const [lastFullSync, setLastFullSync] = useState<any>(null);
+  const [showSyncDetails, setShowSyncDetails] = useState(false);
+  
+  const { mutate: triggerFullSync, isPending: isFullSyncing } = useSyncControlTowerFull();
+  const { syncDeals, isSyncing: isSyncingDeals } = useSyncControlTowerDeals();
+  const { mutate: triggerEmployeeSync, isPending: isSyncingEmployees } = useSyncControlTowerEmployees();
 
   useEffect(() => {
     fetchSummary();
     fetchConfig();
+    fetchSyncHealth();
+    fetchEntityCounts();
   }, []);
 
   // Auto-refresh timer
@@ -103,6 +117,37 @@ const ControlTowerSyncDashboard = () => {
     
     return () => clearInterval(interval);
   }, [autoRefresh]);
+
+  const fetchSyncHealth = async () => {
+    try {
+      const { data, error } = await supabase.rpc('get_sync_health_summary');
+      if (!error && data) {
+        setSyncHealth(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch sync health', error);
+    }
+  };
+
+  const fetchEntityCounts = async () => {
+    try {
+      const [empResult, podResult, clientResult, dealResult] = await Promise.all([
+        supabase.from('employees').select('id', { count: 'exact', head: true }).eq('synced_from_control_tower', true),
+        supabase.from('pods').select('id', { count: 'exact', head: true }),
+        supabase.from('clients').select('id', { count: 'exact', head: true }),
+        supabase.from('deals').select('id', { count: 'exact', head: true }).eq('synced_from_control_tower', true),
+      ]);
+      
+      setEntityCounts({
+        employees: empResult.count ?? 0,
+        pods: podResult.count ?? 0,
+        clients: clientResult.count ?? 0,
+        deals: dealResult.count ?? 0,
+      });
+    } catch (error) {
+      console.error('Failed to fetch entity counts', error);
+    }
+  };
 
   const fetchSummary = async () => {
     setLoading(true);
@@ -136,6 +181,10 @@ const ControlTowerSyncDashboard = () => {
       }));
       
       setLogs(mappedLogs);
+      
+      // Find last full sync
+      const fullSync = mappedLogs.find(log => log.entity_type === 'full_sync');
+      setLastFullSync(fullSync);
 
       // Fetch pending comments count
       const commentQuery: any = supabase
@@ -176,6 +225,9 @@ const ControlTowerSyncDashboard = () => {
         };
         setDealCounts(counts);
       }
+      
+      await fetchSyncHealth();
+      await fetchEntityCounts();
     } catch (error) {
       console.error('Failed to load sync dashboard', error);
       toast({ title: 'Error', description: 'Unable to load sync information.', variant: 'destructive' });
@@ -504,79 +556,206 @@ const ControlTowerSyncDashboard = () => {
             </Card>
           </div>
 
+          {/* Entity Count Cards */}
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  Employees Synced
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-semibold">{entityCounts.employees}</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <Package className="h-4 w-4" />
+                  PODs Synced
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-semibold">{entityCounts.pods}</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <Building2 className="h-4 w-4" />
+                  Clients
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-semibold">{entityCounts.clients}</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <Briefcase className="h-4 w-4" />
+                  Deals
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-semibold">{entityCounts.deals}</p>
+              </CardContent>
+            </Card>
+          </div>
+
           <Card>
             <CardHeader>
               <CardTitle>Manual Sync</CardTitle>
               <CardDescription>Trigger immediate synchronization operations</CardDescription>
             </CardHeader>
-            <CardContent className="flex flex-wrap gap-3">
-              <Button 
-                onClick={() => triggerPullSync(false)} 
-                disabled={isPulling || loading}
-                title="Pull active deals only (faster)"
-              >
-                {isPulling ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CloudDownload className="mr-2 h-4 w-4" />}
-                {isPulling ? 'Pulling...' : 'Pull Now (Active)'}
-              </Button>
-              
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button 
-                    variant="default" 
-                    disabled={isPulling || loading}
-                    title="Full sync of all deals (may take several minutes)"
-                  >
-                    <CloudDownload className="mr-2 h-4 w-4" />
-                    Full Sync (All)
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Confirm Full Sync</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This will sync ALL deals from Control Tower, including closed deals. 
-                      This operation may take several minutes depending on the data volume.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={() => triggerPullSync(true)}>
-                      Start Full Sync
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+            <CardContent className="space-y-4">
+              <div className="flex flex-wrap gap-3">
+                <Button 
+                  onClick={() => triggerFullSync()} 
+                  disabled={isFullSyncing || loading}
+                  size="lg"
+                  title="Syncs Employees → PODs → Deals → Checklists in correct order"
+                >
+                  {isFullSyncing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                  {isFullSyncing ? 'Syncing...' : '🔄 Full Sync'}
+                </Button>
+                
+                <Button 
+                  variant="outline"
+                  onClick={() => triggerEmployeeSync()} 
+                  disabled={isSyncingEmployees || loading}
+                  title="Manual refresh of employee data"
+                >
+                  {isSyncingEmployees ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Users className="mr-2 h-4 w-4" />}
+                  {isSyncingEmployees ? 'Syncing...' : '👤 Sync Employees Only'}
+                </Button>
+                
+                <Button 
+                  variant="outline"
+                  onClick={triggerPodSync} 
+                  disabled={isSyncingPods || loading}
+                  title="Manual refresh of POD definitions"
+                >
+                  {isSyncingPods ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Package className="mr-2 h-4 w-4" />}
+                  {isSyncingPods ? 'Syncing...' : '📦 Sync PODs Only'}
+                </Button>
 
-              <Button 
-                variant="outline" 
-                onClick={triggerPushSync} 
-                disabled={isPushing || loading}
-                title="Push local comments and checklist updates"
-              >
-                {isPushing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CloudUpload className="mr-2 h-4 w-4" />}
-                {isPushing ? 'Pushing...' : 'Push Now'}
-              </Button>
+                <Button 
+                  variant="outline"
+                  onClick={() => syncDeals()} 
+                  disabled={isSyncingDeals || loading}
+                  title="Syncs deals, clients, and checklists (requires employees & PODs)"
+                >
+                  {isSyncingDeals ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Briefcase className="mr-2 h-4 w-4" />}
+                  {isSyncingDeals ? 'Syncing...' : '💼 Sync Deals Only'}
+                </Button>
+                
+                <Button 
+                  variant="outline"
+                  onClick={triggerPushSync} 
+                  disabled={isPushing || loading}
+                  title="Push comments and checklist updates to Control Tower"
+                >
+                  {isPushing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CloudUpload className="mr-2 h-4 w-4" />}
+                  {isPushing ? 'Pushing...' : '📤 Push Changes'}
+                </Button>
+              </div>
               
-              <Button 
-                variant="secondary" 
-                onClick={triggerPodSync} 
-                disabled={isSyncingPods || loading}
-                title="Sync POD data from Control Tower"
-              >
-                {isSyncingPods ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Network className="mr-2 h-4 w-4" />}
-                {isSyncingPods ? 'Syncing PODs...' : 'Sync PODs'}
-              </Button>
-              
-              <Button 
-                variant="ghost" 
-                onClick={fetchSummary} 
-                disabled={loading}
-              >
-                <RefreshCw className="mr-2 h-4 w-4" /> 
-                Refresh
-              </Button>
+              {/* Last Full Sync Details */}
+              {lastFullSync && (
+                <Collapsible open={showSyncDetails} onOpenChange={setShowSyncDetails}>
+                  <CollapsibleTrigger asChild>
+                    <Button variant="ghost" size="sm" className="w-full justify-between">
+                      <span className="text-sm text-muted-foreground">
+                        Last Full Sync: {formatDistanceToNow(new Date(lastFullSync.synced_at), { addSuffix: true })}
+                      </span>
+                      {showSyncDetails ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    </Button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="pt-2">
+                    <div className="space-y-1 text-sm pl-4 border-l-2 border-primary/20">
+                      {lastFullSync.payload?.employees && (
+                        <div>👤 Employees: {lastFullSync.payload.employees.new} new, {lastFullSync.payload.employees.updated} updated</div>
+                      )}
+                      {lastFullSync.payload?.pods && (
+                        <div>📦 PODs: {lastFullSync.payload.pods.new} new, {lastFullSync.payload.pods.updated} updated</div>
+                      )}
+                      {lastFullSync.payload?.deals && (
+                        <div>💼 Deals: {lastFullSync.payload.deals.new} new, {lastFullSync.payload.deals.updated} updated</div>
+                      )}
+                      {lastFullSync.payload?.clients && (
+                        <div>🏢 Clients: {lastFullSync.payload.clients.new} new, {lastFullSync.payload.clients.updated} updated</div>
+                      )}
+                      {lastFullSync.payload?.checklists && (
+                        <div>📋 Checklists: {lastFullSync.payload.checklists.synced} items synced</div>
+                      )}
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
+              )}
             </CardContent>
           </Card>
+
+          {/* Sync Health Section */}
+          {syncHealth && (
+            <Card>
+              <CardHeader>
+                <CardTitle>🏥 Sync Health</CardTitle>
+                <CardDescription>Issues requiring attention</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {syncHealth.unmapped_owners === 0 && 
+                 syncHealth.unmapped_pms === 0 && 
+                 syncHealth.unmapped_pods === 0 && 
+                 syncHealth.failed_pushes_7d === 0 ? (
+                  <div className="flex items-center gap-2 text-green-600">
+                    <CheckCircle2 className="h-5 w-5" />
+                    <span className="font-medium">All systems operational</span>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {syncHealth.unmapped_owners > 0 && (
+                      <div className="flex items-center justify-between p-2 rounded-lg bg-yellow-50 dark:bg-yellow-950/20">
+                        <div className="flex items-center gap-2">
+                          <AlertCircle className="h-4 w-4 text-yellow-600" />
+                          <span className="text-sm">{syncHealth.unmapped_owners} deals with unmapped owners</span>
+                        </div>
+                        <Button size="sm" variant="outline" onClick={() => triggerFullSync()}>
+                          Fix Now
+                        </Button>
+                      </div>
+                    )}
+                    {syncHealth.unmapped_pods > 0 && (
+                      <div className="flex items-center justify-between p-2 rounded-lg bg-yellow-50 dark:bg-yellow-950/20">
+                        <div className="flex items-center gap-2">
+                          <AlertCircle className="h-4 w-4 text-yellow-600" />
+                          <span className="text-sm">{syncHealth.unmapped_pods} deals with unmapped PODs</span>
+                        </div>
+                        <Button size="sm" variant="outline" onClick={() => triggerFullSync()}>
+                          Fix Now
+                        </Button>
+                      </div>
+                    )}
+                    {syncHealth.failed_pushes_7d > 0 && (
+                      <div className="flex items-center justify-between p-2 rounded-lg bg-red-50 dark:bg-red-950/20">
+                        <div className="flex items-center gap-2">
+                          <AlertCircle className="h-4 w-4 text-red-600" />
+                          <span className="text-sm">{syncHealth.failed_pushes_7d} failed push operations (last 7 days)</span>
+                        </div>
+                        <Button size="sm" variant="outline" onClick={() => setFilters({ entityType: 'all', status: 'failed' })}>
+                          View Details
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardHeader>
@@ -667,15 +846,19 @@ const ControlTowerSyncDashboard = () => {
             <CardContent>
               <div className="mb-4 flex gap-3">
                 <Select value={filters.entityType} onValueChange={(v) => setFilters({ ...filters, entityType: v })}>
-                  <SelectTrigger className="w-[200px]">
+                  <SelectTrigger className="w-[250px]">
                     <SelectValue placeholder="Filter by type" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Types</SelectItem>
+                    <SelectItem value="full_sync">Full Sync</SelectItem>
                     <SelectItem value="deal">Deal</SelectItem>
                     <SelectItem value="client">Client</SelectItem>
                     <SelectItem value="checklist">Checklist</SelectItem>
                     <SelectItem value="comment">Comment</SelectItem>
+                    <SelectItem value="employee">Employee</SelectItem>
+                    <SelectItem value="pod">POD</SelectItem>
+                    <SelectItem value="deal_fields">Deal Fields</SelectItem>
                   </SelectContent>
                 </Select>
                 <Select value={filters.status} onValueChange={(v) => setFilters({ ...filters, status: v })}>

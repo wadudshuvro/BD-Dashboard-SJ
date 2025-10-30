@@ -3,6 +3,24 @@ project_id = "qzzvcqoletuummdsbbio"
 [functions.admin-campaigns]
 verify_jwt = true
 
+[functions.sync-control-tower-full]
+verify_jwt = true
+timeout = 600
+
+[functions.sync-control-tower-employees]
+verify_jwt = false
+timeout = 300
+
+[functions.sync-control-tower-employees.cron]
+schedule = "0 2 * * *"
+
+[functions.sync-control-tower-pods]
+verify_jwt = false
+timeout = 300
+
+[functions.sync-control-tower-pods.cron]
+schedule = "0 3 * * *"
+
 [functions.sync-control-tower-deals]
 verify_jwt = true
 timeout = 300

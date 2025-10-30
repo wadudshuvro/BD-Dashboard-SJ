@@ -2744,6 +2744,15 @@ export type Database = {
           phone: string
         }[]
       }
+      get_sync_health_summary: { Args: never; Returns: Json }
+      get_unmapped_deal_owners: {
+        Args: never
+        Returns: {
+          control_tower_owner_id: string
+          deal_id: string
+          deal_title: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
