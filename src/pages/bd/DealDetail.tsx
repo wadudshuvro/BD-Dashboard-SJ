@@ -1254,7 +1254,21 @@ export default function DealDetail() {
               {deal.priority && <Badge variant="outline">Priority: {deal.priority}</Badge>}
               {deal.synced_from_control_tower && <Badge variant="outline">Synced from Control Tower</Badge>}
             </div>
-            <h1 className="text-3xl font-bold">{deal.title}</h1>
+            <Input
+              className="text-3xl font-bold border-none p-0 h-auto focus-visible:ring-0"
+              value={deal.title}
+              onChange={async (e) => {
+                try {
+                  await supabase
+                    .from('deals')
+                    .update({ title: e.target.value })
+                    .eq('id', deal.id);
+                  queryClient.invalidateQueries({ queryKey: ['deal', slug] });
+                } catch (error) {
+                  toast({ title: 'Failed to update title', variant: 'destructive' });
+                }
+              }}
+            />
             <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
               <span className="flex items-center gap-1"><Calendar className="h-4 w-4" />Created {formatDate(deal.created_at)}</span>
               {deal.last_activity_at && (
@@ -1277,14 +1291,69 @@ export default function DealDetail() {
             )}
           </div>
 
-          <div className="text-right space-y-2">
-            <div className="text-3xl font-bold">{formatCurrency(deal.amount)}</div>
-            {deal.potential_amount && (
-              <div className="text-sm text-muted-foreground">Potential: {formatCurrency(deal.potential_amount)}</div>
-            )}
-            {deal.probability && (
-              <div className="text-sm text-muted-foreground">{deal.probability}% probability</div>
-            )}
+          <div className="space-y-3 min-w-[300px]">
+            <div>
+              <Label htmlFor="amount" className="text-xs text-muted-foreground">Deal Amount</Label>
+              <Input
+                id="amount"
+                type="number"
+                className="h-10 text-2xl font-bold text-right"
+                value={deal.amount || ''}
+                onChange={async (e) => {
+                  try {
+                    await supabase
+                      .from('deals')
+                      .update({ amount: parseFloat(e.target.value) || null })
+                      .eq('id', deal.id);
+                    queryClient.invalidateQueries({ queryKey: ['deal', slug] });
+                  } catch (error) {
+                    toast({ title: 'Failed to update amount', variant: 'destructive' });
+                  }
+                }}
+              />
+            </div>
+            <div>
+              <Label htmlFor="potential_amount" className="text-xs text-muted-foreground">Potential Amount</Label>
+              <Input
+                id="potential_amount"
+                type="number"
+                className="h-8 text-sm text-right"
+                value={deal.potential_amount || ''}
+                onChange={async (e) => {
+                  try {
+                    await supabase
+                      .from('deals')
+                      .update({ potential_amount: parseFloat(e.target.value) || null })
+                      .eq('id', deal.id);
+                    queryClient.invalidateQueries({ queryKey: ['deal', slug] });
+                  } catch (error) {
+                    toast({ title: 'Failed to update potential amount', variant: 'destructive' });
+                  }
+                }}
+              />
+            </div>
+            <div>
+              <Label htmlFor="probability" className="text-xs text-muted-foreground">Probability (%)</Label>
+              <Input
+                id="probability"
+                type="number"
+                min="0"
+                max="100"
+                className="h-8 text-sm text-right"
+                value={deal.probability || ''}
+                onChange={async (e) => {
+                  try {
+                    await supabase
+                      .from('deals')
+                      .update({ probability: parseFloat(e.target.value) || null })
+                      .eq('id', deal.id);
+                    queryClient.invalidateQueries({ queryKey: ['deal', slug] });
+                  } catch (error) {
+                    toast({ title: 'Failed to update probability', variant: 'destructive' });
+                  }
+                }}
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -1378,35 +1447,183 @@ export default function DealDetail() {
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div>
                     <p className="text-xs text-muted-foreground">Stage</p>
-                    <p className="text-sm font-medium capitalize">{deal.stage?.replace('_', ' ') || '-'}</p>
+                    <Select
+                      value={deal.stage || 'prospecting'}
+                      onValueChange={async (value) => {
+                        try {
+                          await supabase
+                            .from('deals')
+                            .update({ stage: value })
+                            .eq('id', deal.id);
+                          toast({ title: 'Stage updated successfully' });
+                          queryClient.invalidateQueries({ queryKey: ['deal', slug] });
+                        } catch (error) {
+                          toast({ title: 'Failed to update stage', variant: 'destructive' });
+                        }
+                      }}
+                    >
+                      <SelectTrigger className="h-8 text-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(STAGE_LABELS).map(([key, label]) => (
+                          <SelectItem key={key} value={key}>
+                            {label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Status</p>
-                    <p className="text-sm font-medium capitalize">{STATUS_LABELS[deal.status as DealStatus] || 'Active'}</p>
+                    <Select
+                      value={deal.status || 'active'}
+                      onValueChange={async (value: DealStatus) => {
+                        try {
+                          await supabase
+                            .from('deals')
+                            .update({ status: value })
+                            .eq('id', deal.id);
+                          toast({ title: 'Status updated successfully' });
+                          queryClient.invalidateQueries({ queryKey: ['deal', slug] });
+                        } catch (error) {
+                          toast({ title: 'Failed to update status', variant: 'destructive' });
+                        }
+                      }}
+                    >
+                      <SelectTrigger className="h-8 text-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(STATUS_LABELS).map(([key, label]) => (
+                          <SelectItem key={key} value={key}>
+                            {label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Expected Close</p>
-                    <p className="text-sm font-medium">{formatDate(deal.expected_closing_date || deal.close_date)}</p>
+                    <Input
+                      type="date"
+                      className="h-8 text-sm"
+                      value={deal.expected_closing_date || deal.close_date || ''}
+                      onChange={async (e) => {
+                        try {
+                          await supabase
+                            .from('deals')
+                            .update({ expected_closing_date: e.target.value })
+                            .eq('id', deal.id);
+                          toast({ title: 'Expected close date updated' });
+                          queryClient.invalidateQueries({ queryKey: ['deal', slug] });
+                        } catch (error) {
+                          toast({ title: 'Failed to update date', variant: 'destructive' });
+                        }
+                      }}
+                    />
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Lead Source</p>
-                    <p className="text-sm font-medium">{deal.lead_source || '-'}</p>
+                    <Input
+                      className="h-8 text-sm"
+                      placeholder="Enter lead source"
+                      value={deal.lead_source || ''}
+                      onChange={async (e) => {
+                        try {
+                          await supabase
+                            .from('deals')
+                            .update({ lead_source: e.target.value })
+                            .eq('id', deal.id);
+                          queryClient.invalidateQueries({ queryKey: ['deal', slug] });
+                        } catch (error) {
+                          toast({ title: 'Failed to update lead source', variant: 'destructive' });
+                        }
+                      }}
+                    />
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Deal Type</p>
-                    <p className="text-sm font-medium">{deal.dealtype === 'newbusiness' ? 'New Business' : deal.dealtype === 'existingbusiness' ? 'Existing Business' : deal.dealtype || '-'}</p>
+                    <Select
+                      value={deal.dealtype || 'newbusiness'}
+                      onValueChange={async (value) => {
+                        try {
+                          await supabase
+                            .from('deals')
+                            .update({ dealtype: value })
+                            .eq('id', deal.id);
+                          toast({ title: 'Deal type updated' });
+                          queryClient.invalidateQueries({ queryKey: ['deal', slug] });
+                        } catch (error) {
+                          toast({ title: 'Failed to update deal type', variant: 'destructive' });
+                        }
+                      }}
+                    >
+                      <SelectTrigger className="h-8 text-sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="newbusiness">New Business</SelectItem>
+                        <SelectItem value="existingbusiness">Existing Business</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Category</p>
-                    <p className="text-sm font-medium">{deal.category || '-'}</p>
+                    <Input
+                      className="h-8 text-sm"
+                      placeholder="Enter category"
+                      value={deal.category || ''}
+                      onChange={async (e) => {
+                        try {
+                          await supabase
+                            .from('deals')
+                            .update({ category: e.target.value })
+                            .eq('id', deal.id);
+                          queryClient.invalidateQueries({ queryKey: ['deal', slug] });
+                        } catch (error) {
+                          toast({ title: 'Failed to update category', variant: 'destructive' });
+                        }
+                      }}
+                    />
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Pipeline</p>
-                    <p className="text-sm font-medium">{deal.pipeline || '-'}</p>
+                    <Input
+                      className="h-8 text-sm"
+                      placeholder="Enter pipeline"
+                      value={deal.pipeline || ''}
+                      onChange={async (e) => {
+                        try {
+                          await supabase
+                            .from('deals')
+                            .update({ pipeline: e.target.value })
+                            .eq('id', deal.id);
+                          queryClient.invalidateQueries({ queryKey: ['deal', slug] });
+                        } catch (error) {
+                          toast({ title: 'Failed to update pipeline', variant: 'destructive' });
+                        }
+                      }}
+                    />
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Type of Work</p>
-                    <p className="text-sm font-medium">{deal.type_of_work || '-'}</p>
+                    <Input
+                      className="h-8 text-sm"
+                      placeholder="Enter type of work"
+                      value={deal.type_of_work || ''}
+                      onChange={async (e) => {
+                        try {
+                          await supabase
+                            .from('deals')
+                            .update({ type_of_work: e.target.value })
+                            .eq('id', deal.id);
+                          queryClient.invalidateQueries({ queryKey: ['deal', slug] });
+                        } catch (error) {
+                          toast({ title: 'Failed to update type of work', variant: 'destructive' });
+                        }
+                      }}
+                    />
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">POD</p>
@@ -1611,176 +1828,306 @@ export default function DealDetail() {
             )}
 
             {/* Documents & Estimates Section */}
-            {(deal.estimate_url || deal.internal_estimate_doc_url || deal.client_estimate_doc_url || 
-              deal.pandadoc_proposal_url || deal.estimate_task_link || deal.internal_estimate_doc_link) && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-                    <FileText className="h-4 w-4" />
-                    Documents & Estimates
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {deal.estimate_url && (
-                    <a href={deal.estimate_url} target="_blank" rel="noopener noreferrer" 
-                       className="flex items-center justify-between rounded border px-3 py-2 hover:bg-muted/50 transition-colors">
-                      <span className="flex items-center gap-2 text-sm">
-                        <FileText className="h-4 w-4" />
-                        Estimate Document
-                      </span>
-                      <ExternalLink className="h-4 w-4" />
-                    </a>
-                  )}
-                  {deal.internal_estimate_doc_url && (
-                    <a href={deal.internal_estimate_doc_url} target="_blank" rel="noopener noreferrer"
-                       className="flex items-center justify-between rounded border px-3 py-2 hover:bg-muted/50 transition-colors">
-                      <span className="flex items-center gap-2 text-sm">
-                        <FileCheck className="h-4 w-4" />
-                        Internal Estimate
-                      </span>
-                      <ExternalLink className="h-4 w-4" />
-                    </a>
-                  )}
-                  {deal.client_estimate_doc_url && (
-                    <a href={deal.client_estimate_doc_url} target="_blank" rel="noopener noreferrer"
-                       className="flex items-center justify-between rounded border px-3 py-2 hover:bg-muted/50 transition-colors">
-                      <span className="flex items-center gap-2 text-sm">
-                        <FileSignature className="h-4 w-4" />
-                        Client Estimate
-                      </span>
-                      <ExternalLink className="h-4 w-4" />
-                    </a>
-                  )}
-                  {deal.pandadoc_proposal_url && (
-                    <a href={deal.pandadoc_proposal_url} target="_blank" rel="noopener noreferrer"
-                       className="flex items-center justify-between rounded border px-3 py-2 hover:bg-muted/50 transition-colors">
-                      <span className="flex items-center gap-2 text-sm">
-                        <FileSignature className="h-4 w-4" />
-                        PandaDoc Proposal
-                      </span>
-                      <ExternalLink className="h-4 w-4" />
-                    </a>
-                  )}
-                  {deal.estimate_task_link && (
-                    <a href={deal.estimate_task_link} target="_blank" rel="noopener noreferrer"
-                       className="flex items-center justify-between rounded border px-3 py-2 hover:bg-muted/50 transition-colors">
-                      <span className="flex items-center gap-2 text-sm">
-                        <CheckSquare className="h-4 w-4" />
-                        Estimate Task
-                      </span>
-                      <ExternalLink className="h-4 w-4" />
-                    </a>
-                  )}
-                  {deal.internal_estimate_doc_link && (
-                    <a href={deal.internal_estimate_doc_link} target="_blank" rel="noopener noreferrer"
-                       className="flex items-center justify-between rounded border px-3 py-2 hover:bg-muted/50 transition-colors">
-                      <span className="flex items-center gap-2 text-sm">
-                        <FileText className="h-4 w-4" />
-                        Internal Estimate Doc Link
-                      </span>
-                      <ExternalLink className="h-4 w-4" />
-                    </a>
-                  )}
-                </CardContent>
-              </Card>
-            )}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+                  <FileText className="h-4 w-4" />
+                  Documents & Estimates
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div>
+                  <Label htmlFor="estimate_url" className="text-xs">Estimate URL</Label>
+                  <Input
+                    id="estimate_url"
+                    className="h-8 text-sm"
+                    placeholder="https://..."
+                    value={deal.estimate_url || ''}
+                    onChange={async (e) => {
+                      try {
+                        await supabase
+                          .from('deals')
+                          .update({ estimate_url: e.target.value })
+                          .eq('id', deal.id);
+                        queryClient.invalidateQueries({ queryKey: ['deal', slug] });
+                      } catch (error) {
+                        toast({ title: 'Failed to update estimate URL', variant: 'destructive' });
+                      }
+                    }}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="internal_estimate_doc_url" className="text-xs">Internal Estimate Doc URL</Label>
+                  <Input
+                    id="internal_estimate_doc_url"
+                    className="h-8 text-sm"
+                    placeholder="https://..."
+                    value={deal.internal_estimate_doc_url || ''}
+                    onChange={async (e) => {
+                      try {
+                        await supabase
+                          .from('deals')
+                          .update({ internal_estimate_doc_url: e.target.value })
+                          .eq('id', deal.id);
+                        queryClient.invalidateQueries({ queryKey: ['deal', slug] });
+                      } catch (error) {
+                        toast({ title: 'Failed to update internal estimate doc URL', variant: 'destructive' });
+                      }
+                    }}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="client_estimate_doc_url" className="text-xs">Client Estimate Doc URL</Label>
+                  <Input
+                    id="client_estimate_doc_url"
+                    className="h-8 text-sm"
+                    placeholder="https://..."
+                    value={deal.client_estimate_doc_url || ''}
+                    onChange={async (e) => {
+                      try {
+                        await supabase
+                          .from('deals')
+                          .update({ client_estimate_doc_url: e.target.value })
+                          .eq('id', deal.id);
+                        queryClient.invalidateQueries({ queryKey: ['deal', slug] });
+                      } catch (error) {
+                        toast({ title: 'Failed to update client estimate doc URL', variant: 'destructive' });
+                      }
+                    }}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="pandadoc_proposal_url" className="text-xs">PandaDoc Proposal URL</Label>
+                  <Input
+                    id="pandadoc_proposal_url"
+                    className="h-8 text-sm"
+                    placeholder="https://..."
+                    value={deal.pandadoc_proposal_url || ''}
+                    onChange={async (e) => {
+                      try {
+                        await supabase
+                          .from('deals')
+                          .update({ pandadoc_proposal_url: e.target.value })
+                          .eq('id', deal.id);
+                        queryClient.invalidateQueries({ queryKey: ['deal', slug] });
+                      } catch (error) {
+                        toast({ title: 'Failed to update PandaDoc URL', variant: 'destructive' });
+                      }
+                    }}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="estimate_task_link" className="text-xs">Estimate Task Link</Label>
+                  <Input
+                    id="estimate_task_link"
+                    className="h-8 text-sm"
+                    placeholder="https://..."
+                    value={deal.estimate_task_link || ''}
+                    onChange={async (e) => {
+                      try {
+                        await supabase
+                          .from('deals')
+                          .update({ estimate_task_link: e.target.value })
+                          .eq('id', deal.id);
+                        queryClient.invalidateQueries({ queryKey: ['deal', slug] });
+                      } catch (error) {
+                        toast({ title: 'Failed to update estimate task link', variant: 'destructive' });
+                      }
+                    }}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="internal_estimate_doc_link" className="text-xs">Internal Estimate Doc Link</Label>
+                  <Input
+                    id="internal_estimate_doc_link"
+                    className="h-8 text-sm"
+                    placeholder="https://..."
+                    value={deal.internal_estimate_doc_link || ''}
+                    onChange={async (e) => {
+                      try {
+                        await supabase
+                          .from('deals')
+                          .update({ internal_estimate_doc_link: e.target.value })
+                          .eq('id', deal.id);
+                        queryClient.invalidateQueries({ queryKey: ['deal', slug] });
+                      } catch (error) {
+                        toast({ title: 'Failed to update internal estimate doc link', variant: 'destructive' });
+                      }
+                    }}
+                  />
+                </div>
+              </CardContent>
+            </Card>
 
             {/* Collaboration Tools Section */}
-            {(deal.collaborative_ai || deal.collaborative_ai_link || deal.workboard_ai_link || 
-              deal.client_agent_url || deal.client_agent_folder) && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-                    <Sparkles className="h-4 w-4" />
-                    Collaboration & Workspaces
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {deal.collaborative_ai && (
-                    <div className="rounded border px-3 py-2">
-                      <div className="text-xs text-muted-foreground">CollabAI Reference</div>
-                      <div className="text-sm font-medium">{deal.collaborative_ai}</div>
-                    </div>
-                  )}
-                  {deal.collaborative_ai_link && (
-                    <a href={deal.collaborative_ai_link} target="_blank" rel="noopener noreferrer"
-                       className="flex items-center justify-between rounded border px-3 py-2 hover:bg-muted/50 transition-colors">
-                      <span className="flex items-center gap-2 text-sm">
-                        <Bot className="h-4 w-4" />
-                        CollabAI Workspace
-                      </span>
-                      <ExternalLink className="h-4 w-4" />
-                    </a>
-                  )}
-                  {deal.workboard_ai_link && (
-                    <a href={deal.workboard_ai_link} target="_blank" rel="noopener noreferrer"
-                       className="flex items-center justify-between rounded border px-3 py-2 hover:bg-muted/50 transition-colors">
-                      <span className="flex items-center gap-2 text-sm">
-                        <Workflow className="h-4 w-4" />
-                        Workboard AI
-                      </span>
-                      <ExternalLink className="h-4 w-4" />
-                    </a>
-                  )}
-                  {deal.client_agent_url && (
-                    <a href={deal.client_agent_url} target="_blank" rel="noopener noreferrer"
-                       className="flex items-center justify-between rounded border px-3 py-2 hover:bg-muted/50 transition-colors">
-                      <span className="flex items-center gap-2 text-sm">
-                        <User className="h-4 w-4" />
-                        Client Agent
-                      </span>
-                      <ExternalLink className="h-4 w-4" />
-                    </a>
-                  )}
-                  {deal.client_agent_folder && (
-                    <div className="rounded border px-3 py-2">
-                      <div className="text-xs text-muted-foreground">Client Agent Folder</div>
-                      <div className="text-sm font-medium break-all">{deal.client_agent_folder}</div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+                  <Sparkles className="h-4 w-4" />
+                  Collaboration & Workspaces
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div>
+                  <Label htmlFor="collaborative_ai" className="text-xs">CollabAI Reference</Label>
+                  <Input
+                    id="collaborative_ai"
+                    className="h-8 text-sm"
+                    placeholder="Enter CollabAI reference"
+                    value={deal.collaborative_ai || ''}
+                    onChange={async (e) => {
+                      try {
+                        await supabase
+                          .from('deals')
+                          .update({ collaborative_ai: e.target.value })
+                          .eq('id', deal.id);
+                        queryClient.invalidateQueries({ queryKey: ['deal', slug] });
+                      } catch (error) {
+                        toast({ title: 'Failed to update CollabAI reference', variant: 'destructive' });
+                      }
+                    }}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="collaborative_ai_link" className="text-xs">CollabAI Workspace URL</Label>
+                  <Input
+                    id="collaborative_ai_link"
+                    className="h-8 text-sm"
+                    placeholder="https://..."
+                    value={deal.collaborative_ai_link || ''}
+                    onChange={async (e) => {
+                      try {
+                        await supabase
+                          .from('deals')
+                          .update({ collaborative_ai_link: e.target.value })
+                          .eq('id', deal.id);
+                        queryClient.invalidateQueries({ queryKey: ['deal', slug] });
+                      } catch (error) {
+                        toast({ title: 'Failed to update CollabAI link', variant: 'destructive' });
+                      }
+                    }}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="workboard_ai_link" className="text-xs">Workboard AI URL</Label>
+                  <Input
+                    id="workboard_ai_link"
+                    className="h-8 text-sm"
+                    placeholder="https://..."
+                    value={deal.workboard_ai_link || ''}
+                    onChange={async (e) => {
+                      try {
+                        await supabase
+                          .from('deals')
+                          .update({ workboard_ai_link: e.target.value })
+                          .eq('id', deal.id);
+                        queryClient.invalidateQueries({ queryKey: ['deal', slug] });
+                      } catch (error) {
+                        toast({ title: 'Failed to update Workboard AI link', variant: 'destructive' });
+                      }
+                    }}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="client_agent_url" className="text-xs">Client Agent URL</Label>
+                  <Input
+                    id="client_agent_url"
+                    className="h-8 text-sm"
+                    placeholder="https://..."
+                    value={deal.client_agent_url || ''}
+                    onChange={async (e) => {
+                      try {
+                        await supabase
+                          .from('deals')
+                          .update({ client_agent_url: e.target.value })
+                          .eq('id', deal.id);
+                        queryClient.invalidateQueries({ queryKey: ['deal', slug] });
+                      } catch (error) {
+                        toast({ title: 'Failed to update client agent URL', variant: 'destructive' });
+                      }
+                    }}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="client_agent_folder" className="text-xs">Client Agent Folder</Label>
+                  <Input
+                    id="client_agent_folder"
+                    className="h-8 text-sm"
+                    placeholder="Enter folder path"
+                    value={deal.client_agent_folder || ''}
+                    onChange={async (e) => {
+                      try {
+                        await supabase
+                          .from('deals')
+                          .update({ client_agent_folder: e.target.value })
+                          .eq('id', deal.id);
+                        queryClient.invalidateQueries({ queryKey: ['deal', slug] });
+                      } catch (error) {
+                        toast({ title: 'Failed to update client agent folder', variant: 'destructive' });
+                      }
+                    }}
+                  />
+                </div>
+              </CardContent>
+            </Card>
 
             {/* CRM Links Section */}
-            {(deal.hubspot_crm_deal_url || deal.leadslift_crm_deal_url || deal.control_tower_id) && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-                    <ExternalLink className="h-4 w-4" />
-                    CRM & External Systems
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {deal.hubspot_crm_deal_url && (
-                    <a href={deal.hubspot_crm_deal_url} target="_blank" rel="noopener noreferrer"
-                       className="flex items-center justify-between rounded border px-3 py-2 hover:bg-muted/50 transition-colors text-orange-600">
-                      <span className="flex items-center gap-2 text-sm">
-                        <ExternalLink className="h-4 w-4" />
-                        HubSpot CRM Deal
-                      </span>
-                      <ExternalLink className="h-4 w-4" />
-                    </a>
-                  )}
-                  {deal.leadslift_crm_deal_url && (
-                    <a href={deal.leadslift_crm_deal_url} target="_blank" rel="noopener noreferrer"
-                       className="flex items-center justify-between rounded border px-3 py-2 hover:bg-muted/50 transition-colors text-blue-600">
-                      <span className="flex items-center gap-2 text-sm">
-                        <ExternalLink className="h-4 w-4" />
-                        LeadsLift CRM Deal
-                      </span>
-                      <ExternalLink className="h-4 w-4" />
-                    </a>
-                  )}
-                  {deal.control_tower_id && (
-                    <div className="rounded border px-3 py-2">
-                      <div className="text-xs text-muted-foreground">Control Tower ID</div>
-                      <div className="text-sm font-medium">{deal.control_tower_id}</div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+                  <ExternalLink className="h-4 w-4" />
+                  CRM & External Systems
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div>
+                  <Label htmlFor="hubspot_crm_deal_url" className="text-xs">HubSpot CRM Deal URL</Label>
+                  <Input
+                    id="hubspot_crm_deal_url"
+                    className="h-8 text-sm"
+                    placeholder="https://..."
+                    value={deal.hubspot_crm_deal_url || ''}
+                    onChange={async (e) => {
+                      try {
+                        await supabase
+                          .from('deals')
+                          .update({ hubspot_crm_deal_url: e.target.value })
+                          .eq('id', deal.id);
+                        queryClient.invalidateQueries({ queryKey: ['deal', slug] });
+                      } catch (error) {
+                        toast({ title: 'Failed to update HubSpot URL', variant: 'destructive' });
+                      }
+                    }}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="leadslift_crm_deal_url" className="text-xs">LeadsLift CRM Deal URL</Label>
+                  <Input
+                    id="leadslift_crm_deal_url"
+                    className="h-8 text-sm"
+                    placeholder="https://..."
+                    value={deal.leadslift_crm_deal_url || ''}
+                    onChange={async (e) => {
+                      try {
+                        await supabase
+                          .from('deals')
+                          .update({ leadslift_crm_deal_url: e.target.value })
+                          .eq('id', deal.id);
+                        queryClient.invalidateQueries({ queryKey: ['deal', slug] });
+                      } catch (error) {
+                        toast({ title: 'Failed to update LeadsLift URL', variant: 'destructive' });
+                      }
+                    }}
+                  />
+                </div>
+                {deal.control_tower_id && (
+                  <div className="rounded border px-3 py-2">
+                    <div className="text-xs text-muted-foreground">Control Tower ID</div>
+                    <div className="text-sm font-medium">{deal.control_tower_id}</div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
         </TabsContent>
 
