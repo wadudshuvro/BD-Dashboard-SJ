@@ -58,13 +58,9 @@ import { useDealSystemInfo } from '@/hooks/useDealSystemInfo';
 import { useDealFiles } from '@/hooks/useDealFiles';
 import { useSyncControlTowerDeals } from '@/hooks/useSyncControlTowerDeals';
 import { useRunBDAgent } from '@/hooks/useRunBDAgent';
-import { usePMContactInfo } from '@/hooks/usePMContactInfo';
 import { DealControlTowerSync } from '@/components/bd/DealControlTowerSync';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
-import AdminLayout from '@/components/AdminLayout';
-import { ContactPMDialog } from '@/components/bd/ContactPMDialog';
-import { SendReminderDialog } from '@/components/bd/SendReminderDialog';
 import AiLeadEvaluation from '@/features/pipeline/AiLeadEvaluation';
 import { AIAgentModal } from '@/components/ai/AIAgentModal';
 import type { DealFile } from '@/hooks/useDeals';
@@ -99,7 +95,6 @@ interface Deal {
   client_id: string | null;
   owner_id: string | null;
   pm_assigned_id: string | null;
-  pm_control_tower_id: string | null;
   notes?: string | null;
   hubspot_deal_id?: string | null;
   hubspot_crm_deal_url?: string | null;
@@ -111,7 +106,6 @@ interface Deal {
   deal_files?: DealFile[];
   google_drive_folder_id?: string | null;
   google_drive_folder_url?: string | null;
-  slug?: string | null;
   
   // New Control Tower fields
   category?: string | null;
@@ -168,7 +162,6 @@ interface UserProfile {
   id: string;
   first_name: string;
   last_name: string;
-  full_name?: string;
   email: string;
 }
 
@@ -633,12 +626,6 @@ export default function DealDetail() {
   const { syncDeals: syncSingleDeal, isSyncing: isSyncingSingle } = useSyncControlTowerDeals(dealId);
   const [isSyncingDeal, setIsSyncingDeal] = useState(false);
   const [resyncingChecklist, setResyncingChecklist] = useState(false);
-  
-  // Fetch PM contact info from profiles or employees table
-  const { data: pmContactInfo } = usePMContactInfo(
-    deal?.pm_assigned_id,
-    deal?.pm_control_tower_id
-  );
 
   // Handle tab changes and update URL
   const handleTabChange = (newTab: string) => {
@@ -1167,17 +1154,8 @@ export default function DealDetail() {
       <div className="container mx-auto py-8">
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-        </div>
       </div>
-    );
-  }
 
-  return (
-    <div className="container mx-auto py-8">
-      <p>Deal Detail Content - Needs to be restored from git history</p>
-      <p>Deal ID: {dealId}</p>
-      <p>PM Contact Info: {JSON.stringify(pmContactInfo)}</p>
-      
       {/* Contact PM Dialog */}
       {pmContactInfo?.email && (
         <ContactPMDialog
@@ -1185,7 +1163,7 @@ export default function DealDetail() {
           onOpenChange={setShowContactPMDialog}
           dealId={dealId}
           dealTitle={deal?.title || ''}
-          dealSlug={deal?.slug || undefined}
+          dealSlug={deal?.slug}
           dealStage={stage}
           pmName={pmContactInfo.full_name}
           pmEmail={pmContactInfo.email}
@@ -1199,7 +1177,7 @@ export default function DealDetail() {
         dealId={dealId}
         dealTitle={deal?.title || ''}
         ownerEmail={owner?.email}
-        ownerName={(owner?.first_name || '') + ' ' + (owner?.last_name || '')}
+        ownerName={owner?.full_name}
         pmEmail={pmContactInfo?.email}
         pmName={pmContactInfo?.full_name}
       />
