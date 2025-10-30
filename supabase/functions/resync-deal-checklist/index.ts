@@ -133,6 +133,11 @@ serve(async (req) => {
       );
     }
 
+    // DEBUG: Log sample checklist item structure
+    console.log(`[Resync] DEBUG - Sample Control Tower checklist item:`, JSON.stringify(ctChecklist[0], null, 2));
+    console.log(`[Resync] DEBUG - Available fields:`, Object.keys(ctChecklist[0]));
+    console.log(`[Resync] DEBUG - Total items fetched:`, ctChecklist.length);
+
     // Step 3: Insert items from Control Tower (sort by id as fallback for order)
     const sortedChecklist = (ctChecklist || []).sort((a: any, b: any) => {
       // Use order_index if available, otherwise use created timestamp or id
