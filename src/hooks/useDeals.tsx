@@ -315,7 +315,10 @@ export function useDeals(options: UseDealsOptions = {}): UseDealsReturn {
 
     const { data, error } = await supabase
       .from('deals')
-      .update(dealData)
+      .update({
+        ...dealData,
+        updated_at: new Date().toISOString(), // Mark as locally modified
+      })
       .eq('id', dealId)
       .select(
         `
@@ -346,6 +349,25 @@ export function useDeals(options: UseDealsOptions = {}): UseDealsReturn {
       .single();
 
     if (error) throw error;
+
+    // Auto-push to Control Tower if deal is synced
+    if (data.synced_from_control_tower && data.control_tower_id) {
+      // Trigger push in background (don't await to avoid blocking UI)
+      supabase.functions
+        .invoke('push-to-control-tower', {
+          body: { 
+            entity_type: 'deal_fields', 
+            deal_id: dealId 
+          }
+        })
+        .then(() => {
+          console.log('[Deal Update] Successfully pushed to Control Tower');
+        })
+        .catch((pushError) => {
+          console.warn('[Deal Update] Failed to push to Control Tower:', pushError);
+          toast.error('Deal updated locally but failed to sync with Control Tower');
+        });
+    }
 
     toast.success('Deal updated successfully');
     await fetchDeals();

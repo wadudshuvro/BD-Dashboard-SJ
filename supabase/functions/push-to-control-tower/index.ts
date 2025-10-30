@@ -3,11 +3,12 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.75.0";
 import { corsHeaders } from "../_shared/cors.ts";
 
-type EntityType = "comment" | "checklist" | "stage_change" | "all";
+type EntityType = "comment" | "checklist" | "stage_change" | "deal_fields" | "all";
 
 interface PushPayload {
   entity_type: EntityType;
   entity_ids?: string[];
+  deal_id?: string; // For pushing specific deal field updates
 }
 
 interface PushError {
@@ -25,6 +26,7 @@ interface PushResultsSummary {
   comments: PushResult;
   checklist: PushResult;
   stage_changes: PushResult;
+  deal_fields?: PushResult;
 }
 
 interface IntegrationConfigRow {
@@ -95,6 +97,7 @@ serve(async (req) => {
     const body: PushPayload = await req.json();
     const entityType: EntityType = body.entity_type ?? "all";
     const entityIds = body.entity_ids;
+    const dealId = body.deal_id; // For pushing specific deal field updates
 
     const { data: configRow, error: configError } = await supabase
       .from("integrations")
@@ -123,6 +126,7 @@ serve(async (req) => {
       comments: createEmptyResult(),
       checklist: createEmptyResult(),
       stage_changes: createEmptyResult(),
+      deal_fields: createEmptyResult(),
     };
 
     if (entityType === "comment" || entityType === "all") {
@@ -300,6 +304,115 @@ serve(async (req) => {
             status: "failed",
             error_message: message,
             payload: { deal_id: item.deal?.control_tower_id ?? null },
+            synced_by: userId,
+          });
+        }
+      }
+    }
+
+    // Push deal field updates to Control Tower
+    if (entityType === "deal_fields" || entityType === "all") {
+      let dealsQuery = supabase
+        .from("deals")
+        .select("*")
+        .eq("synced_from_control_tower", true)
+        .not("control_tower_id", "is", null);
+
+      // If specific deal_id provided, only sync that deal
+      if (dealId) {
+        dealsQuery = dealsQuery.eq("id", dealId);
+      } else if (entityType === "deal_fields") {
+        // For explicit deal_fields requests, only sync modified deals
+        // This is handled by checking updated_at > last_synced_at on Control Tower side
+      }
+
+      const { data: dealsToSync, error: dealsError } = await dealsQuery;
+      if (dealsError) {
+        console.error("[Push] Error fetching deals to sync:", dealsError);
+        throw dealsError;
+      }
+
+      for (const deal of dealsToSync ?? []) {
+        try {
+          if (!deal.control_tower_id) {
+            throw new Error("Deal is missing Control Tower ID");
+          }
+
+          // Only push if locally modified after last sync
+          const updatedAt = deal.updated_at ? new Date(deal.updated_at) : null;
+          const lastSyncedAt = deal.last_synced_at ? new Date(deal.last_synced_at) : null;
+          
+          if (lastSyncedAt && updatedAt && updatedAt <= lastSyncedAt) {
+            // Skip - not modified since last sync
+            continue;
+          }
+
+          // Map fields to Control Tower schema
+          const updatePayload: any = {};
+          
+          // Core financial fields
+          if (deal.amount !== null && deal.amount !== undefined) updatePayload.amount = deal.amount;
+          if (deal.potential_amount !== null && deal.potential_amount !== undefined) updatePayload.potential_amount = deal.potential_amount;
+          if (deal.probability !== null && deal.probability !== undefined) updatePayload.probability = deal.probability;
+          
+          // Date fields
+          if (deal.expected_closing_date) updatePayload.expected_closing_date = deal.expected_closing_date;
+          if (deal.close_date) updatePayload.closedate = deal.close_date;
+          
+          // Status and categorization
+          if (deal.stage) updatePayload.dealstage = deal.stage;
+          if (deal.priority) updatePayload.priority = deal.priority;
+          if (deal.dealtype) updatePayload.dealtype = deal.dealtype;
+          if (deal.lead_source) updatePayload.lead_source = deal.lead_source;
+          if (deal.pipeline) updatePayload.pipeline = deal.pipeline;
+          if (deal.type_of_work) updatePayload.type_of_work = deal.type_of_work;
+          if (deal.category) updatePayload.category = deal.category;
+          
+          // Text fields
+          if (deal.notes) updatePayload.notes = deal.notes;
+          if (deal.tags) updatePayload.tags = deal.tags;
+          
+          // Update timestamp
+          updatePayload.updated_at = new Date().toISOString();
+
+          const { error: updateError } = await controlTowerClient
+            .from("deals")
+            .update(updatePayload)
+            .eq("id", deal.control_tower_id);
+
+          if (updateError) {
+            throw updateError;
+          }
+
+          // Update last_synced_at in BD Portal
+          await supabase
+            .from("deals")
+            .update({ last_synced_at: new Date().toISOString() })
+            .eq("id", deal.id);
+
+          await supabase.from("control_tower_sync_log").insert({
+            sync_type: "push",
+            entity_type: "deal_fields",
+            entity_id: deal.id,
+            control_tower_id: deal.control_tower_id,
+            status: "success",
+            payload: { fields_updated: Object.keys(updatePayload) },
+            synced_by: userId,
+          });
+
+          results.deal_fields!.synced += 1;
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Failed to push deal fields";
+          results.deal_fields!.failed += 1;
+          results.deal_fields!.errors.push({ id: deal.id, message });
+
+          await supabase.from("control_tower_sync_log").insert({
+            sync_type: "push",
+            entity_type: "deal_fields",
+            entity_id: deal.id,
+            status: "failed",
+            error_message: message,
+            payload: { deal_id: deal.control_tower_id },
             synced_by: userId,
           });
         }
