@@ -56,6 +56,7 @@ interface PendingChecklistRow {
   title: string;
   is_completed: boolean;
   completed_at: string | null;
+  completed_by: string | null;
   control_tower_item_id: string | null;
   deal: {
     control_tower_id: string | null;
@@ -245,11 +246,13 @@ serve(async (req) => {
           // If item has Control Tower ID, update the original item; otherwise insert update
           if (item.control_tower_item_id) {
             // Update the original checklist item in Control Tower
+            // BD Portal completion always wins (conflict resolution rule)
             const { error: updateError } = await controlTowerClient
               .from("deal_checklist")
               .update({
                 is_completed: item.is_completed,
                 completed_at: item.completed_at,
+                completed_by: item.completed_by, // BD Portal user wins
               })
               .eq("id", item.control_tower_item_id);
 
@@ -257,7 +260,7 @@ serve(async (req) => {
               throw updateError;
             }
 
-            console.log(`[Push] Updated Control Tower checklist item ${item.control_tower_item_id}`);
+            console.log(`[Push] Updated Control Tower checklist item ${item.control_tower_item_id} (BD Portal completion wins)`);
           } else {
             // Item created in BD Portal - insert as update record
             const { error: insertError } = await controlTowerClient

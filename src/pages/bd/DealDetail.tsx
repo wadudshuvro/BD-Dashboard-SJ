@@ -579,6 +579,7 @@ export default function DealDetail() {
   const deleteChecklistMutation = useDeleteChecklistItem(dealId);
   const { syncDeals: syncSingleDeal, isSyncing: isSyncingSingle } = useSyncControlTowerDeals(dealId);
   const [isSyncingDeal, setIsSyncingDeal] = useState(false);
+  const [resyncingChecklist, setResyncingChecklist] = useState(false);
 
   const refreshDealDetails = useCallback(async () => {
     if (!dealId) return;
@@ -943,6 +944,42 @@ export default function DealDetail() {
       });
     } finally {
       setIsSyncingDeal(false);
+    }
+  };
+
+  const handleResyncChecklist = async () => {
+    if (!deal?.synced_from_control_tower) {
+      toast({
+        title: 'Cannot re-sync',
+        description: 'This deal is not synced from Control Tower',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    setResyncingChecklist(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('resync-deal-checklist', {
+        body: { dealId }
+      });
+
+      if (error) throw error;
+
+      // Refresh checklist
+      await queryClient.invalidateQueries({ queryKey: ['deal-checklist', dealId] });
+      
+      toast({
+        title: 'Checklist re-synced',
+        description: `${data.synced_count} items synced from Control Tower`
+      });
+    } catch (error) {
+      toast({
+        title: 'Re-sync failed',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive'
+      });
+    } finally {
+      setResyncingChecklist(false);
     }
   };
 
@@ -1699,24 +1736,44 @@ export default function DealDetail() {
                       Synced {formatDistanceToNow(new Date(deal.last_synced_at), { addSuffix: true })}
                     </span>
                   )}
-                  <Button
-                    onClick={handleSyncDealFromControlTower}
-                    disabled={isSyncingDeal || isSyncingSingle}
-                    variant="outline"
-                    size="sm"
-                  >
-                    {isSyncingDeal || isSyncingSingle ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Syncing...
-                      </>
-                    ) : (
-                      <>
-                        <RefreshCw className="mr-2 h-4 w-4" />
-                        Sync from Control Tower
-                      </>
-                    )}
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={handleSyncDealFromControlTower}
+                      disabled={isSyncingDeal || isSyncingSingle}
+                      variant="outline"
+                      size="sm"
+                    >
+                      {isSyncingDeal || isSyncingSingle ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Syncing...
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCw className="mr-2 h-4 w-4" />
+                          Sync Deal
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      onClick={handleResyncChecklist}
+                      disabled={resyncingChecklist || !deal?.synced_from_control_tower}
+                      variant="outline"
+                      size="sm"
+                    >
+                      {resyncingChecklist ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Re-syncing...
+                        </>
+                      ) : (
+                        <>
+                          <CheckSquare className="mr-2 h-4 w-4" />
+                          Re-sync Checklist
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 </div>
               </div>
             </CardHeader>
@@ -1744,9 +1801,23 @@ export default function DealDetail() {
                         checked={item.is_completed}
                         onCheckedChange={() => handleToggleChecklistItem(item.id, item.is_completed)}
                       />
-                      <label className={`flex-1 text-sm cursor-pointer ${item.is_completed ? 'line-through text-muted-foreground' : ''}`}>
-                        {item.title}
-                      </label>
+                      <div className="flex-1 flex items-center gap-2">
+                        <label className={`text-sm cursor-pointer ${item.is_completed ? 'line-through text-muted-foreground' : ''}`}>
+                          {item.title}
+                        </label>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Badge variant={item.control_tower_synced_at ? "secondary" : "outline"} className="text-xs">
+                              {item.control_tower_synced_at ? '📡 CT' : '📝 Local'}
+                            </Badge>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            {item.control_tower_synced_at 
+                              ? `Synced from Control Tower ${formatDistanceToNow(new Date(item.control_tower_synced_at), { addSuffix: true })}`
+                              : 'Created locally in BD Portal'}
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
                       <Button
                         variant="ghost"
                         size="icon"

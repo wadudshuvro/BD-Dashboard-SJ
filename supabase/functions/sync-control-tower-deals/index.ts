@@ -928,18 +928,8 @@ async function performSync(
 
           checklistSyncedCount++;
         } else {
-          // No checklist in Control Tower, apply default template as fallback
-          console.log(`[Sync] No checklist in Control Tower for deal ${deal.id}, applying template...`);
-          try {
-            await supabase.functions.invoke('apply-checklist-template', {
-              body: { 
-                dealId: deal.id, 
-                stage: transformedDeals.find((d: any) => d.control_tower_id === deal.control_tower_id)?.stage || 'prospecting'
-              }
-            });
-          } catch (templateError) {
-            console.warn(`[Sync] Failed to apply template for deal ${deal.id}:`, templateError);
-          }
+          // No checklist in Control Tower - BD team will manually manage checklists
+          console.log(`[Sync] No checklist in Control Tower for deal ${deal.id}, skipping template application (BD team manages manually)`);
         }
       } catch (error) {
         console.error(`[Sync] Error processing checklist for deal ${deal.id}:`, error);
