@@ -1,5 +1,8 @@
 project_id = "qzzvcqoletuummdsbbio"
 
+[functions.collabai-manage]
+verify_jwt = true
+
 [functions.admin-campaigns]
 verify_jwt = true
 
