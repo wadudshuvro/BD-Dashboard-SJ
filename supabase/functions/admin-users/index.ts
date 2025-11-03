@@ -101,7 +101,7 @@ interface UpdateUserRequest {
   brandAssignments?: BrandAssignmentInput[];
 }
 
-// Build select query for users table (without role field)
+// Build select query for users table (without role field and brand assignments)
 const buildUserSelect = () => `
   id,
   email,
@@ -113,15 +113,6 @@ const buildUserSelect = () => `
   is_marketing,
   created_at,
   updated_at,
-  user_brands(
-    brand_id,
-    access_level,
-    can_view_analytics,
-    can_manage_content,
-    can_manage_team,
-    can_manage_settings,
-    brands(name)
-  ),
   user_permissions(
     module_name,
     can_view,
@@ -137,16 +128,7 @@ const transformUser = (userData: RawUserRecord, role: string = 'user'): UserWith
   title: userData.title ?? null,
   department: userData.department ?? null,
   is_marketing: userData.is_marketing ?? false,
-  user_brands:
-    userData.user_brands?.map((ub) => ({
-      brand_id: ub.brand_id,
-      brand_name: ub.brands?.name || '',
-      access_level: ub.access_level,
-      can_view_analytics: ub.can_view_analytics,
-      can_manage_content: ub.can_manage_content,
-      can_manage_team: ub.can_manage_team,
-      can_manage_settings: ub.can_manage_settings,
-    })) || [],
+  user_brands: [],
   permissions: userData.user_permissions || [],
 });
 
@@ -155,60 +137,10 @@ const syncUserBrands = async (
   userId: string,
   brandAssignments: BrandAssignmentInput[] = [],
 ) => {
-  if (!userId) return;
-
-  const normalizedAssignments = brandAssignments
-    .filter((assignment) => assignment?.brand_id)
-    .map((assignment) => {
-      const level = assignment.access_level || 'member';
-      return {
-        user_id: userId,
-        brand_id: assignment.brand_id,
-        access_level: level,
-        can_view_analytics: true,
-        can_manage_content: level !== 'viewer',
-        can_manage_team: level === 'owner',
-        can_manage_settings: level === 'owner',
-      };
-    });
-
-  const existingAssignmentsResponse = await client
-    .from('user_brands')
-    .select('id, brand_id')
-    .eq('user_id', userId);
-
-  if (existingAssignmentsResponse.error) {
-    throw existingAssignmentsResponse.error;
-  }
-
-  type UserBrandRecord = { id: string; brand_id: string };
-  const existingAssignments = (existingAssignmentsResponse.data || []) as UserBrandRecord[];
-
-  const newBrandIds = new Set(normalizedAssignments.map((assignment) => assignment.brand_id));
-  const toDelete = existingAssignments
-    .filter((record) => !newBrandIds.has(record.brand_id))
-    .map((record) => record.id);
-
-  if (toDelete.length > 0) {
-    const { error: deleteError } = await client
-      .from('user_brands')
-      .delete()
-      .in('id', toDelete);
-
-    if (deleteError) {
-      throw deleteError;
-    }
-  }
-
-  if (normalizedAssignments.length > 0) {
-    const { error: upsertError } = await client
-      .from('user_brands')
-      .upsert(normalizedAssignments, { onConflict: 'user_id,brand_id' });
-
-    if (upsertError) {
-      throw upsertError;
-    }
-  }
+  // Brand assignments feature is not implemented in this system
+  // This function is kept for backward compatibility but does nothing
+  console.log('Note: Brand assignments feature is not available in this system');
+  return;
 };
 
 // Fetch user with details including role from user_roles table
