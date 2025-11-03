@@ -55,6 +55,7 @@ const AdminLayout = () => {
         items: [
           { name: "System Settings", href: "/adminpanel/settings", icon: Settings },
           { name: "EOD Management", href: "/adminpanel/eod-management", icon: Calendar },
+          { name: "Vision 2025", href: "/adminpanel/vision", icon: Sparkles },
           { name: "Documentation", href: "/adminpanel/documentation", icon: FileText },
         ],
       },
