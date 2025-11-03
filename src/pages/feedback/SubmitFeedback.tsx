@@ -95,6 +95,17 @@ export default function SubmitFeedback() {
       return;
     }
 
+    // Check if user is authenticated
+    if (!user) {
+      console.error("No authenticated user found");
+      toast({
+        title: "Authentication required",
+        description: "Please log in to submit feedback.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     // Validate type before submission
     if (!TYPE_OPTIONS.includes(selectedType)) {
       console.error("Invalid feedback type:", selectedType);
@@ -111,6 +122,14 @@ export default function SubmitFeedback() {
     try {
       const feedbackId = crypto.randomUUID();
       let attachmentPath: string | null = null;
+
+      // Check session before proceeding
+      const { data: { session } } = await supabase.auth.getSession();
+      console.log("Current session status:", session ? "Active" : "No session");
+
+      if (!session) {
+        throw new Error("No active session. Please log in again.");
+      }
 
       if (attachment) {
         console.log("Uploading attachment:", attachment.name);
@@ -129,7 +148,7 @@ export default function SubmitFeedback() {
         }
       }
 
-      console.log("Submitting feedback:", { type: selectedType, subject: subject.trim() });
+      console.log("Submitting feedback:", { type: selectedType, subject: subject.trim(), userId: user.id });
       
       await submitFeedback({
         id: feedbackId,
