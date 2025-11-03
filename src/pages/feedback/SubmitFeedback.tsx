@@ -25,10 +25,14 @@ function normalizeFileName(name: string) {
 
 export default function SubmitFeedback() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const initialType = searchParams.get("type") as FeedbackType | null;
-  const [selectedType, setSelectedType] = useState<FeedbackType>(
-    TYPE_OPTIONS.includes(initialType ?? "bug") ? (initialType as FeedbackType) : "bug",
-  );
+  const initialType = searchParams.get("type");
+  
+  // Validate type parameter and handle null/invalid values
+  const validType = (initialType && initialType !== "null" && TYPE_OPTIONS.includes(initialType as FeedbackType))
+    ? (initialType as FeedbackType)
+    : "bug";
+  
+  const [selectedType, setSelectedType] = useState<FeedbackType>(validType);
   const [subject, setSubject] = useState("");
   const [description, setDescription] = useState("");
   const [attachment, setAttachment] = useState<File | null>(null);
@@ -41,8 +45,10 @@ export default function SubmitFeedback() {
   const { enabled: autoEmailEnabled } = useFeatureFlag("feedback_auto_email");
 
   useEffect(() => {
-    if (!initialType || !TYPE_OPTIONS.includes(initialType)) {
-      setSearchParams({ type: selectedType });
+    const currentType = searchParams.get("type");
+    // Prevent setting invalid types including null string
+    if (!currentType || currentType === "null" || !TYPE_OPTIONS.includes(currentType as FeedbackType)) {
+      setSearchParams({ type: selectedType }, { replace: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -89,6 +95,17 @@ export default function SubmitFeedback() {
       return;
     }
 
+    // Validate type before submission
+    if (!TYPE_OPTIONS.includes(selectedType)) {
+      console.error("Invalid feedback type:", selectedType);
+      toast({
+        title: "Invalid feedback type",
+        description: "Please select either Bug or Feature.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -96,6 +113,7 @@ export default function SubmitFeedback() {
       let attachmentPath: string | null = null;
 
       if (attachment) {
+        console.log("Uploading attachment:", attachment.name);
         const safeName = normalizeFileName(attachment.name);
         attachmentPath = `${feedbackId}/${safeName}`;
         const { error: uploadError } = await supabase.storage
@@ -106,10 +124,13 @@ export default function SubmitFeedback() {
           });
 
         if (uploadError) {
-          throw uploadError;
+          console.error("Upload error:", uploadError);
+          throw new Error(`Failed to upload attachment: ${uploadError.message}`);
         }
       }
 
+      console.log("Submitting feedback:", { type: selectedType, subject: subject.trim() });
+      
       await submitFeedback({
         id: feedbackId,
         type: selectedType,
@@ -131,10 +152,11 @@ export default function SubmitFeedback() {
       setAttachment(null);
       setSubmittedDate(new Date().toLocaleString());
     } catch (error) {
-      console.error("Failed to submit feedback", error);
+      console.error("Failed to submit feedback:", error);
+      const errorMessage = error instanceof Error ? error.message : "Unable to submit feedback right now.";
       toast({
         title: "Something went wrong",
-        description: error instanceof Error ? error.message : "Unable to submit feedback right now.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {

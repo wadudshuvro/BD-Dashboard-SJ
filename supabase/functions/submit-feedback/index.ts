@@ -117,14 +117,21 @@ serve(async (req) => {
     const type = body.type?.toLowerCase();
     const subject = body.subject?.trim();
 
+    console.log("[submit-feedback] Received request:", { type, hasSubject: !!subject, userId: user.id });
+
     if (!type || !["bug", "feature"].includes(type)) {
-      return new Response(JSON.stringify({ message: "Invalid feedback type" }), {
+      console.error("[submit-feedback] Invalid type received:", body.type);
+      return new Response(JSON.stringify({ 
+        message: "Invalid feedback type. Must be 'bug' or 'feature'.",
+        received: body.type 
+      }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     if (!subject) {
+      console.error("[submit-feedback] Missing subject");
       return new Response(JSON.stringify({ message: "Subject is required" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -161,12 +168,17 @@ serve(async (req) => {
       .single();
 
     if (error) {
-      console.error("Failed to create feedback record", error);
-      return new Response(JSON.stringify({ message: "Unable to save feedback" }), {
+      console.error("[submit-feedback] Database insert failed:", error);
+      return new Response(JSON.stringify({ 
+        message: "Unable to save feedback",
+        error: error.message 
+      }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    console.log("[submit-feedback] Successfully created feedback:", data.id);
 
     if (featureFlags.feedback_auto_email) {
       try {
