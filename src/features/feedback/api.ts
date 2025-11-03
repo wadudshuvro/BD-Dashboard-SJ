@@ -1,3 +1,4 @@
+import { supabase } from "@/integrations/supabase/client";
 import axiosPrivate from "@/lib/axiosPrivate";
 
 export type FeedbackType = "bug" | "feature";
@@ -51,8 +52,15 @@ export interface FeedbackDetailResponse {
 }
 
 export async function submitFeedback(payload: SubmitFeedbackPayload) {
-  const response = await axiosPrivate.post<{ id: string; status: FeedbackStatus }>("/submit-feedback", payload);
-  return response.data;
+  const { data, error } = await supabase.functions.invoke<{ id: string; status: FeedbackStatus }>("submit-feedback", {
+    body: payload,
+  });
+
+  if (error) {
+    throw new Error(error.message || "Failed to submit feedback");
+  }
+
+  return data!;
 }
 
 export async function listFeedbackReports(params: {
