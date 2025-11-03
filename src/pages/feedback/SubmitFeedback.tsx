@@ -123,13 +123,21 @@ export default function SubmitFeedback() {
       const feedbackId = crypto.randomUUID();
       let attachmentPath: string | null = null;
 
-      // Check session before proceeding
-      const { data: { session } } = await supabase.auth.getSession();
-      console.log("Current session status:", session ? "Active" : "No session");
-
-      if (!session) {
-        throw new Error("No active session. Please log in again.");
+      // Force token refresh to ensure we have a valid JWT
+      console.log("Refreshing authentication session...");
+      const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession();
+      
+      if (refreshError) {
+        console.error("Token refresh failed:", refreshError);
+        throw new Error("Authentication session expired. Please log in again.");
       }
+
+      if (!refreshedSession) {
+        console.error("No session after refresh");
+        throw new Error("Unable to authenticate. Please log in again.");
+      }
+
+      console.log("Session refreshed successfully, token valid until:", new Date(refreshedSession.expires_at! * 1000).toISOString());
 
       if (attachment) {
         console.log("Uploading attachment:", attachment.name);
