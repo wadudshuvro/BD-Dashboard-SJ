@@ -651,6 +651,7 @@ export function useLocalDealsByStage(
             pm_assigned_id: deal.pm_assigned_id,
             pm_assigned_name: pm ? `${(pm as any).first_name} ${(pm as any).last_name}` : '-',
             stage: deal.stage,
+            status: deal.status,
             dealtype: deal.dealtype,
             category: deal.category,
             close_date: deal.close_date,
