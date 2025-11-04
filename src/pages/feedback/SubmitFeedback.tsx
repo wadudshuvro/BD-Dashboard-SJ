@@ -138,9 +138,10 @@ export default function SubmitFeedback() {
       }
 
       console.log("Session refreshed successfully, token valid until:", new Date(refreshedSession.expires_at! * 1000).toISOString());
+      console.log("Access token present:", !!refreshedSession.access_token);
 
-      // Add small delay to ensure localStorage is updated
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Increased delay to ensure Supabase client state is updated
+      await new Promise(resolve => setTimeout(resolve, 500));
 
       if (attachment) {
         console.log("Uploading attachment:", attachment.name);
