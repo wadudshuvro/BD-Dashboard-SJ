@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { PipelineDataTable } from '@/components/bd/PipelineDataTable';
 import { Badge } from '@/components/ui/badge';
 import { useLocalDealsByStage } from '@/hooks/useDeals';
@@ -30,10 +30,15 @@ export function StagePipelineTable({ stage, title, description }: StagePipelineT
   );
   const navigate = useNavigate();
   
-  const { users: owners } = useAdminUsers();
-  const { users: pms } = useAdminUsers();
+  const { users: owners, fetchUsers: fetchOwners } = useAdminUsers();
+  const { users: pms, fetchUsers: fetchPMs } = useAdminUsers();
   const { pods } = usePods();
   const { data: categoriesData } = useCategories();
+  
+  useEffect(() => {
+    fetchOwners({ limit: 100 });
+    fetchPMs({ limit: 100 });
+  }, [fetchOwners, fetchPMs]);
   
   const deals = data?.data || [];
   const totalCount = data?.total || 0;
