@@ -145,21 +145,21 @@ export default function SubmitFeedback() {
       if (attachment) {
         console.log("Uploading attachment:", attachment.name);
         const safeName = normalizeFileName(attachment.name);
-        attachmentPath = `${feedbackId}/${safeName}`;
+        const filePath = `${user.id}/${feedbackId}/${safeName}`;
+
         const { error: uploadError } = await supabase.storage
           .from("feedback")
-          .upload(attachmentPath, attachment, {
-            contentType: attachment.type || "application/octet-stream",
-            upsert: false,
-          });
+          .upload(filePath, attachment);
 
-        if (uploadError) {
-          console.error("Upload error:", uploadError);
-          throw new Error(`Failed to upload attachment: ${uploadError.message}`);
-        }
+        if (uploadError) throw uploadError;
+        attachmentPath = filePath;
       }
 
-      console.log("Submitting feedback:", { type: selectedType, subject: subject.trim(), userId: user.id });
+      console.log("Submitting feedback:", { 
+        type: selectedType, 
+        subject: subject.trim(), 
+        userId: user.id
+      });
       
       await submitFeedback({
         id: feedbackId,
