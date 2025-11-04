@@ -54,28 +54,12 @@ export interface FeedbackDetailResponse {
 export async function submitFeedback(payload: SubmitFeedbackPayload) {
   console.log("[submitFeedback] Invoking edge function");
 
-  // Get and validate current session
-  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-  
-  if (sessionError) {
-    console.error("[submitFeedback] Session error:", sessionError);
-    throw new Error("Authentication error: " + sessionError.message);
-  }
-
-  if (!session) {
-    console.error("[submitFeedback] No active session");
-    throw new Error("You must be logged in to submit feedback");
-  }
-
-  console.log("[submitFeedback] Session valid, access token present:", !!session.access_token);
-
   const { data, error } = await supabase.functions.invoke<{ id: string; status: FeedbackStatus }>("submit-feedback", {
     body: payload,
   });
 
   if (error) {
     console.error("[submitFeedback] Edge function error:", error);
-    console.error("[submitFeedback] Error details:", JSON.stringify(error, null, 2));
     throw new Error(error.message || "Failed to submit feedback");
   }
 

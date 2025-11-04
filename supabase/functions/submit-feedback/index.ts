@@ -91,35 +91,23 @@ serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    console.log("[submit-feedback] Auth header present:", !!authHeader);
-    console.log("[submit-feedback] Auth header preview:", authHeader?.substring(0, 20));
-
     const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 
     const userClient = createClient(supabaseUrl, anonKey, {
-      auth: { persistSession: false, autoRefreshToken: false },
       global: {
-        headers: { Authorization: authHeader ?? "" },
+        headers: { Authorization: req.headers.get("Authorization") ?? "" },
       },
     });
 
-    const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : authHeader ?? "";
     const {
       data: { user },
       error: authError,
-    } = await userClient.auth.getUser(token);
-
-    console.log("[submit-feedback] User auth - Success:", !!user, "Error:", authError?.message);
+    } = await userClient.auth.getUser();
 
     if (authError || !user) {
-      console.error("[submit-feedback] Authentication failed:", authError);
-      return new Response(JSON.stringify({ 
-        message: "Unauthorized",
-        details: authError?.message ?? "No user found"
-      }), {
+      return new Response(JSON.stringify({ message: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

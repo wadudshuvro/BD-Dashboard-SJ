@@ -138,29 +138,28 @@ export default function SubmitFeedback() {
       }
 
       console.log("Session refreshed successfully, token valid until:", new Date(refreshedSession.expires_at! * 1000).toISOString());
-      console.log("Access token present:", !!refreshedSession.access_token);
 
-      // Increased delay to ensure Supabase client state is updated
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Add small delay to ensure localStorage is updated
+      await new Promise(resolve => setTimeout(resolve, 100));
 
       if (attachment) {
         console.log("Uploading attachment:", attachment.name);
         const safeName = normalizeFileName(attachment.name);
-        const filePath = `${user.id}/${feedbackId}/${safeName}`;
-
+        attachmentPath = `${feedbackId}/${safeName}`;
         const { error: uploadError } = await supabase.storage
           .from("feedback")
-          .upload(filePath, attachment);
+          .upload(attachmentPath, attachment, {
+            contentType: attachment.type || "application/octet-stream",
+            upsert: false,
+          });
 
-        if (uploadError) throw uploadError;
-        attachmentPath = filePath;
+        if (uploadError) {
+          console.error("Upload error:", uploadError);
+          throw new Error(`Failed to upload attachment: ${uploadError.message}`);
+        }
       }
 
-      console.log("Submitting feedback:", { 
-        type: selectedType, 
-        subject: subject.trim(), 
-        userId: user.id
-      });
+      console.log("Submitting feedback:", { type: selectedType, subject: subject.trim(), userId: user.id });
       
       await submitFeedback({
         id: feedbackId,
