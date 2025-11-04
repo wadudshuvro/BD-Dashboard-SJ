@@ -51,26 +51,13 @@ export interface FeedbackDetailResponse {
   attachment_signed_url?: string | null;
 }
 
-export async function submitFeedback(payload: SubmitFeedbackPayload) {
-  // Explicitly get the current session and pass the token
-  const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-  
-  if (sessionError) {
-    console.error("[submitFeedback] Session retrieval error:", sessionError);
-    throw new Error("Unable to retrieve authentication session");
-  }
-
-  if (!session) {
-    console.error("[submitFeedback] No active session found");
-    throw new Error("No active session. Please log in again.");
-  }
-
-  console.log("[submitFeedback] Token valid until:", new Date(session.expires_at! * 1000).toISOString());
+export async function submitFeedback(payload: SubmitFeedbackPayload, accessToken: string) {
+  console.log("[submitFeedback] Using provided access token");
 
   const { data, error } = await supabase.functions.invoke<{ id: string; status: FeedbackStatus }>("submit-feedback", {
     body: payload,
     headers: {
-      Authorization: `Bearer ${session.access_token}`,
+      Authorization: `Bearer ${accessToken}`,
     },
   });
 

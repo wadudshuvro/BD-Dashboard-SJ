@@ -158,14 +158,17 @@ export default function SubmitFeedback() {
 
       console.log("Submitting feedback:", { type: selectedType, subject: subject.trim(), userId: user.id });
       
-      await submitFeedback({
-        id: feedbackId,
-        type: selectedType,
-        subject: subject.trim(),
-        description: description.trim() || undefined,
-        attachmentPath,
-        attachmentName: attachment?.name ?? null,
-      });
+      await submitFeedback(
+        {
+          id: feedbackId,
+          type: selectedType,
+          subject: subject.trim(),
+          description: description.trim() || undefined,
+          attachmentPath,
+          attachmentName: attachment?.name ?? null,
+        },
+        refreshedSession.access_token
+      );
 
       toast({
         title: "Feedback submitted",
