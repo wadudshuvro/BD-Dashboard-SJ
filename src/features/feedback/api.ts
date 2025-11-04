@@ -51,14 +51,11 @@ export interface FeedbackDetailResponse {
   attachment_signed_url?: string | null;
 }
 
-export async function submitFeedback(payload: SubmitFeedbackPayload, accessToken: string) {
-  console.log("[submitFeedback] Using provided access token");
+export async function submitFeedback(payload: SubmitFeedbackPayload) {
+  console.log("[submitFeedback] Invoking edge function");
 
   const { data, error } = await supabase.functions.invoke<{ id: string; status: FeedbackStatus }>("submit-feedback", {
     body: payload,
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
   });
 
   if (error) {

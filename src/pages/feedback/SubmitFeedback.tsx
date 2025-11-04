@@ -139,6 +139,9 @@ export default function SubmitFeedback() {
 
       console.log("Session refreshed successfully, token valid until:", new Date(refreshedSession.expires_at! * 1000).toISOString());
 
+      // Add small delay to ensure localStorage is updated
+      await new Promise(resolve => setTimeout(resolve, 100));
+
       if (attachment) {
         console.log("Uploading attachment:", attachment.name);
         const safeName = normalizeFileName(attachment.name);
@@ -158,17 +161,14 @@ export default function SubmitFeedback() {
 
       console.log("Submitting feedback:", { type: selectedType, subject: subject.trim(), userId: user.id });
       
-      await submitFeedback(
-        {
-          id: feedbackId,
-          type: selectedType,
-          subject: subject.trim(),
-          description: description.trim() || undefined,
-          attachmentPath,
-          attachmentName: attachment?.name ?? null,
-        },
-        refreshedSession.access_token
-      );
+      await submitFeedback({
+        id: feedbackId,
+        type: selectedType,
+        subject: subject.trim(),
+        description: description.trim() || undefined,
+        attachmentPath,
+        attachmentName: attachment?.name ?? null,
+      });
 
       toast({
         title: "Feedback submitted",
