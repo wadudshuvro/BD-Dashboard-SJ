@@ -1,4 +1,4 @@
-import { BookOpen, Database, Workflow, ArchiveRestore, ClipboardCheck, Plug, type LucideIcon } from "lucide-react";
+import { BookOpen, Database, Workflow, ArchiveRestore, ClipboardCheck, Plug, Sparkles, type LucideIcon } from "lucide-react";
 
 export interface DocCategory {
   id: string;
@@ -19,6 +19,23 @@ export interface DocItem {
 }
 
 export const documentationIndex: DocCategory[] = [
+  {
+    id: "vision",
+    title: "Vision & Strategy",
+    icon: Sparkles,
+    description: "North Star product vision, agent ecosystem, and roadmap priorities.",
+    items: [
+      {
+        id: "bd-ai-portal-vision-2025",
+        title: "BD AI Portal Vision 2025",
+        description: "Visual vision plan outlining architecture, agents, and roadmap milestones.",
+        category: "vision",
+        file: "BD_AI_Visual_Vision.md",
+        tags: ["vision", "roadmap", "strategy", "ai agents"],
+        lastUpdated: "2025-10-22",
+      },
+    ],
+  },
   {
     id: "overview",
     title: "Overview",
