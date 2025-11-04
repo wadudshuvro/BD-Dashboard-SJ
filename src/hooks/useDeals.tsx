@@ -462,6 +462,7 @@ export function useDeals(options: UseDealsOptions = {}): UseDealsReturn {
 export type { DealStage, DealStatus };
 
 export interface LocalDealFilters {
+  stages?: string[];
   categories?: string[];
   dealTypes?: string[];
   podIds?: string[];
@@ -527,7 +528,13 @@ export function useLocalDealsByStage(
           `,
             { count: 'exact' }
           )
-          .eq('stage', stage);
+        
+        // Allow user-selected stage filters to override the default stage
+        if (filters?.stages?.length) {
+          query = query.in('stage', filters.stages);
+        } else {
+          query = query.eq('stage', stage);
+        }
         
         // Smart status filtering - default to active + on_hold (matches Control Tower)
         let statusFilter = filters?.statuses || ['active', 'on_hold'];
