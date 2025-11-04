@@ -327,19 +327,27 @@ serve(async (req) => {
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 
+    const authHeader = req.headers.get("Authorization");
+    console.log("[manage-feedback] Auth header present:", !!authHeader);
+    console.log("[manage-feedback] Auth header preview:", authHeader?.substring(0, 20));
+
     const userClient = createClient(supabaseUrl, anonKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
       global: {
-        headers: { Authorization: req.headers.get("Authorization") ?? "" },
+        headers: { Authorization: authHeader ?? "" },
       },
     });
 
+    const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : authHeader ?? "";
     const {
       data: { user },
       error: authError,
-    } = await userClient.auth.getUser();
+    } = await userClient.auth.getUser(token);
+
+    console.log("[manage-feedback] User auth - Success:", !!user, "Error:", authError?.message);
 
     if (authError || !user) {
-      return new Response(JSON.stringify({ message: "Unauthorized" }), {
+      return new Response(JSON.stringify({ message: "Unauthorized", details: authError?.message ?? "No user found" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
