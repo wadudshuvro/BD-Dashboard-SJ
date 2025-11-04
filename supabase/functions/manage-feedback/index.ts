@@ -105,7 +105,8 @@ async function handleList(client: any, url: URL) {
     query = query.eq("status", status);
   }
 
-  if (!includeClosed) {
+  // Exclude closed unless explicitly requested OR status is already 'closed'
+  if (!includeClosed && status !== 'closed') {
     query = query.is("deleted_at", null).neq("status", "closed");
   }
 

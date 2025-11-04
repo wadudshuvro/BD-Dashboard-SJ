@@ -102,6 +102,7 @@ export default function FeedbackManager() {
 
       if ("status" in tabConfig) {
         params.status = tabConfig.status;
+        params.includeClosed = tabConfig.includeClosed;
       }
 
       const response = await listFeedbackReports(params);
