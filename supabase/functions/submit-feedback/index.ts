@@ -95,16 +95,26 @@ serve(async (req) => {
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 
+    // Extract JWT token from Authorization header
+    const authHeader = req.headers.get("Authorization") ?? "";
+    const token = authHeader.replace("Bearer ", "");
+
+    console.log("[submit-feedback] Auth header present:", !!authHeader);
+    console.log("[submit-feedback] Auth header preview:", authHeader.substring(0, 20));
+
     const userClient = createClient(supabaseUrl, anonKey, {
-      global: {
-        headers: { Authorization: req.headers.get("Authorization") ?? "" },
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
       },
     });
 
     const {
       data: { user },
       error: authError,
-    } = await userClient.auth.getUser();
+    } = await userClient.auth.getUser(token);
+
+    console.log("[submit-feedback] User auth - Success:", !!user, "Error:", authError?.message);
 
     if (authError || !user) {
       return new Response(JSON.stringify({ message: "Unauthorized" }), {
