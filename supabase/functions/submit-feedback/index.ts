@@ -106,10 +106,11 @@ serve(async (req) => {
       },
     });
 
+    const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : authHeader ?? "";
     const {
       data: { user },
       error: authError,
-    } = await userClient.auth.getUser();
+    } = await userClient.auth.getUser(token);
 
     console.log("[submit-feedback] User auth - Success:", !!user, "Error:", authError?.message);
 
