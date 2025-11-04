@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { PipelineDataTable } from '@/components/bd/PipelineDataTable';
 import { Badge } from '@/components/ui/badge';
 import { useLocalDealsByStage } from '@/hooks/useDeals';
@@ -7,7 +7,6 @@ import { usePagination } from '@/hooks/usePagination';
 import { useNavigate, Link } from 'react-router-dom';
 import { STAGE_LABELS, DealStage } from '@/lib/dealStages';
 import { DealFilters, DealFiltersState } from '@/components/bd/DealFilters';
-import { useAdminUsers } from '@/hooks/useAdminUsers';
 import { usePods } from '@/hooks/usePods';
 import { useCategories } from '@/hooks/useCategories';
 import { AlertCircle } from 'lucide-react';
@@ -30,13 +29,43 @@ export function StagePipelineTable({ stage, title, description }: StagePipelineT
   );
   const navigate = useNavigate();
   
-  const { users: owners } = useAdminUsers();
-  const { users: pms } = useAdminUsers();
   const { pods } = usePods();
   const { data: categoriesData } = useCategories();
   
   const deals = data?.data || [];
   const totalCount = data?.total || 0;
+
+  // Extract unique owners from deals data
+  const uniqueOwners = useMemo(() => {
+    const ownerMap = new Map();
+    deals.forEach((deal: any) => {
+      if (deal.owner_id && !ownerMap.has(deal.owner_id)) {
+        ownerMap.set(deal.owner_id, {
+          id: deal.owner_id,
+          email: deal.owner_name || 'Unknown',
+          first_name: '',
+          last_name: '',
+        });
+      }
+    });
+    return Array.from(ownerMap.values());
+  }, [deals]);
+
+  // Extract unique PMs from deals data
+  const uniquePMs = useMemo(() => {
+    const pmMap = new Map();
+    deals.forEach((deal: any) => {
+      if (deal.pm_assigned_id && !pmMap.has(deal.pm_assigned_id)) {
+        pmMap.set(deal.pm_assigned_id, {
+          id: deal.pm_assigned_id,
+          email: deal.pm_assigned_name || 'Unknown',
+          first_name: '',
+          last_name: '',
+        });
+      }
+    });
+    return Array.from(pmMap.values());
+  }, [deals]);
 
   const formatCurrency = (value: any) => {
     if (!value) return '-';
@@ -195,8 +224,8 @@ export function StagePipelineTable({ stage, title, description }: StagePipelineT
             setFilters(newFilters);
             pagination.reset();
           }}
-          owners={owners || []}
-          pms={pms || []}
+          owners={uniqueOwners}
+          pms={uniquePMs}
           pods={pods || []}
           categories={categoriesData || []}
         />
