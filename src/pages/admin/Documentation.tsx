@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import rehypeRaw from "rehype-raw";
 import { Download } from "lucide-react";
 
 import { DocumentationSearch } from "@/components/documentation/DocumentationSearch";
@@ -172,6 +173,7 @@ export default function Documentation() {
                     <ReactMarkdown
                       className="prose prose-slate max-w-none dark:prose-invert"
                       remarkPlugins={[remarkGfm]}
+                      rehypePlugins={[rehypeRaw]}
                     >
                       {state.content}
                     </ReactMarkdown>

@@ -57,7 +57,6 @@ const queryClient = new QueryClient();
 const Documentation = lazy(() => import("./pages/admin/Documentation"));
 const FeedbackSubmitPage = lazy(() => import("./pages/feedback/SubmitFeedback"));
 const AdminFeedbackManager = lazy(() => import("./pages/admin/FeedbackManager"));
-const BdAiVisionPage = lazy(() => import("./pages/admin/BdAiVision"));
 
 // Smart redirect component - send everyone to BD Dashboard
 function DashboardRedirect() {
@@ -118,10 +117,6 @@ const App = () => (
               <Route path="integrations" element={<IntegrationManager />} />
               <Route path="integrations/control-tower-sync" element={<ControlTowerSyncDashboard />} />
               <Route path="documentation" element={<React.Suspense fallback={<div>Loading...</div>}><Documentation /></React.Suspense>} />
-              <Route
-                path="vision"
-                element={<React.Suspense fallback={<div>Loading...</div>}><BdAiVisionPage /></React.Suspense>}
-              />
               <Route path="settings" element={<AdminSettings />} />
               <Route path="eod-management" element={<EODManagement />} />
               <Route path="pods" element={<PODManagement />} />
