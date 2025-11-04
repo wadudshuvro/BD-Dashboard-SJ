@@ -323,20 +323,30 @@ serve(async (req) => {
   }
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
-    const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 
-    const userClient = createClient(supabaseUrl, anonKey, {
-      global: {
-        headers: { Authorization: req.headers.get("Authorization") ?? "" },
-      },
-    });
+  // Extract JWT token from Authorization header
+  const authHeader = req.headers.get("Authorization") ?? "";
+  const token = authHeader.replace("Bearer ", "");
 
-    const {
-      data: { user },
-      error: authError,
-    } = await userClient.auth.getUser();
+  console.log("[manage-feedback] Auth header present:", !!authHeader);
+  console.log("[manage-feedback] Auth header preview:", authHeader.substring(0, 20));
+
+  const userClient = createClient(supabaseUrl, anonKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  });
+
+  const {
+    data: { user },
+    error: authError,
+  } = await userClient.auth.getUser(token);
+
+  console.log("[manage-feedback] User auth - Success:", !!user, "Error:", authError?.message);
 
     if (authError || !user) {
       return new Response(JSON.stringify({ message: "Unauthorized" }), {
