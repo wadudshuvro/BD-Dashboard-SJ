@@ -85,7 +85,7 @@ const App = () => (
             
             {/* Global User Profile Route */}
             <Route path="/my-profile" element={
-              <ProtectedRoute requiredMinimumRole="user">
+              <ProtectedRoute requiredMinimumRole="team_member">
                 <Layout />
               </ProtectedRoute>
             }>
@@ -94,7 +94,7 @@ const App = () => (
             
             {/* Personal Performance Dashboard */}
             <Route path="/my-performance" element={
-              <ProtectedRoute requiredMinimumRole="user">
+              <ProtectedRoute requiredMinimumRole="team_member">
                 <Layout />
               </ProtectedRoute>
             }>
@@ -128,7 +128,7 @@ const App = () => (
 
             {/* Feedback Module */}
             <Route path="/feedback/*" element={
-              <ProtectedRoute requiredMinimumRole="user">
+              <ProtectedRoute requiredMinimumRole="team_member">
                 <Layout />
               </ProtectedRoute>
             }>
@@ -140,7 +140,7 @@ const App = () => (
 
             {/* BD Portal Routes - Available to all users */}
             <Route path="/bd/*" element={
-              <ProtectedRoute requiredMinimumRole="user">
+              <ProtectedRoute requiredMinimumRole="team_member">
                 <Layout />
               </ProtectedRoute>
             }>
@@ -169,7 +169,7 @@ const App = () => (
 
             {/* Pipeline routes - now at root level */}
             <Route path="/prospecting" element={
-              <ProtectedRoute requiredMinimumRole="user">
+              <ProtectedRoute requiredMinimumRole="team_member">
                 <Layout />
               </ProtectedRoute>
             }>
@@ -177,7 +177,7 @@ const App = () => (
             </Route>
 
             <Route path="/qualification" element={
-              <ProtectedRoute requiredMinimumRole="user">
+              <ProtectedRoute requiredMinimumRole="team_member">
                 <Layout />
               </ProtectedRoute>
             }>
@@ -185,7 +185,7 @@ const App = () => (
             </Route>
 
             <Route path="/proposal" element={
-              <ProtectedRoute requiredMinimumRole="user">
+              <ProtectedRoute requiredMinimumRole="team_member">
                 <Layout />
               </ProtectedRoute>
             }>
@@ -193,7 +193,7 @@ const App = () => (
             </Route>
 
             <Route path="/negotiation" element={
-              <ProtectedRoute requiredMinimumRole="user">
+              <ProtectedRoute requiredMinimumRole="team_member">
                 <Layout />
               </ProtectedRoute>
             }>
@@ -201,7 +201,7 @@ const App = () => (
             </Route>
 
             <Route path="/clients" element={
-              <ProtectedRoute requiredMinimumRole="user">
+              <ProtectedRoute requiredMinimumRole="team_member">
                 <Layout />
               </ProtectedRoute>
             }>
@@ -209,7 +209,7 @@ const App = () => (
             </Route>
 
 <Route path="/clients/:slug" element={
-  <ProtectedRoute requiredMinimumRole="user">
+  <ProtectedRoute requiredMinimumRole="team_member">
     <Layout />
   </ProtectedRoute>
 }>
@@ -226,7 +226,7 @@ const App = () => (
 
 {/* Follow-Ups Route */}
 <Route path="/follow-ups" element={
-  <ProtectedRoute requiredMinimumRole="user">
+  <ProtectedRoute requiredMinimumRole="team_member">
     <Layout />
   </ProtectedRoute>
 }>
@@ -234,7 +234,7 @@ const App = () => (
 </Route>
 
 <Route path="/leads/:slug" element={
-  <ProtectedRoute requiredMinimumRole="user">
+  <ProtectedRoute requiredMinimumRole="team_member">
     <Layout />
   </ProtectedRoute>
 }>
@@ -244,7 +244,7 @@ const App = () => (
             <Route
               path="/:stage/:slug"
               element={
-                <ProtectedRoute requiredMinimumRole="user">
+                <ProtectedRoute requiredMinimumRole="team_member">
                   <Layout />
                 </ProtectedRoute>
               }
@@ -255,7 +255,7 @@ const App = () => (
 
             {/* Campaigns at root level */}
             <Route path="/campaigns" element={
-              <ProtectedRoute requiredMinimumRole="user">
+              <ProtectedRoute requiredMinimumRole="team_member">
                 <Layout />
               </ProtectedRoute>
             }>
@@ -266,7 +266,7 @@ const App = () => (
 
             {/* Companies */}
             <Route path="/companies/:slug" element={
-              <ProtectedRoute requiredMinimumRole="user">
+              <ProtectedRoute requiredMinimumRole="team_member">
                 <Layout />
               </ProtectedRoute>
             }>

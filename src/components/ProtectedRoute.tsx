@@ -2,7 +2,7 @@ import { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 
-type UserRole = 'super_admin' | 'manager' | 'brand_manager' | 'pm' | 'user' | 'bd_team' | 'marketing_team';
+type UserRole = 'super_admin' | 'admin' | 'manager' | 'project_manager' | 'bd_user' | 'team_member';
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -35,16 +35,15 @@ export default function ProtectedRoute({
     return <Navigate to="/unauthorized" replace />;
   }
 
-  // Check minimum role requirement
+  // Check minimum role requirement (normalized hierarchy)
   if (requiredMinimumRole) {
     const roleHierarchy: Record<UserRole, number> = {
-      'user': 1,
-      'pm': 2,
-      'bd_team': 2,
-      'marketing_team': 2,
-      'brand_manager': 3,
+      'team_member': 1,
+      'bd_user': 2,
+      'project_manager': 3,
       'manager': 4,
-      'super_admin': 5
+      'admin': 5,
+      'super_admin': 6
     };
 
     if (roleHierarchy[user.role] < roleHierarchy[requiredMinimumRole]) {

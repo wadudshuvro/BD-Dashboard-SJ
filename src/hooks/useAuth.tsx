@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { User as SupabaseUser, Session } from '@supabase/supabase-js';
 
-type UserRole = 'super_admin' | 'manager' | 'bd_user' | 'brand_manager' | 'pm' | 'user';
+type UserRole = 'super_admin' | 'admin' | 'manager' | 'project_manager' | 'bd_user' | 'team_member';
 
 interface User {
   id: string;
@@ -31,13 +31,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [isInitialized, setIsInitialized] = useState(false);
 
-  // Role hierarchy for permission checking
+  // Role hierarchy for permission checking (normalized to backend app_role enum)
   const roleHierarchy: Record<UserRole, number> = {
-    'user': 1,
+    'team_member': 1,
     'bd_user': 2,
-    'pm': 3,
-    'brand_manager': 4,
-    'manager': 5,
+    'project_manager': 3,
+    'manager': 4,
+    'admin': 5,
     'super_admin': 6
   };
 
@@ -53,16 +53,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (userError) {
         console.error('Error fetching user profile:', userError);
-        return null;
-      }
-
-      if (!userProfile) {
-        console.warn('No user profile found for authenticated user');
-        return null;
       }
 
       // Fetch role from user_roles table (secure separate table)
-      // Order by role hierarchy to get highest priority role in case of duplicates
       const { data: roleData, error: roleError } = await supabase
         .from('user_roles' as any)
         .select('role')
@@ -75,16 +68,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.error('Error fetching user role:', roleError);
       }
 
-      // Parse full_name to get first and last names
-      const nameParts = (userProfile.full_name || '').trim().split(' ');
-      const displayName = userProfile.full_name || userProfile.email;
+      // Graceful fallback: construct minimal user if profile missing
+      const profile = userProfile || {
+        id: authUser.id,
+        email: authUser.email || '',
+        full_name: authUser.user_metadata?.first_name && authUser.user_metadata?.last_name
+          ? `${authUser.user_metadata.first_name} ${authUser.user_metadata.last_name}`
+          : authUser.email?.split('@')[0] || 'User',
+        avatar_url: null
+      };
+
+      if (!userProfile) {
+        console.warn('⚠️ Profile missing for user - using session fallback. Admin should check backend.');
+      }
+
+      const displayName = profile.full_name || profile.email;
 
       return {
-        id: userProfile.id,
+        id: profile.id,
         name: displayName,
-        email: userProfile.email,
-        role: ((roleData as any)?.role || 'user') as UserRole,
-        avatar: userProfile.avatar_url || authUser.user_metadata?.avatar_url
+        email: profile.email,
+        role: ((roleData as any)?.role || 'team_member') as UserRole,
+        avatar: profile.avatar_url || authUser.user_metadata?.avatar_url
       };
     } catch (error) {
       console.error('Error fetching user profile:', error);
