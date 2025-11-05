@@ -115,16 +115,18 @@ export function StagePipelineTable({ stage, title, description }: StagePipelineT
       key: 'deal_name' as const, 
       label: 'Deal Name',
       render: (value: string, row: any) => (
-        <a
-          href={createDealSlug(value || 'untitled', row.id)}
-          className="text-primary hover:underline font-medium"
-          onClick={(e) => {
-            e.preventDefault();
-            navigate(createDealSlug(value || 'untitled', row.id));
-          }}
-        >
-          {value || 'Untitled Deal'}
-        </a>
+        <div className="w-[200px] max-w-[200px]">
+          <a
+            href={createDealSlug(value || 'untitled', row.id)}
+            className="text-primary hover:underline font-medium whitespace-normal break-words leading-tight"
+            onClick={(e) => {
+              e.preventDefault();
+              navigate(createDealSlug(value || 'untitled', row.id));
+            }}
+          >
+            {value || 'Untitled Deal'}
+          </a>
+        </div>
       )
     },
     { 
