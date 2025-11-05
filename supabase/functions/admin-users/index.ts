@@ -420,8 +420,15 @@ serve(async (req) => {
 
       if (authError) {
         console.error('Auth user creation error:', authError)
+        
+        // Provide clearer error messages for common issues
+        let errorMessage = authError.message;
+        if (errorMessage.includes('Database error checking email') || errorMessage.includes('duplicate') || errorMessage.includes('already exists')) {
+          errorMessage = `A user with email ${email} already exists`;
+        }
+        
         return new Response(
-          JSON.stringify({ error: authError.message }),
+          JSON.stringify({ error: errorMessage }),
           { 
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             status: 400 
