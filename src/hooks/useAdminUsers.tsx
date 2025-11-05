@@ -67,12 +67,19 @@ export interface UsersResponse {
   total: number;
   page: number;
   limit: number;
+  stats?: {
+    total: number;
+    active: number;
+    managers: number;
+    marketing: number;
+  };
 }
 
 export function useAdminUsers() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(false);
   const [total, setTotal] = useState(0);
+  const [stats, setStats] = useState<UsersResponse['stats']>();
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
@@ -92,18 +99,31 @@ export function useAdminUsers() {
         throw new Error('Not authenticated');
       }
 
-      const { data, error: functionError } = await supabase.functions.invoke('admin-users', {
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
-      });
+      // Build query parameters
+      const queryParams = new URLSearchParams();
+      if (params.page) queryParams.append('page', params.page.toString());
+      if (params.limit) queryParams.append('limit', params.limit.toString());
+      if (params.search) queryParams.append('search', params.search);
+      if (params.role) queryParams.append('role', params.role);
+      if (params.status) queryParams.append('status', params.status);
+      if (params.isMarketing !== undefined) queryParams.append('is_marketing', params.isMarketing.toString());
+
+      const { data, error: functionError } = await supabase.functions.invoke(
+        `admin-users${queryParams.toString() ? '?' + queryParams.toString() : ''}`,
+        {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        }
+      );
 
       if (functionError) throw functionError;
       if (!data) throw new Error('No data returned');
 
       setUsers(data.users || []);
       setTotal(data.total || 0);
+      setStats(data.stats);
 
       return data;
     } catch (error: any) {
@@ -304,6 +324,7 @@ export function useAdminUsers() {
     users,
     loading,
     total,
+    stats,
     error,
     fetchUsers,
     createUser,

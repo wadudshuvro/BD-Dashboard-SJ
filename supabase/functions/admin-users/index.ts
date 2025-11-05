@@ -304,6 +304,33 @@ serve(async (req) => {
 
         const offset = (page - 1) * limit
 
+        // Calculate stats from database
+        const { count: totalCount } = await supabaseClient
+          .from('users')
+          .select('*', { count: 'exact', head: true });
+
+        const { count: activeCount } = await supabaseClient
+          .from('users')
+          .select('*', { count: 'exact', head: true })
+          .eq('status', 'active');
+
+        const { data: managersData } = await supabaseClient
+          .from('user_roles')
+          .select('user_id', { count: 'exact', head: false })
+          .eq('role', 'manager');
+
+        const { data: marketingData } = await supabaseClient
+          .from('users')
+          .select('id', { count: 'exact', head: false })
+          .eq('is_marketing', true);
+
+        const stats = {
+          total: totalCount || 0,
+          active: activeCount || 0,
+          managers: managersData?.length || 0,
+          marketing: marketingData?.length || 0
+        };
+
         let query = supabaseClient
           .from('users')
           .select(buildUserSelect(), { count: 'exact' })
@@ -366,7 +393,8 @@ serve(async (req) => {
             users: usersWithDetails,
             total: roleFilter ? usersWithDetails.length : (count || 0),
             page,
-            limit
+            limit,
+            stats
           }),
           { 
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },

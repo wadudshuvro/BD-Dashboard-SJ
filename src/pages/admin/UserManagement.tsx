@@ -37,7 +37,7 @@ interface NewUserForm {
 }
 
 const UserManagement = () => {
-  const { users: rawUsers, loading, total, error, fetchUsers, createUser, updateUser, deleteUser } = useAdminUsers();
+  const { users: rawUsers, loading, total, stats, error, fetchUsers, createUser, updateUser, deleteUser } = useAdminUsers();
   // Brand assignments removed
   const brands: any[] = [];
   const brandsLoading = false;
@@ -80,10 +80,6 @@ const UserManagement = () => {
     }));
   }, [rawUsers]);
 
-  const marketingTeamCount = useMemo(
-    () => rawUsers.filter(user => user.is_marketing).length,
-    [rawUsers]
-  );
 
   // Load users on component mount
   useEffect(() => {
@@ -598,7 +594,7 @@ const UserManagement = () => {
             <CardTitle className="text-sm font-medium">Active Users</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{users.filter(u => u.status === 'active').length}</div>
+            <div className="text-2xl font-bold">{stats?.active ?? 0}</div>
           </CardContent>
         </Card>
         <Card>
@@ -606,7 +602,7 @@ const UserManagement = () => {
             <CardTitle className="text-sm font-medium">Managers</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{users.filter(u => u.role === 'manager').length}</div>
+            <div className="text-2xl font-bold">{stats?.managers ?? 0}</div>
           </CardContent>
         </Card>
         <Card>
@@ -614,7 +610,7 @@ const UserManagement = () => {
             <CardTitle className="text-sm font-medium">Marketing Team</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{marketingTeamCount}</div>
+            <div className="text-2xl font-bold">{stats?.marketing ?? 0}</div>
             <p className="text-xs text-muted-foreground">Marketing team members</p>
           </CardContent>
         </Card>
