@@ -332,7 +332,7 @@ const Layout = ({ userRole }: LayoutProps) => {
 
         {/* Page content */}
         <main className="pb-6">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-7xl px-6 sm:px-8 lg:px-10">
             <Outlet />
           </div>
         </main>
