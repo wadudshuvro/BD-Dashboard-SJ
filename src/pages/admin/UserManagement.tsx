@@ -28,7 +28,7 @@ interface NewUserForm {
   lastName: string;
   email: string;
   password: string;
-  role: 'super_admin' | 'manager' | 'pm' | 'user';
+  role: 'super_admin' | 'admin' | 'manager' | 'project_manager' | 'team_member' | 'client' | 'bd_user';
   title: string;
   department: string;
   isMarketing: boolean;
@@ -55,7 +55,7 @@ const UserManagement = () => {
     lastName: '',
     email: '',
     password: '',
-    role: 'user',
+    role: 'team_member',
     title: '',
     department: '',
     isMarketing: false,
@@ -101,9 +101,12 @@ const UserManagement = () => {
   const getRoleColor = (role: string) => {
     switch (role) {
       case 'super_admin': return 'bg-destructive text-destructive-foreground';
+      case 'admin': return 'bg-orange-500 text-white';
       case 'manager': return 'bg-primary text-primary-foreground';
-      case 'pm': return 'bg-secondary text-secondary-foreground';
-      case 'user': return 'bg-muted text-muted-foreground';
+      case 'project_manager': return 'bg-blue-500 text-white';
+      case 'team_member': return 'bg-secondary text-secondary-foreground';
+      case 'client': return 'bg-purple-500 text-white';
+      case 'bd_user': return 'bg-green-500 text-white';
       default: return 'bg-muted text-muted-foreground';
     }
   };
@@ -111,7 +114,10 @@ const UserManagement = () => {
   const getRoleName = (role: string) => {
     switch (role) {
       case 'super_admin': return 'Super Admin';
-      case 'pm': return 'PM';
+      case 'admin': return 'Admin';
+      case 'project_manager': return 'Project Manager';
+      case 'team_member': return 'Team Member';
+      case 'bd_user': return 'BD User';
       default: return role.charAt(0).toUpperCase() + role.slice(1);
     }
   };
@@ -127,7 +133,7 @@ const UserManagement = () => {
       email: string;
       firstName: string;
       lastName: string;
-      role: 'super_admin' | 'manager' | 'pm' | 'user';
+      role: 'super_admin' | 'admin' | 'manager' | 'project_manager' | 'team_member' | 'client' | 'bd_user';
       status: 'active' | 'inactive' | 'pending';
       title: string | null;
       department: string | null;
@@ -223,7 +229,7 @@ const UserManagement = () => {
         lastName: '',
         email: '',
         password: '',
-        role: 'user',
+        role: 'team_member',
         title: '',
         department: '',
         isMarketing: false,
@@ -446,9 +452,12 @@ const UserManagement = () => {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="super_admin">Super Admin</SelectItem>
+                      <SelectItem value="admin">Admin</SelectItem>
                       <SelectItem value="manager">Manager</SelectItem>
-                      <SelectItem value="pm">PM</SelectItem>
-                      <SelectItem value="user">User</SelectItem>
+                      <SelectItem value="project_manager">Project Manager</SelectItem>
+                      <SelectItem value="team_member">Team Member</SelectItem>
+                      <SelectItem value="client">Client</SelectItem>
+                      <SelectItem value="bd_user">BD User</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -541,9 +550,12 @@ const UserManagement = () => {
           <SelectContent>
             <SelectItem value="all">All Roles</SelectItem>
             <SelectItem value="super_admin">Super Admin</SelectItem>
+            <SelectItem value="admin">Admin</SelectItem>
             <SelectItem value="manager">Manager</SelectItem>
-            <SelectItem value="pm">PM</SelectItem>
-            <SelectItem value="user">User</SelectItem>
+            <SelectItem value="project_manager">Project Manager</SelectItem>
+            <SelectItem value="team_member">Team Member</SelectItem>
+            <SelectItem value="client">Client</SelectItem>
+            <SelectItem value="bd_user">BD User</SelectItem>
           </SelectContent>
         </Select>
       </div>

@@ -7,7 +7,7 @@ export interface AdminUser {
   email: string;
   first_name: string | null;
   last_name: string | null;
-  role: 'super_admin' | 'manager' | 'pm' | 'user';
+  role: 'super_admin' | 'admin' | 'manager' | 'project_manager' | 'team_member' | 'client' | 'bd_user';
   status: 'active' | 'inactive' | 'pending';
   title: string | null;
   department: string | null;
@@ -42,7 +42,7 @@ export interface CreateUserData {
   password: string;
   firstName: string;
   lastName: string;
-  role: 'super_admin' | 'manager' | 'pm' | 'user';
+  role: 'super_admin' | 'admin' | 'manager' | 'project_manager' | 'team_member' | 'client' | 'bd_user';
   status?: 'active' | 'inactive' | 'pending';
   title?: string | null;
   department?: string | null;
@@ -54,7 +54,7 @@ export interface UpdateUserData {
   email?: string;
   firstName?: string;
   lastName?: string;
-  role?: 'super_admin' | 'manager' | 'pm' | 'user';
+  role?: 'super_admin' | 'admin' | 'manager' | 'project_manager' | 'team_member' | 'client' | 'bd_user';
   status?: 'active' | 'inactive' | 'pending';
   title?: string | null;
   department?: string | null;

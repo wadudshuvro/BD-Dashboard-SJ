@@ -393,8 +393,8 @@ serve(async (req) => {
 
       console.log('Creating user:', email, 'with role:', role)
 
-      // Validate role
-      const validRoles = ['super_admin', 'manager', 'brand_manager', 'pm', 'user'];
+      // Validate role - align with actual app_role enum
+      const validRoles = ['super_admin', 'admin', 'manager', 'project_manager', 'team_member', 'client', 'bd_user'];
       if (!validRoles.includes(role)) {
         return new Response(
           JSON.stringify({ error: `Invalid role. Must be one of: ${validRoles.join(', ')}` }),
@@ -405,19 +405,93 @@ serve(async (req) => {
         )
       }
 
-      // Check if user already exists in our users table
+      // PRE-CHECK: Check both auth.users and users table for this email
+      const emailLower = email.toLowerCase();
+      
+      // Check auth.users
+      const { data: authUsers, error: authListError } = await supabaseClient.auth.admin.listUsers()
+      const existingAuthUser = authListError ? null : authUsers?.users.find(u => u.email?.toLowerCase() === emailLower)
+      
+      // Check users table
       const { data: existingUser, error: userCheckError } = await supabaseClient
         .from('users')
         .select('id, email')
-        .eq('email', email.toLowerCase())
+        .eq('email', emailLower)
         .maybeSingle()
       
-      if (userCheckError) {
-        console.error('Error checking existing user:', userCheckError)
-        // Don't block creation if this check fails, continue to auth creation
+      if (userCheckError && userCheckError.code !== 'PGRST116') {
+        console.error('Database error checking email:', userCheckError)
+        return new Response(
+          JSON.stringify({ error: 'Database error checking email. Please try again.' }),
+          { 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 500 
+          }
+        )
       }
       
-      if (existingUser) {
+      // AUTO-REPAIR: If user exists in auth but not in users table
+      if (existingAuthUser && !existingUser) {
+        console.log(`Auto-repairing orphaned auth user: ${email}`)
+        
+        try {
+          // Create the missing users table entry
+          const { error: repairError } = await supabaseClient
+            .from('users')
+            .insert({
+              id: existingAuthUser.id,
+              email: emailLower,
+              first_name: firstName,
+              last_name: lastName,
+              status,
+              title,
+              department,
+              is_marketing: isMarketing
+            })
+          
+          if (repairError) {
+            console.error('Failed to repair user profile:', repairError)
+            return new Response(
+              JSON.stringify({ 
+                error: `User exists in authentication but profile repair failed. Please contact administrator.`
+              }),
+              { 
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                status: 500 
+              }
+            )
+          }
+          
+          // Update the role
+          await updateUserRole(supabaseClient, existingAuthUser.id, role)
+          
+          // Fetch and return the repaired user
+          const repairedUser = await fetchUserWithDetails(supabaseClient, existingAuthUser.id)
+          
+          return new Response(
+            JSON.stringify({ 
+              user: repairedUser,
+              message: 'User profile was repaired. Please send a password reset email to allow the user to set their password.'
+            }),
+            {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              status: 200
+            }
+          )
+        } catch (repairError) {
+          console.error('Repair operation failed:', repairError)
+          return new Response(
+            JSON.stringify({ error: 'Failed to repair orphaned user record' }),
+            { 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              status: 500 
+            }
+          )
+        }
+      }
+      
+      // If user exists in both systems, block creation
+      if (existingUser || existingAuthUser) {
         return new Response(
           JSON.stringify({ 
             error: `A user with email ${email} already exists in the system`
@@ -429,7 +503,7 @@ serve(async (req) => {
         )
       }
 
-      // Create user in auth
+      // NORMAL PATH: Create user in auth
       const { data: authData, error: authError } = await supabaseClient.auth.admin.createUser({
         email,
         password,
@@ -446,22 +520,17 @@ serve(async (req) => {
       if (authError) {
         console.error('Auth user creation error:', authError)
         
-        // Handle specific error cases
+        // Handle specific error cases with clearer messaging
         let errorMessage = authError.message;
         
-        // Handle the recovery_token scan error
-        if (errorMessage.includes('recovery_token') || 
-            errorMessage.includes('Scan error') || 
-            errorMessage.includes('converting NULL to string')) {
-          // If we hit the scan error, the user likely already exists
-          // Try to provide helpful guidance
-          errorMessage = `Unable to create user. A user with this email may already exist. Please try a different email or contact support to resolve existing user records.`;
-        } 
-        // Handle duplicate user errors
-        else if (errorMessage.includes('duplicate') || 
-                 errorMessage.includes('already exists') ||
-                 errorMessage.includes('User already registered')) {
-          errorMessage = `A user with email ${email} already exists`;
+        if (errorMessage.includes('duplicate') || 
+            errorMessage.includes('already exists') ||
+            errorMessage.includes('User already registered')) {
+          errorMessage = `Email ${email} is already registered. Please use a different email or contact administrator if this is an error.`;
+        } else if (errorMessage.includes('recovery_token') || 
+                   errorMessage.includes('Scan error') || 
+                   errorMessage.includes('converting NULL to string')) {
+          errorMessage = `System error during user creation. This email may already exist. Please refresh and try again.`;
         }
         
         return new Response(
@@ -505,11 +574,19 @@ serve(async (req) => {
 
       if (userError) {
         console.error('User table creation error:', userError)
-        // Clean up auth user if database insert fails
-        await supabaseClient.auth.admin.deleteUser(newUserId)
+        
+        // TRANSACTIONAL CLEANUP: Roll back auth user creation
+        try {
+          await supabaseClient.auth.admin.deleteUser(newUserId)
+          console.log('Cleaned up auth user after users table failure')
+        } catch (cleanupError) {
+          console.error('Failed to cleanup auth user:', cleanupError)
+        }
         
         return new Response(
-          JSON.stringify({ error: userError.message }),
+          JSON.stringify({ 
+            error: `Failed to create user profile: ${userError.message}. Authentication record has been rolled back.`
+          }),
           { 
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             status: 400 
@@ -522,12 +599,21 @@ serve(async (req) => {
         await updateUserRole(supabaseClient, newUserId, role);
       } catch (roleError: unknown) {
         console.error('Role assignment error:', roleError);
-        // Clean up user if role assignment fails
-        await supabaseClient.auth.admin.deleteUser(newUserId);
+        
+        // TRANSACTIONAL CLEANUP: Roll back both auth and users table
+        try {
+          await supabaseClient.from('users').delete().eq('id', newUserId)
+          await supabaseClient.auth.admin.deleteUser(newUserId)
+          console.log('Cleaned up auth and users records after role assignment failure')
+        } catch (cleanupError) {
+          console.error('Failed to cleanup after role error:', cleanupError)
+        }
         
         const message = roleError instanceof Error ? roleError.message : 'Failed to assign role';
         return new Response(
-          JSON.stringify({ error: message }),
+          JSON.stringify({ 
+            error: `Role assignment failed: ${message}. User creation has been rolled back.`
+          }),
           { 
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             status: 400 
@@ -619,7 +705,7 @@ serve(async (req) => {
 
       // Update role in user_roles table if provided
       if (typeof rawUpdates.role !== 'undefined') {
-        const validRoles = ['super_admin', 'manager', 'brand_manager', 'pm', 'user'];
+        const validRoles = ['super_admin', 'admin', 'manager', 'project_manager', 'team_member', 'client', 'bd_user'];
         if (!validRoles.includes(rawUpdates.role)) {
           return new Response(
             JSON.stringify({ error: `Invalid role. Must be one of: ${validRoles.join(', ')}` }),

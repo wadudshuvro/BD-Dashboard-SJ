@@ -31,7 +31,7 @@ interface UserPermissionDialogProps {
       email: string;
       firstName: string;
       lastName: string;
-      role: 'super_admin' | 'manager' | 'pm' | 'user';
+      role: 'super_admin' | 'admin' | 'manager' | 'project_manager' | 'team_member' | 'client' | 'bd_user';
       status: 'active' | 'inactive' | 'pending';
       title: string | null;
       department: string | null;
@@ -47,7 +47,7 @@ type FormState = {
   email: string;
   firstName: string;
   lastName: string;
-  role: 'super_admin' | 'manager' | 'pm' | 'user';
+  role: 'super_admin' | 'admin' | 'manager' | 'project_manager' | 'team_member' | 'client' | 'bd_user';
   status: 'active' | 'inactive' | 'pending';
   title: string;
   department: string;
@@ -59,7 +59,7 @@ const defaultState: FormState = {
   email: '',
   firstName: '',
   lastName: '',
-  role: 'user',
+  role: 'team_member',
   status: 'active',
   title: '',
   department: '',
@@ -242,9 +242,12 @@ export const UserPermissionDialog = ({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="super_admin">Super Admin</SelectItem>
+                    <SelectItem value="admin">Admin</SelectItem>
                     <SelectItem value="manager">Manager</SelectItem>
-                    <SelectItem value="pm">Project Manager</SelectItem>
-                    <SelectItem value="user">User</SelectItem>
+                    <SelectItem value="project_manager">Project Manager</SelectItem>
+                    <SelectItem value="team_member">Team Member</SelectItem>
+                    <SelectItem value="client">Client</SelectItem>
+                    <SelectItem value="bd_user">BD User</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
