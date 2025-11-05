@@ -404,6 +404,38 @@ serve(async (req) => {
         )
       }
 
+      // Pre-check if user exists to avoid the auth.users scan error
+      const { data: existingUsers, error: checkError } = await supabaseClient.auth.admin.listUsers()
+      
+      if (checkError) {
+        console.error('Error checking existing users:', checkError)
+        return new Response(
+          JSON.stringify({ error: 'Unable to verify user existence. Please try again.' }),
+          { 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 500 
+          }
+        )
+      }
+
+      // Check if email already exists
+      const userExists = existingUsers.users.find(
+        u => u.email?.toLowerCase() === email.toLowerCase()
+      )
+      
+      if (userExists) {
+        return new Response(
+          JSON.stringify({ 
+            error: `A user with email ${email} already exists`,
+            existingUserId: userExists.id 
+          }),
+          { 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 400 
+          }
+        )
+      }
+
       // Create user in auth
       const { data: authData, error: authError } = await supabaseClient.auth.admin.createUser({
         email,
@@ -423,7 +455,9 @@ serve(async (req) => {
         
         // Provide clearer error messages for common issues
         let errorMessage = authError.message;
-        if (errorMessage.includes('Database error checking email') || errorMessage.includes('duplicate') || errorMessage.includes('already exists')) {
+        if (errorMessage.includes('recovery_token') || errorMessage.includes('Scan error')) {
+          errorMessage = 'Database configuration issue detected. Please contact support.';
+        } else if (errorMessage.includes('Database error checking email') || errorMessage.includes('duplicate') || errorMessage.includes('already exists')) {
           errorMessage = `A user with email ${email} already exists`;
         }
         
