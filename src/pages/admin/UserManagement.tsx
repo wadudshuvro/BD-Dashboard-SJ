@@ -8,13 +8,14 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { Label } from '@/components/ui/label';
 import { UserPermissionDialog } from '@/components/admin/UserPermissionDialog';
 import { useAdminUsers, type AdminUser, type BrandAssignment, type CreateUserData } from '@/hooks/useAdminUsers';
 import { useToast } from '@/hooks/use-toast';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { usePagination } from '@/hooks/usePagination';
 // Brand assignments removed
 
 // Extended interface for UI purposes
@@ -46,7 +47,7 @@ const UserManagement = () => {
   const [viewMode, setViewMode] = useState<"cards" | "table">("table");
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isPermissionDialogOpen, setIsPermissionDialogOpen] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
+  const pagination = usePagination(12);
   const { toast } = useToast();
 
   // Form state for creating users
@@ -86,8 +87,8 @@ const UserManagement = () => {
 
   // Load users on component mount
   useEffect(() => {
-    fetchUsers({ page: currentPage, limit: 50 });
-  }, [currentPage, fetchUsers]);
+    fetchUsers({ page: pagination.currentPage, limit: pagination.pageSize });
+  }, [pagination.currentPage, pagination.pageSize, fetchUsers]);
 
   const filteredUsers = useMemo(() => {
     return users.filter(user => {
@@ -300,7 +301,7 @@ const UserManagement = () => {
                 <h3 className="text-lg font-semibold">Failed to Load Users</h3>
                 <p className="text-sm text-muted-foreground mt-2">{error}</p>
               </div>
-              <Button onClick={() => fetchUsers({ page: currentPage, limit: 50 })}>
+              <Button onClick={() => fetchUsers({ page: pagination.currentPage, limit: pagination.pageSize })}>
                 <RefreshCw className="mr-2 h-4 w-4" />
                 Retry
               </Button>
@@ -558,10 +559,32 @@ const UserManagement = () => {
             <SelectItem value="bd_user">BD User</SelectItem>
           </SelectContent>
         </Select>
+
+        <Select 
+          value={String(pagination.pageSize)} 
+          onValueChange={(value) => {
+            pagination.setPageSize(Number(value));
+            pagination.setCurrentPage(1);
+          }}
+        >
+          <SelectTrigger className="w-32">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="10">10 per page</SelectItem>
+            <SelectItem value="20">20 per page</SelectItem>
+            <SelectItem value="50">50 per page</SelectItem>
+            <SelectItem value="100">100 per page</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-4">
+        {(() => {
+          const totalPages = Math.ceil(total / pagination.pageSize);
+          return null;
+        })()}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">Total Users</CardTitle>
@@ -832,6 +855,58 @@ const UserManagement = () => {
           ))}
         </div>
       )}
+
+      {/* Pagination Controls */}
+      {(() => {
+        const totalPages = Math.ceil(total / pagination.pageSize);
+        
+        if (totalPages <= 1) return null;
+        
+        return (
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious 
+                  onClick={() => pagination.currentPage > 1 && pagination.setCurrentPage(pagination.currentPage - 1)}
+                  className={pagination.currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                />
+              </PaginationItem>
+              
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                let pageNum: number;
+                if (totalPages <= 5) {
+                  pageNum = i + 1;
+                } else if (pagination.currentPage <= 3) {
+                  pageNum = i + 1;
+                } else if (pagination.currentPage >= totalPages - 2) {
+                  pageNum = totalPages - 4 + i;
+                } else {
+                  pageNum = pagination.currentPage - 2 + i;
+                }
+                
+                return (
+                  <PaginationItem key={pageNum}>
+                    <PaginationLink
+                      onClick={() => pagination.setCurrentPage(pageNum)}
+                      isActive={pagination.currentPage === pageNum}
+                      className="cursor-pointer"
+                    >
+                      {pageNum}
+                    </PaginationLink>
+                  </PaginationItem>
+                );
+              })}
+              
+              <PaginationItem>
+                <PaginationNext 
+                  onClick={() => pagination.currentPage < totalPages && pagination.setCurrentPage(pagination.currentPage + 1)}
+                  className={pagination.currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        );
+      })()}
 
       {/* No users found */}
       {filteredUsers.length === 0 && !loading && (
