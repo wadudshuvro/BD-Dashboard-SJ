@@ -133,14 +133,22 @@ export function StagePipelineTable({ stage, title, description }: StagePipelineT
       key: 'client_name' as const, 
       label: 'Client',
       render: (value: string, row: any) => {
-        if (!value || value === '-' || !row.client_slug) return value || '-';
+        if (!value || value === '-' || !row.client_slug) {
+          return (
+            <div className="w-[200px] max-w-[200px]">
+              <span className="whitespace-normal break-words leading-tight">{value || '-'}</span>
+            </div>
+          );
+        }
         return (
-          <Link 
-            to={`/clients/${row.client_slug}`}
-            className="text-primary hover:underline"
-          >
-            {value}
-          </Link>
+          <div className="w-[200px] max-w-[200px]">
+            <Link 
+              to={`/clients/${row.client_slug}`}
+              className="text-primary hover:underline whitespace-normal break-words leading-tight"
+            >
+              {value}
+            </Link>
+          </div>
         );
       }
     },
