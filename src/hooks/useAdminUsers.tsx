@@ -183,10 +183,19 @@ export function useAdminUsers() {
         user.id === userId ? updatedUser : user
       ));
 
-      toast({
-        title: "Success",
-        description: "User updated successfully",
-      });
+      // Check for warnings
+      if (data.warnings && data.warnings.length > 0) {
+        toast({
+          title: "User Updated with Warnings",
+          description: data.message || data.warnings[0],
+          variant: "default",
+        });
+      } else {
+        toast({
+          title: "Success",
+          description: "User updated successfully",
+        });
+      }
 
       return updatedUser;
     } catch (error: any) {
@@ -194,6 +203,34 @@ export function useAdminUsers() {
       toast({
         title: "Error",
         description: error.message || "Failed to update user",
+        variant: "destructive",
+      });
+      throw error;
+    }
+  }, [toast]);
+
+  const validateUser = useCallback(async (userId: string) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error('Not authenticated');
+      }
+
+      const { data, error: functionError } = await supabase.functions.invoke(`admin-users?userId=${userId}&action=validate`, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (functionError) throw functionError;
+
+      return data;
+    } catch (error: any) {
+      console.error('Error validating user:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to validate user",
         variant: "destructive",
       });
       throw error;
@@ -273,5 +310,6 @@ export function useAdminUsers() {
     updateUser,
     deleteUser,
     getUserById,
+    validateUser,
   };
 }

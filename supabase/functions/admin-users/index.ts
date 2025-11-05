@@ -649,6 +649,75 @@ serve(async (req) => {
     }
 
     if (method === 'PUT') {
+      // Special action: validate user health
+      const action = url.searchParams.get('action')
+      if (action === 'validate' && userId) {
+        try {
+          const validationResult = {
+            userId,
+            users_table: false,
+            user_roles_table: false,
+            auth_users: false,
+            auth_loadable: false,
+            issues: [] as string[]
+          }
+
+          // Check users table
+          const { data: userData, error: userError } = await supabaseClient
+            .from('users')
+            .select('id, email')
+            .eq('id', userId)
+            .maybeSingle()
+          
+          validationResult.users_table = !!userData
+          if (!userData) validationResult.issues.push('Missing entry in users table')
+
+          // Check user_roles table
+          const { data: roleData, error: roleError } = await supabaseClient
+            .from('user_roles')
+            .select('role')
+            .eq('user_id', userId)
+            .maybeSingle()
+          
+          validationResult.user_roles_table = !!roleData
+          if (!roleData) validationResult.issues.push('Missing role assignment')
+
+          // Check auth.users
+          try {
+            const { data: authUser, error: authError } = await supabaseClient.auth.admin.getUserById(userId)
+            validationResult.auth_users = !!authUser?.user
+            validationResult.auth_loadable = !!authUser?.user && !authError
+            
+            if (!authUser?.user) {
+              validationResult.issues.push('Missing auth.users record')
+            } else if (authError) {
+              validationResult.issues.push(`Auth user exists but not loadable: ${authError.message}`)
+            }
+          } catch (authCheckError: any) {
+            validationResult.issues.push(`Cannot access auth user: ${authCheckError.message}`)
+          }
+
+          return new Response(
+            JSON.stringify({ 
+              valid: validationResult.issues.length === 0,
+              validation: validationResult
+            }),
+            {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              status: 200
+            }
+          )
+        } catch (validationError: any) {
+          return new Response(
+            JSON.stringify({ error: `Validation failed: ${validationError.message}` }),
+            {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              status: 500
+            }
+          )
+        }
+      }
+
       if (!userId || userId === 'admin-users') {
         return new Response(
           JSON.stringify({ error: 'User ID required for update' }),
@@ -660,6 +729,7 @@ serve(async (req) => {
       }
 
       const { brandAssignments, ...rawUpdates } = await req.json() as UpdateUserRequest
+      const warnings: string[] = []
 
       const updatePayload: Record<string, unknown> = {}
 
@@ -730,20 +800,30 @@ serve(async (req) => {
         }
       }
 
-      // Update email in auth.users if provided
+      // Update email in auth.users if provided (with pre-check and graceful error handling)
       if (typeof rawUpdates.email !== 'undefined') {
-        const { error: emailError } = await supabaseClient.auth.admin.updateUserById(userId, {
-          email: rawUpdates.email
-        })
+        try {
+          // Pre-check: verify auth user exists and is loadable
+          const { data: authCheckData, error: authCheckError } = await supabaseClient.auth.admin.getUserById(userId)
+          
+          if (authCheckError || !authCheckData?.user) {
+            console.warn(`Auth user ${userId} not loadable, skipping email update:`, authCheckError?.message)
+            warnings.push('Email could not be synced to authentication system (auth record missing or corrupted). User profile was still updated.')
+          } else {
+            // Auth user is loadable, proceed with update
+            const { error: emailError } = await supabaseClient.auth.admin.updateUserById(userId, {
+              email: rawUpdates.email
+            })
 
-        if (emailError) {
-          return new Response(
-            JSON.stringify({ error: `Failed to update email: ${emailError.message}` }),
-            {
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-              status: 400
+            if (emailError) {
+              console.error('Failed to update auth email:', emailError)
+              // Treat as non-fatal - allow profile update to proceed
+              warnings.push(`Email updated in profile but could not sync to authentication: ${emailError.message}`)
             }
-          )
+          }
+        } catch (authUpdateError: any) {
+          console.error('Unexpected error updating auth email:', authUpdateError)
+          warnings.push('Email updated in profile but authentication sync failed. Please contact administrator.')
         }
       }
 
@@ -781,15 +861,26 @@ serve(async (req) => {
       }
 
       if (Object.keys(metadataUpdates).length > 0) {
-        await supabaseClient.auth.admin.updateUserById(userId, {
-          user_metadata: metadataUpdates
-        })
+        try {
+          await supabaseClient.auth.admin.updateUserById(userId, {
+            user_metadata: metadataUpdates
+          })
+        } catch (metadataError: any) {
+          console.warn('Failed to update auth metadata:', metadataError)
+          warnings.push('User profile updated but some metadata could not sync to authentication.')
+        }
       }
 
       const updatedUser = await fetchUserWithDetails(supabaseClient, userId)
 
+      const response: any = { user: updatedUser }
+      if (warnings.length > 0) {
+        response.warnings = warnings
+        response.message = warnings.join(' ')
+      }
+
       return new Response(
-        JSON.stringify({ user: updatedUser }),
+        JSON.stringify(response),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 200
