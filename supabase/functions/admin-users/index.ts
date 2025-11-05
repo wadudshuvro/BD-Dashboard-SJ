@@ -183,23 +183,24 @@ const getUserRole = async (client: any, userId: string): Promise<string | null> 
 
 // Update user role in user_roles table
 const updateUserRole = async (client: any, userId: string, role: string): Promise<void> => {
-  const { error } = await client
-    .from('user_roles')
-    .upsert({ user_id: userId, role }, { onConflict: 'user_id,role' });
-
-  if (error) {
-    throw error;
-  }
-
-  // Remove old roles if changing to a new one
+  // First, delete all existing roles for this user
   const { error: deleteError } = await client
     .from('user_roles')
     .delete()
-    .eq('user_id', userId)
-    .neq('role', role);
+    .eq('user_id', userId);
 
   if (deleteError) {
     console.error('Error removing old roles:', deleteError);
+    throw deleteError;
+  }
+
+  // Then insert the new role
+  const { error: insertError } = await client
+    .from('user_roles')
+    .insert({ user_id: userId, role });
+
+  if (insertError) {
+    throw insertError;
   }
 };
 
