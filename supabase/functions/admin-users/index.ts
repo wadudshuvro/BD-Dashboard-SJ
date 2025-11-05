@@ -112,14 +112,7 @@ const buildUserSelect = () => `
   department,
   is_marketing,
   created_at,
-  updated_at,
-  user_permissions(
-    module_name,
-    can_view,
-    can_create,
-    can_edit,
-    can_delete
-  )
+  updated_at
 `;
 
 const transformUser = (userData: RawUserRecord, role: string = 'user'): UserWithDetails => ({
@@ -129,7 +122,7 @@ const transformUser = (userData: RawUserRecord, role: string = 'user'): UserWith
   department: userData.department ?? null,
   is_marketing: userData.is_marketing ?? false,
   user_brands: [],
-  permissions: userData.user_permissions || [],
+  permissions: [],
 });
 
 const syncUserBrands = async (
