@@ -116,14 +116,14 @@ export function PipelineDataTable<T extends Record<string, any>>({
         )}
       </div>
 
-      <div className="rounded-md border">
+      <div className="rounded-md border overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
               {columns.map((column) => (
-                <TableHead key={String(column.key)}>{column.label}</TableHead>
+                <TableHead key={String(column.key)} className="whitespace-nowrap">{column.label}</TableHead>
               ))}
-              {externalLinkFn && <TableHead className="w-[100px]">Actions</TableHead>}
+              {externalLinkFn && <TableHead className="w-[100px] whitespace-nowrap">Actions</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -141,12 +141,12 @@ export function PipelineDataTable<T extends Record<string, any>>({
                   onClick={() => onRowClick?.(row)}
                 >
                   {columns.map((column) => (
-                    <TableCell key={String(column.key)}>
+                    <TableCell key={String(column.key)} className="whitespace-nowrap">
                       {column.render ? column.render(row[column.key], row) : row[column.key]}
                     </TableCell>
                   ))}
                   {externalLinkFn && (
-                    <TableCell>
+                    <TableCell className="whitespace-nowrap">
                       {externalLinkFn(row) && (
                         <Button
                           variant="ghost"
