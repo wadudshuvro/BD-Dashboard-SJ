@@ -404,30 +404,22 @@ serve(async (req) => {
         )
       }
 
-      // Pre-check if user exists to avoid the auth.users scan error
-      const { data: existingUsers, error: checkError } = await supabaseClient.auth.admin.listUsers()
+      // Check if user already exists in our users table
+      const { data: existingUser, error: userCheckError } = await supabaseClient
+        .from('users')
+        .select('id, email')
+        .eq('email', email.toLowerCase())
+        .maybeSingle()
       
-      if (checkError) {
-        console.error('Error checking existing users:', checkError)
-        return new Response(
-          JSON.stringify({ error: 'Unable to verify user existence. Please try again.' }),
-          { 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 500 
-          }
-        )
+      if (userCheckError) {
+        console.error('Error checking existing user:', userCheckError)
+        // Don't block creation if this check fails, continue to auth creation
       }
-
-      // Check if email already exists
-      const userExists = existingUsers.users.find(
-        u => u.email?.toLowerCase() === email.toLowerCase()
-      )
       
-      if (userExists) {
+      if (existingUser) {
         return new Response(
           JSON.stringify({ 
-            error: `A user with email ${email} already exists`,
-            existingUserId: userExists.id 
+            error: `A user with email ${email} already exists in the system`
           }),
           { 
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -453,11 +445,21 @@ serve(async (req) => {
       if (authError) {
         console.error('Auth user creation error:', authError)
         
-        // Provide clearer error messages for common issues
+        // Handle specific error cases
         let errorMessage = authError.message;
-        if (errorMessage.includes('recovery_token') || errorMessage.includes('Scan error')) {
-          errorMessage = 'Database configuration issue detected. Please contact support.';
-        } else if (errorMessage.includes('Database error checking email') || errorMessage.includes('duplicate') || errorMessage.includes('already exists')) {
+        
+        // Handle the recovery_token scan error
+        if (errorMessage.includes('recovery_token') || 
+            errorMessage.includes('Scan error') || 
+            errorMessage.includes('converting NULL to string')) {
+          // If we hit the scan error, the user likely already exists
+          // Try to provide helpful guidance
+          errorMessage = `Unable to create user. A user with this email may already exist. Please try a different email or contact support to resolve existing user records.`;
+        } 
+        // Handle duplicate user errors
+        else if (errorMessage.includes('duplicate') || 
+                 errorMessage.includes('already exists') ||
+                 errorMessage.includes('User already registered')) {
           errorMessage = `A user with email ${email} already exists`;
         }
         
