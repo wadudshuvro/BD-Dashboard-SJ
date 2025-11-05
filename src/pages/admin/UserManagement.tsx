@@ -62,6 +62,14 @@ const UserManagement = () => {
     brandIds: [],
   });
 
+  // Field-level error tracking
+  const [fieldErrors, setFieldErrors] = useState({
+    firstName: false,
+    lastName: false,
+    email: false,
+    password: false,
+  });
+
   // Convert raw users to UI-friendly format
   const users: User[] = useMemo(() => {
     return rawUsers.map(user => ({
@@ -147,20 +155,44 @@ const UserManagement = () => {
 
 
   const handleCreateUser = async () => {
-    if (!newUser.firstName || !newUser.lastName || !newUser.email || !newUser.password) {
-      toast({
-        title: "Error",
-        description: "Please fill in all required fields",
-        variant: "destructive",
-      });
-      return;
+    // Reset field errors
+    const errors = {
+      firstName: !newUser.firstName.trim(),
+      lastName: !newUser.lastName.trim(),
+      email: !newUser.email.trim(),
+      password: !newUser.password.trim(),
+    };
+
+    // Validate email domain if email is provided
+    const invalidEmailDomain = newUser.email.trim() && !newUser.email.toLowerCase().endsWith('@sjinnovation.com');
+    if (invalidEmailDomain) {
+      errors.email = true;
     }
 
-    // Validate email domain
-    if (!newUser.email.toLowerCase().endsWith('@sjinnovation.com')) {
+    setFieldErrors(errors);
+
+    // Check if any field has errors
+    const hasErrors = Object.values(errors).some(error => error);
+    if (hasErrors) {
+      const missingFields = [];
+      if (errors.firstName) missingFields.push('First Name');
+      if (errors.lastName) missingFields.push('Last Name');
+      if (errors.email && !invalidEmailDomain) missingFields.push('Email');
+      if (errors.password) missingFields.push('Password');
+
+      let description = '';
+      if (missingFields.length > 0) {
+        description = `Please fill in: ${missingFields.join(', ')}`;
+      }
+      if (invalidEmailDomain) {
+        description = description 
+          ? `${description}. Also, only @sjinnovation.com email addresses are allowed`
+          : 'Only @sjinnovation.com email addresses are allowed';
+      }
+
       toast({
-        title: "Error",
-        description: "Only @sjinnovation.com email addresses are allowed",
+        title: "Validation Error",
+        description,
         variant: "destructive",
       });
       return;
@@ -196,6 +228,12 @@ const UserManagement = () => {
         department: '',
         isMarketing: false,
         brandIds: [],
+      });
+      setFieldErrors({
+        firstName: false,
+        lastName: false,
+        email: false,
+        password: false,
       });
     } catch (error) {
       // Error is handled by the hook
@@ -300,22 +338,40 @@ const UserManagement = () => {
               <div className="grid gap-4 py-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="first-name">First Name</Label>
+                    <Label htmlFor="first-name">
+                      First Name <span className="text-destructive">*</span>
+                    </Label>
                     <Input
                       id="first-name"
                       placeholder="Enter first name"
                       value={newUser.firstName}
-                      onChange={(e) => setNewUser(prev => ({ ...prev, firstName: e.target.value }))}
+                      onChange={(e) => {
+                        setNewUser(prev => ({ ...prev, firstName: e.target.value }));
+                        setFieldErrors(prev => ({ ...prev, firstName: false }));
+                      }}
+                      className={fieldErrors.firstName ? "border-destructive" : ""}
                     />
+                    {fieldErrors.firstName && (
+                      <p className="text-sm text-destructive">First name is required</p>
+                    )}
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="last-name">Last Name</Label>
+                    <Label htmlFor="last-name">
+                      Last Name <span className="text-destructive">*</span>
+                    </Label>
                     <Input
                       id="last-name"
                       placeholder="Enter last name"
                       value={newUser.lastName}
-                      onChange={(e) => setNewUser(prev => ({ ...prev, lastName: e.target.value }))}
+                      onChange={(e) => {
+                        setNewUser(prev => ({ ...prev, lastName: e.target.value }));
+                        setFieldErrors(prev => ({ ...prev, lastName: false }));
+                      }}
+                      className={fieldErrors.lastName ? "border-destructive" : ""}
                     />
+                    {fieldErrors.lastName && (
+                      <p className="text-sm text-destructive">Last name is required</p>
+                    )}
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
@@ -339,27 +395,48 @@ const UserManagement = () => {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="user-email">Email Address</Label>
+                  <Label htmlFor="user-email">
+                    Email Address <span className="text-destructive">*</span>
+                  </Label>
                   <Input
                     id="user-email"
                     type="email"
                     placeholder="user@sjinnovation.com"
                     value={newUser.email}
-                    onChange={(e) => setNewUser(prev => ({ ...prev, email: e.target.value }))}
+                    onChange={(e) => {
+                      setNewUser(prev => ({ ...prev, email: e.target.value }));
+                      setFieldErrors(prev => ({ ...prev, email: false }));
+                    }}
+                    className={fieldErrors.email ? "border-destructive" : ""}
                   />
-                  <p className="text-xs text-muted-foreground">
-                    Only @sjinnovation.com email addresses are allowed
-                  </p>
+                  {fieldErrors.email && newUser.email.trim() && !newUser.email.toLowerCase().endsWith('@sjinnovation.com') ? (
+                    <p className="text-sm text-destructive">Only @sjinnovation.com email addresses are allowed</p>
+                  ) : fieldErrors.email ? (
+                    <p className="text-sm text-destructive">Email is required</p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      Only @sjinnovation.com email addresses are allowed
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="user-password">Password</Label>
+                  <Label htmlFor="user-password">
+                    Password <span className="text-destructive">*</span>
+                  </Label>
                   <Input
                     id="user-password"
                     type="password"
                     placeholder="Enter password"
                     value={newUser.password}
-                    onChange={(e) => setNewUser(prev => ({ ...prev, password: e.target.value }))}
+                    onChange={(e) => {
+                      setNewUser(prev => ({ ...prev, password: e.target.value }));
+                      setFieldErrors(prev => ({ ...prev, password: false }));
+                    }}
+                    className={fieldErrors.password ? "border-destructive" : ""}
                   />
+                  {fieldErrors.password && (
+                    <p className="text-sm text-destructive">Password is required</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="user-role">Role</Label>
