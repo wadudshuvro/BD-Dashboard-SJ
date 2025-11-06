@@ -9,9 +9,11 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Send, Bot, User, Loader2 } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Send, Bot, User, Loader2, ExternalLink, AlertCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { buildAgentChatUrl } from './buildAgentChatUrl';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -28,13 +30,15 @@ interface AgentChatModalProps {
     name: string;
     description?: string;
   } | null;
+  baseUrl?: string;
 }
 
-export function AgentChatModal({ open, onOpenChange, agent }: AgentChatModalProps) {
+export function AgentChatModal({ open, onOpenChange, agent, baseUrl }: AgentChatModalProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
+  const [hasError, setHasError] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
@@ -64,6 +68,7 @@ export function AgentChatModal({ open, onOpenChange, agent }: AgentChatModalProp
       setMessages([]);
       setInput('');
       setConversationId(null);
+      setHasError(false);
     }
   }, [open]);
 
@@ -104,6 +109,7 @@ export function AgentChatModal({ open, onOpenChange, agent }: AgentChatModalProp
       }
     } catch (error: any) {
       console.error('Chat error:', error);
+      setHasError(true);
       toast({
         title: 'Error',
         description: error.message || 'Failed to send message',
@@ -114,6 +120,17 @@ export function AgentChatModal({ open, onOpenChange, agent }: AgentChatModalProp
       setMessages((prev) => prev.slice(0, -1));
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleOpenExternal = () => {
+    const url = buildAgentChatUrl(baseUrl, agent?.agent_id || '');
+    if (url) {
+      window.open(url, '_blank');
+      toast({
+        title: 'Agent Opened',
+        description: 'Agent opened in new tab',
+      });
     }
   };
 
@@ -138,6 +155,24 @@ export function AgentChatModal({ open, onOpenChange, agent }: AgentChatModalProp
 
         <ScrollArea className="flex-1 px-6">
           <div className="space-y-4 py-4">
+            {hasError && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription className="flex items-center justify-between">
+                  <span>Unable to connect to chat API. Try opening the agent in a new tab instead.</span>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={handleOpenExternal}
+                    className="ml-2 shrink-0"
+                  >
+                    <ExternalLink className="h-3 w-3 mr-1" />
+                    Open Tab
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            )}
+            
             {messages.map((msg, idx) => (
               <div
                 key={idx}

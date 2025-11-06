@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useCollabAIIntegration, useCollabAIAgents, useSyncCollabAIAgents } from "@/features/collabai/hooks";
 import { AgentGrid } from "@/features/collabai/AgentGrid";
 import { AgentChatModal } from "@/features/collabai/AgentChatModal";
+import { buildAgentChatUrl } from "@/features/collabai/buildAgentChatUrl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,6 +36,23 @@ export default function MyAgentsPage() {
   const handleTry = (agent: any) => {
     setSelectedAgent(agent);
     setChatModalOpen(true);
+  };
+
+  const handleOpenExternal = (agent: any) => {
+    const url = buildAgentChatUrl(integration?.base_url, agent.agent_id);
+    if (url) {
+      window.open(url, '_blank');
+      toast({
+        title: 'Agent Opened',
+        description: `${agent.name} opened in new tab`,
+      });
+    } else {
+      toast({
+        title: 'Unable to Open',
+        description: 'Could not construct agent URL',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleSync = async () => {
@@ -216,13 +234,14 @@ export default function MyAgentsPage() {
           <p className="mt-2 text-muted-foreground">Loading your agents...</p>
         </div>
       ) : (
-        <AgentGrid agents={filteredAgents} onTry={handleTry} />
+        <AgentGrid agents={filteredAgents} onTry={handleTry} onOpenExternal={handleOpenExternal} />
       )}
 
       <AgentChatModal
         open={chatModalOpen}
         onOpenChange={setChatModalOpen}
         agent={selectedAgent}
+        baseUrl={integration?.base_url}
       />
     </div>
   );

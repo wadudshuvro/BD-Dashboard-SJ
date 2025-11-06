@@ -1,9 +1,9 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Bot, ExternalLink } from "lucide-react";
+import { Bot, ExternalLink, MessageSquare } from "lucide-react";
 
-export function AgentGrid({ agents, onTry }: { agents: any[]; onTry: (agent: any) => void }) {
+export function AgentGrid({ agents, onTry, onOpenExternal }: { agents: any[]; onTry: (agent: any) => void; onOpenExternal: (agent: any) => void }) {
   if (!agents?.length) return <div className="text-center text-muted-foreground py-8">No agents found.</div>;
   
   return (
@@ -48,16 +48,27 @@ export function AgentGrid({ agents, onTry }: { agents: any[]; onTry: (agent: any
               </div>
             )}
 
-            {/* Open Chat Button */}
-            <Button 
-              onClick={() => onTry(agent)} 
-              className="w-full"
-              disabled={!agent.active}
-              variant={agent.active ? "default" : "outline"}
-            >
-              Open Chat
-              <ExternalLink className="ml-2 h-4 w-4" />
-            </Button>
+            {/* Action Buttons */}
+            <div className="grid grid-cols-2 gap-2">
+              <Button 
+                onClick={() => onTry(agent)} 
+                disabled={!agent.active}
+                variant={agent.active ? "default" : "outline"}
+                className="flex items-center gap-2"
+              >
+                <MessageSquare className="h-4 w-4" />
+                Chat Here
+              </Button>
+              <Button 
+                onClick={() => onOpenExternal(agent)} 
+                disabled={!agent.active}
+                variant="outline"
+                className="flex items-center gap-2"
+              >
+                <ExternalLink className="h-4 w-4" />
+                Open Tab
+              </Button>
+            </div>
           </CardContent>
         </Card>
       ))}
