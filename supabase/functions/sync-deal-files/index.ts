@@ -63,6 +63,7 @@ interface SyncSummary {
   filesUploaded: number;
   filesSkipped: number;
   errors: string[];
+  status?: 'success' | 'error';
 }
 
 interface GoogleServiceAccount {
@@ -256,10 +257,20 @@ serve(async (req) => {
       summaries.push(summary);
     }
 
+    // Transform summaries to match frontend expectations
+    const results = summaries.map(summary => ({
+      dealId: summary.dealId,
+      status: summary.errors.length === 0 ? 'success' : 'error',
+      filesAdded: summary.filesUploaded,
+      filesUpdated: 0,
+      message: summary.errors.length === 0 
+        ? `Successfully synced ${summary.filesUploaded} file(s)`
+        : summary.errors.join('; '),
+      errors: summary.errors,
+    }));
+
     return new Response(
-      JSON.stringify({
-        deals: summaries,
-      }),
+      JSON.stringify({ results }),
       {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -462,6 +473,15 @@ async function listFolderFiles(folderId: string, accessToken: string, apiKey?: s
 
     if (!response.ok) {
       const text = await response.text();
+      
+      // Check for specific error types
+      if (response.status === 403) {
+        throw new Error(`Permission denied to access folder ${folderId}. Please check sharing settings and service account permissions.`);
+      }
+      if (response.status === 404) {
+        throw new Error(`Folder ${folderId} not found. Please verify the folder ID is correct.`);
+      }
+      
       throw new Error(`Failed to list Drive files: ${response.status} ${text}`);
     }
 
@@ -471,6 +491,7 @@ async function listFolderFiles(folderId: string, accessToken: string, apiKey?: s
     pageToken = json.nextPageToken ?? undefined;
   } while (pageToken);
 
+  // Note: Empty folders are valid - not an error condition
   return files;
 }
 
