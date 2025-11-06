@@ -118,7 +118,7 @@ export function PipelineDataTable<T extends Record<string, any>>({
 
       <div className="rounded-md border overflow-x-auto max-h-[600px] overflow-y-auto">
         <Table>
-          <TableHeader className="sticky top-0 z-10 bg-background">
+          <TableHeader className="sticky top-0 z-20 bg-background border-b shadow-sm">
             <TableRow>
               {columns.map((column) => (
                 <TableHead key={String(column.key)} className="whitespace-nowrap bg-background">{column.label}</TableHead>
