@@ -116,14 +116,14 @@ export function PipelineDataTable<T extends Record<string, any>>({
         )}
       </div>
 
-      <div className="rounded-md border overflow-x-auto">
+      <div className="rounded-md border overflow-x-auto max-h-[600px] overflow-y-auto">
         <Table>
-          <TableHeader>
+          <TableHeader className="sticky top-0 z-10 bg-background">
             <TableRow>
               {columns.map((column) => (
-                <TableHead key={String(column.key)} className="whitespace-nowrap">{column.label}</TableHead>
+                <TableHead key={String(column.key)} className="whitespace-nowrap bg-background">{column.label}</TableHead>
               ))}
-              {externalLinkFn && <TableHead className="w-[100px] whitespace-nowrap">Actions</TableHead>}
+              {externalLinkFn && <TableHead className="w-[100px] whitespace-nowrap bg-background">Actions</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
