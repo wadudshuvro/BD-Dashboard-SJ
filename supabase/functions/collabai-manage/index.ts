@@ -244,8 +244,7 @@ Deno.serve(async (req) => {
               category: agent.category,
               model: agent.model,
               created_at: agent.created_at
-            },
-            last_synced_at: new Date().toISOString()
+            }
           }));
 
           // Upsert agents (insert or update on conflict)
