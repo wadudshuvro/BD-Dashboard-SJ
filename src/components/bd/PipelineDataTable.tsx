@@ -121,9 +121,9 @@ export function PipelineDataTable<T extends Record<string, any>>({
           <TableHeader className="sticky top-0 z-20 bg-background border-b shadow-sm">
             <TableRow>
               {columns.map((column) => (
-                <TableHead key={String(column.key)} className="whitespace-nowrap bg-background">{column.label}</TableHead>
+                <TableHead key={String(column.key)} className="sticky top-0 z-20 whitespace-nowrap bg-background">{column.label}</TableHead>
               ))}
-              {externalLinkFn && <TableHead className="w-[100px] whitespace-nowrap bg-background">Actions</TableHead>}
+              {externalLinkFn && <TableHead className="sticky top-0 z-20 w-[100px] whitespace-nowrap bg-background">Actions</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
