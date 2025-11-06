@@ -56,3 +56,16 @@ export async function syncAgents(integrationId: string) {
   if (error) throw error;
   return data;
 }
+
+export async function sendChatMessage(
+  agentId: string,
+  message: string,
+  conversationId?: string
+) {
+  const { data, error } = await supabase.functions.invoke('collabai-chat', {
+    body: { agentId, message, conversationId },
+  });
+  
+  if (error) throw error;
+  return data;
+}

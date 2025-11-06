@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useCollabAIIntegration, useCollabAIAgents, useSyncCollabAIAgents } from "@/features/collabai/hooks";
 import { AgentGrid } from "@/features/collabai/AgentGrid";
+import { AgentChatModal } from "@/features/collabai/AgentChatModal";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +18,8 @@ export default function MyAgentsPage() {
   const syncMutation = useSyncCollabAIAgents();
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedAgent, setSelectedAgent] = useState<any>(null);
+  const [chatModalOpen, setChatModalOpen] = useState(false);
   
   // Configuration state
   const [apiKey, setApiKey] = useState("");
@@ -30,8 +33,8 @@ export default function MyAgentsPage() {
   );
 
   const handleTry = (agent: any) => {
-    const chatUrl = `https://collabai.buildyourai.consulting/agents/${agent.agent_id}`;
-    window.open(chatUrl, '_blank', 'noopener,noreferrer');
+    setSelectedAgent(agent);
+    setChatModalOpen(true);
   };
 
   const handleSync = async () => {
@@ -215,6 +218,12 @@ export default function MyAgentsPage() {
       ) : (
         <AgentGrid agents={filteredAgents} onTry={handleTry} />
       )}
+
+      <AgentChatModal
+        open={chatModalOpen}
+        onOpenChange={setChatModalOpen}
+        agent={selectedAgent}
+      />
     </div>
   );
 }

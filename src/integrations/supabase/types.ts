@@ -1059,6 +1059,44 @@ export type Database = {
           },
         ]
       }
+      collabai_conversations: {
+        Row: {
+          agent_id: string
+          created_at: string | null
+          id: string
+          integration_id: string
+          title: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          agent_id: string
+          created_at?: string | null
+          id?: string
+          integration_id: string
+          title?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          agent_id?: string
+          created_at?: string | null
+          id?: string
+          integration_id?: string
+          title?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collabai_conversations_integration_id_fkey"
+            columns: ["integration_id"]
+            isOneToOne: false
+            referencedRelation: "collabai_integrations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       collabai_integrations: {
         Row: {
           agent_count: number | null
@@ -1094,6 +1132,38 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      collabai_messages: {
+        Row: {
+          content: string
+          conversation_id: string
+          created_at: string | null
+          id: string
+          role: string
+        }
+        Insert: {
+          content: string
+          conversation_id: string
+          created_at?: string | null
+          id?: string
+          role: string
+        }
+        Update: {
+          content?: string
+          conversation_id?: string
+          created_at?: string | null
+          id?: string
+          role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collabai_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "collabai_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       contacts: {
         Row: {
