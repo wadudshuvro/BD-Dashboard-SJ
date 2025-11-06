@@ -91,37 +91,66 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Call CollabAI API
-    const chatUrl = `${integration.base_url}/api/chat/completions`;
+    // Call CollabAI API - try multiple possible endpoints
+    const baseUrl = integration.base_url.replace(/\/+$/, '');
     
-    console.log('[collabai-chat] Calling CollabAI:', { url: chatUrl, agentId });
+    // Try different possible endpoint patterns
+    const possibleEndpoints = [
+      `${baseUrl}/api/assistants/n8n/${agentId}/chat`,
+      `${baseUrl}/api/assistants/${agentId}/chat`,
+      `${baseUrl}/api/chat/${agentId}`,
+      `${baseUrl}/api/v1/assistants/${agentId}/messages`,
+    ];
     
-    const response = await fetch(chatUrl, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${integration.api_key_encrypted}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: agentId,
-        messages: [
-          { role: 'user', content: message }
-        ],
-        stream: false,
-      }),
-    });
+    let lastError = null;
+    let assistantMessage = '';
+    
+    for (const chatUrl of possibleEndpoints) {
+      try {
+        console.log('[collabai-chat] Trying endpoint:', chatUrl);
+        
+        const response = await fetch(chatUrl, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${integration.api_key_encrypted}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            message: message,
+            messages: [{ role: 'user', content: message }],
+          }),
+        });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('[collabai-chat] CollabAI API error:', response.status, errorText);
+        console.log('[collabai-chat] Response status:', response.status);
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log('[collabai-chat] Success with endpoint:', chatUrl);
+          assistantMessage = data.response || data.message || data.choices?.[0]?.message?.content || data.content || '';
+          break; // Success, exit loop
+        } else {
+          const errorText = await response.text();
+          lastError = { status: response.status, url: chatUrl, error: errorText };
+          console.log('[collabai-chat] Failed with status:', response.status, 'trying next endpoint...');
+          continue; // Try next endpoint
+        }
+      } catch (err) {
+        console.error('[collabai-chat] Request failed:', err);
+        lastError = { url: chatUrl, error: err instanceof Error ? err.message : 'Unknown error' };
+        continue; // Try next endpoint
+      }
+    }
+    
+    // If all endpoints failed
+    if (!assistantMessage && lastError) {
+      console.error('[collabai-chat] All endpoints failed. Last error:', lastError);
       return new Response(
-        JSON.stringify({ error: `CollabAI API error: ${response.status}` }),
-        { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ 
+          error: `Unable to reach CollabAI chat API. Please contact support with this error: ${JSON.stringify(lastError)}` 
+        }),
+        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    const data = await response.json();
-    const assistantMessage = data.choices?.[0]?.message?.content || data.response || '';
 
     // Save assistant message
     if (currentConversationId && assistantMessage) {
