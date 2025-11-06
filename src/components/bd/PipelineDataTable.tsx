@@ -19,7 +19,6 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from '@/components/ui/pagination';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Select,
   SelectContent,
@@ -117,17 +116,16 @@ export function PipelineDataTable<T extends Record<string, any>>({
         )}
       </div>
 
-      <div className="rounded-md border">
-        <ScrollArea className="h-[600px]">
-          <Table>
-            <TableHeader className="sticky top-0 z-10 bg-background">
-              <TableRow>
-                {columns.map((column) => (
-                  <TableHead key={String(column.key)} className="whitespace-nowrap bg-background">{column.label}</TableHead>
-                ))}
-                {externalLinkFn && <TableHead className="w-[100px] whitespace-nowrap bg-background">Actions</TableHead>}
-              </TableRow>
-            </TableHeader>
+      <div className="rounded-md border overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              {columns.map((column) => (
+                <TableHead key={String(column.key)} className="whitespace-nowrap">{column.label}</TableHead>
+              ))}
+              {externalLinkFn && <TableHead className="w-[100px] whitespace-nowrap">Actions</TableHead>}
+            </TableRow>
+          </TableHeader>
           <TableBody>
             {filteredData.length === 0 ? (
               <TableRow>
@@ -168,7 +166,6 @@ export function PipelineDataTable<T extends Record<string, any>>({
             )}
           </TableBody>
         </Table>
-        </ScrollArea>
       </div>
 
       {totalCount !== undefined && totalCount > 0 && onPageChange && (
