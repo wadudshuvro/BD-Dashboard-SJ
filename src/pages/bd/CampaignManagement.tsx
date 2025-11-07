@@ -33,6 +33,8 @@ import type { BDCampaign } from '@/hooks/useBDCampaigns';
 import { useTargetNiches } from '@/hooks/useTargetNiches';
 import type { TargetNiche } from '@/hooks/useTargetNiches';
 import { CampaignDialog } from '@/components/bd/CampaignDialog';
+import { CampaignAnalyticsDashboard } from '@/components/bd/CampaignAnalyticsDashboard';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 type AggregateStats = {
   totalContacts: number;
@@ -211,106 +213,117 @@ export default function CampaignManagement() {
             </AlertDescription>
           </Alert>
         ) : (
-          <>
-            <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-6 mb-8">
-              {metrics.map((metric) => (
-                <Card key={metric.title}>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">{metric.title}</CardTitle>
-                    <metric.icon className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{metric.value}</div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+          <Tabs defaultValue="campaigns" className="space-y-6">
+            <TabsList className="grid w-full max-w-md grid-cols-2">
+              <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
+              <TabsTrigger value="analytics">Analytics</TabsTrigger>
+            </TabsList>
 
-            <div className="flex gap-4 mb-6">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search campaigns..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Filter by Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Statuses</SelectItem>
-                  <SelectItem value="planning">Planning</SelectItem>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="paused">Paused</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-6">
-              <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-                {filteredCampaigns.map((campaign) => (
-                  <CampaignCard 
-                    key={campaign.id} 
-                    campaign={campaign} 
-                    niches={niches}
-                    onEdit={(c) => {
-                      setEditingCampaign(c);
-                      setDialogOpen(true);
-                    }}
-                  />
+            <TabsContent value="campaigns" className="space-y-6">
+              <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-6">
+                {metrics.map((metric) => (
+                  <Card key={metric.title}>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">{metric.title}</CardTitle>
+                      <metric.icon className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">{metric.value}</div>
+                    </CardContent>
+                  </Card>
                 ))}
               </div>
 
-              {totalPages > 1 && (
-                <Pagination>
-                  <PaginationContent>
-                    <PaginationItem>
-                      <PaginationPrevious
-                        onClick={() => pagination.currentPage > 1 && pagination.setCurrentPage(pagination.currentPage - 1)}
-                        className={pagination.currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-                      />
-                    </PaginationItem>
+              <div className="flex gap-4">
+                <div className="flex-1 relative">
+                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search campaigns..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Filter by Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    <SelectItem value="planning">Planning</SelectItem>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="paused">Paused</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                      let pageNum: number;
-                      if (totalPages <= 5) {
-                        pageNum = i + 1;
-                      } else if (pagination.currentPage <= 3) {
-                        pageNum = i + 1;
-                      } else if (pagination.currentPage >= totalPages - 2) {
-                        pageNum = totalPages - 4 + i;
-                      } else {
-                        pageNum = pagination.currentPage - 2 + i;
-                      }
+              <div className="space-y-6">
+                <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+                  {filteredCampaigns.map((campaign) => (
+                    <CampaignCard 
+                      key={campaign.id} 
+                      campaign={campaign} 
+                      niches={niches}
+                      onEdit={(c) => {
+                        setEditingCampaign(c);
+                        setDialogOpen(true);
+                      }}
+                    />
+                  ))}
+                </div>
 
-                      return (
-                        <PaginationItem key={pageNum}>
-                          <PaginationLink
-                            onClick={() => pagination.setCurrentPage(pageNum)}
-                            isActive={pagination.currentPage === pageNum}
-                            className="cursor-pointer"
-                          >
-                            {pageNum}
-                          </PaginationLink>
-                        </PaginationItem>
-                      );
-                    })}
+                {totalPages > 1 && (
+                  <Pagination>
+                    <PaginationContent>
+                      <PaginationItem>
+                        <PaginationPrevious
+                          onClick={() => pagination.currentPage > 1 && pagination.setCurrentPage(pagination.currentPage - 1)}
+                          className={pagination.currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                        />
+                      </PaginationItem>
 
-                    <PaginationItem>
-                      <PaginationNext
-                        onClick={() => pagination.currentPage < totalPages && pagination.setCurrentPage(pagination.currentPage + 1)}
-                        className={pagination.currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
-                      />
-                    </PaginationItem>
-                  </PaginationContent>
-                </Pagination>
-              )}
-            </div>
-          </>
+                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                        let pageNum: number;
+                        if (totalPages <= 5) {
+                          pageNum = i + 1;
+                        } else if (pagination.currentPage <= 3) {
+                          pageNum = i + 1;
+                        } else if (pagination.currentPage >= totalPages - 2) {
+                          pageNum = totalPages - 4 + i;
+                        } else {
+                          pageNum = pagination.currentPage - 2 + i;
+                        }
+
+                        return (
+                          <PaginationItem key={pageNum}>
+                            <PaginationLink
+                              onClick={() => pagination.setCurrentPage(pageNum)}
+                              isActive={pagination.currentPage === pageNum}
+                              className="cursor-pointer"
+                            >
+                              {pageNum}
+                            </PaginationLink>
+                          </PaginationItem>
+                        );
+                      })}
+
+                      <PaginationItem>
+                        <PaginationNext
+                          onClick={() => pagination.currentPage < totalPages && pagination.setCurrentPage(pagination.currentPage + 1)}
+                          className={pagination.currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                        />
+                      </PaginationItem>
+                    </PaginationContent>
+                  </Pagination>
+                )}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="analytics">
+              <CampaignAnalyticsDashboard campaigns={campaigns} />
+            </TabsContent>
+          </Tabs>
         )}
       </div>
     </>
