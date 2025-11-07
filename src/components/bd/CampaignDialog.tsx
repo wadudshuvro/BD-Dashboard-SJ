@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -11,7 +11,19 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
+import { Trash2 } from 'lucide-react';
 import {
   Form,
   FormControl,
@@ -132,12 +144,13 @@ interface BrandOption {
 }
 
 export function CampaignDialog({ open, onOpenChange, niches, campaign, mode = 'create' }: CampaignDialogProps) {
-  const { createCampaign, updateCampaign } = useBDCampaigns();
+  const { createCampaign, updateCampaign, deleteCampaign } = useBDCampaigns();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { user } = useAuth();
   const isEditMode = mode === 'edit' && campaign;
   const { data: bdTeamMembers = [], isLoading: bdTeamLoading } = useBDTeamMembers();
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const form = useForm<CampaignFormValues>({
     resolver: zodResolver(campaignFormSchema),
@@ -203,6 +216,22 @@ export function CampaignDialog({ open, onOpenChange, niches, campaign, mode = 'c
       });
     }
   }, [open, isEditMode, campaign, form]);
+
+  const handleDelete = async () => {
+    if (!campaign) return;
+    
+    try {
+      await deleteCampaign.mutateAsync(campaign.id);
+      setShowDeleteConfirm(false);
+      onOpenChange(false);
+      toast({
+        title: 'Success',
+        description: 'Campaign deleted successfully',
+      });
+    } catch (error) {
+      console.error('Failed to delete campaign:', error);
+    }
+  };
 
   const handleSubmit = async (values: CampaignFormValues) => {
     try {
@@ -550,19 +579,56 @@ export function CampaignDialog({ open, onOpenChange, niches, campaign, mode = 'c
               </div>
             )}
 
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                disabled={createCampaign.isPending || updateCampaign.isPending}
-              >
-                {createCampaign.isPending || updateCampaign.isPending
-                  ? (isEditMode ? 'Saving...' : 'Creating...')
-                  : (isEditMode ? 'Save Changes' : 'Create Campaign')
-                }
-              </Button>
+            <DialogFooter className={isEditMode ? "sm:justify-between" : ""}>
+              {isEditMode && (
+                <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+                  <AlertDialogTrigger asChild>
+                    <Button 
+                      type="button" 
+                      variant="destructive" 
+                      size="sm"
+                      className="mr-auto"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete Campaign
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Are you sure you want to delete the <span className="font-semibold">"{campaign?.name}"</span> campaign? 
+                        This action cannot be undone and will remove all associated data.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction 
+                        onClick={handleDelete}
+                        disabled={deleteCampaign.isPending}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
+                        {deleteCampaign.isPending ? 'Deleting...' : 'Yes, Delete Campaign'}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
+              
+              <div className="flex gap-2">
+                <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={createCampaign.isPending || updateCampaign.isPending}
+                >
+                  {createCampaign.isPending || updateCampaign.isPending
+                    ? (isEditMode ? 'Saving...' : 'Creating...')
+                    : (isEditMode ? 'Save Changes' : 'Create Campaign')
+                  }
+                </Button>
+              </div>
             </DialogFooter>
           </form>
         </Form>
