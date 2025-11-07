@@ -48,7 +48,6 @@ import type { TargetNiche } from '@/hooks/useTargetNiches';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
-import { useBDTeamMembers } from '@/hooks/useBDTeamMembers';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 const CAMPAIGN_TYPES: CampaignType[] = [
@@ -149,18 +148,18 @@ export function CampaignDialog({ open, onOpenChange, niches, campaign, mode = 'c
   const { toast } = useToast();
   const { user } = useAuth();
   const isEditMode = mode === 'edit' && campaign;
-  const { data: bdTeamMembers = [], isLoading: bdTeamLoading } = useBDTeamMembers();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   
-  // Additional team members for assignment purposes
-  const additionalMembers = [
-    { id: '00000000-0000-0000-0000-000000000001', full_name: 'Zubair Hossain', email: 'zubair@example.com', role: 'manager', avatar_url: undefined },
-    { id: '00000000-0000-0000-0000-000000000002', full_name: 'George Baroi', email: 'george@example.com', role: 'manager', avatar_url: undefined },
-    { id: '00000000-0000-0000-0000-000000000003', full_name: 'Mujammal Haque', email: 'mujammal@example.com', role: 'manager', avatar_url: undefined },
-    { id: '00000000-0000-0000-0000-000000000004', full_name: 'Nurul Huda', email: 'nurul@example.com', role: 'manager', avatar_url: undefined },
+  // Campaign owner options - combine database users with additional names
+  const campaignOwners = [
+    { id: '00000000-0000-0000-0000-000000000001', full_name: 'Shahed Islam', email: 'shahed@example.com', role: 'manager', avatar_url: undefined },
+    { id: '00000000-0000-0000-0000-000000000002', full_name: 'Zubair Hossain', email: 'zubair@example.com', role: 'manager', avatar_url: undefined },
+    { id: '00000000-0000-0000-0000-000000000003', full_name: 'George Baroi', email: 'george@example.com', role: 'manager', avatar_url: undefined },
+    { id: '00000000-0000-0000-0000-000000000004', full_name: 'Akramol Hoque', email: 'akramol@example.com', role: 'manager', avatar_url: undefined },
+    { id: '00000000-0000-0000-0000-000000000005', full_name: 'Vishwanathan Shankar', email: 'vishwanathan@example.com', role: 'manager', avatar_url: undefined },
+    { id: '00000000-0000-0000-0000-000000000006', full_name: 'Mujammal Haque', email: 'mujammal@example.com', role: 'manager', avatar_url: undefined },
+    { id: '00000000-0000-0000-0000-000000000007', full_name: 'Nurul Huda', email: 'nurul@example.com', role: 'manager', avatar_url: undefined },
   ];
-  
-  const allTeamMembers = [...bdTeamMembers, ...additionalMembers];
 
   const form = useForm<CampaignFormValues>({
     resolver: zodResolver(campaignFormSchema),
@@ -365,26 +364,19 @@ export function CampaignDialog({ open, onOpenChange, niches, campaign, mode = 'c
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {bdTeamLoading ? (
-                          <div className="py-2 px-2 text-sm text-muted-foreground">Loading team members...</div>
-                        ) : allTeamMembers.length === 0 ? (
-                          <div className="py-2 px-2 text-sm text-muted-foreground">No team members found</div>
-                        ) : (
-                          allTeamMembers.map((member) => (
-                            <SelectItem key={member.id} value={member.id}>
-                              <div className="flex items-center gap-2">
-                                <Avatar className="h-5 w-5">
-                                  <AvatarImage src={member.avatar_url} />
-                                  <AvatarFallback className="text-xs">
-                                    {member.full_name?.substring(0, 2).toUpperCase() || 'U'}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <span>{member.full_name}</span>
-                                <span className="text-xs text-muted-foreground">({member.email})</span>
-                              </div>
-                            </SelectItem>
-                          ))
-                        )}
+                        {campaignOwners.map((member) => (
+                          <SelectItem key={member.id} value={member.id}>
+                            <div className="flex items-center gap-2">
+                              <Avatar className="h-5 w-5">
+                                <AvatarImage src={member.avatar_url} />
+                                <AvatarFallback className="text-xs">
+                                  {member.full_name?.substring(0, 2).toUpperCase() || 'U'}
+                                </AvatarFallback>
+                              </Avatar>
+                              <span>{member.full_name}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <FormMessage />
