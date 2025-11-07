@@ -356,19 +356,25 @@ export function CampaignDialog({ open, onOpenChange, niches, campaign, mode = 'c
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {campaignOwners.map((member) => (
-                          <SelectItem key={member.id} value={member.id}>
-                            <div className="flex items-center gap-2">
-                              <Avatar className="h-5 w-5">
-                                <AvatarImage src={member.avatar_url} />
-                                <AvatarFallback className="text-xs">
-                                  {member.full_name?.substring(0, 2).toUpperCase() || 'U'}
-                                </AvatarFallback>
-                              </Avatar>
-                              <span>{member.full_name}</span>
-                            </div>
-                          </SelectItem>
-                        ))}
+                        {ownersLoading ? (
+                          <SelectItem disabled value="loading">Loading owners...</SelectItem>
+                        ) : campaignOwners.length === 0 ? (
+                          <SelectItem disabled value="none">No owners available</SelectItem>
+                        ) : (
+                          campaignOwners.map((member) => (
+                            <SelectItem key={member.id} value={member.id}>
+                              <div className="flex items-center gap-2">
+                                <Avatar className="h-5 w-5">
+                                  <AvatarImage src={member.avatar_url} />
+                                  <AvatarFallback className="text-xs">
+                                    {member.full_name?.substring(0, 2).toUpperCase() || 'U'}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <span>{member.full_name}</span>
+                              </div>
+                            </SelectItem>
+                          ))
+                        )}
                       </SelectContent>
                     </Select>
                     <FormMessage />
