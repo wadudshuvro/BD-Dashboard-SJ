@@ -34,7 +34,7 @@ export function useCampaignOwners() {
         full_name: owner.full_name || owner.email,
         email: owner.email,
         avatar_url: owner.avatar_url,
-        role: owner.user_roles?.role || 'unknown',
+        role: owner.user_roles[0]?.role || 'unknown',
       })) as CampaignOwner[];
     },
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
