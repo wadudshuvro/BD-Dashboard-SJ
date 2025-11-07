@@ -397,6 +397,7 @@ export function CampaignDialog({ open, onOpenChange, niches, campaign, mode = 'c
                         brands.map((brand) => (
                           <div key={brand.id} className="flex items-center space-x-2">
                             <Checkbox
+                              id={`brand-${brand.id}`}
                               checked={field.value?.includes(brand.id)}
                               onCheckedChange={(checked) => {
                                 const newValue = checked
@@ -405,7 +406,10 @@ export function CampaignDialog({ open, onOpenChange, niches, campaign, mode = 'c
                                 field.onChange(newValue);
                               }}
                             />
-                            <label className="text-sm cursor-pointer flex-1">
+                            <label 
+                              htmlFor={`brand-${brand.id}`}
+                              className="text-sm cursor-pointer flex-1"
+                            >
                               {brand.name}
                             </label>
                           </div>
