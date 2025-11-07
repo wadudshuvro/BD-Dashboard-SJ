@@ -173,7 +173,7 @@ export function CampaignDialog({ open, onOpenChange, niches, campaign, mode = 'c
   const { data: brands = [], isLoading: brandsLoading } = useQuery<BrandOption[]>({
     queryKey: ['bd-brands'],
     queryFn: async () => {
-      const { data, error } = await supabase.from('pods').select('id, name').order('name');
+      const { data, error } = await supabase.from('clients').select('id, name').order('name');
       if (error) {
         throw new Error(error.message);
       }
