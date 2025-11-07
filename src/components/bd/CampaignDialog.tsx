@@ -43,6 +43,7 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useBDCampaigns, type BDCampaign } from '@/hooks/useBDCampaigns';
+import { useCampaignOwners } from '@/hooks/useCampaignOwners';
 import type { CampaignType } from '@/Api/adminCampaigns';
 import type { TargetNiche } from '@/hooks/useTargetNiches';
 import { supabase } from '@/integrations/supabase/client';
@@ -150,16 +151,7 @@ export function CampaignDialog({ open, onOpenChange, niches, campaign, mode = 'c
   const isEditMode = mode === 'edit' && campaign;
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   
-  // Campaign owner options - combine database users with additional names
-  const campaignOwners = [
-    { id: '00000000-0000-0000-0000-000000000001', full_name: 'Shahed Islam', email: 'shahed@example.com', role: 'manager', avatar_url: undefined },
-    { id: '00000000-0000-0000-0000-000000000002', full_name: 'Zubair Hossain', email: 'zubair@example.com', role: 'manager', avatar_url: undefined },
-    { id: '00000000-0000-0000-0000-000000000003', full_name: 'George Baroi', email: 'george@example.com', role: 'manager', avatar_url: undefined },
-    { id: '00000000-0000-0000-0000-000000000004', full_name: 'Akramol Hoque', email: 'akramol@example.com', role: 'manager', avatar_url: undefined },
-    { id: '00000000-0000-0000-0000-000000000005', full_name: 'Vishwanathan Shankar', email: 'vishwanathan@example.com', role: 'manager', avatar_url: undefined },
-    { id: '00000000-0000-0000-0000-000000000006', full_name: 'Mujammal Haque', email: 'mujammal@example.com', role: 'manager', avatar_url: undefined },
-    { id: '00000000-0000-0000-0000-000000000007', full_name: 'Nurul Huda', email: 'nurul@example.com', role: 'manager', avatar_url: undefined },
-  ];
+  const { data: campaignOwners = [], isLoading: ownersLoading } = useCampaignOwners();
 
   const form = useForm<CampaignFormValues>({
     resolver: zodResolver(campaignFormSchema),
@@ -357,10 +349,10 @@ export function CampaignDialog({ open, onOpenChange, niches, campaign, mode = 'c
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Campaign Owner</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value} disabled={ownersLoading}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select owner" />
+                          <SelectValue placeholder={ownersLoading ? "Loading owners..." : "Select owner"} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
