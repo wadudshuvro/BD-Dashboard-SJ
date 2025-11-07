@@ -543,31 +543,40 @@ async function handleCreate(req: Request, client: SupabaseClient, userId: string
     await client.from("campaign_brands").insert(brandRelations);
   }
 
-  await ensureCampaignKpis(client, data.id, { seedIfMissing: options?.seedKpis ?? true });
+  // Seed KPIs if requested (wrapped in try-catch to not block campaign creation)
+  try {
+    await ensureCampaignKpis(client, data.id, { seedIfMissing: options?.seedKpis ?? false });
+  } catch (error) {
+    console.warn('[admin-campaigns] KPI seeding failed, continuing:', error);
+  }
 
   if (options?.taskTemplateKey || (options?.tasks?.length ?? 0) > 0) {
-    const taskSeeds = resolveCampaignTaskSeeds({
-      templateKey: options?.taskTemplateKey,
-      customTasks: options?.tasks,
-      startDate: campaignInput.start_date ?? null,
-    });
+    try {
+      const taskSeeds = resolveCampaignTaskSeeds({
+        templateKey: options?.taskTemplateKey,
+        customTasks: options?.tasks,
+        startDate: campaignInput.start_date ?? null,
+      });
 
-    if (taskSeeds.length > 0) {
-      const rows = taskSeeds.map((task) => ({
-        ...task,
-        project_id: data.id,
-        created_by: userId,
-        status: task.status ?? "todo",
-      }));
+      if (taskSeeds.length > 0) {
+        const rows = taskSeeds.map((task) => ({
+          ...task,
+          project_id: data.id,
+          created_by: userId,
+          status: task.status ?? "todo",
+        }));
 
-      try {
         const { error: taskError } = await client.from("project_tasks").insert(rows);
-        if (taskError && (taskError as { code?: string }).code !== "42P01") {
-          throw taskError;
+        if (taskError) {
+          if ((taskError as { code?: string }).code === '23503') {
+            console.warn('[admin-campaigns] Cannot seed tasks due to FK constraint, skipping');
+          } else if ((taskError as { code?: string }).code !== "42P01") {
+            console.error("[admin-campaigns] Error seeding project_tasks:", taskError);
+          }
         }
-      } catch (error) {
-        console.warn("[admin-campaigns] Failed to seed project tasks", error);
       }
+    } catch (error) {
+      console.warn('[admin-campaigns] Failed to seed project tasks, continuing:', error);
     }
   }
 

@@ -40,7 +40,7 @@ export const DEFAULT_CAMPAIGN_KPI_TEMPLATES: CampaignKpiTemplate[] = [
 ];
 
 interface EnsureOptions {
-  templates?: CampaignKpiTemplate[];
+  kpis?: CampaignKpiTemplate[];
   seedIfMissing?: boolean;
 }
 
@@ -49,28 +49,34 @@ export async function ensureCampaignKpis(
   campaignId: string,
   options: EnsureOptions = {},
 ): Promise<void> {
-  const { templates = DEFAULT_CAMPAIGN_KPI_TEMPLATES, seedIfMissing = true } = options;
+  if (!options.seedIfMissing) {
+    return;
+  }
 
   try {
-    const { data, error } = await client
-      .from("kpis")
-      .select("id, name")
-      .eq("project_id", campaignId);
+    // Check if campaign_kpis table exists and has data
+    const { data: existingKpis, error: checkError } = await client
+      .from("campaign_kpis")
+      .select("id")
+      .eq("campaign_id", campaignId);
 
-    if (error) {
-      if ((error as { code?: string }).code === "42P01") {
-        console.warn("[admin-campaigns] KPIs table is not available");
+    if (checkError) {
+      if ((checkError as { code?: string }).code === '42P01') {
+        // Table doesn't exist, skip KPI seeding
+        console.log('[campaignKpis] campaign_kpis table not found, skipping');
         return;
       }
-      throw error;
+      throw checkError;
     }
 
-    if (!seedIfMissing || (data?.length ?? 0) > 0) {
-      return;
+    if (existingKpis && existingKpis.length > 0) {
+      return; // Already has KPIs
     }
 
+    // Insert default KPIs
+    const templates = options.kpis || DEFAULT_CAMPAIGN_KPI_TEMPLATES;
     const rows = templates.map((template) => ({
-      project_id: campaignId,
+      campaign_id: campaignId,
       name: template.name,
       description: template.description,
       unit: template.unit ?? null,
@@ -78,16 +84,13 @@ export async function ensureCampaignKpis(
       current_value: template.initialValue ?? 0,
     }));
 
-    const { error: insertError } = await client.from("kpis").insert(rows);
+    const { error: insertError } = await client.from("campaign_kpis").insert(rows);
     if (insertError) {
-      if ((insertError as { code?: string }).code === "42P01") {
-        console.warn("[admin-campaigns] Unable to seed KPIs because table is missing");
-        return;
-      }
+      console.error("[campaignKpis] Failed to insert KPIs:", insertError);
       throw insertError;
     }
   } catch (error) {
-    console.error("[admin-campaigns] Failed to ensure campaign KPIs", error);
-    throw error;
+    // Log but don't throw - KPI seeding shouldn't block campaign creation
+    console.error('[campaignKpis] Failed to seed KPIs:', error);
   }
 }

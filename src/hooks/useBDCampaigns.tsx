@@ -211,9 +211,10 @@ export const useBDCampaigns = (nicheId?: string, page: number = 1, limit: number
       if (context?.previous) {
         queryClient.setQueryData(queryKey, context.previous);
       }
+      console.error('Campaign deletion error:', error);
       toast({
-        title: 'Error',
-        description: error.message,
+        title: 'Deletion Failed',
+        description: error.message || 'Unable to delete campaign. Please try again.',
         variant: 'destructive',
       });
     },
