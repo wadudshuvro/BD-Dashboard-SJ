@@ -1,26 +1,62 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { useControlTowerDeals, useControlTowerClients, useControlTowerLeads } from '@/hooks/useControlTowerData';
+import { useDeals } from '@/hooks/useDeals';
+import { useClients } from '@/hooks/useClients';
+import { useLeadList } from '@/hooks/useLeads';
 import { TrendingUp, Users, Target, Award } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { SyncControlTowerButton } from '@/components/bd/SyncControlTowerButton';
 
 export default function BDDashboard() {
-  const { data: leads = [] } = useControlTowerLeads();
-  const { data: deals = [] } = useControlTowerDeals();
-  const { data: clientsData } = useControlTowerClients(1, 1000); // Get all for stats
+  const { deals, loading: dealsLoading } = useDeals({ enabled: true });
+  const { clients, loading: clientsLoading, totalCount } = useClients({ 
+    page: 1, 
+    limit: 1000 
+  });
+  const { data: leadsData, isLoading: leadsLoading } = useLeadList({ 
+    page: 1, 
+    pageSize: 1000 
+  });
   
-  const clients = clientsData?.data || [];
+  const leads = leadsData?.leads || [];
+  const isLoading = dealsLoading || clientsLoading || leadsLoading;
   
-  const newLeads = leads.filter((l: any) => 
-    new Date(l.created_at).getMonth() === new Date().getMonth()
+  const newLeads = leads.filter((l) => 
+    new Date(l.created_at || '').getMonth() === new Date().getMonth()
   ).length;
   
   const warmLeads = 0; // Will be populated when hubspot hook is available
-  const dealsClosed = deals.filter((d: any) => d.control_tower_status === 'won').length;
+  const dealsClosed = deals.filter((d) => d.status === 'won').length;
   const totalLeads = leads.length;
-  const activeDeals = deals.filter((d: any) => d.control_tower_status === 'active').length;
-  const totalClients = clients.length;
+  const activeDeals = deals.filter((d) => d.status === 'active').length;
+  const totalClients = totalCount || clients.length;
+  
+  // Calculate top performing deal type
+  const dealsByType = deals.reduce((acc: Record<string, number>, deal) => {
+    const dealData = deal as any;
+    const type = dealData.dealtype || dealData.category || 'General';
+    acc[type] = (acc[type] || 0) + 1;
+    return acc;
+  }, {});
+  
+  const topProduct = Object.entries(dealsByType)
+    .sort(([, a], [, b]) => b - a)
+    .map(([type]) => type)[0] || '-';
+  
+  if (isLoading) {
+    return (
+      <div className="container mx-auto py-8">
+        <div className="animate-pulse space-y-4">
+          <div className="h-8 bg-muted rounded w-1/3"></div>
+          <div className="grid gap-4 md:grid-cols-4">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="h-32 bg-muted rounded"></div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto py-8 space-y-6">
@@ -83,7 +119,7 @@ export default function BDDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">-</div>
+            <div className="text-2xl font-bold">{topProduct}</div>
             <p className="text-xs text-muted-foreground">Best performer</p>
           </CardContent>
         </Card>
