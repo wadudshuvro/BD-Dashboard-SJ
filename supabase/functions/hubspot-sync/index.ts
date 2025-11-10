@@ -852,6 +852,11 @@ serve(async (req) => {
   if (req.method === "POST" && pathname === "/sync") {
     return handleSync();
   }
+  
+  // Handle POST at root path to trigger sync
+  if (req.method === "POST" && pathname === "/") {
+    return handleSync();
+  }
 
   if (req.method === "POST" && pathname === "/webhook") {
     return handleWebhook(req);

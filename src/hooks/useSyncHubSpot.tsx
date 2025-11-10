@@ -18,7 +18,7 @@ export const useSyncHubSpot = () => {
     mutationFn: async (): Promise<HubSpotSyncResult> => {
       const startTime = Date.now();
       
-      const { data, error } = await supabase.functions.invoke('hubspot-sync/sync', {
+      const { data, error } = await supabase.functions.invoke('hubspot-sync', {
         method: 'POST',
       });
 
