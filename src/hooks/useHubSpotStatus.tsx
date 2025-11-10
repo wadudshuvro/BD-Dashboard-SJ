@@ -11,8 +11,8 @@ export const useHubSpotStatus = () => {
   const query = useQuery({
     queryKey: ['hubspot-status'],
     queryFn: async (): Promise<HubSpotStatusResult> => {
-      const { data, error } = await supabase.functions.invoke('hubspot-sync', {
-        body: { action: 'status' },
+      const { data, error } = await supabase.functions.invoke('hubspot-sync/status', {
+        method: 'GET',
       });
 
       if (error) {
