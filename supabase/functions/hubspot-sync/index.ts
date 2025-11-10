@@ -65,6 +65,18 @@ const HUBSPOT_DEAL_PROPERTIES = [
   "pipeline",
 ];
 
+// HubSpot stages to sync - mapped to our local stages
+const HUBSPOT_STAGES = [
+  'appointmentscheduled',        // → prospecting
+  'qualifiedtobuy',              // → prospecting
+  'presentationscheduled',       // → prospecting
+  'decisionmakerboughtin',       // → qualification
+  'contractsent',                // → proposal
+  'proposalshared',              // → negotiation
+  'closedwon',                   // → closed_won
+  'closedlost'                   // → closed_lost
+];
+
 async function createSupabaseClient(req?: Request) {
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -96,12 +108,11 @@ async function getHubSpotIntegration(client: SupabaseClient): Promise<{ integrat
     throw new Error("Active HubSpot integration not found");
   }
 
-  const config = data.config ?? {};
-  const encryptedToken = config.api_key_encrypted || config.access_token || config.api_key;
-  const token = await decryptSecret(encryptedToken);
-
+  // Get API token from Supabase secrets (secure)
+  const token = Deno.env.get('HUBSPOT_PRIVATE_APP_TOKEN');
+  
   if (!token) {
-    throw new Error("HubSpot API credentials are not configured");
+    throw new Error("HubSpot API key not found in environment secrets. Please configure HUBSPOT_PRIVATE_APP_TOKEN.");
   }
 
   return { integration: data, token };
@@ -132,6 +143,48 @@ async function fetchPagedObjects(token: string, resource: string, properties: st
     if (!response.ok) {
       const errorText = await response.text();
       throw new Error(`HubSpot ${resource} fetch failed (${response.status}): ${errorText}`);
+    }
+
+    const payload = await response.json();
+    if (Array.isArray(payload.results)) {
+      results.push(...payload.results);
+    }
+    after = payload.paging?.next?.after;
+  } while (after);
+
+  return results;
+}
+
+// Fetch deals filtered by specific stage using /search endpoint
+async function fetchDealsByStage(token: string, stage: string): Promise<HubSpotObject[]> {
+  const results: HubSpotObject[] = [];
+  let after: string | undefined;
+
+  do {
+    const response = await fetch('https://api.hubapi.com/crm/v3/objects/deals/search', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        filterGroups: [{
+          filters: [{
+            propertyName: 'dealstage',
+            operator: 'EQ',
+            value: stage
+          }]
+        }],
+        properties: HUBSPOT_DEAL_PROPERTIES,
+        associations: ['companies'],
+        limit: 100,
+        after: after
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`HubSpot deals search for stage '${stage}' failed (${response.status}): ${errorText}`);
     }
 
     const payload = await response.json();
@@ -219,11 +272,23 @@ async function performHubSpotSync(options: {
 
   const now = new Date().toISOString();
 
-  const [companies, contacts, deals] = await Promise.all([
+  console.log(`[HubSpot Sync] Fetching deals from ${HUBSPOT_STAGES.length} HubSpot stages...`);
+  
+  const [companies, contacts, dealsByStage] = await Promise.all([
     fetchPagedObjects(token, "companies", HUBSPOT_COMPANY_PROPERTIES),
     fetchPagedObjects(token, "contacts", HUBSPOT_CONTACT_PROPERTIES, ["companies"]),
-    fetchPagedObjects(token, "deals", HUBSPOT_DEAL_PROPERTIES, ["companies"]),
+    Promise.all(HUBSPOT_STAGES.map(stage => fetchDealsByStage(token, stage)))
   ]);
+
+  // Flatten deals from all stages
+  const deals = dealsByStage.flat();
+  
+  console.log(`[HubSpot Sync] Found ${deals.length} total deals across all stages`);
+  console.log('[HubSpot Sync] Deal stage distribution:', deals.reduce((acc, deal) => {
+    const stage = deal.properties?.dealstage || 'unknown';
+    acc[stage] = (acc[stage] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>));
 
   const clientMap = new Map<string, string>();
 
@@ -315,34 +380,56 @@ async function performHubSpotSync(options: {
     
     const stage = hubspotStage.toLowerCase();
     
-    // Prospecting stage mappings (Lead)
+    // Exact matches first for precise mapping
+    if (stage === 'appointmentscheduled' || stage === 'qualifiedtobuy' || 
+        stage === 'presentationscheduled') {
+      return 'prospecting';
+    }
+    
+    if (stage === 'decisionmakerboughtin') {
+      return 'qualification';
+    }
+    
+    if (stage === 'contractsent') {
+      return 'proposal';
+    }
+    
+    if (stage === 'proposalshared') {
+      return 'negotiation';
+    }
+    
+    if (stage === 'closedwon') {
+      return 'closed_won';
+    }
+    
+    if (stage === 'closedlost') {
+      return 'closed_lost';
+    }
+    
+    // Fallback to substring matching for any other HubSpot stages
     if (stage.includes('appointment') || stage.includes('qualified') || 
         stage.includes('presentation') || stage.includes('lead')) {
       return 'prospecting';
     }
     
-    // Qualification/Estimation stage
     if (stage.includes('decision') || stage.includes('qualification') || 
         stage.includes('estimate')) {
       return 'qualification';
     }
     
-    // Proposal/Discovery stage
     if (stage.includes('contract') || stage.includes('proposal') || 
         stage.includes('discovery')) {
       return 'proposal';
     }
     
-    // Negotiation stage (Proposal Shared)
     if (stage.includes('negotiation')) {
       return 'negotiation';
     }
     
-    // Closed stages
-    if (stage.includes('closedwon') || stage.includes('won')) {
+    if (stage.includes('won')) {
       return 'closed_won';
     }
-    if (stage.includes('closedlost') || stage.includes('lost')) {
+    if (stage.includes('lost')) {
       return 'closed_lost';
     }
     
@@ -379,13 +466,18 @@ async function performHubSpotSync(options: {
   }).filter((deal): deal is Record<string, unknown> => Boolean(deal));
 
   if (dealRows.length > 0) {
+    console.log(`[HubSpot Sync] Upserting ${dealRows.length} deals to database...`);
+    
     const { error: dealsError } = await supabase
       .from("deals")
       .upsert(dealRows, { onConflict: "hubspot_deal_id" });
 
     if (dealsError) {
+      console.error('[HubSpot Sync] Error upserting deals:', dealsError);
       throw dealsError;
     }
+    
+    console.log(`[HubSpot Sync] Successfully synced ${dealRows.length} deals`);
   }
 
   const pipelineValue = dealRows.reduce((sum, deal) => {
@@ -423,6 +515,11 @@ async function performHubSpotSync(options: {
         recorded_at: now,
       },
     ]);
+
+  // Log summary
+  console.log(`[HubSpot Sync] ✅ Sync completed successfully`);
+  console.log(`[HubSpot Sync] Companies: ${companies.length}, Contacts: ${contactRows.length}, Deals: ${dealRows.length}`);
+  console.log(`[HubSpot Sync] Pipeline Value: $${pipelineValue.toLocaleString()}`);
 
   return {
     companies: companies.length,
