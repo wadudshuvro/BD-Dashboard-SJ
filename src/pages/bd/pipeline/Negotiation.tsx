@@ -1,5 +1,5 @@
 import { StagePipelineTable } from '@/components/bd/StagePipelineTable';
-import { SyncControlTowerButton } from '@/components/bd/SyncControlTowerButton';
+import { SyncHubSpotButton } from '@/components/bd/SyncHubSpotButton';
 
 export default function Negotiation() {
   return (
@@ -9,7 +9,7 @@ export default function Negotiation() {
           <h1 className="text-3xl font-bold">Proposal Shared</h1>
           <p className="text-muted-foreground">Finalizing terms and closing deals</p>
         </div>
-        <SyncControlTowerButton />
+        <SyncHubSpotButton />
       </div>
       <StagePipelineTable
         stage="negotiation"

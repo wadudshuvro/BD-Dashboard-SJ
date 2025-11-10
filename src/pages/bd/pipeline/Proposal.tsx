@@ -1,5 +1,5 @@
 import { StagePipelineTable } from '@/components/bd/StagePipelineTable';
-import { SyncControlTowerButton } from '@/components/bd/SyncControlTowerButton';
+import { SyncHubSpotButton } from '@/components/bd/SyncHubSpotButton';
 
 export default function Proposal() {
   return (
@@ -9,7 +9,7 @@ export default function Proposal() {
           <h1 className="text-3xl font-bold">Discovery</h1>
           <p className="text-muted-foreground">Preparing and presenting proposals to qualified prospects</p>
         </div>
-        <SyncControlTowerButton />
+        <SyncHubSpotButton />
       </div>
       <StagePipelineTable
         stage="proposal"

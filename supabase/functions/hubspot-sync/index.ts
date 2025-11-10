@@ -309,6 +309,47 @@ async function performHubSpotSync(options: {
     }
   }
 
+  // Helper function to map HubSpot stages to local stages
+  const mapHubSpotStage = (hubspotStage: string | null): string => {
+    if (!hubspotStage) return 'prospecting';
+    
+    const stage = hubspotStage.toLowerCase();
+    
+    // Prospecting stage mappings (Lead)
+    if (stage.includes('appointment') || stage.includes('qualified') || 
+        stage.includes('presentation') || stage.includes('lead')) {
+      return 'prospecting';
+    }
+    
+    // Qualification/Estimation stage
+    if (stage.includes('decision') || stage.includes('qualification') || 
+        stage.includes('estimate')) {
+      return 'qualification';
+    }
+    
+    // Proposal/Discovery stage
+    if (stage.includes('contract') || stage.includes('proposal') || 
+        stage.includes('discovery')) {
+      return 'proposal';
+    }
+    
+    // Negotiation stage (Proposal Shared)
+    if (stage.includes('negotiation')) {
+      return 'negotiation';
+    }
+    
+    // Closed stages
+    if (stage.includes('closedwon') || stage.includes('won')) {
+      return 'closed_won';
+    }
+    if (stage.includes('closedlost') || stage.includes('lost')) {
+      return 'closed_lost';
+    }
+    
+    // Default fallback
+    return 'prospecting';
+  };
+
   const dealRows = deals.map((deal) => {
     const props = deal.properties ?? {};
     const associatedCompany = deal.associations?.companies?.results?.[0]?.id;
@@ -322,24 +363,25 @@ async function performHubSpotSync(options: {
     }
 
     return {
-      hubspot_id: deal.id,
+      hubspot_deal_id: deal.id,
       client_id: clientId,
-      name: props.dealname || `Deal ${deal.id}`,
+      title: props.dealname || `Deal ${deal.id}`,
       amount,
-      stage: props.dealstage || null,
+      stage: mapHubSpotStage(props.dealstage),
       probability,
       close_date: parseDate(props.closedate),
       pipeline: props.pipeline || null,
-      deal_type: props.dealtype || null,
-      hubspot_updated_at: parseTimestamp(props.hs_lastmodifieddate),
-      hubspot_created_at: parseTimestamp(props.createdate),
+      dealtype: props.dealtype || null,
+      hubspot_crm_deal_url: `https://app.hubspot.com/contacts/deal/${deal.id}`,
+      last_activity_date: parseDate(props.hs_lastmodifieddate) || new Date().toISOString().split('T')[0],
+      updated_at: parseTimestamp(props.hs_lastmodifieddate) || new Date().toISOString(),
     } as Record<string, unknown>;
   }).filter((deal): deal is Record<string, unknown> => Boolean(deal));
 
   if (dealRows.length > 0) {
     const { error: dealsError } = await supabase
       .from("deals")
-      .upsert(dealRows, { onConflict: "hubspot_id" });
+      .upsert(dealRows, { onConflict: "hubspot_deal_id" });
 
     if (dealsError) {
       throw dealsError;
