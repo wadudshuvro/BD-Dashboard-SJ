@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { UploadCloud, Loader2 } from "lucide-react";
 import { StagePipelineTable } from "@/components/bd/StagePipelineTable";
-import { SyncControlTowerButton } from "@/components/bd/SyncControlTowerButton";
+import { SyncHubSpotButton } from "@/components/bd/SyncHubSpotButton";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -135,7 +135,7 @@ export default function Prospecting() {
               </DialogContent>
             </Dialog>
           )}
-          <SyncControlTowerButton />
+          <SyncHubSpotButton />
         </div>
       </div>
 
