@@ -252,7 +252,22 @@ async function createSupabaseClient(req: Request): Promise<SupabaseClient> {
     throw new Error("Supabase credentials are not configured");
   }
 
+  // Use service role key to bypass RLS
   return createClient(supabaseUrl, serviceKey, {
+    auth: { persistSession: false },
+  });
+}
+
+async function createUserClient(req: Request): Promise<SupabaseClient> {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
+
+  if (!supabaseUrl || !anonKey) {
+    throw new Error("Supabase credentials are not configured");
+  }
+
+  // Use anon key with user's JWT for authentication
+  return createClient(supabaseUrl, anonKey, {
     auth: { persistSession: false },
     global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } },
   });
@@ -264,6 +279,47 @@ async function requireUser(client: SupabaseClient) {
     throw new Error("Unauthorized");
   }
   return data.user;
+}
+
+async function checkUserRole(serviceClient: SupabaseClient, userId: string): Promise<string | null> {
+  const { data, error } = await serviceClient
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId)
+    .maybeSingle();
+  
+  if (error || !data) {
+    return null;
+  }
+  
+  return data.role;
+}
+
+async function canUpdateCampaign(
+  serviceClient: SupabaseClient,
+  campaignId: string,
+  userId: string
+): Promise<boolean> {
+  // Get user's role
+  const role = await checkUserRole(serviceClient, userId);
+  
+  // Super admins and admins can update any campaign
+  if (role === "super_admin" || role === "admin") {
+    return true;
+  }
+  
+  // Otherwise, check if user is the owner or creator
+  const { data: campaign, error } = await serviceClient
+    .from("bd_campaigns")
+    .select("owned_by, created_by")
+    .eq("id", campaignId)
+    .maybeSingle();
+  
+  if (error || !campaign) {
+    return false;
+  }
+  
+  return campaign.owned_by === userId || campaign.created_by === userId;
 }
 
 function parseRoute(url: URL) {
@@ -590,6 +646,12 @@ async function handleUpdate(
   campaignId: string,
   userId: string,
 ) {
+  // Check authorization first
+  const canUpdate = await canUpdateCampaign(client, campaignId, userId);
+  if (!canUpdate) {
+    throw new Error("You do not have permission to update this campaign");
+  }
+
   const payload = UpdateRequestSchema.parse(await req.json());
   const { campaign: updates = {}, metrics = [], options } = payload;
 
@@ -768,19 +830,24 @@ serve(async (req) => {
   }
 
   try {
-    const client = await createSupabaseClient(req);
-    const user = await requireUser(client);
+    // Use user client for authentication
+    const userClient = await createUserClient(req);
+    const user = await requireUser(userClient);
+    
+    // Use service role client for database operations (bypasses RLS)
+    const serviceClient = await createSupabaseClient(req);
+    
     const url = new URL(req.url);
     const segments = parseRoute(url);
 
     if (req.method === "GET" && segments[0] === "list") {
-      const payload = await handleList(req, client);
+      const payload = await handleList(req, serviceClient);
       return jsonResponse(payload);
     }
 
     if (req.method === "GET" && segments.length === 1) {
       const campaignId = segments[0];
-      const payload = await handleGet(client, campaignId);
+      const payload = await handleGet(serviceClient, campaignId);
       if (!payload) {
         return jsonResponse({ error: "Campaign not found" }, 404);
       }
@@ -788,26 +855,27 @@ serve(async (req) => {
     }
 
     if (req.method === "POST" && segments.length === 0) {
-      const campaign = await handleCreate(req, client, user.id);
+      const campaign = await handleCreate(req, serviceClient, user.id);
       return jsonResponse({ campaign }, 201);
     }
 
     if (req.method === "PUT" && segments.length === 1) {
       const campaignId = segments[0];
-      const campaign = await handleUpdate(req, client, campaignId, user.id);
+      const campaign = await handleUpdate(req, serviceClient, campaignId, user.id);
       return jsonResponse({ campaign });
     }
 
     if (req.method === "DELETE" && segments.length === 1) {
       const campaignId = segments[0];
-      const data = await handleDelete(client, campaignId);
+      const data = await handleDelete(serviceClient, campaignId);
       return jsonResponse({ success: true, data });
     }
 
     return jsonResponse({ error: "Not found" }, 404);
   } catch (error) {
     const status = error instanceof Error && error.message === "Unauthorized" ? 401 : 
-                   error instanceof Error && error.message === "Campaign not found" ? 404 : 400;
+                   error instanceof Error && error.message === "Campaign not found" ? 404 :
+                   error instanceof Error && error.message.includes("permission") ? 403 : 400;
     console.error("[admin-campaigns] Error:", error);
     return new Response(JSON.stringify({ 
       error: error instanceof Error ? error.message : "Unknown error" 
