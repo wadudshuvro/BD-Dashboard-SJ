@@ -176,6 +176,9 @@ const IntegrationManager = () => {
   const [savingPerplexity, setSavingPerplexity] = useState(false);
   const [testingExa, setTestingExa] = useState(false);
   const [exaTestResult, setExaTestResult] = useState<any>(null);
+  const [hubspotApiKey, setHubspotApiKey] = useState("");
+  const [isConfiguringHubspot, setIsConfiguringHubspot] = useState(false);
+  const [hubspotTestResult, setHubspotTestResult] = useState<any>(null);
 
   const hubspotIntegration = crmIntegrations.find((integration) => integration.type === "hubspot");
 
@@ -692,6 +695,51 @@ const IntegrationManager = () => {
     }
   };
 
+  const handleConfigureHubSpot = async () => {
+    if (!hubspotApiKey.trim()) {
+      toast({
+        title: "API Key Required",
+        description: "Please enter your HubSpot Private App Access Token",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsConfiguringHubspot(true);
+    setHubspotTestResult(null);
+
+    try {
+      const { data, error } = await supabase.functions.invoke("hubspot-sync/configure", {
+        method: "POST",
+        body: { apiKey: hubspotApiKey },
+      });
+
+      if (error) throw error;
+
+      if (data?.ok) {
+        setHubspotTestResult({ ok: true });
+        toast({
+          title: "HubSpot Connected",
+          description: "Your HubSpot integration has been configured successfully",
+        });
+        setHubspotApiKey("");
+        await loadIntegrations();
+      } else {
+        throw new Error(data?.error || "Configuration failed");
+      }
+    } catch (error: any) {
+      console.error("HubSpot configuration error:", error);
+      setHubspotTestResult({ ok: false, error: error.message });
+      toast({
+        title: "Configuration Failed",
+        description: error.message || "Failed to configure HubSpot integration",
+        variant: "destructive",
+      });
+    } finally {
+      setIsConfiguringHubspot(false);
+    }
+  };
+
   const handleTestExa = async () => {
     setTestingExa(true);
     setExaTestResult(null);
@@ -1025,25 +1073,72 @@ const IntegrationManager = () => {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex flex-col gap-1 text-sm text-muted-foreground">
-              <span>Last sync: {formatDateTime(hubspotIntegration?.last_sync)}</span>
-              <span>Status: {hubspotIntegration?.status ?? "Unknown"}</span>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                onClick={() => hubspotIntegration && handleSyncCrmIntegration(hubspotIntegration)}
-                disabled={!hubspotIntegration || Boolean(crmSyncing.hubspot)}
-              >
-                {crmSyncing.hubspot ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-                Sync now
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => handleOpenIntegrationLogs("hubspot")}
-              >
-                <ScrollText className="mr-2 h-4 w-4" /> View logs
-              </Button>
-            </div>
+            {!hubspotIntegration?.is_active && (
+              <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
+                <h4 className="text-sm font-medium">Configure Connection</h4>
+                <div className="space-y-2">
+                  <Label htmlFor="hubspot-api-key">Private App Access Token</Label>
+                  <Input
+                    id="hubspot-api-key"
+                    type="password"
+                    placeholder="pat-na1-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                    value={hubspotApiKey}
+                    onChange={(e) => setHubspotApiKey(e.target.value)}
+                    disabled={isConfiguringHubspot}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Create a Private App in HubSpot Settings → Integrations → Private Apps with CRM scopes
+                  </p>
+                </div>
+                {hubspotTestResult && (
+                  <div className="text-sm">
+                    {hubspotTestResult.ok && (
+                      <p className="text-green-600 dark:text-green-400">
+                        ✓ Connection successful
+                      </p>
+                    )}
+                    {!hubspotTestResult.ok && (
+                      <p className="text-destructive flex items-center gap-1">
+                        <AlertCircle className="h-3 w-3" />
+                        {hubspotTestResult.error}
+                      </p>
+                    )}
+                  </div>
+                )}
+                <Button onClick={handleConfigureHubSpot} disabled={isConfiguringHubspot || !hubspotApiKey.trim()}>
+                  {isConfiguringHubspot ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plug className="mr-2 h-4 w-4" />}
+                  Save & Connect
+                </Button>
+              </div>
+            )}
+            
+            {hubspotIntegration?.is_active && (
+              <>
+                <div className="flex flex-col gap-1 text-sm text-muted-foreground">
+                  <span className="flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full bg-green-500"></span>
+                    Configured & Active
+                  </span>
+                  <span>Last sync: {formatDateTime(hubspotIntegration?.last_sync)}</span>
+                  <span>Status: {hubspotIntegration?.status ?? "Unknown"}</span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    onClick={() => hubspotIntegration && handleSyncCrmIntegration(hubspotIntegration)}
+                    disabled={!hubspotIntegration || Boolean(crmSyncing.hubspot)}
+                  >
+                    {crmSyncing.hubspot ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                    Sync now
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => handleOpenIntegrationLogs("hubspot")}
+                  >
+                    <ScrollText className="mr-2 h-4 w-4" /> View logs
+                  </Button>
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
 

@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 import { corsHeaders } from "../_shared/cors.ts";
-import { decryptSecret } from "../_shared/crypto.ts";
+import { decryptSecret, encryptSecret } from "../_shared/crypto.ts";
 
 type HubSpotIntegration = {
   id: string;
@@ -455,6 +455,101 @@ async function handleWebhook(req: Request): Promise<Response> {
   }
 }
 
+async function handleConfigure(req: Request): Promise<Response> {
+  const headers = { ...corsHeaders, "Content-Type": "application/json" };
+  
+  try {
+    const body = await req.json();
+    const apiKey = body?.apiKey;
+
+    if (!apiKey || typeof apiKey !== "string" || apiKey.trim() === "") {
+      return new Response(JSON.stringify({ ok: false, error: "API key is required" }), {
+        headers,
+        status: 400,
+      });
+    }
+
+    // Validate API key format (HubSpot private app tokens start with "pat-")
+    if (!apiKey.startsWith("pat-")) {
+      return new Response(JSON.stringify({ 
+        ok: false, 
+        error: "Invalid API key format. HubSpot Private App Access Tokens should start with 'pat-'" 
+      }), {
+        headers,
+        status: 400,
+      });
+    }
+
+    // Test the API key by making a simple API call
+    const testResponse = await fetch("https://api.hubapi.com/crm/v3/objects/contacts?limit=1", {
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!testResponse.ok) {
+      const errorText = await testResponse.text();
+      return new Response(JSON.stringify({ 
+        ok: false, 
+        error: `Invalid API key: ${testResponse.status} - ${errorText}` 
+      }), {
+        headers,
+        status: 400,
+      });
+    }
+
+    // Encrypt the API key
+    const encryptedKey = await encryptSecret(apiKey);
+
+    // Save to database
+    const supabase = await createSupabaseClient();
+    const { data: existingIntegration } = await supabase
+      .from("integrations")
+      .select("id")
+      .eq("type", "hubspot")
+      .maybeSingle();
+
+    if (existingIntegration) {
+      // Update existing
+      const { error: updateError } = await supabase
+        .from("integrations")
+        .update({
+          config: { api_key_encrypted: encryptedKey },
+          is_active: true,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", existingIntegration.id);
+
+      if (updateError) throw updateError;
+    } else {
+      // Insert new
+      const { error: insertError } = await supabase
+        .from("integrations")
+        .insert({
+          type: "hubspot",
+          config: { api_key_encrypted: encryptedKey },
+          is_active: true,
+        });
+
+      if (insertError) throw insertError;
+    }
+
+    return new Response(JSON.stringify({ ok: true, message: "HubSpot API key configured successfully" }), {
+      headers,
+    });
+  } catch (error) {
+    console.error("[HubSpot Configure]", error);
+    return new Response(JSON.stringify({ 
+      ok: false, 
+      error: error instanceof Error ? error.message : "Configuration failed" 
+    }), {
+      headers,
+      status: 500,
+    });
+  }
+}
+
 async function handleLegacyAction(req: Request): Promise<Response> {
   const headers = { ...corsHeaders, "Content-Type": "application/json" };
   const body = await req.json();
@@ -715,6 +810,10 @@ serve(async (req) => {
 
   if (req.method === "POST" && pathname === "/webhook") {
     return handleWebhook(req);
+  }
+
+  if (req.method === "POST" && pathname === "/configure") {
+    return handleConfigure(req);
   }
 
   if (req.method === "POST") {
