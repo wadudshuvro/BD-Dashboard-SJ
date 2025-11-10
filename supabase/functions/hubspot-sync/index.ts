@@ -515,6 +515,8 @@ async function handleConfigure(req: Request): Promise<Response> {
       const { error: updateError } = await supabase
         .from("integrations")
         .update({
+          name: "HubSpot",
+          type: "hubspot",
           config: { api_key_encrypted: encryptedKey },
           is_active: true,
           updated_at: new Date().toISOString(),
