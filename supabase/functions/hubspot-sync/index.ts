@@ -77,6 +77,9 @@ const HUBSPOT_STAGES = [
   'closedlost'                   // → closed_lost
 ];
 
+// Helper function to add delay between requests
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 async function createSupabaseClient(req?: Request) {
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -156,42 +159,70 @@ async function fetchPagedObjects(token: string, resource: string, properties: st
 }
 
 // Fetch deals filtered by specific stage using /search endpoint
-async function fetchDealsByStage(token: string, stage: string): Promise<HubSpotObject[]> {
+async function fetchDealsByStage(
+  token: string, 
+  stage: string,
+  maxRetries: number = 3
+): Promise<HubSpotObject[]> {
   const results: HubSpotObject[] = [];
   let after: string | undefined;
 
   do {
-    const response = await fetch('https://api.hubapi.com/crm/v3/objects/deals/search', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        filterGroups: [{
-          filters: [{
-            propertyName: 'dealstage',
-            operator: 'EQ',
-            value: stage
-          }]
-        }],
-        properties: HUBSPOT_DEAL_PROPERTIES,
-        associations: ['companies'],
-        limit: 100,
-        after: after
-      })
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`HubSpot deals search for stage '${stage}' failed (${response.status}): ${errorText}`);
+    let attempt = 0;
+    let success = false;
+    
+    while (attempt < maxRetries && !success) {
+      try {
+        const response = await fetch('https://api.hubapi.com/crm/v3/objects/deals/search', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            filterGroups: [{
+              filters: [{
+                propertyName: 'dealstage',
+                operator: 'EQ',
+                value: stage
+              }]
+            }],
+            properties: HUBSPOT_DEAL_PROPERTIES,
+            associations: ['companies'],
+            limit: 100,
+            after: after
+          })
+        });
+        
+        if (response.status === 429) {
+          // Rate limit hit - wait with exponential backoff
+          const waitTime = Math.pow(2, attempt) * 1000; // 1s, 2s, 4s
+          console.log(`[HubSpot Sync] Rate limit hit for stage '${stage}', waiting ${waitTime}ms before retry ${attempt + 1}/${maxRetries}`);
+          await delay(waitTime);
+          attempt++;
+          continue;
+        }
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`HubSpot deals search for stage '${stage}' failed (${response.status}): ${errorText}`);
+        }
+        
+        const payload = await response.json();
+        if (Array.isArray(payload.results)) {
+          results.push(...payload.results);
+          console.log(`[HubSpot Sync] Fetched ${payload.results.length} deals for stage '${stage}' (total: ${results.length})`);
+        }
+        after = payload.paging?.next?.after;
+        success = true;
+        
+      } catch (error) {
+        if (attempt >= maxRetries - 1) {
+          throw error;
+        }
+        attempt++;
+      }
     }
-
-    const payload = await response.json();
-    if (Array.isArray(payload.results)) {
-      results.push(...payload.results);
-    }
-    after = payload.paging?.next?.after;
   } while (after);
 
   return results;
@@ -272,16 +303,35 @@ async function performHubSpotSync(options: {
 
   const now = new Date().toISOString();
 
-  console.log(`[HubSpot Sync] Fetching deals from ${HUBSPOT_STAGES.length} HubSpot stages...`);
+  console.log(`[HubSpot Sync] Fetching companies and contacts...`);
   
-  const [companies, contacts, dealsByStage] = await Promise.all([
+  const [companies, contacts] = await Promise.all([
     fetchPagedObjects(token, "companies", HUBSPOT_COMPANY_PROPERTIES),
-    fetchPagedObjects(token, "contacts", HUBSPOT_CONTACT_PROPERTIES, ["companies"]),
-    Promise.all(HUBSPOT_STAGES.map(stage => fetchDealsByStage(token, stage)))
+    fetchPagedObjects(token, "contacts", HUBSPOT_CONTACT_PROPERTIES, ["companies"])
   ]);
 
-  // Flatten deals from all stages
-  const deals = dealsByStage.flat();
+  console.log(`[HubSpot Sync] Fetching deals from ${HUBSPOT_STAGES.length} HubSpot stages sequentially...`);
+
+  const deals: HubSpotObject[] = [];
+  for (let i = 0; i < HUBSPOT_STAGES.length; i++) {
+    const stage = HUBSPOT_STAGES[i];
+    console.log(`[HubSpot Sync] Fetching stage ${i + 1}/${HUBSPOT_STAGES.length}: '${stage}'`);
+    
+    try {
+      const stageDeals = await fetchDealsByStage(token, stage);
+      deals.push(...stageDeals);
+      console.log(`[HubSpot Sync] Stage '${stage}' complete: ${stageDeals.length} deals fetched`);
+      
+      // Add delay between stages to respect rate limits (except after last stage)
+      if (i < HUBSPOT_STAGES.length - 1) {
+        await delay(750); // 750ms delay between stages
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error(`[HubSpot Sync] Failed to fetch stage '${stage}':`, errorMessage);
+      // Continue with other stages even if one fails
+    }
+  }
   
   console.log(`[HubSpot Sync] Found ${deals.length} total deals across all stages`);
   console.log('[HubSpot Sync] Deal stage distribution:', deals.reduce((acc, deal) => {
