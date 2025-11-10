@@ -1,5 +1,11 @@
 project_id = "qzzvcqoletuummdsbbio"
 
+[functions.monitor-control-tower-health]
+verify_jwt = false
+
+[functions.monitor-control-tower-health.cron]
+schedule = "*/15 * * * *"
+
 [functions.collabai-manage]
 verify_jwt = true
 

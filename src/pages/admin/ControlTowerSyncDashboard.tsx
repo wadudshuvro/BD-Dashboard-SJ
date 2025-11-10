@@ -14,6 +14,11 @@ import { Loader2, RefreshCw, CloudUpload, CloudDownload, AlertCircle, CheckCircl
 import { useSyncControlTowerFull } from '@/hooks/useSyncControlTowerFull';
 import { useSyncControlTowerDeals } from '@/hooks/useSyncControlTowerDeals';
 import { useSyncControlTowerEmployees } from '@/hooks/useSyncControlTowerEmployees';
+import { usePodSync } from '@/hooks/usePodSync';
+import { usePushToControlTower } from '@/hooks/usePushToControlTower';
+import { useControlTowerHealth } from '@/hooks/useControlTowerHealth';
+import { HealthOverviewCard } from '@/components/admin/HealthOverviewCard';
+import { ActiveAlertsPanel } from '@/components/admin/ActiveAlertsPanel';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   AlertDialog,
@@ -93,6 +98,19 @@ const ControlTowerSyncDashboard = () => {
   const { mutate: triggerFullSync, isPending: isFullSyncing } = useSyncControlTowerFull();
   const { syncDeals, isSyncing: isSyncingDeals } = useSyncControlTowerDeals();
   const { mutate: triggerEmployeeSync, isPending: isSyncingEmployees } = useSyncControlTowerEmployees();
+  const { syncPods } = usePodSync();
+  const { pushDeal } = usePushToControlTower();
+  
+  // Health monitoring
+  const {
+    latestHealth,
+    activeAlerts,
+    isLoading: isLoadingHealth,
+    triggerHealthCheck,
+    isCheckingHealth,
+    acknowledgeAlert: acknowledgeAlertMutation,
+    resolveAlert: resolveAlertMutation,
+  } = useControlTowerHealth();
 
   useEffect(() => {
     fetchSummary();
@@ -481,10 +499,14 @@ const ControlTowerSyncDashboard = () => {
       </div>
 
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="overview" className="gap-2">
             <Activity className="h-4 w-4" />
             Overview
+          </TabsTrigger>
+          <TabsTrigger value="health" className="gap-2">
+            <AlertCircle className="h-4 w-4" />
+            Health & Alerts
           </TabsTrigger>
           <TabsTrigger value="activity" className="gap-2">
             <History className="h-4 w-4" />
@@ -499,6 +521,25 @@ const ControlTowerSyncDashboard = () => {
             Configuration
           </TabsTrigger>
         </TabsList>
+
+        {/* Health & Alerts Tab */}
+        <TabsContent value="health" className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <HealthOverviewCard
+              latestHealth={latestHealth}
+              isLoading={isLoadingHealth}
+              onRefresh={triggerHealthCheck}
+              isRefreshing={isCheckingHealth}
+              activeAlertsCount={activeAlerts.length}
+            />
+            <ActiveAlertsPanel
+              alerts={activeAlerts}
+              isLoading={isLoadingHealth}
+              onAcknowledge={acknowledgeAlertMutation}
+              onResolve={(alertId, notes) => resolveAlertMutation({ alertId, notes })}
+            />
+          </div>
+        </TabsContent>
 
         {/* Overview Tab */}
         <TabsContent value="overview" className="space-y-4">

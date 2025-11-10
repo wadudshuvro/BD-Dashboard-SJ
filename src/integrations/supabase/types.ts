@@ -1256,6 +1256,171 @@ export type Database = {
           },
         ]
       }
+      control_tower_alert_config: {
+        Row: {
+          alert_type: string
+          auto_resolve_after_hours: number | null
+          check_interval_minutes: number
+          created_at: string
+          description: string | null
+          enabled: boolean
+          id: string
+          notification_channels: Json | null
+          notification_recipients: Json | null
+          severity_threshold: string
+          threshold_value: number | null
+          updated_at: string
+        }
+        Insert: {
+          alert_type: string
+          auto_resolve_after_hours?: number | null
+          check_interval_minutes?: number
+          created_at?: string
+          description?: string | null
+          enabled?: boolean
+          id?: string
+          notification_channels?: Json | null
+          notification_recipients?: Json | null
+          severity_threshold?: string
+          threshold_value?: number | null
+          updated_at?: string
+        }
+        Update: {
+          alert_type?: string
+          auto_resolve_after_hours?: number | null
+          check_interval_minutes?: number
+          created_at?: string
+          description?: string | null
+          enabled?: boolean
+          id?: string
+          notification_channels?: Json | null
+          notification_recipients?: Json | null
+          severity_threshold?: string
+          threshold_value?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      control_tower_alerts: {
+        Row: {
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          alert_type: string
+          created_at: string
+          entity_id: string | null
+          entity_type: string | null
+          id: string
+          message: string
+          metadata: Json | null
+          resolution_notes: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          severity: string
+          status: string
+          title: string
+          triggered_at: string
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          alert_type: string
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          message: string
+          metadata?: Json | null
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity: string
+          status?: string
+          title: string
+          triggered_at?: string
+        }
+        Update: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          alert_type?: string
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          message?: string
+          metadata?: Json | null
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          status?: string
+          title?: string
+          triggered_at?: string
+        }
+        Relationships: []
+      }
+      control_tower_health_snapshots: {
+        Row: {
+          api_response_time_ms: number | null
+          avg_sync_duration_ms: number | null
+          created_at: string
+          data_drift_score: number | null
+          failed_syncs_count_24h: number | null
+          id: string
+          last_successful_pull: string | null
+          last_successful_push: string | null
+          metrics_detail: Json | null
+          overall_health_score: number
+          pending_push_items: number | null
+          snapshot_at: string
+          stale_deals_count: number | null
+          sync_success_rate_24h: number | null
+          sync_success_rate_7d: number | null
+          unmapped_owners_count: number | null
+          unmapped_pms_count: number | null
+          unmapped_pods_count: number | null
+        }
+        Insert: {
+          api_response_time_ms?: number | null
+          avg_sync_duration_ms?: number | null
+          created_at?: string
+          data_drift_score?: number | null
+          failed_syncs_count_24h?: number | null
+          id?: string
+          last_successful_pull?: string | null
+          last_successful_push?: string | null
+          metrics_detail?: Json | null
+          overall_health_score: number
+          pending_push_items?: number | null
+          snapshot_at?: string
+          stale_deals_count?: number | null
+          sync_success_rate_24h?: number | null
+          sync_success_rate_7d?: number | null
+          unmapped_owners_count?: number | null
+          unmapped_pms_count?: number | null
+          unmapped_pods_count?: number | null
+        }
+        Update: {
+          api_response_time_ms?: number | null
+          avg_sync_duration_ms?: number | null
+          created_at?: string
+          data_drift_score?: number | null
+          failed_syncs_count_24h?: number | null
+          id?: string
+          last_successful_pull?: string | null
+          last_successful_push?: string | null
+          metrics_detail?: Json | null
+          overall_health_score?: number
+          pending_push_items?: number | null
+          snapshot_at?: string
+          stale_deals_count?: number | null
+          sync_success_rate_24h?: number | null
+          sync_success_rate_7d?: number | null
+          unmapped_owners_count?: number | null
+          unmapped_pms_count?: number | null
+          unmapped_pods_count?: number | null
+        }
+        Relationships: []
+      }
       control_tower_sync_log: {
         Row: {
           control_tower_id: string | null
@@ -3069,8 +3234,33 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      auto_resolve_alerts: { Args: never; Returns: undefined }
+      calculate_health_score: {
+        Args: {
+          p_api_response_time_ms: number
+          p_failed_count_24h: number
+          p_hours_since_last_sync: number
+          p_sync_success_rate_24h: number
+          p_total_deals: number
+          p_total_syncs_24h: number
+          p_unmapped_total: number
+        }
+        Returns: Json
+      }
       cleanup_old_sync_logs: { Args: never; Returns: undefined }
       clear_all_sync_logs: { Args: never; Returns: undefined }
+      generate_alert: {
+        Args: {
+          p_alert_type: string
+          p_entity_id?: string
+          p_entity_type?: string
+          p_message: string
+          p_metadata?: Json
+          p_severity: string
+          p_title: string
+        }
+        Returns: string
+      }
       generate_deal_slug: {
         Args: { deal_id: string; deal_title: string }
         Returns: string
