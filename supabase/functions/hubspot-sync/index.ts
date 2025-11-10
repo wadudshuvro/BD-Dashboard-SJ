@@ -527,6 +527,7 @@ async function handleConfigure(req: Request): Promise<Response> {
       const { error: insertError } = await supabase
         .from("integrations")
         .insert({
+          name: "HubSpot",
           type: "hubspot",
           config: { api_key_encrypted: encryptedKey },
           is_active: true,
