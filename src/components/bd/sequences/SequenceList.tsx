@@ -1,16 +1,17 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Play, Pause, Trash2, Eye } from "lucide-react";
+import { Play, Pause, Trash2, Eye, Pencil } from "lucide-react";
 import { useSequences, useToggleSequence, useDeleteSequence } from "@/hooks/useSequences";
 import type { SequenceWithSteps } from "@/Api/sequences";
 
 interface SequenceListProps {
   campaignId?: string;
   onViewSequence?: (sequence: SequenceWithSteps) => void;
+  onEditSequence?: (sequence: SequenceWithSteps) => void;
 }
 
-export function SequenceList({ campaignId, onViewSequence }: SequenceListProps) {
+export function SequenceList({ campaignId, onViewSequence, onEditSequence }: SequenceListProps) {
   const { data: sequences, isLoading } = useSequences(campaignId);
   const toggleSequence = useToggleSequence();
   const deleteSequence = useDeleteSequence();
@@ -66,6 +67,15 @@ export function SequenceList({ campaignId, onViewSequence }: SequenceListProps) 
                     <Play className="h-4 w-4" />
                   )}
                 </Button>
+                {onEditSequence && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onEditSequence(sequence)}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                )}
                 {onViewSequence && (
                   <Button
                     variant="outline"

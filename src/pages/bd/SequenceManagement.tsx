@@ -3,9 +3,23 @@ import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { SequenceDialog } from "@/components/bd/sequences/SequenceDialog";
 import { SequenceList } from "@/components/bd/sequences/SequenceList";
+import type { SequenceWithSteps } from "@/Api/sequences";
 
 export default function SequenceManagement() {
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingSequence, setEditingSequence] = useState<SequenceWithSteps | undefined>(undefined);
+
+  const handleEdit = (sequence: SequenceWithSteps) => {
+    setEditingSequence(sequence);
+    setDialogOpen(true);
+  };
+
+  const handleDialogChange = (open: boolean) => {
+    setDialogOpen(open);
+    if (!open) {
+      setEditingSequence(undefined);
+    }
+  };
 
   return (
     <div className="container mx-auto py-6 space-y-6">
@@ -22,11 +36,12 @@ export default function SequenceManagement() {
         </Button>
       </div>
 
-      <SequenceList />
+      <SequenceList onEditSequence={handleEdit} />
 
       <SequenceDialog
         open={dialogOpen}
-        onOpenChange={setDialogOpen}
+        onOpenChange={handleDialogChange}
+        sequence={editingSequence}
       />
     </div>
   );

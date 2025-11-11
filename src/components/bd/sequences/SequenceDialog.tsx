@@ -1,11 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { SequenceBuilder } from "./SequenceBuilder";
-import { useCreateSequence } from "@/hooks/useSequences";
+import { useCreateSequence, useUpdateSequence } from "@/hooks/useSequences";
 import { supabase } from "@/integrations/supabase/client";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useBDCampaigns } from "@/hooks/useBDCampaigns";
+import type { SequenceWithSteps } from "@/Api/sequences";
 
 interface SequenceStepInsert {
   sequence_id?: string;
@@ -26,9 +27,10 @@ interface SequenceDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   campaignId?: string;
+  sequence?: SequenceWithSteps;
 }
 
-export function SequenceDialog({ open, onOpenChange, campaignId }: SequenceDialogProps) {
+export function SequenceDialog({ open, onOpenChange, campaignId, sequence }: SequenceDialogProps) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [steps, setSteps] = useState<SequenceStepInsert[]>([]);
@@ -36,27 +38,57 @@ export function SequenceDialog({ open, onOpenChange, campaignId }: SequenceDialo
   const { campaigns, isLoading } = useBDCampaigns(undefined, 1, 100);
   
   const createSequence = useCreateSequence();
+  const updateSequence = useUpdateSequence();
+
+  // Populate form when editing
+  useEffect(() => {
+    if (sequence) {
+      setName(sequence.name);
+      setDescription(sequence.description || "");
+      setSelectedCampaignId(sequence.campaign_id || undefined);
+      setSteps(sequence.sequence_steps || []);
+    } else {
+      setName("");
+      setDescription("");
+      setSelectedCampaignId(campaignId);
+      setSteps([]);
+    }
+  }, [sequence, campaignId]);
 
   const handleSave = async () => {
     if (!name.trim() || !selectedCampaignId) {
       return;
     }
 
-    const { data: { user } } = await supabase.auth.getUser();
+    if (sequence) {
+      // Edit mode: update existing sequence
+      await updateSequence.mutateAsync({
+        id: sequence.id,
+        updates: {
+          name: name.trim(),
+          description: description.trim() || null,
+          campaign_id: selectedCampaignId,
+        },
+      });
+    } else {
+      // Create mode
+      const { data: { user } } = await supabase.auth.getUser();
 
-    await createSequence.mutateAsync({
-      name: name.trim(),
-      description: description.trim() || undefined,
-      campaign_id: selectedCampaignId,
-      status: 'draft',
-      created_by: user?.id,
-      steps,
-    });
+      await createSequence.mutateAsync({
+        name: name.trim(),
+        description: description.trim() || undefined,
+        campaign_id: selectedCampaignId,
+        status: 'draft',
+        created_by: user?.id,
+        steps,
+      });
+    }
 
     // Reset form
     setName("");
     setDescription("");
     setSteps([]);
+    setSelectedCampaignId(undefined);
     onOpenChange(false);
   };
 
@@ -64,9 +96,9 @@ export function SequenceDialog({ open, onOpenChange, campaignId }: SequenceDialo
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create Outreach Sequence</DialogTitle>
+          <DialogTitle>{sequence ? "Edit Outreach Sequence" : "Create Outreach Sequence"}</DialogTitle>
           <DialogDescription>
-            Select a campaign to associate this sequence with, then add steps and content.
+            {sequence ? "Update the sequence details below." : "Select a campaign to associate this sequence with, then add steps and content."}
           </DialogDescription>
         </DialogHeader>
 
@@ -113,9 +145,12 @@ export function SequenceDialog({ open, onOpenChange, campaignId }: SequenceDialo
           </Button>
           <Button 
             onClick={handleSave} 
-            disabled={!name.trim() || !selectedCampaignId || createSequence.isPending}
+            disabled={!name.trim() || !selectedCampaignId || createSequence.isPending || updateSequence.isPending}
           >
-            {createSequence.isPending ? "Creating..." : "Create Sequence"}
+            {sequence 
+              ? (updateSequence.isPending ? "Updating..." : "Update Sequence")
+              : (createSequence.isPending ? "Creating..." : "Create Sequence")
+            }
           </Button>
         </DialogFooter>
       </DialogContent>
