@@ -375,6 +375,148 @@ export type Database = {
           },
         ]
       }
+      brand_integrations: {
+        Row: {
+          brand_id: string
+          config: Json | null
+          created_at: string
+          id: string
+          integration_type: string
+          is_enabled: boolean
+          last_synced_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          brand_id: string
+          config?: Json | null
+          created_at?: string
+          id?: string
+          integration_type: string
+          is_enabled?: boolean
+          last_synced_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          brand_id?: string
+          config?: Json | null
+          created_at?: string
+          id?: string
+          integration_type?: string
+          is_enabled?: boolean
+          last_synced_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brand_integrations_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      brand_kpis: {
+        Row: {
+          brand_id: string
+          created_at: string
+          current_value: number | null
+          description: string | null
+          display_order: number
+          id: string
+          is_active: boolean
+          kpi_type: string
+          metadata: Json | null
+          name: string
+          source: string
+          target_value: number | null
+          updated_at: string
+        }
+        Insert: {
+          brand_id: string
+          created_at?: string
+          current_value?: number | null
+          description?: string | null
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          kpi_type?: string
+          metadata?: Json | null
+          name: string
+          source?: string
+          target_value?: number | null
+          updated_at?: string
+        }
+        Update: {
+          brand_id?: string
+          created_at?: string
+          current_value?: number | null
+          description?: string | null
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          kpi_type?: string
+          metadata?: Json | null
+          name?: string
+          source?: string
+          target_value?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brand_kpis_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      brands: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          logo_url: string | null
+          metadata: Json | null
+          monthly_budget: number | null
+          name: string
+          owner_id: string | null
+          slug: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          logo_url?: string | null
+          metadata?: Json | null
+          monthly_budget?: number | null
+          name: string
+          owner_id?: string | null
+          slug: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          logo_url?: string | null
+          metadata?: Json | null
+          monthly_budget?: number | null
+          name?: string
+          owner_id?: string | null
+          slug?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       campaign_brands: {
         Row: {
           brand_id: string
@@ -1823,6 +1965,7 @@ export type Database = {
       deals: {
         Row: {
           amount: number | null
+          brand_id: string | null
           category: string | null
           client_agent_folder: string | null
           client_agent_url: string | null
@@ -1876,6 +2019,7 @@ export type Database = {
         }
         Insert: {
           amount?: number | null
+          brand_id?: string | null
           category?: string | null
           client_agent_folder?: string | null
           client_agent_url?: string | null
@@ -1929,6 +2073,7 @@ export type Database = {
         }
         Update: {
           amount?: number | null
+          brand_id?: string | null
           category?: string | null
           client_agent_folder?: string | null
           client_agent_url?: string | null
@@ -1981,6 +2126,13 @@ export type Database = {
           workboard_ai_link?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "deals_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "deals_client_id_fkey"
             columns: ["client_id"]
@@ -3148,6 +3300,50 @@ export type Database = {
         }
         Relationships: []
       }
+      user_brands: {
+        Row: {
+          access_level: string
+          brand_id: string
+          can_edit_kpis: boolean
+          can_edit_settings: boolean
+          can_manage_team: boolean
+          can_view_kpis: boolean
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          access_level?: string
+          brand_id: string
+          can_edit_kpis?: boolean
+          can_edit_settings?: boolean
+          can_manage_team?: boolean
+          can_view_kpis?: boolean
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          access_level?: string
+          brand_id?: string
+          can_edit_kpis?: boolean
+          can_edit_settings?: boolean
+          can_manage_team?: boolean
+          can_view_kpis?: boolean
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_brands_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_permissions: {
         Row: {
           can_create: boolean | null
@@ -3301,6 +3497,10 @@ export type Database = {
         }
         Returns: Json
       }
+      check_brand_permission: {
+        Args: { p_brand_id: string; p_permission: string; p_user_id: string }
+        Returns: boolean
+      }
       cleanup_old_sync_logs: { Args: never; Returns: undefined }
       clear_all_sync_logs: { Args: never; Returns: undefined }
       generate_alert: {
@@ -3335,6 +3535,18 @@ export type Database = {
           control_tower_owner_id: string
           deal_id: string
           deal_title: string
+        }[]
+      }
+      get_user_brands: {
+        Args: { p_user_id: string }
+        Returns: {
+          access_level: string
+          brand_id: string
+          brand_name: string
+          brand_slug: string
+          brand_type: string
+          is_active: boolean
+          logo_url: string
         }[]
       }
       has_role: {

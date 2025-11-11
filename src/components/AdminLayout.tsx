@@ -1,3 +1,4 @@
+import { ReactNode } from "react";
 import { Outlet, NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   Shield,
@@ -37,7 +38,11 @@ import logo from "@/assets/logo-sji.png";
 import { useFeatureFlag } from "@/hooks/useFeatureFlag";
 import { useAuth } from "@/hooks/useAuth";
 
-const AdminLayout = () => {
+interface AdminLayoutProps {
+  children?: ReactNode;
+}
+
+const AdminLayout = ({ children }: AdminLayoutProps = {}) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
@@ -282,7 +287,7 @@ const AdminLayout = () => {
 
         {/* Page content */}
         <main className="flex-1 p-4 lg:p-6">
-          <Outlet />
+          {children || <Outlet />}
         </main>
       </div>
 
