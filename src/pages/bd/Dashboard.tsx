@@ -5,7 +5,7 @@ import { useClients } from '@/hooks/useClients';
 import { useLeadList } from '@/hooks/useLeads';
 import { TrendingUp, Users, Target, Award } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { SyncControlTowerButton } from '@/components/bd/SyncControlTowerButton';
+import { SyncHubSpotButton } from '@/components/bd/SyncHubSpotButton';
 
 export default function BDDashboard() {
   const { deals, loading: dealsLoading } = useDeals({ enabled: true });
@@ -67,7 +67,7 @@ export default function BDDashboard() {
             Track your BD performance and pipeline health
           </p>
         </div>
-        <SyncControlTowerButton />
+        <SyncHubSpotButton />
       </div>
 
       {/* KPI Cards */}
