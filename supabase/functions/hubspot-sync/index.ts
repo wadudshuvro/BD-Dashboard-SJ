@@ -723,9 +723,9 @@ async function performHubSpotSync(options: {
   await supabase
     .from("control_tower_sync_log")
     .insert({
-      sync_type: "integration",
+      sync_type: "pull",
       entity_type: "hubspot_sync",
-      status: "completed",
+      status: "success",
       synced_at: now,
       payload: {
         companies: totalCompanies,
