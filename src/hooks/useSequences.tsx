@@ -1,0 +1,98 @@
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { sequencesApi, type CreateSequencePayload } from "@/Api/sequences";
+import { toast } from "sonner";
+
+interface SequenceUpdate {
+  name?: string;
+  description?: string;
+  campaign_id?: string;
+  is_active?: boolean;
+}
+
+export function useSequences(campaignId?: string) {
+  return useQuery({
+    queryKey: ['sequences', campaignId],
+    queryFn: () => sequencesApi.listSequences(campaignId),
+  });
+}
+
+export function useSequence(id: string) {
+  return useQuery({
+    queryKey: ['sequence', id],
+    queryFn: () => sequencesApi.getSequence(id),
+    enabled: !!id,
+  });
+}
+
+export function useCreateSequence() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (payload: CreateSequencePayload) => sequencesApi.createSequence(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sequences'] });
+      toast.success("Sequence created successfully");
+    },
+    onError: (error: any) => {
+      toast.error("Failed to create sequence", {
+        description: error.message
+      });
+    }
+  });
+}
+
+export function useUpdateSequence() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: ({ id, updates }: { id: string; updates: SequenceUpdate }) => 
+      sequencesApi.updateSequence(id, updates),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['sequences'] });
+      queryClient.invalidateQueries({ queryKey: ['sequence', variables.id] });
+      toast.success("Sequence updated successfully");
+    },
+    onError: (error: any) => {
+      toast.error("Failed to update sequence", {
+        description: error.message
+      });
+    }
+  });
+}
+
+export function useDeleteSequence() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (id: string) => sequencesApi.deleteSequence(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sequences'] });
+      toast.success("Sequence deleted successfully");
+    },
+    onError: (error: any) => {
+      toast.error("Failed to delete sequence", {
+        description: error.message
+      });
+    }
+  });
+}
+
+export function useToggleSequence() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) => 
+      sequencesApi.toggleSequence(id, isActive),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['sequences'] });
+      queryClient.invalidateQueries({ queryKey: ['sequence', variables.id] });
+      toast.success(variables.isActive ? "Sequence activated" : "Sequence paused");
+    },
+    onError: (error: any) => {
+      toast.error("Failed to toggle sequence", {
+        description: error.message
+      });
+    }
+  });
+}
+

@@ -29,6 +29,7 @@ import UserProfile from "./pages/UserProfile";
 import NicheManagement from "./pages/bd/NicheManagement";
 import CampaignManagement from "./pages/bd/CampaignManagement";
 import CampaignDetail from "./pages/bd/CampaignDetail";
+import SequenceManagement from "./pages/bd/SequenceManagement";
 import CampaignContactDetail from "./pages/bd/CampaignContactDetail";
 import CompanyDetail from "./pages/bd/CompanyDetail";
 import PODManagement from "./pages/admin/PODManagement";
@@ -271,6 +272,13 @@ const App = () => (
               <Route path=":slug/roi" element={<CampaignROI />} />
               <Route path=":campaignSlug/contacts/:contactSlug" element={<CampaignContactDetail />} />
             </Route>
+
+            {/* Sequences */}
+            <Route path="/sequences" element={
+              <ProtectedRoute requiredMinimumRole="team_member">
+                <SequenceManagement />
+              </ProtectedRoute>
+            } />
 
             {/* Companies */}
             <Route path="/companies/:slug" element={
