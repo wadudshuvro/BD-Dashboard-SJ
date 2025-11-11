@@ -124,6 +124,7 @@ const Layout = ({ userRole }: LayoutProps) => {
         ]
       },
       { name: "Campaigns", href: "/campaigns", icon: Megaphone, current: false },
+      { name: "Sequences", href: "/sequences", icon: Zap, current: false },
       { 
         name: "Performance", 
         href: "/bd/performance/personal", 
