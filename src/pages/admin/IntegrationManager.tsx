@@ -458,8 +458,27 @@ const IntegrationManager = () => {
     setIsLogsDialogOpen(true);
     setIsLogsLoading(true);
     try {
-      // Analytics data table removed - no logs to fetch
-      setLogEntries([]);
+      const { data, error } = await supabase
+        .from("control_tower_sync_log")
+        .select("*")
+        .eq("sync_type", "integration")
+        .eq("entity_type", source === "hubspot" ? "hubspot_sync" : "gohighlevel_sync")
+        .order("created_at", { ascending: false })
+        .limit(50);
+      
+      if (error) throw error;
+      
+      // Transform to match IntegrationLogEntry interface
+      const transformedLogs: IntegrationLogEntry[] = (data || []).map((log: any) => ({
+        id: log.id,
+        source: source,
+        metric_name: log.status === "completed" ? "sync_success" : "sync_error",
+        metric_value: log.payload?.companies || log.payload?.contacts || log.payload?.deals || null,
+        dimensions: log.payload,
+        recorded_at: log.created_at,
+      }));
+      
+      setLogEntries(transformedLogs);
     } catch (error) {
       console.error("Failed to load integration logs", error);
       toast({

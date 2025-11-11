@@ -540,31 +540,23 @@ async function performHubSpotSync(options: {
     .update({ last_sync: now })
     .eq("id", integration!.id);
 
+  // Log sync to control_tower_sync_log
   await supabase
-    .from("analytics_data")
-    .insert([
-      {
-        source: "hubspot",
-        metric_name: "integration_sync",
-        metric_value: companies.length + contactRows.length + dealRows.length,
-        dimensions: {
-          companies: companies.length,
-          contacts: contactRows.length,
-          deals: dealRows.length,
-          triggeredBy: options.triggeredBy ?? "manual",
-        },
-        recorded_at: now,
+    .from("control_tower_sync_log")
+    .insert({
+      sync_type: "integration",
+      entity_type: "hubspot_sync",
+      status: "completed",
+      synced_at: now,
+      payload: {
+        companies: companies.length,
+        contacts: contactRows.length,
+        deals: dealRows.length,
+        pipelineValue: pipelineValue,
+        triggeredBy: options.triggeredBy ?? "manual",
       },
-      {
-        source: "hubspot",
-        metric_name: "pipeline_value",
-        metric_value: pipelineValue,
-        dimensions: {
-          triggeredBy: options.triggeredBy ?? "manual",
-        },
-        recorded_at: now,
-      },
-    ]);
+      created_at: now,
+    });
 
   // Log summary
   console.log(`[HubSpot Sync] ✅ Sync completed successfully`);
