@@ -36,22 +36,35 @@ interface ProfileRow {
   email: string | null;
 }
 
-async function assertAdmin(client: any, userId: string) {
+async function getTopRole(client: any, userId: string): Promise<string | null> {
   const { data, error } = await client
     .from("user_roles")
     .select("role")
     .eq("user_id", userId)
-    .maybeSingle();
+    .order("created_at", { ascending: false })
+    .limit(1);
 
   if (error) {
     throw error;
   }
 
-  if (!data || (data as any).role !== "super_admin") {
+  const rows = (data ?? []) as Array<{ role: string }>;
+  return rows.length > 0 ? rows[0].role : null;
+}
+
+async function assertAdmin(client: any, userId: string) {
+  const role = await getTopRole(client, userId);
+  if (role !== "super_admin") {
     throw new Error("Insufficient privileges");
   }
 }
 
+async function assertAtLeastAdmin(client: any, userId: string) {
+  const role = await getTopRole(client, userId);
+  if (!role || !["admin", "super_admin"].includes(role)) {
+    throw new Error("Insufficient privileges");
+  }
+}
 async function fetchProfileMap(client: any, userIds: string[]) {
   if (userIds.length === 0) {
     return new Map<string, { name: string | null; email: string | null }>();
@@ -360,20 +373,21 @@ serve(async (req) => {
       auth: { persistSession: false },
     });
 
-    try {
-      await assertAdmin(serviceClient, user.id);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Forbidden";
-      const status = message === "Insufficient privileges" ? 403 : 500;
-      return new Response(JSON.stringify({ message }), {
-        status,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+// Authorization handled per-route below (view: admin/super_admin; mutate: super_admin)
 
     const { url, routeSegments } = parseRoute(req);
 
     if (req.method === "GET" && (routeSegments.length === 0 || routeSegments[0] === "list")) {
+      try {
+        await assertAtLeastAdmin(serviceClient, user.id);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Forbidden";
+        const status = message === "Insufficient privileges" ? 403 : 500;
+        return new Response(JSON.stringify({ message }), {
+          status,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       return handleList(serviceClient, url);
     }
 
@@ -387,20 +401,60 @@ serve(async (req) => {
     const id = routeSegments[0];
 
     if (req.method === "GET") {
+      try {
+        await assertAtLeastAdmin(serviceClient, user.id);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Forbidden";
+        const status = message === "Insufficient privileges" ? 403 : 500;
+        return new Response(JSON.stringify({ message }), {
+          status,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       return handleDetail(serviceClient, id);
     }
 
     if (req.method === "POST" && routeSegments[1] === "comment") {
+      try {
+        await assertAdmin(serviceClient, user.id);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Forbidden";
+        const status = message === "Insufficient privileges" ? 403 : 500;
+        return new Response(JSON.stringify({ message }), {
+          status,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       const body = await req.json().catch(() => ({}));
       return handleComment(serviceClient, id, user.id, body);
     }
 
     if (req.method === "PUT" && routeSegments[1] === "status") {
+      try {
+        await assertAdmin(serviceClient, user.id);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Forbidden";
+        const status = message === "Insufficient privileges" ? 403 : 500;
+        return new Response(JSON.stringify({ message }), {
+          status,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       const body = await req.json().catch(() => ({}));
       return handleStatus(serviceClient, id, user.id, body);
     }
 
     if (req.method === "DELETE" && routeSegments.length === 1) {
+      try {
+        await assertAdmin(serviceClient, user.id);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Forbidden";
+        const status = message === "Insufficient privileges" ? 403 : 500;
+        return new Response(JSON.stringify({ message }), {
+          status,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       return handleDelete(serviceClient, id, user.id);
     }
 
