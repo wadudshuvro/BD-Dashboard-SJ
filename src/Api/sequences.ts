@@ -43,7 +43,7 @@ export const sequencesApi = {
   async listSequences(campaignId?: string) {
     let query = supabase
       .from('campaign_sequences')
-      .select('*')
+      .select('*, sequence_steps(*)')
       .order('created_at', { ascending: false });
     
     if (campaignId) {
@@ -58,7 +58,7 @@ export const sequencesApi = {
   async getSequence(id: string) {
     const { data, error } = await supabase
       .from('campaign_sequences')
-      .select('*')
+      .select('*, sequence_steps(*)')
       .eq('id', id)
       .single();
     
@@ -69,13 +69,18 @@ export const sequencesApi = {
   async createSequence(payload: CreateSequencePayload) {
     const { steps, ...sequenceData } = payload;
     
+    console.log('Creating sequence with steps:', steps);
+    
     const { data: sequence, error: seqError } = await supabase
       .from('campaign_sequences')
       .insert(sequenceData)
       .select()
       .single();
     
-    if (seqError) throw seqError;
+    if (seqError) {
+      console.error('Error creating sequence:', seqError);
+      throw seqError;
+    }
     const seq = sequence as any;
     
     if (steps.length > 0) {
@@ -84,11 +89,19 @@ export const sequencesApi = {
         sequence_id: seq.id
       }));
       
-      const { error: stepsError } = await supabase
-        .from('sequence_steps')
-        .insert(stepsWithSeqId);
+      console.log('Inserting steps with sequence_id:', stepsWithSeqId);
       
-      if (stepsError) throw stepsError;
+      const { data: insertedSteps, error: stepsError } = await supabase
+        .from('sequence_steps')
+        .insert(stepsWithSeqId)
+        .select();
+      
+      if (stepsError) {
+        console.error('Error inserting steps:', stepsError);
+        throw stepsError;
+      }
+      
+      console.log('Steps inserted successfully:', insertedSteps);
     }
     
     return this.getSequence(seq.id);
