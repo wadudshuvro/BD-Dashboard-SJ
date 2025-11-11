@@ -373,14 +373,10 @@ async function fetchAndProcessCompaniesBatch(
           country: props.country || null,
           postal_code: props.zip || null,
           industry: props.industry || null,
-          company_revenue: parseNumber(props.annualrevenue),
-          team_size: parseNumber(props.numberofemployees),
+          revenue: parseNumber(props.annualrevenue),
+          employee_count: parseNumber(props.numberofemployees),
           notes: props.description || null,
-          status: "active",
-          source: "hubspot",
-          hubspot_sync_status: "synced",
-          hubspot_last_sync: now,
-          hubspot_sync_metadata: { type: props.type || null },
+          status: "active"
         } as Record<string, unknown>;
       });
 
@@ -475,11 +471,8 @@ async function fetchAndProcessContactsBatch(
           last_name: props.lastname || null,
           email: props.email || null,
           phone: props.phone || null,
-          job_title: props.jobtitle || null,
-          lifecycle_stage: props.lifecyclestage || null,
-          lead_status: props.hs_lead_status || null,
-          hubspot_sync_status: "synced",
-          hubspot_last_sync: now,
+          position: props.jobtitle || null,
+          company: props.company || null
         } as Record<string, unknown>;
       });
 
