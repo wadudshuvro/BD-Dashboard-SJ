@@ -119,6 +119,59 @@ export const sequencesApi = {
     return data;
   },
 
+  async updateSequenceWithSteps(id: string, updates: any, steps: Omit<SequenceStep, 'id' | 'sequence_id'>[]) {
+    console.log('Updating sequence with steps:', { id, updates, steps });
+    
+    // Update sequence metadata
+    const { data: sequence, error: seqError } = await supabase
+      .from('campaign_sequences')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
+    
+    if (seqError) {
+      console.error('Error updating sequence:', seqError);
+      throw seqError;
+    }
+    
+    // Delete existing steps
+    console.log('Deleting existing steps for sequence:', id);
+    const { error: deleteError } = await supabase
+      .from('sequence_steps')
+      .delete()
+      .eq('sequence_id', id);
+    
+    if (deleteError) {
+      console.error('Error deleting steps:', deleteError);
+      throw deleteError;
+    }
+    
+    // Insert new steps
+    if (steps.length > 0) {
+      const stepsWithSeqId = steps.map(step => ({
+        ...step,
+        sequence_id: id
+      }));
+      
+      console.log('Inserting updated steps:', stepsWithSeqId);
+      
+      const { data: insertedSteps, error: insertError } = await supabase
+        .from('sequence_steps')
+        .insert(stepsWithSeqId)
+        .select();
+      
+      if (insertError) {
+        console.error('Error inserting updated steps:', insertError);
+        throw insertError;
+      }
+      
+      console.log('Steps updated successfully:', insertedSteps);
+    }
+    
+    return this.getSequence(id);
+  },
+
   async deleteSequence(id: string) {
     const { error } = await supabase
       .from('campaign_sequences')

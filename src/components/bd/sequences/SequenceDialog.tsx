@@ -61,7 +61,7 @@ export function SequenceDialog({ open, onOpenChange, campaignId, sequence }: Seq
     }
 
     if (sequence) {
-      // Edit mode: update existing sequence
+      // Edit mode: update existing sequence with steps
       await updateSequence.mutateAsync({
         id: sequence.id,
         updates: {
@@ -69,6 +69,7 @@ export function SequenceDialog({ open, onOpenChange, campaignId, sequence }: Seq
           description: description.trim() || null,
           campaign_id: selectedCampaignId,
         },
+        steps: steps,
       });
     } else {
       // Create mode

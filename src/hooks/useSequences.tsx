@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { sequencesApi, type CreateSequencePayload } from "@/Api/sequences";
+import { sequencesApi, type CreateSequencePayload, type SequenceStep } from "@/Api/sequences";
 import { toast } from "sonner";
 
 interface SequenceUpdate {
@@ -7,6 +7,12 @@ interface SequenceUpdate {
   description?: string;
   campaign_id?: string;
   status?: 'draft' | 'active' | 'paused';
+}
+
+interface SequenceUpdateWithSteps {
+  id: string;
+  updates: SequenceUpdate;
+  steps?: Omit<SequenceStep, 'id' | 'sequence_id'>[];
 }
 
 export function useSequences(campaignId?: string) {
@@ -45,8 +51,12 @@ export function useUpdateSequence() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: ({ id, updates }: { id: string; updates: SequenceUpdate }) => 
-      sequencesApi.updateSequence(id, updates),
+    mutationFn: ({ id, updates, steps }: SequenceUpdateWithSteps) => {
+      if (steps !== undefined) {
+        return sequencesApi.updateSequenceWithSteps(id, updates, steps);
+      }
+      return sequencesApi.updateSequence(id, updates);
+    },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['campaign-sequences'] });
       queryClient.invalidateQueries({ queryKey: ['campaign-sequence', variables.id] });
