@@ -1,4 +1,4 @@
-import { Outlet, NavLink, useLocation } from "react-router-dom";
+import { Outlet, NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   Shield,
   Building2,
@@ -40,8 +40,13 @@ import { useAuth } from "@/hooks/useAuth";
 const AdminLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const userRole = user?.role;
+
+  const handleReturnToProfile = () => {
+    navigate('/my-profile');
+  };
   const { enabled: feedbackEnabled } = useFeatureFlag("feedback_enabled", true);
 
   const navigation = useMemo(() => {
@@ -193,15 +198,42 @@ const AdminLayout = () => {
           <div className="border-t border-border p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                  <span className="text-sm font-medium">SA</span>
-                </div>
+                {user?.avatar ? (
+                  <img 
+                    src={user.avatar} 
+                    alt={user.name || 'User'} 
+                    className="h-8 w-8 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                    <span className="text-sm font-medium">
+                      {user?.name
+                        ?.split(' ')
+                        .map(n => n[0])
+                        .join('')
+                        .toUpperCase()
+                        .slice(0, 2) || 'U'}
+                    </span>
+                  </div>
+                )}
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-foreground">Super Admin</p>
-                  <p className="text-xs text-muted-foreground">admin@sjinnovation.com</p>
+                  <p className="text-sm font-medium text-foreground truncate">
+                    {user?.name || 'User'}
+                  </p>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {user?.email || ''}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {userRole === 'super_admin' ? 'Super Admin' : 'Admin'}
+                  </p>
                 </div>
               </div>
-              <Button variant="ghost" size="icon" title="Logout">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                title="Return to Profile"
+                onClick={handleReturnToProfile}
+              >
                 <LogOut className="h-4 w-4" />
               </Button>
             </div>
@@ -237,7 +269,12 @@ const AdminLayout = () => {
                 BD Portal
               </NavLink>
             </Button>
-            <Button variant="ghost" size="sm" title="Logout">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              title="Return to Profile"
+              onClick={handleReturnToProfile}
+            >
               <LogOut className="h-4 w-4" />
             </Button>
           </div>
