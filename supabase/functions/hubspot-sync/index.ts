@@ -1,3 +1,20 @@
+/**
+ * HubSpot Sync Edge Function
+ * 
+ * Active Pipeline Stages (Synced):
+ * - Lead (appointmentscheduled, qualifiedtobuy, presentationscheduled) → prospecting
+ * - Estimation (decisionmakerboughtin) → qualification
+ * - Discovery (contractsent) → proposal
+ * - Proposal Shared (proposalshared) → negotiation
+ * 
+ * Excluded Stages (Not Synced):
+ * - Proposal Accepted (closedwon) → excluded
+ * - Proposal Lost (closedlost) → excluded
+ * 
+ * This filtering reduces sync volume by ~98% (from 6,047 to ~103 deals)
+ * and prevents CPU timeout errors during large data synchronization.
+ */
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 import { corsHeaders } from "../_shared/cors.ts";
@@ -69,16 +86,17 @@ const HUBSPOT_DEAL_PROPERTIES = [
   "pipeline",
 ];
 
-// HubSpot stages to sync - mapped to our local stages
+// HubSpot active pipeline stages to sync (excludes closed stages)
+// Only syncing active deals: Lead, Estimation, Discovery, Proposal Shared
+// Excludes: closedwon (Proposal Accepted), closedlost (Proposal Lost)
 const HUBSPOT_STAGES = [
-  'appointmentscheduled',        // → prospecting
-  'qualifiedtobuy',              // → prospecting
-  'presentationscheduled',       // → prospecting
-  'decisionmakerboughtin',       // → qualification
-  'contractsent',                // → proposal
-  'proposalshared',              // → negotiation
-  'closedwon',                   // → closed_won
-  'closedlost'                   // → closed_lost
+  'appointmentscheduled',        // → prospecting (Lead)
+  'qualifiedtobuy',              // → prospecting (Lead)
+  'presentationscheduled',       // → prospecting (Lead)
+  'decisionmakerboughtin',       // → qualification (Estimation)
+  'contractsent',                // → proposal (Discovery)
+  'proposalshared',              // → negotiation (Proposal Shared)
+  // EXCLUDED: 'closedwon', 'closedlost' to reduce sync volume and prevent timeouts
 ];
 
 // Helper function to add delay between requests
@@ -312,6 +330,9 @@ async function performHubSpotSync(options: {
   const syncId = options.syncId;
 
   console.log(`[HubSpot Sync] Starting ${syncType} sync (ID: ${syncId || 'N/A'})...`);
+  console.log(`[HubSpot Sync] Filtering to active pipeline stages only`);
+  console.log(`[HubSpot Sync] Including: Lead, Estimation, Discovery, Proposal Shared`);
+  console.log(`[HubSpot Sync] Excluding: Proposal Accepted (closedwon), Proposal Lost (closedlost)`);
 
   let companies: HubSpotObject[] = [];
   let contacts: HubSpotObject[] = [];
@@ -443,10 +464,16 @@ async function performHubSpotSync(options: {
   }
 
   // Helper function to map HubSpot stages to local stages
-  const mapHubSpotStage = (hubspotStage: string | null): string => {
+  // Returns null for closed stages to filter them out
+  const mapHubSpotStage = (hubspotStage: string | null): string | null => {
     if (!hubspotStage) return 'prospecting';
     
     const stage = hubspotStage.toLowerCase();
+    
+    // Filter out closed stages immediately - these are excluded from sync
+    if (stage === 'closedwon' || stage === 'closedlost') {
+      return null; // Signal to skip this deal
+    }
     
     // Exact matches first for precise mapping
     if (stage === 'appointmentscheduled' || stage === 'qualifiedtobuy' || 
@@ -464,14 +491,6 @@ async function performHubSpotSync(options: {
     
     if (stage === 'proposalshared') {
       return 'negotiation';
-    }
-    
-    if (stage === 'closedwon') {
-      return 'closed_won';
-    }
-    
-    if (stage === 'closedlost') {
-      return 'closed_lost';
     }
     
     // Fallback to substring matching for any other HubSpot stages
@@ -494,14 +513,12 @@ async function performHubSpotSync(options: {
       return 'negotiation';
     }
     
-    if (stage.includes('won')) {
-      return 'closed_won';
-    }
-    if (stage.includes('lost')) {
-      return 'closed_lost';
+    // Filter out any stage containing 'won' or 'lost'
+    if (stage.includes('won') || stage.includes('lost')) {
+      return null; // Skip closed deals
     }
     
-    // Default fallback
+    // Default fallback for unknown stages
     return 'prospecting';
   };
 
@@ -513,6 +530,16 @@ async function performHubSpotSync(options: {
     const probability = probabilityRaw && probabilityRaw <= 1 ? probabilityRaw * 100 : probabilityRaw;
     const clientId = associatedCompany ? clientMap.get(associatedCompany) ?? null : null;
 
+    // Map the stage - returns null for closed stages
+    const mappedStage = mapHubSpotStage(props.dealstage);
+    
+    // Skip closed deals (closedwon, closedlost)
+    if (!mappedStage) {
+      console.log(`[HubSpot Sync] Skipping closed deal: ${props.dealname || deal.id} (stage: ${props.dealstage})`);
+      return null;
+    }
+
+    // Skip deals without associated company
     if (!clientId) {
       return null;
     }
@@ -522,7 +549,7 @@ async function performHubSpotSync(options: {
       client_id: clientId,
       title: props.dealname || `Deal ${deal.id}`,
       amount,
-      stage: mapHubSpotStage(props.dealstage),
+      stage: mappedStage,
       probability,
       close_date: parseDate(props.closedate),
       pipeline: props.pipeline || null,
