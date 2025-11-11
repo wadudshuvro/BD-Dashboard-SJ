@@ -2454,6 +2454,57 @@ export type Database = {
           },
         ]
       }
+      hubspot_sync_status: {
+        Row: {
+          companies_synced: number | null
+          completed_at: string | null
+          contacts_synced: number | null
+          created_at: string
+          deals_synced: number | null
+          error_message: string | null
+          id: string
+          metadata: Json | null
+          started_at: string
+          status: string
+          sync_type: string
+          total_items_synced: number | null
+          triggered_by: string | null
+          updated_at: string
+        }
+        Insert: {
+          companies_synced?: number | null
+          completed_at?: string | null
+          contacts_synced?: number | null
+          created_at?: string
+          deals_synced?: number | null
+          error_message?: string | null
+          id?: string
+          metadata?: Json | null
+          started_at?: string
+          status?: string
+          sync_type?: string
+          total_items_synced?: number | null
+          triggered_by?: string | null
+          updated_at?: string
+        }
+        Update: {
+          companies_synced?: number | null
+          completed_at?: string | null
+          contacts_synced?: number | null
+          created_at?: string
+          deals_synced?: number | null
+          error_message?: string | null
+          id?: string
+          metadata?: Json | null
+          started_at?: string
+          status?: string
+          sync_type?: string
+          total_items_synced?: number | null
+          triggered_by?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       integrations: {
         Row: {
           config: Json | null

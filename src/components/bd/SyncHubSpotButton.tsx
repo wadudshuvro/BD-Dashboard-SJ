@@ -1,7 +1,7 @@
 import { RefreshCw, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { useSyncHubSpot } from '@/hooks/useSyncHubSpot';
+import { useHubspotSyncWithStatus } from '@/hooks/useHubspotSyncWithStatus';
 import { useHubSpotStatus } from '@/hooks/useHubSpotStatus';
 import { formatRelativeTime } from '@/lib/utils';
 import {
@@ -23,12 +23,16 @@ import {
 } from '@/components/ui/tooltip';
 import { format } from 'date-fns';
 
-export function SyncHubSpotButton() {
-  const { syncHubSpot, isSyncing } = useSyncHubSpot();
+interface SyncHubSpotButtonProps {
+  syncType?: 'full' | 'deals-only';
+}
+
+export function SyncHubSpotButton({ syncType = 'full' }: SyncHubSpotButtonProps) {
+  const { isSyncing, startSync } = useHubspotSyncWithStatus();
   const { isConfigured, isActive, lastSync, isLoading } = useHubSpotStatus();
 
   const handleSync = async () => {
-    await syncHubSpot();
+    await startSync(syncType);
   };
 
   const getStatusBadge = () => {
@@ -100,8 +104,19 @@ export function SyncHubSpotButton() {
             <AlertDialogDescription>
               {isConfigured && isActive ? (
                 <>
-                  This will import companies, contacts, and deals from HubSpot CRM to your BD database.
-                  Existing records will be updated with the latest information.
+                  {syncType === 'deals-only' ? (
+                    <>
+                      This will import <strong>deals only</strong> from HubSpot CRM to your BD database.
+                      Existing deals will be updated with the latest information.
+                      <br/><br/>
+                      <em>Companies and contacts will not be synced.</em>
+                    </>
+                  ) : (
+                    <>
+                      This will import <strong>companies, contacts, and deals</strong> from HubSpot CRM to your BD database.
+                      Existing records will be updated with the latest information.
+                    </>
+                  )}
                 </>
               ) : (
                 <>

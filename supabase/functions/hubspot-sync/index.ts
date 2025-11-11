@@ -3,6 +3,10 @@ import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supa
 import { corsHeaders } from "../_shared/cors.ts";
 import { decryptSecret, encryptSecret } from "../_shared/crypto.ts";
 
+declare const EdgeRuntime: {
+  waitUntil(promise: Promise<unknown>): void;
+};
+
 type HubSpotIntegration = {
   id: string;
   is_active: boolean;
@@ -290,6 +294,8 @@ async function performHubSpotSync(options: {
   integration?: HubSpotIntegration;
   token?: string;
   triggeredBy?: TriggerSource;
+  syncType?: 'full' | 'deals-only';
+  syncId?: string;
 } = {}): Promise<SyncResult> {
   const supabase = options.supabase ?? await createSupabaseClient();
   let integration = options.integration;
@@ -302,13 +308,24 @@ async function performHubSpotSync(options: {
   }
 
   const now = new Date().toISOString();
+  const syncType = options.syncType ?? 'full';
+  const syncId = options.syncId;
 
-  console.log(`[HubSpot Sync] Fetching companies and contacts...`);
-  
-  const [companies, contacts] = await Promise.all([
-    fetchPagedObjects(token, "companies", HUBSPOT_COMPANY_PROPERTIES),
-    fetchPagedObjects(token, "contacts", HUBSPOT_CONTACT_PROPERTIES, ["companies"])
-  ]);
+  console.log(`[HubSpot Sync] Starting ${syncType} sync (ID: ${syncId || 'N/A'})...`);
+
+  let companies: HubSpotObject[] = [];
+  let contacts: HubSpotObject[] = [];
+
+  // Conditionally fetch based on sync type
+  if (syncType === 'full') {
+    console.log(`[HubSpot Sync] Fetching companies and contacts...`);
+    [companies, contacts] = await Promise.all([
+      fetchPagedObjects(token, "companies", HUBSPOT_COMPANY_PROPERTIES),
+      fetchPagedObjects(token, "contacts", HUBSPOT_CONTACT_PROPERTIES, ["companies"])
+    ]);
+  } else {
+    console.log(`[HubSpot Sync] Skipping companies and contacts (${syncType} mode)`);
+  }
 
   console.log(`[HubSpot Sync] Fetching deals from ${HUBSPOT_STAGES.length} HubSpot stages sequentially...`);
 
@@ -353,7 +370,8 @@ async function performHubSpotSync(options: {
     }
   });
 
-  if (companies.length > 0) {
+  // Process companies and contacts only if fetched
+  if (syncType === 'full' && companies.length > 0) {
     const clientRows = companies.map((company) => {
       const props = company.properties ?? {};
       return {
@@ -396,7 +414,7 @@ async function performHubSpotSync(options: {
     });
   }
 
-  const contactRows = contacts.map((contact) => {
+  const contactRows = syncType === 'full' ? contacts.map((contact) => {
     const props = contact.properties ?? {};
     const associatedCompany = contact.associations?.companies?.results?.[0]?.id;
     return {
@@ -412,9 +430,9 @@ async function performHubSpotSync(options: {
       hubspot_sync_status: "synced",
       hubspot_last_sync: now,
     } as Record<string, unknown>;
-  });
+  }) : [];
 
-  if (contactRows.length > 0) {
+  if (syncType === 'full' && contactRows.length > 0) {
     const { error: contactsError } = await supabase
       .from("contacts")
       .upsert(contactRows, { onConflict: "hubspot_id" });
@@ -592,14 +610,106 @@ async function handleStatus(): Promise<Response> {
   }
 }
 
-async function handleSync(): Promise<Response> {
+async function handleSync(req?: Request): Promise<Response> {
   const headers = { ...corsHeaders, "Content-Type": "application/json" };
+  
   try {
-    const result = await performHubSpotSync({ triggeredBy: "manual" });
-    return new Response(JSON.stringify({ ok: true, ...result }), { headers });
+    // Parse request body for syncType
+    let syncType: 'full' | 'deals-only' = 'full';
+    if (req && req.method === 'POST') {
+      try {
+        const body = await req.json();
+        syncType = body?.syncType === 'deals-only' ? 'deals-only' : 'full';
+      } catch {
+        // No body or invalid JSON, use default
+      }
+    }
+
+    const supabase = await createSupabaseClient();
+
+    // Create sync status record
+    const { data: syncRecord, error: syncError } = await supabase
+      .from('hubspot_sync_status')
+      .insert({
+        sync_type: syncType,
+        status: 'in_progress',
+        started_at: new Date().toISOString(),
+        triggered_by: 'manual'
+      })
+      .select()
+      .single();
+
+    if (syncError) {
+      throw new Error(`Failed to create sync record: ${syncError.message}`);
+    }
+
+    const syncId = syncRecord.id;
+
+    // Return immediately with sync ID
+    const immediateResponse = new Response(
+      JSON.stringify({ 
+        ok: true, 
+        syncId,
+        syncType,
+        message: `HubSpot ${syncType} sync started in background`
+      }),
+      { headers, status: 200 }
+    );
+
+    // Start background sync using EdgeRuntime.waitUntil
+    EdgeRuntime.waitUntil((async () => {
+      try {
+        console.log(`[HubSpot Sync] Starting background ${syncType} sync (ID: ${syncId})`);
+        
+        // Perform actual sync
+        const result = await performHubSpotSync({ 
+          triggeredBy: "manual",
+          syncType,
+          syncId,
+          supabase
+        });
+
+        // Update status record on success
+        await supabase
+          .from('hubspot_sync_status')
+          .update({
+            status: 'completed',
+            completed_at: new Date().toISOString(),
+            total_items_synced: result.companies + result.contacts + result.deals,
+            companies_synced: result.companies,
+            contacts_synced: result.contacts,
+            deals_synced: result.deals,
+            metadata: {
+              pipelineValue: result.pipelineValue,
+              lastSync: result.lastSync
+            }
+          })
+          .eq('id', syncId);
+
+        console.log(`[HubSpot Sync] Background sync completed (ID: ${syncId})`);
+      } catch (error) {
+        console.error('[HubSpot Sync] Background sync failed:', error);
+
+        // Update status record on failure
+        await supabase
+          .from('hubspot_sync_status')
+          .update({
+            status: 'failed',
+            completed_at: new Date().toISOString(),
+            error_message: error instanceof Error ? error.message : 'Unknown error'
+          })
+          .eq('id', syncId);
+      }
+    })());
+
+    return immediateResponse;
+
   } catch (error) {
     console.error("[HubSpot Sync]", error);
-    return new Response(JSON.stringify({ ok: false, error: error instanceof Error ? error.message : "Unknown error" }), {
+    return new Response(JSON.stringify({ 
+      ok: false, 
+      error: error instanceof Error ? error.message : "Unknown error" 
+    }), {
       headers,
       status: 500,
     });
@@ -989,12 +1099,12 @@ serve(async (req) => {
   }
 
   if (req.method === "POST" && pathname === "/sync") {
-    return handleSync();
+    return handleSync(req);
   }
   
   // Handle POST at root path to trigger sync
   if (req.method === "POST" && pathname === "/") {
-    return handleSync();
+    return handleSync(req);
   }
 
   if (req.method === "POST" && pathname === "/webhook") {
