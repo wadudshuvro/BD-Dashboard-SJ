@@ -8,7 +8,7 @@ import { Trash2, GripVertical, Mail, Linkedin, Phone, MessageSquare } from "luci
 interface SequenceStepInsert {
   sequence_id?: string;
   step_order: number;
-  channel: string;
+  channel: 'email' | 'linkedin_connection' | 'linkedin_message' | 'phone_call' | 'manual_task';
   delay_value: number;
   delay_unit: 'days' | 'hours' | 'minutes';
   content_template: {
@@ -29,9 +29,10 @@ interface SequenceStepCardProps {
 
 const channelIcons = {
   email: Mail,
-  linkedin: Linkedin,
-  phone: Phone,
-  sms: MessageSquare,
+  linkedin_connection: Linkedin,
+  linkedin_message: Linkedin,
+  phone_call: Phone,
+  manual_task: MessageSquare,
 };
 
 export function SequenceStepCard({ step, stepNumber, onUpdate, onRemove }: SequenceStepCardProps) {
@@ -53,16 +54,17 @@ export function SequenceStepCard({ step, stepNumber, onUpdate, onRemove }: Seque
               {Icon && <Icon className="h-5 w-5 text-muted-foreground" />}
               <Select
                 value={step.channel}
-                onValueChange={(value) => onUpdate({ channel: value })}
+                onValueChange={(value) => onUpdate({ channel: value as 'email' | 'linkedin_connection' | 'linkedin_message' | 'phone_call' | 'manual_task' })}
               >
                 <SelectTrigger className="w-[180px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="email">Email</SelectItem>
-                  <SelectItem value="linkedin">LinkedIn</SelectItem>
-                  <SelectItem value="phone">Phone Call</SelectItem>
-                  <SelectItem value="sms">SMS</SelectItem>
+                  <SelectItem value="linkedin_connection">LinkedIn Connection Request</SelectItem>
+                  <SelectItem value="linkedin_message">LinkedIn Message</SelectItem>
+                  <SelectItem value="phone_call">Phone Call</SelectItem>
+                  <SelectItem value="manual_task">Manual Task</SelectItem>
                 </SelectContent>
               </Select>
             </div>

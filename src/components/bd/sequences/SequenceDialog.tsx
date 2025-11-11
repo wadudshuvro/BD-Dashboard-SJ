@@ -11,7 +11,7 @@ import type { SequenceWithSteps } from "@/Api/sequences";
 interface SequenceStepInsert {
   sequence_id?: string;
   step_order: number;
-  channel: string;
+  channel: 'email' | 'linkedin_connection' | 'linkedin_message' | 'phone_call' | 'manual_task';
   delay_value: number;
   delay_unit: 'days' | 'hours' | 'minutes';
   content_template: {
@@ -46,7 +46,10 @@ export function SequenceDialog({ open, onOpenChange, campaignId, sequence }: Seq
       setName(sequence.name);
       setDescription(sequence.description || "");
       setSelectedCampaignId(sequence.campaign_id || undefined);
-      setSteps(sequence.sequence_steps || []);
+      setSteps((sequence.sequence_steps || []).map(step => ({
+        ...step,
+        channel: step.channel as 'email' | 'linkedin_connection' | 'linkedin_message' | 'phone_call' | 'manual_task'
+      })));
     } else {
       setName("");
       setDescription("");

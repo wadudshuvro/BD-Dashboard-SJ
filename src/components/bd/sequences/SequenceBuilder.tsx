@@ -8,7 +8,7 @@ import { SequenceStepCard } from "./SequenceStepCard";
 interface SequenceStepInsert {
   sequence_id?: string;
   step_order: number;
-  channel: string;
+  channel: 'email' | 'linkedin_connection' | 'linkedin_message' | 'phone_call' | 'manual_task';
   delay_value: number;
   delay_unit: 'days' | 'hours' | 'minutes';
   content_template: {
