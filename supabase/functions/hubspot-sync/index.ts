@@ -307,86 +307,31 @@ function parseTimestamp(value: unknown): string | null {
   return null;
 }
 
-// Extract domain from URL
-function extractDomain(url: string | null | undefined): string | null {
-  if (!url) return null;
-  try {
-    const cleaned = url.toLowerCase().trim().replace(/^https?:\/\//i, '').replace(/^www\./i, '');
-    const domain = cleaned.split('/')[0].split('?')[0];
-    return domain || null;
-  } catch {
-    return null;
-  }
-}
-
-// Normalize company name for matching
-function normalizeCompanyName(name: string | null | undefined): string | null {
-  if (!name) return null;
-  return name.toLowerCase().trim().replace(/\s+/g, ' ');
-}
-
-// Generate a unique key for company matching (prefer domain, fallback to name)
-function generateCompanyKey(company: { domain?: string; website?: string; name?: string }): string | null {
-  const domain = extractDomain(company.domain || company.website);
-  if (domain) return `domain:${domain}`;
-  
-  const normalizedName = normalizeCompanyName(company.name);
-  if (normalizedName) return `name:${normalizedName}`;
-  
-  return null;
-}
-
-// Batch processing function for companies with merge logic
+// Batch processing function for companies
 async function fetchAndProcessCompaniesBatch(
   token: string,
   supabase: SupabaseClient,
   syncId: string | undefined,
   now: string
-): Promise<{ 
-  totalCompanies: number; 
-  clientMap: Map<string, string>;
-  companiesInserted: number;
-  companiesMerged: number;
-  duplicatesDetected: number;
-}> {
+): Promise<{ totalCompanies: number; clientMap: Map<string, string> }> {
   const BATCH_SIZE = 100;
   let totalCompanies = 0;
-  let companiesInserted = 0;
-  let companiesMerged = 0;
-  let duplicatesDetected = 0;
   let after: string | undefined;
   const clientMap = new Map<string, string>();
 
-  // Load existing clients into map by hubspot_id, domain, and normalized name
+  // Load existing clients into map
   const { data: existingClients } = await supabase
     .from("clients")
-    .select("id, hubspot_id, company, website");
+    .select("id, hubspot_id")
+    .not("hubspot_id", "is", null);
 
-  const existingByHubspotId = new Map<string, any>();
-  const existingByDomain = new Map<string, any>();
-  const existingByName = new Map<string, any>();
-
-  existingClients?.forEach((client: any) => {
-    if (client.hubspot_id) {
-      existingByHubspotId.set(client.hubspot_id, client);
-      clientMap.set(client.hubspot_id, client.id);
-    }
-    
-    const domain = extractDomain(client.website);
-    if (domain && !existingByDomain.has(domain)) {
-      existingByDomain.set(domain, client);
-    }
-    
-    const normalizedName = normalizeCompanyName(client.company);
-    if (normalizedName && !existingByName.has(normalizedName)) {
-      existingByName.set(normalizedName, client);
+  existingClients?.forEach((row: any) => {
+    if (row.hubspot_id) {
+      clientMap.set(row.hubspot_id, row.id);
     }
   });
 
   console.log(`[HubSpot Sync] Starting batch processing for companies (batch size: ${BATCH_SIZE})`);
-  console.log(`[HubSpot Sync] Loaded ${existingByHubspotId.size} existing clients by HubSpot ID`);
-  console.log(`[HubSpot Sync] Loaded ${existingByDomain.size} existing clients by domain`);
-  console.log(`[HubSpot Sync] Loaded ${existingByName.size} existing clients by name`);
 
   do {
     const url = new URL(`https://api.hubapi.com/crm/v3/objects/companies`);
@@ -412,45 +357,11 @@ async function fetchAndProcessCompaniesBatch(
     const batchCompanies = payload.results || [];
 
     if (batchCompanies.length > 0) {
-      const toInsert: any[] = [];
-      const toUpdate: any[] = [];
-      const batchKeysSeen = new Set<string>();
-
-      // Process each company in the batch
-      for (const company of batchCompanies) {
+      // Process this batch
+      const clientRows = batchCompanies.map((company: HubSpotObject) => {
         const props = company.properties ?? {};
-        const hubspotId = company.id;
-        const domain = extractDomain(props.website || props.domain);
-        const normalizedName = normalizeCompanyName(props.name);
-        const companyKey = generateCompanyKey({ 
-          domain: props.domain, 
-          website: props.website, 
-          name: props.name 
-        });
-
-        // Check for intra-batch duplicates
-        if (companyKey && batchKeysSeen.has(companyKey)) {
-          console.log(`[HubSpot Sync] Intra-batch duplicate detected: ${props.name} (${companyKey})`);
-          duplicatesDetected++;
-          continue;
-        }
-        if (companyKey) {
-          batchKeysSeen.add(companyKey);
-        }
-
-        // Check if this company already exists (by hubspot_id, domain, or name)
-        let existingClient = existingByHubspotId.get(hubspotId);
-        
-        if (!existingClient && domain) {
-          existingClient = existingByDomain.get(domain);
-        }
-        
-        if (!existingClient && normalizedName) {
-          existingClient = existingByName.get(normalizedName);
-        }
-
-        const companyData = {
-          hubspot_id: hubspotId,
+        return {
+          hubspot_id: company.id,
           name: props.name || "Unknown Company",
           company: props.name || null,
           website: props.website || props.domain || null,
@@ -466,128 +377,34 @@ async function fetchAndProcessCompaniesBatch(
           employee_count: parseNumber(props.numberofemployees),
           notes: props.description || null,
           status: "active"
-        };
+        } as Record<string, unknown>;
+      });
 
-        if (existingClient) {
-          // Merge into existing client
-          toUpdate.push({
-            ...companyData,
-            id: existingClient.id
-          });
-          
-          // Update maps
-          clientMap.set(hubspotId, existingClient.id);
-          existingByHubspotId.set(hubspotId, existingClient);
-          
-          companiesMerged++;
-          console.log(`[HubSpot Sync] Merging: ${props.name} → existing client ${existingClient.id}`);
-        } else {
-          // New company - will be inserted
-          toInsert.push(companyData);
-        }
+      // Upsert this batch
+      const { data: upsertedClients, error: clientError } = await supabase
+        .from("clients")
+        .upsert(clientRows, { onConflict: "hubspot_id" })
+        .select("id, hubspot_id");
+
+      if (clientError) {
+        throw clientError;
       }
 
-      // Perform bulk operations with error handling
-      try {
-        // Update existing clients
-        if (toUpdate.length > 0) {
-          for (const client of toUpdate) {
-            const { error } = await supabase
-              .from("clients")
-              .update(client)
-              .eq("id", client.id);
-            
-            if (error) {
-              console.error(`[HubSpot Sync] Error updating client ${client.id}:`, error);
-            }
-          }
+      // Update client map
+      upsertedClients?.forEach((row: any) => {
+        if (row.hubspot_id) {
+          clientMap.set(row.hubspot_id, row.id);
         }
-
-        // Insert new clients
-        if (toInsert.length > 0) {
-          const { data: insertedClients, error: insertError } = await supabase
-            .from("clients")
-            .upsert(toInsert, { onConflict: "hubspot_id" })
-            .select("id, hubspot_id");
-
-          if (insertError) {
-            // Defensive fallback: handle duplicate key violations
-            if (insertError.code === '23505') {
-              console.warn(`[HubSpot Sync] Duplicate key violation detected, falling back to per-row processing`);
-              
-              for (const clientData of toInsert) {
-                try {
-                  // Try to find existing by normalized name
-                  const normalizedName = normalizeCompanyName(clientData.company);
-                  if (normalizedName) {
-                    const { data: existing } = await supabase
-                      .from("clients")
-                      .select("id")
-                      .ilike("company", clientData.company)
-                      .maybeSingle();
-                    
-                    if (existing) {
-                      // Update existing instead of inserting
-                      await supabase
-                        .from("clients")
-                        .update(clientData)
-                        .eq("id", existing.id);
-                      
-                      clientMap.set(clientData.hubspot_id, existing.id);
-                      companiesMerged++;
-                      console.log(`[HubSpot Sync] Fallback merge: ${clientData.name} → ${existing.id}`);
-                      continue;
-                    }
-                  }
-                  
-                  // If still no match, try insert again
-                  const { data: inserted } = await supabase
-                    .from("clients")
-                    .upsert([clientData], { onConflict: "hubspot_id" })
-                    .select("id, hubspot_id")
-                    .single();
-                  
-                  if (inserted) {
-                    clientMap.set(inserted.hubspot_id, inserted.id);
-                    companiesInserted++;
-                  }
-                } catch (err) {
-                  console.error(`[HubSpot Sync] Failed to process company ${clientData.name}:`, err);
-                }
-              }
-            } else {
-              throw insertError;
-            }
-          } else {
-            // Update client map with newly inserted clients
-            insertedClients?.forEach((row: any) => {
-              if (row.hubspot_id) {
-                clientMap.set(row.hubspot_id, row.id);
-              }
-            });
-            companiesInserted += toInsert.length;
-          }
-        }
-      } catch (error) {
-        console.error(`[HubSpot Sync] Error processing batch:`, error);
-        throw error;
-      }
+      });
 
       totalCompanies += batchCompanies.length;
-      console.log(`[HubSpot Sync] Processed ${batchCompanies.length} companies (inserted: ${toInsert.length}, merged: ${toUpdate.length}, total: ${totalCompanies})`);
+      console.log(`[HubSpot Sync] Processed ${batchCompanies.length} companies (total: ${totalCompanies})`);
 
       // Update sync status
       if (syncId) {
         await supabase
           .from('hubspot_sync_status')
-          .update({ 
-            companies_synced: totalCompanies,
-            metadata: {
-              companies_inserted: companiesInserted,
-              companies_merged: companiesMerged,
-              duplicates_detected: duplicatesDetected
-            }
-          })
+          .update({ companies_synced: totalCompanies })
           .eq('id', syncId);
       }
     }
@@ -600,19 +417,8 @@ async function fetchAndProcessCompaniesBatch(
     }
   } while (after);
 
-  console.log(`[HubSpot Sync] ✅ Companies batch processing complete`);
-  console.log(`[HubSpot Sync]    Total processed: ${totalCompanies}`);
-  console.log(`[HubSpot Sync]    Inserted: ${companiesInserted}`);
-  console.log(`[HubSpot Sync]    Merged: ${companiesMerged}`);
-  console.log(`[HubSpot Sync]    Duplicates detected: ${duplicatesDetected}`);
-  
-  return { 
-    totalCompanies, 
-    clientMap,
-    companiesInserted,
-    companiesMerged,
-    duplicatesDetected
-  };
+  console.log(`[HubSpot Sync] ✅ Companies batch processing complete: ${totalCompanies} total`);
+  return { totalCompanies, clientMap };
 }
 
 // Batch processing function for contacts
@@ -732,21 +538,15 @@ async function performHubSpotSync(options: {
 
   let totalCompanies = 0;
   let totalContacts = 0;
-  let companiesInserted = 0;
-  let companiesMerged = 0;
-  let duplicatesDetected = 0;
   let clientMap = new Map<string, string>();
 
   // Conditionally fetch and process based on sync type with batch processing
   if (syncType === 'full') {
     console.log(`[HubSpot Sync] Starting batch processing for companies and contacts...`);
     
-    // Process companies in batches with merge logic
+    // Process companies in batches
     const companyResult = await fetchAndProcessCompaniesBatch(token, supabase, syncId, now);
     totalCompanies = companyResult.totalCompanies;
-    companiesInserted = companyResult.companiesInserted;
-    companiesMerged = companyResult.companiesMerged;
-    duplicatesDetected = companyResult.duplicatesDetected;
     clientMap = companyResult.clientMap;
     
     // Process contacts in batches
@@ -919,7 +719,7 @@ async function performHubSpotSync(options: {
     .update({ last_sync: now })
     .eq("id", integration!.id);
 
-  // Log sync to control_tower_sync_log with merge metrics
+  // Log sync to control_tower_sync_log
   await supabase
     .from("control_tower_sync_log")
     .insert({
@@ -929,9 +729,6 @@ async function performHubSpotSync(options: {
       synced_at: now,
       payload: {
         companies: totalCompanies,
-        companies_inserted: companiesInserted,
-        companies_merged: companiesMerged,
-        duplicates_detected: duplicatesDetected,
         contacts: totalContacts,
         deals: dealRows.length,
         pipelineValue: pipelineValue,
@@ -940,10 +737,9 @@ async function performHubSpotSync(options: {
       created_at: now,
     });
 
-  // Log summary with merge metrics
+  // Log summary
   console.log(`[HubSpot Sync] ✅ Sync completed successfully`);
-  console.log(`[HubSpot Sync] Companies: ${totalCompanies} (${companiesInserted} inserted, ${companiesMerged} merged, ${duplicatesDetected} duplicates)`);
-  console.log(`[HubSpot Sync] Contacts: ${totalContacts}, Deals: ${dealRows.length}`);
+  console.log(`[HubSpot Sync] Companies: ${totalCompanies}, Contacts: ${totalContacts}, Deals: ${dealRows.length}`);
   console.log(`[HubSpot Sync] Pipeline Value: $${pipelineValue.toLocaleString()}`);
 
   return {

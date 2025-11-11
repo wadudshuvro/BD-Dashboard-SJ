@@ -108,9 +108,6 @@ const App = () => (
               </ProtectedRoute>
             }>
               <Route index element={<AdminPanel />} />
-              <Route path="brands" element={<BrandManagement />} />
-              <Route path="users" element={<UserManagement />} />
-              <Route path="users/:userId" element={<UserDetail />} />
               <Route
                 path="feedback"
                 element={<React.Suspense fallback={<div>Loading...</div>}><AdminFeedbackManager /></React.Suspense>}
@@ -149,8 +146,6 @@ const App = () => (
             }>
               <Route index element={<Navigate to="/bd/dashboard" replace />} />
               <Route path="dashboard" element={<BDDashboard />} />
-              <Route path="brands" element={<BrandsOverview />} />
-              <Route path="brands/:slug" element={<BrandDetail />} />
               
               {/* My Agents */}
               <Route path="my-agents" element={<MyAgentsPage />} />
