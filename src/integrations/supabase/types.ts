@@ -1045,6 +1045,50 @@ export type Database = {
           },
         ]
       }
+      campaign_sequences: {
+        Row: {
+          campaign_id: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          name: string
+          status: string
+          trigger_condition: Json | null
+          updated_at: string
+        }
+        Insert: {
+          campaign_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          status?: string
+          trigger_condition?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          campaign_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          status?: string
+          trigger_condition?: Json | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_sequences_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "bd_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       checklist_template_items: {
         Row: {
           created_at: string
@@ -1436,6 +1480,73 @@ export type Database = {
             columns: ["conversation_id"]
             isOneToOne: false
             referencedRelation: "collabai_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contact_sequence_enrollments: {
+        Row: {
+          contact_id: string
+          created_at: string
+          current_step_id: string | null
+          enrolled_at: string
+          exit_reason: string | null
+          id: string
+          last_step_executed_at: string | null
+          metadata: Json | null
+          next_step_scheduled_at: string | null
+          sequence_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          contact_id: string
+          created_at?: string
+          current_step_id?: string | null
+          enrolled_at?: string
+          exit_reason?: string | null
+          id?: string
+          last_step_executed_at?: string | null
+          metadata?: Json | null
+          next_step_scheduled_at?: string | null
+          sequence_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          contact_id?: string
+          created_at?: string
+          current_step_id?: string | null
+          enrolled_at?: string
+          exit_reason?: string | null
+          id?: string
+          last_step_executed_at?: string | null
+          metadata?: Json | null
+          next_step_scheduled_at?: string | null
+          sequence_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_sequence_enrollments_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_sequence_enrollments_current_step_id_fkey"
+            columns: ["current_step_id"]
+            isOneToOne: false
+            referencedRelation: "sequence_steps"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_sequence_enrollments_sequence_id_fkey"
+            columns: ["sequence_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_sequences"
             referencedColumns: ["id"]
           },
         ]
@@ -3189,6 +3300,186 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sequence_execution_log: {
+        Row: {
+          channel_used: string | null
+          enrollment_id: string
+          error_message: string | null
+          executed_at: string
+          execution_metadata: Json | null
+          id: string
+          message_sent: string | null
+          response_data: Json | null
+          response_received: boolean | null
+          status: string
+          step_id: string
+        }
+        Insert: {
+          channel_used?: string | null
+          enrollment_id: string
+          error_message?: string | null
+          executed_at?: string
+          execution_metadata?: Json | null
+          id?: string
+          message_sent?: string | null
+          response_data?: Json | null
+          response_received?: boolean | null
+          status: string
+          step_id: string
+        }
+        Update: {
+          channel_used?: string | null
+          enrollment_id?: string
+          error_message?: string | null
+          executed_at?: string
+          execution_metadata?: Json | null
+          id?: string
+          message_sent?: string | null
+          response_data?: Json | null
+          response_received?: boolean | null
+          status?: string
+          step_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sequence_execution_log_enrollment_id_fkey"
+            columns: ["enrollment_id"]
+            isOneToOne: false
+            referencedRelation: "contact_sequence_enrollments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sequence_execution_log_step_id_fkey"
+            columns: ["step_id"]
+            isOneToOne: false
+            referencedRelation: "sequence_steps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sequence_rate_limits: {
+        Row: {
+          channel: string
+          cooldown_minutes: number
+          created_at: string
+          id: string
+          max_per_day: number
+          max_per_hour: number
+          max_per_minute: number
+          updated_at: string
+        }
+        Insert: {
+          channel: string
+          cooldown_minutes?: number
+          created_at?: string
+          id?: string
+          max_per_day?: number
+          max_per_hour?: number
+          max_per_minute?: number
+          updated_at?: string
+        }
+        Update: {
+          channel?: string
+          cooldown_minutes?: number
+          created_at?: string
+          id?: string
+          max_per_day?: number
+          max_per_hour?: number
+          max_per_minute?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      sequence_rules: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          priority: number
+          rule_config: Json
+          rule_type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          priority?: number
+          rule_config?: Json
+          rule_type: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          priority?: number
+          rule_config?: Json
+          rule_type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      sequence_steps: {
+        Row: {
+          ai_personalization_enabled: boolean | null
+          channel: string
+          conditions: Json | null
+          content_template: Json
+          created_at: string
+          delay_unit: string
+          delay_value: number
+          fallback_step_id: string | null
+          id: string
+          sequence_id: string
+          step_order: number
+          updated_at: string
+        }
+        Insert: {
+          ai_personalization_enabled?: boolean | null
+          channel: string
+          conditions?: Json | null
+          content_template?: Json
+          created_at?: string
+          delay_unit?: string
+          delay_value?: number
+          fallback_step_id?: string | null
+          id?: string
+          sequence_id: string
+          step_order: number
+          updated_at?: string
+        }
+        Update: {
+          ai_personalization_enabled?: boolean | null
+          channel?: string
+          conditions?: Json | null
+          content_template?: Json
+          created_at?: string
+          delay_unit?: string
+          delay_value?: number
+          fallback_step_id?: string | null
+          id?: string
+          sequence_id?: string
+          step_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sequence_steps_fallback_step_id_fkey"
+            columns: ["fallback_step_id"]
+            isOneToOne: false
+            referencedRelation: "sequence_steps"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sequence_steps_sequence_id_fkey"
+            columns: ["sequence_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_sequences"
             referencedColumns: ["id"]
           },
         ]
