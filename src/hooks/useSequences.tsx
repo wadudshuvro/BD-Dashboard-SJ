@@ -11,14 +11,14 @@ interface SequenceUpdate {
 
 export function useSequences(campaignId?: string) {
   return useQuery({
-    queryKey: ['sequences', campaignId],
+    queryKey: ['campaign-sequences', campaignId],
     queryFn: () => sequencesApi.listSequences(campaignId),
   });
 }
 
 export function useSequence(id: string) {
   return useQuery({
-    queryKey: ['sequence', id],
+    queryKey: ['campaign-sequence', id],
     queryFn: () => sequencesApi.getSequence(id),
     enabled: !!id,
   });
@@ -30,7 +30,7 @@ export function useCreateSequence() {
   return useMutation({
     mutationFn: (payload: CreateSequencePayload) => sequencesApi.createSequence(payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['sequences'] });
+      queryClient.invalidateQueries({ queryKey: ['campaign-sequences'] });
       toast.success("Sequence created successfully");
     },
     onError: (error: any) => {
@@ -48,8 +48,8 @@ export function useUpdateSequence() {
     mutationFn: ({ id, updates }: { id: string; updates: SequenceUpdate }) => 
       sequencesApi.updateSequence(id, updates),
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['sequences'] });
-      queryClient.invalidateQueries({ queryKey: ['sequence', variables.id] });
+      queryClient.invalidateQueries({ queryKey: ['campaign-sequences'] });
+      queryClient.invalidateQueries({ queryKey: ['campaign-sequence', variables.id] });
       toast.success("Sequence updated successfully");
     },
     onError: (error: any) => {
@@ -66,7 +66,7 @@ export function useDeleteSequence() {
   return useMutation({
     mutationFn: (id: string) => sequencesApi.deleteSequence(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['sequences'] });
+      queryClient.invalidateQueries({ queryKey: ['campaign-sequences'] });
       toast.success("Sequence deleted successfully");
     },
     onError: (error: any) => {
@@ -84,8 +84,8 @@ export function useToggleSequence() {
     mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) => 
       sequencesApi.toggleSequence(id, isActive),
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['sequences'] });
-      queryClient.invalidateQueries({ queryKey: ['sequence', variables.id] });
+      queryClient.invalidateQueries({ queryKey: ['campaign-sequences'] });
+      queryClient.invalidateQueries({ queryKey: ['campaign-sequence', variables.id] });
       toast.success(variables.isActive ? "Sequence activated" : "Sequence paused");
     },
     onError: (error: any) => {

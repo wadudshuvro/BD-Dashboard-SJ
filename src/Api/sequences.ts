@@ -34,7 +34,7 @@ export interface CreateSequencePayload {
 export const sequencesApi = {
   async listSequences(campaignId?: string) {
     let query = supabase
-      .from('outreach_sequences' as any)
+      .from('campaign_sequences')
       .select('*')
       .order('created_at', { ascending: false });
     
@@ -49,7 +49,7 @@ export const sequencesApi = {
 
   async getSequence(id: string) {
     const { data, error } = await supabase
-      .from('outreach_sequences' as any)
+      .from('campaign_sequences')
       .select('*')
       .eq('id', id)
       .single();
@@ -62,7 +62,7 @@ export const sequencesApi = {
     const { steps, ...sequenceData } = payload;
     
     const { data: sequence, error: seqError } = await supabase
-      .from('outreach_sequences' as any)
+      .from('campaign_sequences')
       .insert(sequenceData)
       .select()
       .single();
@@ -77,7 +77,7 @@ export const sequencesApi = {
       }));
       
       const { error: stepsError } = await supabase
-        .from('outreach_sequence_steps' as any)
+        .from('sequence_steps')
         .insert(stepsWithSeqId);
       
       if (stepsError) throw stepsError;
@@ -88,7 +88,7 @@ export const sequencesApi = {
 
   async updateSequence(id: string, updates: any) {
     const { data, error } = await supabase
-      .from('outreach_sequences' as any)
+      .from('campaign_sequences')
       .update(updates)
       .eq('id', id)
       .select()
@@ -100,7 +100,7 @@ export const sequencesApi = {
 
   async deleteSequence(id: string) {
     const { error } = await supabase
-      .from('outreach_sequences' as any)
+      .from('campaign_sequences')
       .delete()
       .eq('id', id);
     
