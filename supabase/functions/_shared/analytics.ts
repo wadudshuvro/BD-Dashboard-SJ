@@ -1,5 +1,3 @@
-import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
-
 export interface AnalyticsMetricInput {
   metric_name: string;
   metric_value: number;
@@ -13,7 +11,7 @@ interface InsertOptions {
 }
 
 export async function insertAnalyticsMetrics(
-  client: SupabaseClient,
+  client: any,
   metrics: AnalyticsMetricInput[],
   options: InsertOptions = {},
 ): Promise<void> {
