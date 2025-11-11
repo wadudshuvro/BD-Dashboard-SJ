@@ -50,6 +50,9 @@ import ClientDetail from "./pages/bd/ClientDetail";
 import ChecklistTemplateManager from "./pages/admin/ChecklistTemplateManager";
 import ControlTowerSyncDashboard from "./pages/admin/ControlTowerSyncDashboard";
 import LeadDetail from "./pages/bd/LeadDetail";
+import AnalyticsDashboard from "./pages/analytics/Dashboard";
+import TeamPerformance from "./pages/analytics/TeamPerformance";
+import CampaignROI from "./pages/bd/CampaignROI";
 
 const queryClient = new QueryClient();
 
@@ -253,6 +256,10 @@ const App = () => (
               <Route path="files" element={<DealFiles />} />
             </Route>
 
+            {/* Analytics Routes */}
+            <Route path="/analytics" element={<ProtectedRoute requiredMinimumRole="team_member"><AnalyticsDashboard /></ProtectedRoute>} />
+            <Route path="/analytics/team" element={<ProtectedRoute requiredMinimumRole="manager"><TeamPerformance /></ProtectedRoute>} />
+            
             {/* Campaigns at root level */}
             <Route path="/campaigns" element={
               <ProtectedRoute requiredMinimumRole="team_member">
@@ -261,6 +268,7 @@ const App = () => (
             }>
               <Route index element={<CampaignManagement />} />
               <Route path=":slug" element={<CampaignDetail />} />
+              <Route path=":slug/roi" element={<CampaignROI />} />
               <Route path=":campaignSlug/contacts/:contactSlug" element={<CampaignContactDetail />} />
             </Route>
 

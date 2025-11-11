@@ -295,6 +295,36 @@ export type Database = {
         }
         Relationships: []
       }
+      analytics_data: {
+        Row: {
+          created_at: string | null
+          dimensions: Json | null
+          id: string
+          metric_name: string
+          metric_value: number
+          recorded_at: string
+          source: string
+        }
+        Insert: {
+          created_at?: string | null
+          dimensions?: Json | null
+          id?: string
+          metric_name: string
+          metric_value: number
+          recorded_at?: string
+          source: string
+        }
+        Update: {
+          created_at?: string | null
+          dimensions?: Json | null
+          id?: string
+          metric_name?: string
+          metric_value?: number
+          recorded_at?: string
+          source?: string
+        }
+        Relationships: []
+      }
       bd_campaigns: {
         Row: {
           actual_contacts_reached: number | null
@@ -374,6 +404,148 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      brand_integrations: {
+        Row: {
+          brand_id: string
+          config: Json | null
+          created_at: string
+          id: string
+          integration_type: string
+          is_enabled: boolean
+          last_synced_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          brand_id: string
+          config?: Json | null
+          created_at?: string
+          id?: string
+          integration_type: string
+          is_enabled?: boolean
+          last_synced_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          brand_id?: string
+          config?: Json | null
+          created_at?: string
+          id?: string
+          integration_type?: string
+          is_enabled?: boolean
+          last_synced_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brand_integrations_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      brand_kpis: {
+        Row: {
+          brand_id: string
+          created_at: string
+          current_value: number | null
+          description: string | null
+          display_order: number
+          id: string
+          is_active: boolean
+          kpi_type: string
+          metadata: Json | null
+          name: string
+          source: string
+          target_value: number | null
+          updated_at: string
+        }
+        Insert: {
+          brand_id: string
+          created_at?: string
+          current_value?: number | null
+          description?: string | null
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          kpi_type?: string
+          metadata?: Json | null
+          name: string
+          source?: string
+          target_value?: number | null
+          updated_at?: string
+        }
+        Update: {
+          brand_id?: string
+          created_at?: string
+          current_value?: number | null
+          description?: string | null
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          kpi_type?: string
+          metadata?: Json | null
+          name?: string
+          source?: string
+          target_value?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brand_kpis_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      brands: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          logo_url: string | null
+          metadata: Json | null
+          monthly_budget: number | null
+          name: string
+          owner_id: string | null
+          slug: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          logo_url?: string | null
+          metadata?: Json | null
+          monthly_budget?: number | null
+          name: string
+          owner_id?: string | null
+          slug: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          logo_url?: string | null
+          metadata?: Json | null
+          monthly_budget?: number | null
+          name?: string
+          owner_id?: string | null
+          slug?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       campaign_brands: {
         Row: {
@@ -703,6 +875,65 @@ export type Database = {
             foreignKeyName: "campaign_contacts_campaign_id_fkey"
             columns: ["campaign_id"]
             isOneToOne: false
+            referencedRelation: "bd_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campaign_financial_data: {
+        Row: {
+          actual_spend: number | null
+          average_deal_value: number | null
+          campaign_id: string | null
+          cost_per_contact: number | null
+          cost_per_deal: number | null
+          cost_per_meeting: number | null
+          created_at: string | null
+          deals_revenue: number | null
+          id: string
+          last_calculated_at: string | null
+          projected_revenue: number | null
+          roi_percentage: number | null
+          total_budget: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          actual_spend?: number | null
+          average_deal_value?: number | null
+          campaign_id?: string | null
+          cost_per_contact?: number | null
+          cost_per_deal?: number | null
+          cost_per_meeting?: number | null
+          created_at?: string | null
+          deals_revenue?: number | null
+          id?: string
+          last_calculated_at?: string | null
+          projected_revenue?: number | null
+          roi_percentage?: number | null
+          total_budget?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          actual_spend?: number | null
+          average_deal_value?: number | null
+          campaign_id?: string | null
+          cost_per_contact?: number | null
+          cost_per_deal?: number | null
+          cost_per_meeting?: number | null
+          created_at?: string | null
+          deals_revenue?: number | null
+          id?: string
+          last_calculated_at?: string | null
+          projected_revenue?: number | null
+          roi_percentage?: number | null
+          total_budget?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_financial_data_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: true
             referencedRelation: "bd_campaigns"
             referencedColumns: ["id"]
           },
@@ -1823,6 +2054,7 @@ export type Database = {
       deals: {
         Row: {
           amount: number | null
+          brand_id: string | null
           category: string | null
           client_agent_folder: string | null
           client_agent_url: string | null
@@ -1876,6 +2108,7 @@ export type Database = {
         }
         Insert: {
           amount?: number | null
+          brand_id?: string | null
           category?: string | null
           client_agent_folder?: string | null
           client_agent_url?: string | null
@@ -1929,6 +2162,7 @@ export type Database = {
         }
         Update: {
           amount?: number | null
+          brand_id?: string | null
           category?: string | null
           client_agent_folder?: string | null
           client_agent_url?: string | null
@@ -1981,6 +2215,13 @@ export type Database = {
           workboard_ai_link?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "deals_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "deals_client_id_fkey"
             columns: ["client_id"]
@@ -3148,6 +3389,122 @@ export type Database = {
         }
         Relationships: []
       }
+      user_brands: {
+        Row: {
+          access_level: string
+          brand_id: string
+          can_edit_kpis: boolean
+          can_edit_settings: boolean
+          can_manage_team: boolean
+          can_view_kpis: boolean
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          access_level?: string
+          brand_id: string
+          can_edit_kpis?: boolean
+          can_edit_settings?: boolean
+          can_manage_team?: boolean
+          can_view_kpis?: boolean
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          access_level?: string
+          brand_id?: string
+          can_edit_kpis?: boolean
+          can_edit_settings?: boolean
+          can_manage_team?: boolean
+          can_view_kpis?: boolean
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_brands_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_performance_metrics: {
+        Row: {
+          ai_agents_run: number | null
+          campaigns_owned: number | null
+          contacts_reached: number | null
+          created_at: string | null
+          deals_closed: number | null
+          deals_created: number | null
+          deals_lost: number | null
+          deals_won: number | null
+          efficiency_rating: number | null
+          eod_submissions: number | null
+          id: string
+          meetings_booked: number | null
+          metric_period: string
+          performance_score: number | null
+          period_end: string
+          period_start: string
+          responses_received: number | null
+          tasks_completed: number | null
+          total_deal_value: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          ai_agents_run?: number | null
+          campaigns_owned?: number | null
+          contacts_reached?: number | null
+          created_at?: string | null
+          deals_closed?: number | null
+          deals_created?: number | null
+          deals_lost?: number | null
+          deals_won?: number | null
+          efficiency_rating?: number | null
+          eod_submissions?: number | null
+          id?: string
+          meetings_booked?: number | null
+          metric_period: string
+          performance_score?: number | null
+          period_end: string
+          period_start: string
+          responses_received?: number | null
+          tasks_completed?: number | null
+          total_deal_value?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          ai_agents_run?: number | null
+          campaigns_owned?: number | null
+          contacts_reached?: number | null
+          created_at?: string | null
+          deals_closed?: number | null
+          deals_created?: number | null
+          deals_lost?: number | null
+          deals_won?: number | null
+          efficiency_rating?: number | null
+          eod_submissions?: number | null
+          id?: string
+          meetings_booked?: number | null
+          metric_period?: string
+          performance_score?: number | null
+          period_end?: string
+          period_start?: string
+          responses_received?: number | null
+          tasks_completed?: number | null
+          total_deal_value?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_permissions: {
         Row: {
           can_create: boolean | null
@@ -3301,6 +3658,18 @@ export type Database = {
         }
         Returns: Json
       }
+      calculate_user_performance_metrics: {
+        Args: {
+          p_period_end: string
+          p_period_start: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
+      check_brand_permission: {
+        Args: { p_brand_id: string; p_permission: string; p_user_id: string }
+        Returns: boolean
+      }
       cleanup_old_sync_logs: { Args: never; Returns: undefined }
       clear_all_sync_logs: { Args: never; Returns: undefined }
       generate_alert: {
@@ -3337,12 +3706,28 @@ export type Database = {
           deal_title: string
         }[]
       }
+      get_user_brands: {
+        Args: { p_user_id: string }
+        Returns: {
+          access_level: string
+          brand_id: string
+          brand_name: string
+          brand_slug: string
+          brand_type: string
+          is_active: boolean
+          logo_url: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
         Returns: boolean
+      }
+      update_campaign_financials: {
+        Args: { p_campaign_id: string }
+        Returns: undefined
       }
       update_overdue_followups: { Args: never; Returns: undefined }
     }
