@@ -1,9 +1,11 @@
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { SequenceBuilder } from "./SequenceBuilder";
 import { useCreateSequence } from "@/hooks/useSequences";
 import { supabase } from "@/integrations/supabase/client";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useBDCampaigns } from "@/hooks/useBDCampaigns";
 
 interface SequenceStepInsert {
   sequence_id?: string;
@@ -30,11 +32,13 @@ export function SequenceDialog({ open, onOpenChange, campaignId }: SequenceDialo
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [steps, setSteps] = useState<SequenceStepInsert[]>([]);
+  const [selectedCampaignId, setSelectedCampaignId] = useState<string | undefined>(campaignId);
+  const { campaigns, isLoading } = useBDCampaigns(undefined, 1, 100);
   
   const createSequence = useCreateSequence();
 
   const handleSave = async () => {
-    if (!name.trim()) {
+    if (!name.trim() || !selectedCampaignId) {
       return;
     }
 
@@ -43,7 +47,7 @@ export function SequenceDialog({ open, onOpenChange, campaignId }: SequenceDialo
     await createSequence.mutateAsync({
       name: name.trim(),
       description: description.trim() || undefined,
-      campaign_id: campaignId,
+      campaign_id: selectedCampaignId,
       status: 'draft',
       created_by: user?.id,
       steps,
@@ -61,7 +65,38 @@ export function SequenceDialog({ open, onOpenChange, campaignId }: SequenceDialo
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Create Outreach Sequence</DialogTitle>
+          <DialogDescription>
+            Select a campaign to associate this sequence with, then add steps and content.
+          </DialogDescription>
         </DialogHeader>
+
+        <div className="space-y-4">
+          <div>
+            <label className="text-sm font-medium">Campaign</label>
+            <Select
+              value={selectedCampaignId}
+              onValueChange={setSelectedCampaignId}
+              disabled={isLoading}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder={isLoading ? "Loading campaigns..." : "Select a campaign"} />
+              </SelectTrigger>
+              <SelectContent>
+                {campaigns && campaigns.length > 0 ? (
+                  campaigns.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name}
+                    </SelectItem>
+                  ))
+                ) : (
+                  <SelectItem value="" disabled>
+                    No campaigns available
+                  </SelectItem>
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
         
         <SequenceBuilder
           name={name}
@@ -78,7 +113,7 @@ export function SequenceDialog({ open, onOpenChange, campaignId }: SequenceDialo
           </Button>
           <Button 
             onClick={handleSave} 
-            disabled={!name.trim() || createSequence.isPending}
+            disabled={!name.trim() || !selectedCampaignId || createSequence.isPending}
           >
             {createSequence.isPending ? "Creating..." : "Create Sequence"}
           </Button>
