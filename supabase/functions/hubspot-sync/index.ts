@@ -307,6 +307,215 @@ function parseTimestamp(value: unknown): string | null {
   return null;
 }
 
+// Batch processing function for companies
+async function fetchAndProcessCompaniesBatch(
+  token: string,
+  supabase: SupabaseClient,
+  syncId: string | undefined,
+  now: string
+): Promise<{ totalCompanies: number; clientMap: Map<string, string> }> {
+  const BATCH_SIZE = 100;
+  let totalCompanies = 0;
+  let after: string | undefined;
+  const clientMap = new Map<string, string>();
+
+  // Load existing clients into map
+  const { data: existingClients } = await supabase
+    .from("clients")
+    .select("id, hubspot_id")
+    .not("hubspot_id", "is", null);
+
+  existingClients?.forEach((row: any) => {
+    if (row.hubspot_id) {
+      clientMap.set(row.hubspot_id, row.id);
+    }
+  });
+
+  console.log(`[HubSpot Sync] Starting batch processing for companies (batch size: ${BATCH_SIZE})`);
+
+  do {
+    const url = new URL(`https://api.hubapi.com/crm/v3/objects/companies`);
+    url.searchParams.set("limit", String(BATCH_SIZE));
+    url.searchParams.set("properties", HUBSPOT_COMPANY_PROPERTIES.join(","));
+    if (after) {
+      url.searchParams.set("after", after);
+    }
+
+    const response = await fetch(url.toString(), {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`HubSpot companies fetch failed (${response.status}): ${errorText}`);
+    }
+
+    const payload = await response.json();
+    const batchCompanies = payload.results || [];
+
+    if (batchCompanies.length > 0) {
+      // Process this batch
+      const clientRows = batchCompanies.map((company: HubSpotObject) => {
+        const props = company.properties ?? {};
+        return {
+          hubspot_id: company.id,
+          name: props.name || "Unknown Company",
+          company: props.name || null,
+          website: props.website || props.domain || null,
+          phone: props.phone || null,
+          email: props.email || null,
+          address: props.address || null,
+          city: props.city || null,
+          state: props.state || null,
+          country: props.country || null,
+          postal_code: props.zip || null,
+          industry: props.industry || null,
+          company_revenue: parseNumber(props.annualrevenue),
+          team_size: parseNumber(props.numberofemployees),
+          notes: props.description || null,
+          status: "active",
+          source: "hubspot",
+          hubspot_sync_status: "synced",
+          hubspot_last_sync: now,
+          hubspot_sync_metadata: { type: props.type || null },
+        } as Record<string, unknown>;
+      });
+
+      // Upsert this batch
+      const { data: upsertedClients, error: clientError } = await supabase
+        .from("clients")
+        .upsert(clientRows, { onConflict: "hubspot_id" })
+        .select("id, hubspot_id");
+
+      if (clientError) {
+        throw clientError;
+      }
+
+      // Update client map
+      upsertedClients?.forEach((row: any) => {
+        if (row.hubspot_id) {
+          clientMap.set(row.hubspot_id, row.id);
+        }
+      });
+
+      totalCompanies += batchCompanies.length;
+      console.log(`[HubSpot Sync] Processed ${batchCompanies.length} companies (total: ${totalCompanies})`);
+
+      // Update sync status
+      if (syncId) {
+        await supabase
+          .from('hubspot_sync_status')
+          .update({ companies_synced: totalCompanies })
+          .eq('id', syncId);
+      }
+    }
+
+    after = payload.paging?.next?.after;
+
+    // Add delay to respect rate limits
+    if (after) {
+      await delay(500);
+    }
+  } while (after);
+
+  console.log(`[HubSpot Sync] ✅ Companies batch processing complete: ${totalCompanies} total`);
+  return { totalCompanies, clientMap };
+}
+
+// Batch processing function for contacts
+async function fetchAndProcessContactsBatch(
+  token: string,
+  supabase: SupabaseClient,
+  clientMap: Map<string, string>,
+  syncId: string | undefined,
+  now: string
+): Promise<number> {
+  const BATCH_SIZE = 100;
+  let totalContacts = 0;
+  let after: string | undefined;
+
+  console.log(`[HubSpot Sync] Starting batch processing for contacts (batch size: ${BATCH_SIZE})`);
+
+  do {
+    const url = new URL(`https://api.hubapi.com/crm/v3/objects/contacts`);
+    url.searchParams.set("limit", String(BATCH_SIZE));
+    url.searchParams.set("properties", HUBSPOT_CONTACT_PROPERTIES.join(","));
+    url.searchParams.set("associations", "companies");
+    if (after) {
+      url.searchParams.set("after", after);
+    }
+
+    const response = await fetch(url.toString(), {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`HubSpot contacts fetch failed (${response.status}): ${errorText}`);
+    }
+
+    const payload = await response.json();
+    const batchContacts = payload.results || [];
+
+    if (batchContacts.length > 0) {
+      // Process this batch
+      const contactRows = batchContacts.map((contact: HubSpotObject) => {
+        const props = contact.properties ?? {};
+        const associatedCompany = contact.associations?.companies?.results?.[0]?.id;
+        return {
+          hubspot_id: contact.id,
+          client_id: associatedCompany ? clientMap.get(associatedCompany) ?? null : null,
+          first_name: props.firstname || null,
+          last_name: props.lastname || null,
+          email: props.email || null,
+          phone: props.phone || null,
+          job_title: props.jobtitle || null,
+          lifecycle_stage: props.lifecyclestage || null,
+          lead_status: props.hs_lead_status || null,
+          hubspot_sync_status: "synced",
+          hubspot_last_sync: now,
+        } as Record<string, unknown>;
+      });
+
+      // Upsert this batch
+      const { error: contactsError } = await supabase
+        .from("contacts")
+        .upsert(contactRows, { onConflict: "hubspot_id" });
+
+      if (contactsError) {
+        throw contactsError;
+      }
+
+      totalContacts += batchContacts.length;
+      console.log(`[HubSpot Sync] Processed ${batchContacts.length} contacts (total: ${totalContacts})`);
+
+      // Update sync status
+      if (syncId) {
+        await supabase
+          .from('hubspot_sync_status')
+          .update({ contacts_synced: totalContacts })
+          .eq('id', syncId);
+      }
+    }
+
+    after = payload.paging?.next?.after;
+
+    // Add delay to respect rate limits
+    if (after) {
+      await delay(500);
+    }
+  } while (after);
+
+  console.log(`[HubSpot Sync] ✅ Contacts batch processing complete: ${totalContacts} total`);
+  return totalContacts;
+}
+
 async function performHubSpotSync(options: {
   supabase?: SupabaseClient;
   integration?: HubSpotIntegration;
@@ -334,18 +543,35 @@ async function performHubSpotSync(options: {
   console.log(`[HubSpot Sync] Including: Lead, Estimation, Discovery, Proposal Shared`);
   console.log(`[HubSpot Sync] Excluding: Proposal Accepted (closedwon), Proposal Lost (closedlost)`);
 
-  let companies: HubSpotObject[] = [];
-  let contacts: HubSpotObject[] = [];
+  let totalCompanies = 0;
+  let totalContacts = 0;
+  let clientMap = new Map<string, string>();
 
-  // Conditionally fetch based on sync type
+  // Conditionally fetch and process based on sync type with batch processing
   if (syncType === 'full') {
-    console.log(`[HubSpot Sync] Fetching companies and contacts...`);
-    [companies, contacts] = await Promise.all([
-      fetchPagedObjects(token, "companies", HUBSPOT_COMPANY_PROPERTIES),
-      fetchPagedObjects(token, "contacts", HUBSPOT_CONTACT_PROPERTIES, ["companies"])
-    ]);
+    console.log(`[HubSpot Sync] Starting batch processing for companies and contacts...`);
+    
+    // Process companies in batches
+    const companyResult = await fetchAndProcessCompaniesBatch(token, supabase, syncId, now);
+    totalCompanies = companyResult.totalCompanies;
+    clientMap = companyResult.clientMap;
+    
+    // Process contacts in batches
+    totalContacts = await fetchAndProcessContactsBatch(token, supabase, clientMap, syncId, now);
   } else {
     console.log(`[HubSpot Sync] Skipping companies and contacts (${syncType} mode)`);
+    
+    // Still need to load existing client map for deal processing
+    const { data: existingClients } = await supabase
+      .from("clients")
+      .select("id, hubspot_id")
+      .not("hubspot_id", "is", null);
+
+    existingClients?.forEach((row: any) => {
+      if (row.hubspot_id) {
+        clientMap.set(row.hubspot_id, row.id);
+      }
+    });
   }
 
   console.log(`[HubSpot Sync] Fetching deals from ${HUBSPOT_STAGES.length} HubSpot stages sequentially...`);
@@ -377,91 +603,6 @@ async function performHubSpotSync(options: {
     acc[stage] = (acc[stage] || 0) + 1;
     return acc;
   }, {} as Record<string, number>));
-
-  const clientMap = new Map<string, string>();
-
-  const { data: existingClients } = await supabase
-    .from("clients")
-    .select("id, hubspot_id")
-    .not("hubspot_id", "is", null);
-
-  existingClients?.forEach((row: any) => {
-    if (row.hubspot_id) {
-      clientMap.set(row.hubspot_id, row.id);
-    }
-  });
-
-  // Process companies and contacts only if fetched
-  if (syncType === 'full' && companies.length > 0) {
-    const clientRows = companies.map((company) => {
-      const props = company.properties ?? {};
-      return {
-        hubspot_id: company.id,
-        name: props.name || "Unknown Company",
-        company: props.name || null,
-        website: props.website || props.domain || null,
-        phone: props.phone || null,
-        email: props.email || null,
-        address: props.address || null,
-        city: props.city || null,
-        state: props.state || null,
-        country: props.country || null,
-        postal_code: props.zip || null,
-        industry: props.industry || null,
-        company_revenue: parseNumber(props.annualrevenue),
-        team_size: parseNumber(props.numberofemployees),
-        notes: props.description || null,
-        status: "active",
-        source: "hubspot",
-        hubspot_sync_status: "synced",
-        hubspot_last_sync: now,
-        hubspot_sync_metadata: { type: props.type || null },
-      } as Record<string, unknown>;
-    });
-
-    const { data: upsertedClients, error: clientError } = await supabase
-      .from("clients")
-      .upsert(clientRows, { onConflict: "hubspot_id" })
-      .select("id, hubspot_id");
-
-    if (clientError) {
-      throw clientError;
-    }
-
-    upsertedClients?.forEach((row: any) => {
-      if (row.hubspot_id) {
-        clientMap.set(row.hubspot_id, row.id);
-      }
-    });
-  }
-
-  const contactRows = syncType === 'full' ? contacts.map((contact) => {
-    const props = contact.properties ?? {};
-    const associatedCompany = contact.associations?.companies?.results?.[0]?.id;
-    return {
-      hubspot_id: contact.id,
-      client_id: associatedCompany ? clientMap.get(associatedCompany) ?? null : null,
-      first_name: props.firstname || null,
-      last_name: props.lastname || null,
-      email: props.email || null,
-      phone: props.phone || null,
-      job_title: props.jobtitle || null,
-      lifecycle_stage: props.lifecyclestage || null,
-      lead_status: props.hs_lead_status || null,
-      hubspot_sync_status: "synced",
-      hubspot_last_sync: now,
-    } as Record<string, unknown>;
-  }) : [];
-
-  if (syncType === 'full' && contactRows.length > 0) {
-    const { error: contactsError } = await supabase
-      .from("contacts")
-      .upsert(contactRows, { onConflict: "hubspot_id" });
-
-    if (contactsError) {
-      throw contactsError;
-    }
-  }
 
   // Helper function to map HubSpot stages to local stages
   // Returns null for closed stages to filter them out
@@ -594,8 +735,8 @@ async function performHubSpotSync(options: {
       status: "completed",
       synced_at: now,
       payload: {
-        companies: companies.length,
-        contacts: contactRows.length,
+        companies: totalCompanies,
+        contacts: totalContacts,
         deals: dealRows.length,
         pipelineValue: pipelineValue,
         triggeredBy: options.triggeredBy ?? "manual",
@@ -605,12 +746,12 @@ async function performHubSpotSync(options: {
 
   // Log summary
   console.log(`[HubSpot Sync] ✅ Sync completed successfully`);
-  console.log(`[HubSpot Sync] Companies: ${companies.length}, Contacts: ${contactRows.length}, Deals: ${dealRows.length}`);
+  console.log(`[HubSpot Sync] Companies: ${totalCompanies}, Contacts: ${totalContacts}, Deals: ${dealRows.length}`);
   console.log(`[HubSpot Sync] Pipeline Value: $${pipelineValue.toLocaleString()}`);
 
   return {
-    companies: companies.length,
-    contacts: contactRows.length,
+    companies: totalCompanies,
+    contacts: totalContacts,
     deals: dealRows.length,
     pipelineValue,
     lastSync: now,
