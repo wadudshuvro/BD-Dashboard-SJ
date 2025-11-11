@@ -101,9 +101,9 @@ const App = () => (
               <Route index element={<PersonalDashboard />} />
             </Route>
             
-            {/* Admin Panel Routes - Super Admin Only */}
+            {/* Admin Panel Routes - Admin and Super Admin */}
             <Route path="/adminpanel/*" element={
-              <ProtectedRoute requiredRole="super_admin">
+              <ProtectedRoute requiredMinimumRole="admin">
                 <AdminLayout />
               </ProtectedRoute>
             }>

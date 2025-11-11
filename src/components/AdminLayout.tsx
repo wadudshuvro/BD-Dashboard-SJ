@@ -35,10 +35,13 @@ import { useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import logo from "@/assets/logo-sji.png";
 import { useFeatureFlag } from "@/hooks/useFeatureFlag";
+import { useAuth } from "@/hooks/useAuth";
 
 const AdminLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
+  const { user } = useAuth();
+  const userRole = user?.role;
   const { enabled: feedbackEnabled } = useFeatureFlag("feedback_enabled", true);
 
   const navigation = useMemo(() => {
@@ -46,37 +49,37 @@ const AdminLayout = () => {
       {
         section: "Core Administration",
         items: [
-          { name: "User Management", href: "/adminpanel/users", icon: Users },
-          { name: "POD Management", href: "/adminpanel/pods", icon: UserPlus },
+          { name: "User Management", href: "/adminpanel/users", icon: Users, roles: ['super_admin'] },
+          { name: "POD Management", href: "/adminpanel/pods", icon: UserPlus, roles: ['super_admin'] },
         ],
       },
       {
         section: "System & Operations",
         items: [
-          { name: "System Settings", href: "/adminpanel/settings", icon: Settings },
-          { name: "EOD Management", href: "/adminpanel/eod-management", icon: Calendar },
-          { name: "Documentation", href: "/adminpanel/documentation", icon: FileText },
+          { name: "System Settings", href: "/adminpanel/settings", icon: Settings, roles: ['super_admin'] },
+          { name: "EOD Management", href: "/adminpanel/eod-management", icon: Calendar, roles: ['super_admin'] },
+          { name: "Documentation", href: "/adminpanel/documentation", icon: FileText, roles: ['super_admin', 'admin'] },
         ],
       },
       {
         section: "Integrations",
         items: [
-          { name: "Integration Manager", href: "/adminpanel/integrations", icon: Plug },
-          { name: "Control Tower", href: "/adminpanel/integrations/control-tower-sync", icon: Network },
+          { name: "Integration Manager", href: "/adminpanel/integrations", icon: Plug, roles: ['super_admin'] },
+          { name: "Control Tower", href: "/adminpanel/integrations/control-tower-sync", icon: Network, roles: ['super_admin'] },
         ],
       },
       {
         section: "AI Operations",
         items: [
-          { name: "AI Agents", href: "/adminpanel/ai/agents", icon: Bot },
+          { name: "AI Agents", href: "/adminpanel/ai/agents", icon: Bot, roles: ['super_admin'] },
         ],
       },
       {
         section: "Strategy & Growth",
         items: [
-          { name: "Products & Services", href: "/adminpanel/strategy/products", icon: Package },
-          { name: "Target Niches", href: "/adminpanel/strategy/niches", icon: Crosshair },
-          { name: "Checklist Templates", href: "/adminpanel/strategy/checklist-templates", icon: ListChecks },
+          { name: "Products & Services", href: "/adminpanel/strategy/products", icon: Package, roles: ['super_admin'] },
+          { name: "Target Niches", href: "/adminpanel/strategy/niches", icon: Crosshair, roles: ['super_admin'] },
+          { name: "Checklist Templates", href: "/adminpanel/strategy/checklist-templates", icon: ListChecks, roles: ['super_admin'] },
         ],
       },
     ];
@@ -85,14 +88,22 @@ const AdminLayout = () => {
       sections.push({
         section: "Support",
         items: [
-          { name: "Feedback Manager", href: "/adminpanel/feedback", icon: ClipboardList },
-          { name: "Submit Feedback", href: "/feedback/submit", icon: MessageSquare },
+          { name: "Feedback Manager", href: "/adminpanel/feedback", icon: ClipboardList, roles: ['super_admin', 'admin'] },
+          { name: "Submit Feedback", href: "/feedback/submit", icon: MessageSquare, roles: ['super_admin', 'admin'] },
         ],
       });
     }
 
-    return sections;
-  }, [feedbackEnabled]);
+    // Filter sections based on user role
+    return sections
+      .map(section => ({
+        ...section,
+        items: section.items.filter((item: any) => 
+          !item.roles || item.roles.includes(userRole as any)
+        )
+      }))
+      .filter(section => section.items.length > 0);
+  }, [feedbackEnabled, userRole]);
 
   const isActiveRoute = (href: string, exact = false) => {
     const sanitizedHref = href.split("?")[0];
@@ -125,7 +136,9 @@ const AdminLayout = () => {
               <p className="text-[18px] font-bold text-foreground tracking-tight">Business Dev AI</p>
               <div className="flex flex-col items-center gap-1">
                 <span className="text-sm font-bold text-foreground">Admin Panel</span>
-                <span className="text-xs text-muted-foreground">Super Admin</span>
+                <span className="text-xs text-muted-foreground">
+                  {userRole === 'super_admin' ? 'Super Admin' : 'Admin (View Only)'}
+                </span>
               </div>
             </div>
             <Button

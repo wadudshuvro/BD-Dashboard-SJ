@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useFeatureFlag } from "@/hooks/useFeatureFlag";
+import { useAuth } from "@/hooks/useAuth";
 import {
   deleteFeedback,
   getFeedbackDetail,
@@ -86,6 +87,8 @@ export default function FeedbackManager() {
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const isViewOnly = user?.role === 'admin';
   const { enabled: feedbackEnabled } = useFeatureFlag("feedback_enabled");
 
   const tabConfig = TABS[activeTab];
@@ -356,13 +359,18 @@ export default function FeedbackManager() {
 
                   <form className="space-y-3" onSubmit={handleCommentSubmit}>
                     <Textarea
-                      placeholder="Leave a note for the team or reply to the reporter"
+                      placeholder={
+                        isViewOnly 
+                          ? "Viewing only - super_admin required to comment" 
+                          : "Leave a note for the team or reply to the reporter"
+                      }
                       value={commentDraft}
                       onChange={(event) => setCommentDraft(event.target.value)}
                       rows={4}
+                      disabled={isViewOnly}
                     />
                     <div className="flex items-center justify-end gap-2">
-                      <Button type="submit" disabled={commentMutation.isPending || !selectedFeedbackId}>
+                      <Button type="submit" disabled={commentMutation.isPending || !selectedFeedbackId || isViewOnly}>
                         {commentMutation.isPending ? "Posting…" : "Add comment"}
                       </Button>
                     </div>
@@ -375,6 +383,11 @@ export default function FeedbackManager() {
                   <CardTitle className="flex flex-wrap items-center gap-2 text-xl">
                     <Clock className="h-5 w-5" />
                     {selectedFeedback ? selectedFeedback.subject : "Select a feedback item"}
+                    {isViewOnly && (
+                      <Badge variant="outline" className="text-xs">
+                        View Only
+                      </Badge>
+                    )}
                   </CardTitle>
                   <CardDescription>
                     View submission details, attachment, and workflow status.
@@ -447,6 +460,7 @@ export default function FeedbackManager() {
                           <Select
                             value={selectedFeedback.status}
                             onValueChange={(value) => statusMutation.mutate(value as FeedbackStatus)}
+                            disabled={isViewOnly}
                           >
                             <SelectTrigger className="w-full">
                               <SelectValue placeholder="Select status" />
@@ -460,6 +474,7 @@ export default function FeedbackManager() {
                             </SelectContent>
                           </Select>
                         </div>
+                        {!isViewOnly && (
                         <div className="flex flex-wrap gap-2">
                           <Button
                             type="button"
@@ -478,6 +493,7 @@ export default function FeedbackManager() {
                             Archive
                           </Button>
                         </div>
+                        )}
                       </div>
                     </div>
                   )}

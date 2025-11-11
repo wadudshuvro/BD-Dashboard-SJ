@@ -150,8 +150,8 @@ const Layout = ({ userRole }: LayoutProps) => {
       { name: "Settings", href: "/bd/admin/settings", icon: Settings, current: false },
     ];
 
-    // Add admin panel for super_admin only
-    if (role === 'super_admin') {
+    // Add admin panel for admin and super_admin
+    if (role === 'super_admin' || role === 'admin') {
       navigation.push(
         { name: "SEPARATOR", href: "", icon: null, current: false, isHeader: true },
         { name: "Admin Panel", href: "/adminpanel", icon: Shield, current: false, isAdmin: true }
