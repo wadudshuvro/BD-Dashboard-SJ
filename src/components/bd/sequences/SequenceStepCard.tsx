@@ -8,12 +8,16 @@ import { Trash2, GripVertical, Mail, Linkedin, Phone, MessageSquare } from "luci
 interface SequenceStepInsert {
   sequence_id?: string;
   step_order: number;
-  channel_type: string;
-  delay_days: number;
-  delay_hours: number;
-  template_id?: string | null;
-  custom_message?: string | null;
+  channel: string;
+  delay_value: number;
+  delay_unit: 'days' | 'hours' | 'minutes';
+  content_template: {
+    subject?: string;
+    body?: string;
+    variables?: string[];
+  };
   conditions?: any;
+  ai_personalization_enabled?: boolean;
 }
 
 interface SequenceStepCardProps {
@@ -31,7 +35,7 @@ const channelIcons = {
 };
 
 export function SequenceStepCard({ step, stepNumber, onUpdate, onRemove }: SequenceStepCardProps) {
-  const Icon = channelIcons[step.channel_type as keyof typeof channelIcons];
+  const Icon = channelIcons[step.channel as keyof typeof channelIcons];
 
   return (
     <Card className="p-4">
@@ -48,8 +52,8 @@ export function SequenceStepCard({ step, stepNumber, onUpdate, onRemove }: Seque
             <div className="flex items-center gap-2">
               {Icon && <Icon className="h-5 w-5 text-muted-foreground" />}
               <Select
-                value={step.channel_type}
-                onValueChange={(value) => onUpdate({ channel_type: value as any })}
+                value={step.channel}
+                onValueChange={(value) => onUpdate({ channel: value })}
               >
                 <SelectTrigger className="w-[180px]">
                   <SelectValue />
@@ -74,31 +78,42 @@ export function SequenceStepCard({ step, stepNumber, onUpdate, onRemove }: Seque
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-sm font-medium">Delay (Days)</label>
+              <label className="text-sm font-medium">Delay Value</label>
               <Input
                 type="number"
                 min="0"
-                value={step.delay_days}
-                onChange={(e) => onUpdate({ delay_days: parseInt(e.target.value) || 0 })}
+                value={step.delay_value}
+                onChange={(e) => onUpdate({ delay_value: parseInt(e.target.value) || 0 })}
               />
             </div>
             <div>
-              <label className="text-sm font-medium">Delay (Hours)</label>
-              <Input
-                type="number"
-                min="0"
-                max="23"
-                value={step.delay_hours}
-                onChange={(e) => onUpdate({ delay_hours: parseInt(e.target.value) || 0 })}
-              />
+              <label className="text-sm font-medium">Delay Unit</label>
+              <Select
+                value={step.delay_unit}
+                onValueChange={(value) => onUpdate({ delay_unit: value as 'days' | 'hours' | 'minutes' })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="minutes">Minutes</SelectItem>
+                  <SelectItem value="hours">Hours</SelectItem>
+                  <SelectItem value="days">Days</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
           <div>
             <label className="text-sm font-medium">Message Content</label>
             <Textarea
-              value={step.custom_message || ''}
-              onChange={(e) => onUpdate({ custom_message: e.target.value })}
+              value={step.content_template?.body || ''}
+              onChange={(e) => onUpdate({ 
+                content_template: { 
+                  ...step.content_template,
+                  body: e.target.value 
+                } 
+              })}
               placeholder="Enter your message content with variables like {{first_name}}, {{company}}..."
               rows={4}
             />

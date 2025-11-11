@@ -38,8 +38,13 @@ export function SequenceList({ campaignId, onViewSequence }: SequenceListProps) 
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <CardTitle>{sequence.name}</CardTitle>
-                  <Badge variant={sequence.is_active ? "default" : "secondary"}>
-                    {sequence.is_active ? "Active" : "Paused"}
+                  <Badge variant={
+                    (sequence as any).status === 'active' ? "default" : 
+                    (sequence as any).status === 'paused' ? "secondary" : 
+                    "outline"
+                  }>
+                    {(sequence as any).status === 'active' ? 'Active' : 
+                     (sequence as any).status === 'paused' ? 'Paused' : 'Draft'}
                   </Badge>
                 </div>
                 {sequence.description && (
@@ -52,10 +57,10 @@ export function SequenceList({ campaignId, onViewSequence }: SequenceListProps) 
                   size="sm"
                   onClick={() => toggleSequence.mutate({
                     id: sequence.id,
-                    isActive: !sequence.is_active
+                    isActive: (sequence as any).status !== 'active'
                   })}
                 >
-                  {sequence.is_active ? (
+                  {(sequence as any).status === 'active' ? (
                     <Pause className="h-4 w-4" />
                   ) : (
                     <Play className="h-4 w-4" />
@@ -84,13 +89,13 @@ export function SequenceList({ campaignId, onViewSequence }: SequenceListProps) 
           <CardContent>
             <div className="space-y-2">
               <div className="text-sm text-muted-foreground">
-                {sequence.outreach_sequence_steps?.length || 0} steps
+                {sequence.sequence_steps?.length || 0} steps
               </div>
-              {sequence.outreach_sequence_steps && sequence.outreach_sequence_steps.length > 0 && (
+              {sequence.sequence_steps && sequence.sequence_steps.length > 0 && (
                 <div className="flex flex-wrap gap-2">
-                  {sequence.outreach_sequence_steps.map((step, idx) => (
+                  {sequence.sequence_steps.map((step, idx) => (
                     <Badge key={idx} variant="outline">
-                      Step {step.step_order}: {step.channel_type}
+                      Step {step.step_order}: {step.channel}
                     </Badge>
                   ))}
                 </div>

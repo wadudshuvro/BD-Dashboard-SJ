@@ -276,9 +276,11 @@ const App = () => (
             {/* Sequences */}
             <Route path="/sequences" element={
               <ProtectedRoute requiredMinimumRole="team_member">
-                <SequenceManagement />
+                <Layout />
               </ProtectedRoute>
-            } />
+            }>
+              <Route index element={<SequenceManagement />} />
+            </Route>
 
             {/* Companies */}
             <Route path="/companies/:slug" element={

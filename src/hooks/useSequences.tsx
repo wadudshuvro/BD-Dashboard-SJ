@@ -6,7 +6,7 @@ interface SequenceUpdate {
   name?: string;
   description?: string;
   campaign_id?: string;
-  is_active?: boolean;
+  status?: 'draft' | 'active' | 'paused';
 }
 
 export function useSequences(campaignId?: string) {

@@ -14,21 +14,29 @@ export interface SequenceStep {
   id: string;
   sequence_id: string;
   step_order: number;
-  channel_type: string;
-  delay_days: number;
-  delay_hours: number;
-  custom_message: string | null;
+  channel: string;
+  delay_value: number;
+  delay_unit: 'days' | 'hours' | 'minutes';
+  content_template: {
+    subject?: string;
+    body?: string;
+    variables?: string[];
+  };
+  conditions?: any;
+  ai_personalization_enabled?: boolean;
 }
 
 export interface SequenceWithSteps extends Sequence {
-  outreach_sequence_steps?: SequenceStep[];
+  sequence_steps?: SequenceStep[];
 }
 
 export interface CreateSequencePayload {
   name: string;
   description?: string;
   campaign_id?: string;
-  steps: any[];
+  status?: 'draft' | 'active' | 'paused';
+  created_by?: string;
+  steps: Omit<SequenceStep, 'id' | 'sequence_id'>[];
 }
 
 export const sequencesApi = {
@@ -108,6 +116,6 @@ export const sequencesApi = {
   },
 
   async toggleSequence(id: string, isActive: boolean) {
-    return this.updateSequence(id, { is_active: isActive });
+    return this.updateSequence(id, { status: isActive ? 'active' : 'paused' });
   }
 };

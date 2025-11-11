@@ -3,16 +3,21 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 import { SequenceBuilder } from "./SequenceBuilder";
 import { useCreateSequence } from "@/hooks/useSequences";
+import { supabase } from "@/integrations/supabase/client";
 
 interface SequenceStepInsert {
   sequence_id?: string;
   step_order: number;
-  channel_type: string;
-  delay_days: number;
-  delay_hours: number;
-  template_id?: string | null;
-  custom_message?: string | null;
+  channel: string;
+  delay_value: number;
+  delay_unit: 'days' | 'hours' | 'minutes';
+  content_template: {
+    subject?: string;
+    body?: string;
+    variables?: string[];
+  };
   conditions?: any;
+  ai_personalization_enabled?: boolean;
 }
 
 interface SequenceDialogProps {
@@ -33,10 +38,14 @@ export function SequenceDialog({ open, onOpenChange, campaignId }: SequenceDialo
       return;
     }
 
+    const { data: { user } } = await supabase.auth.getUser();
+
     await createSequence.mutateAsync({
       name: name.trim(),
       description: description.trim() || undefined,
       campaign_id: campaignId,
+      status: 'draft',
+      created_by: user?.id,
       steps,
     });
 

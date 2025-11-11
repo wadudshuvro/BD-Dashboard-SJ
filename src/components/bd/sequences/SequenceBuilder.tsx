@@ -8,12 +8,16 @@ import { SequenceStepCard } from "./SequenceStepCard";
 interface SequenceStepInsert {
   sequence_id?: string;
   step_order: number;
-  channel_type: string;
-  delay_days: number;
-  delay_hours: number;
-  template_id?: string | null;
-  custom_message?: string | null;
+  channel: string;
+  delay_value: number;
+  delay_unit: 'days' | 'hours' | 'minutes';
+  content_template: {
+    subject?: string;
+    body?: string;
+    variables?: string[];
+  };
   conditions?: any;
+  ai_personalization_enabled?: boolean;
 }
 
 interface SequenceBuilderProps {
@@ -36,12 +40,15 @@ export function SequenceBuilder({
   const addStep = () => {
     const newStep: SequenceStepInsert = {
       step_order: steps.length + 1,
-      channel_type: 'email',
-      delay_days: 0,
-      delay_hours: 0,
-      template_id: null,
-      custom_message: null,
-      conditions: null,
+      channel: 'email',
+      delay_value: 1,
+      delay_unit: 'days',
+      content_template: {
+        body: '',
+        variables: []
+      },
+      conditions: {},
+      ai_personalization_enabled: false,
     };
     onStepsChange([...steps, newStep]);
   };
