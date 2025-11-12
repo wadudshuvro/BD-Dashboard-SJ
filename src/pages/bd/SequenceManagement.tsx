@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus } from "lucide-react";
 import { SequenceDialog } from "@/components/bd/sequences/SequenceDialog";
 import { SequenceList } from "@/components/bd/sequences/SequenceList";
+import { SequenceExecutionDashboard } from "@/components/bd/sequences/SequenceExecutionDashboard";
 import type { SequenceWithSteps } from "@/Api/sequences";
 
 export default function SequenceManagement() {
@@ -36,7 +38,20 @@ export default function SequenceManagement() {
         </Button>
       </div>
 
-      <SequenceList onEditSequence={handleEdit} />
+      <Tabs defaultValue="sequences" className="w-full">
+        <TabsList>
+          <TabsTrigger value="sequences">Sequences</TabsTrigger>
+          <TabsTrigger value="execution">Execution Dashboard</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="sequences" className="mt-6">
+          <SequenceList onEditSequence={handleEdit} />
+        </TabsContent>
+
+        <TabsContent value="execution" className="mt-6">
+          <SequenceExecutionDashboard />
+        </TabsContent>
+      </Tabs>
 
       <SequenceDialog
         open={dialogOpen}
