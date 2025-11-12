@@ -135,7 +135,7 @@ export default function Prospecting() {
               </DialogContent>
             </Dialog>
           )}
-          <SyncHubSpotButton syncType="deals-only" />
+          <SyncHubSpotButton />
         </div>
       </div>
 
