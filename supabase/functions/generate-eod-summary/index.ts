@@ -31,10 +31,10 @@ Deno.serve(async (req) => {
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const openaiKey = Deno.env.get('OPENAI_KEY');
+    const openaiKey = Deno.env.get('OPENAI_API_KEY');
     
     if (!openaiKey) {
-      throw new Error('OPENAI_KEY not configured');
+      throw new Error('OPENAI_API_KEY not configured');
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
