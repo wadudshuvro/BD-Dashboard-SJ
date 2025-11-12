@@ -4,6 +4,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { useSequences } from "@/hooks/useSequences";
@@ -12,6 +13,7 @@ import { SequenceExecutionMetrics } from "./SequenceExecutionMetrics";
 import { SequenceEnrollmentTable } from "./SequenceEnrollmentTable";
 import { SequenceExecutionLogStream } from "./SequenceExecutionLogStream";
 import { LiveStatusIndicator } from "./LiveStatusIndicator";
+import { ExecutionLogViewer } from "./ExecutionLogViewer";
 import { useToast } from "@/hooks/use-toast";
 
 export function SequenceExecutionDashboard() {
@@ -88,9 +90,9 @@ export function SequenceExecutionDashboard() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold">Sequence Execution Dashboard</h2>
+          <h2 className="text-2xl font-bold">Sequence Execution Monitor</h2>
           <p className="text-muted-foreground">
-            Monitor real-time sequence performance and contact enrollment status
+            Real-time tracking of sequence performance and execution
           </p>
         </div>
         <LiveStatusIndicator 
@@ -99,6 +101,15 @@ export function SequenceExecutionDashboard() {
           lastUpdated={lastUpdated}
         />
       </div>
+
+      {/* Tabs for Live vs History */}
+      <Tabs defaultValue="live" className="w-full">
+        <TabsList>
+          <TabsTrigger value="live">Live Monitor</TabsTrigger>
+          <TabsTrigger value="history">History Explorer</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="live" className="space-y-6 mt-6">
 
       {/* Filters */}
       <Card>
@@ -185,25 +196,31 @@ export function SequenceExecutionDashboard() {
         <SequenceExecutionMetrics metrics={metrics} isLoading={loadingMetrics} />
       )}
 
-      {/* Enrollments Table and Live Log */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Enrollment Status</CardTitle>
-            <CardDescription>
-              Track each contact's progress through the sequence
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <SequenceEnrollmentTable 
-              enrollments={enrollments || []} 
-              isLoading={loadingEnrollments}
-            />
-          </CardContent>
-        </Card>
+          {/* Enrollments Table and Live Log */}
+          <div className="grid gap-6 lg:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Enrollment Status</CardTitle>
+                <CardDescription>
+                  Track each contact's progress through the sequence
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <SequenceEnrollmentTable 
+                  enrollments={enrollments || []} 
+                  isLoading={loadingEnrollments}
+                />
+              </CardContent>
+            </Card>
 
-        <SequenceExecutionLogStream />
-      </div>
+            <SequenceExecutionLogStream />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="history" className="mt-6">
+          <ExecutionLogViewer />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
