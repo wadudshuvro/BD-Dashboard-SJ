@@ -333,87 +333,119 @@ async function fetchAndProcessCompaniesBatch(
 
   console.log(`[HubSpot Sync] Starting batch processing for companies (batch size: ${BATCH_SIZE})`);
 
+  // Update status to show we're in companies phase
+  if (syncId) {
+    await supabase
+      .from('hubspot_sync_status')
+      .update({ 
+        metadata: { current_phase: 'companies' },
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', syncId);
+  }
+
   do {
-    const url = new URL(`https://api.hubapi.com/crm/v3/objects/companies`);
-    url.searchParams.set("limit", String(BATCH_SIZE));
-    url.searchParams.set("properties", HUBSPOT_COMPANY_PROPERTIES.join(","));
-    if (after) {
-      url.searchParams.set("after", after);
-    }
-
-    const response = await fetch(url.toString(), {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`HubSpot companies fetch failed (${response.status}): ${errorText}`);
-    }
-
-    const payload = await response.json();
-    const batchCompanies = payload.results || [];
-
-    if (batchCompanies.length > 0) {
-      // Process this batch
-      const clientRows = batchCompanies.map((company: HubSpotObject) => {
-        const props = company.properties ?? {};
-        return {
-          hubspot_id: company.id,
-          name: props.name || "Unknown Company",
-          company: props.name || null,
-          website: props.website || props.domain || null,
-          phone: props.phone || null,
-          email: props.email || null,
-          address: props.address || null,
-          city: props.city || null,
-          state: props.state || null,
-          country: props.country || null,
-          postal_code: props.zip || null,
-          industry: props.industry || null,
-          revenue: parseNumber(props.annualrevenue),
-          employee_count: parseNumber(props.numberofemployees),
-          notes: props.description || null,
-          status: "active"
-        } as Record<string, unknown>;
-      });
-
-      // Upsert this batch
-      const { data: upsertedClients, error: clientError } = await supabase
-        .from("clients")
-        .upsert(clientRows, { onConflict: "hubspot_id" })
-        .select("id, hubspot_id");
-
-      if (clientError) {
-        throw clientError;
+    try {
+      const url = new URL(`https://api.hubapi.com/crm/v3/objects/companies`);
+      url.searchParams.set("limit", String(BATCH_SIZE));
+      url.searchParams.set("properties", HUBSPOT_COMPANY_PROPERTIES.join(","));
+      if (after) {
+        url.searchParams.set("after", after);
       }
 
-      // Update client map
-      upsertedClients?.forEach((row: any) => {
-        if (row.hubspot_id) {
-          clientMap.set(row.hubspot_id, row.id);
-        }
+      const response = await fetch(url.toString(), {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
       });
 
-      totalCompanies += batchCompanies.length;
-      console.log(`[HubSpot Sync] Processed ${batchCompanies.length} companies (total: ${totalCompanies})`);
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HubSpot companies fetch failed (${response.status}): ${errorText}`);
+      }
 
-      // Update sync status
+      const payload = await response.json();
+      const batchCompanies = payload.results || [];
+
+      if (batchCompanies.length > 0) {
+        // Process this batch
+        const clientRows = batchCompanies.map((company: HubSpotObject) => {
+          const props = company.properties ?? {};
+          return {
+            hubspot_id: company.id,
+            name: props.name || "Unknown Company",
+            company: props.name || null,
+            website: props.website || props.domain || null,
+            phone: props.phone || null,
+            email: props.email || null,
+            address: props.address || null,
+            city: props.city || null,
+            state: props.state || null,
+            country: props.country || null,
+            postal_code: props.zip || null,
+            industry: props.industry || null,
+            revenue: parseNumber(props.annualrevenue),
+            employee_count: parseNumber(props.numberofemployees),
+            notes: props.description || null,
+            status: "active"
+          } as Record<string, unknown>;
+        });
+
+        // Upsert this batch
+        const { data: upsertedClients, error: clientError } = await supabase
+          .from("clients")
+          .upsert(clientRows, { onConflict: "hubspot_id" })
+          .select("id, hubspot_id");
+
+        if (clientError) {
+          throw clientError;
+        }
+
+        // Update client map
+        upsertedClients?.forEach((row: any) => {
+          if (row.hubspot_id) {
+            clientMap.set(row.hubspot_id, row.id);
+          }
+        });
+
+        totalCompanies += batchCompanies.length;
+        console.log(`[HubSpot Sync] Processed ${batchCompanies.length} companies (total: ${totalCompanies})`);
+
+        // Update sync status with heartbeat
+        if (syncId) {
+          await supabase
+            .from('hubspot_sync_status')
+            .update({ 
+              companies_synced: totalCompanies,
+              updated_at: new Date().toISOString(),
+              metadata: { current_phase: 'companies', last_heartbeat: new Date().toISOString() }
+            })
+            .eq('id', syncId);
+        }
+      }
+
+      after = payload.paging?.next?.after;
+
+      // Add delay to respect rate limits
+      if (after) {
+        await delay(500);
+      }
+    } catch (error) {
+      console.error('[HubSpot Sync] Error in companies batch:', error);
+      
+      // Update sync status with error
       if (syncId) {
         await supabase
           .from('hubspot_sync_status')
-          .update({ companies_synced: totalCompanies })
+          .update({
+            status: 'failed',
+            completed_at: new Date().toISOString(),
+            error_message: `Companies phase failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+          })
           .eq('id', syncId);
       }
-    }
-
-    after = payload.paging?.next?.after;
-
-    // Add delay to respect rate limits
-    if (after) {
-      await delay(500);
+      throw error;
     }
   } while (after);
 
@@ -428,85 +460,136 @@ async function fetchAndProcessContactsBatch(
   clientMap: Map<string, string>,
   syncId: string | undefined,
   now: string
-): Promise<number> {
+): Promise<{ totalContacts: number; skippedContacts: number }> {
   const BATCH_SIZE = 100;
   let totalContacts = 0;
+  let skippedContacts = 0;
   let after: string | undefined;
 
   console.log(`[HubSpot Sync] Starting batch processing for contacts (batch size: ${BATCH_SIZE})`);
 
+  // Update status to show we're in contacts phase
+  if (syncId) {
+    await supabase
+      .from('hubspot_sync_status')
+      .update({ 
+        metadata: { current_phase: 'contacts', last_heartbeat: new Date().toISOString() },
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', syncId);
+  }
+
   do {
-    const url = new URL(`https://api.hubapi.com/crm/v3/objects/contacts`);
-    url.searchParams.set("limit", String(BATCH_SIZE));
-    url.searchParams.set("properties", HUBSPOT_CONTACT_PROPERTIES.join(","));
-    url.searchParams.set("associations", "companies");
-    if (after) {
-      url.searchParams.set("after", after);
-    }
-
-    const response = await fetch(url.toString(), {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`HubSpot contacts fetch failed (${response.status}): ${errorText}`);
-    }
-
-    const payload = await response.json();
-    const batchContacts = payload.results || [];
-
-    if (batchContacts.length > 0) {
-      // Process this batch
-      const contactRows = batchContacts.map((contact: HubSpotObject) => {
-        const props = contact.properties ?? {};
-        const associatedCompany = contact.associations?.companies?.results?.[0]?.id;
-        return {
-          hubspot_id: contact.id,
-          client_id: associatedCompany ? clientMap.get(associatedCompany) ?? null : null,
-          first_name: props.firstname || null,
-          last_name: props.lastname || null,
-          email: props.email || null,
-          phone: props.phone || null,
-          position: props.jobtitle || null,
-          company: props.company || null
-        } as Record<string, unknown>;
-      });
-
-      // Upsert this batch
-      const { error: contactsError } = await supabase
-        .from("contacts")
-        .upsert(contactRows, { onConflict: "hubspot_id" });
-
-      if (contactsError) {
-        throw contactsError;
+    try {
+      const url = new URL(`https://api.hubapi.com/crm/v3/objects/contacts`);
+      url.searchParams.set("limit", String(BATCH_SIZE));
+      url.searchParams.set("properties", HUBSPOT_CONTACT_PROPERTIES.join(","));
+      url.searchParams.set("associations", "companies");
+      if (after) {
+        url.searchParams.set("after", after);
       }
 
-      totalContacts += batchContacts.length;
-      console.log(`[HubSpot Sync] Processed ${batchContacts.length} contacts (total: ${totalContacts})`);
+      const response = await fetch(url.toString(), {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
 
-      // Update sync status
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HubSpot contacts fetch failed (${response.status}): ${errorText}`);
+      }
+
+      const payload = await response.json();
+      const batchContacts = payload.results || [];
+
+      if (batchContacts.length > 0) {
+        // Process this batch - filter out contacts with no valid client_id
+        const contactRows = batchContacts
+          .map((contact: HubSpotObject) => {
+            const props = contact.properties ?? {};
+            const associatedCompany = contact.associations?.companies?.results?.[0]?.id;
+            const clientId = associatedCompany ? clientMap.get(associatedCompany) ?? null : null;
+            
+            // Skip contacts without a valid client_id (NOT NULL constraint)
+            if (!clientId) {
+              skippedContacts++;
+              return null;
+            }
+            
+            return {
+              hubspot_id: contact.id,
+              client_id: clientId,
+              first_name: props.firstname || null,
+              last_name: props.lastname || null,
+              email: props.email || null,
+              phone: props.phone || null,
+              position: props.jobtitle || null,
+              company: props.company || null
+            } as Record<string, unknown>;
+          })
+          .filter((contact): contact is Record<string, unknown> => contact !== null);
+
+        // Only upsert if we have valid contacts
+        if (contactRows.length > 0) {
+          const { error: contactsError } = await supabase
+            .from("contacts")
+            .upsert(contactRows, { onConflict: "hubspot_id" });
+
+          if (contactsError) {
+            throw contactsError;
+          }
+
+          totalContacts += contactRows.length;
+        }
+
+        console.log(`[HubSpot Sync] Processed ${batchContacts.length} contacts (${contactRows.length} valid, ${skippedContacts} skipped, total: ${totalContacts})`);
+
+        // Update sync status with heartbeat and progress
+        if (syncId) {
+          await supabase
+            .from('hubspot_sync_status')
+            .update({ 
+              contacts_synced: totalContacts,
+              updated_at: new Date().toISOString(),
+              metadata: { 
+                current_phase: 'contacts', 
+                last_heartbeat: new Date().toISOString(),
+                skipped_contacts: skippedContacts
+              }
+            })
+            .eq('id', syncId);
+        }
+      }
+
+      after = payload.paging?.next?.after;
+
+      // Add delay to respect rate limits
+      if (after) {
+        await delay(500);
+      }
+    } catch (error) {
+      console.error('[HubSpot Sync] Error in contacts batch:', error);
+      
+      // Update sync status with error
       if (syncId) {
         await supabase
           .from('hubspot_sync_status')
-          .update({ contacts_synced: totalContacts })
+          .update({
+            status: 'failed',
+            completed_at: new Date().toISOString(),
+            error_message: `Contacts phase failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+            metadata: { skipped_contacts: skippedContacts }
+          })
           .eq('id', syncId);
       }
-    }
-
-    after = payload.paging?.next?.after;
-
-    // Add delay to respect rate limits
-    if (after) {
-      await delay(500);
+      throw error;
     }
   } while (after);
 
-  console.log(`[HubSpot Sync] ✅ Contacts batch processing complete: ${totalContacts} total`);
-  return totalContacts;
+  console.log(`[HubSpot Sync] ✅ Contacts batch processing complete: ${totalContacts} valid contacts, ${skippedContacts} skipped`);
+  return { totalContacts, skippedContacts };
 }
 
 async function performHubSpotSync(options: {
@@ -540,6 +623,8 @@ async function performHubSpotSync(options: {
   let totalContacts = 0;
   let clientMap = new Map<string, string>();
 
+  let skippedContacts = 0;
+
   // Conditionally fetch and process based on sync type with batch processing
   if (syncType === 'full') {
     console.log(`[HubSpot Sync] Starting batch processing for companies and contacts...`);
@@ -550,7 +635,9 @@ async function performHubSpotSync(options: {
     clientMap = companyResult.clientMap;
     
     // Process contacts in batches
-    totalContacts = await fetchAndProcessContactsBatch(token, supabase, clientMap, syncId, now);
+    const contactResult = await fetchAndProcessContactsBatch(token, supabase, clientMap, syncId, now);
+    totalContacts = contactResult.totalContacts;
+    skippedContacts = contactResult.skippedContacts;
   } else {
     console.log(`[HubSpot Sync] Skipping companies and contacts (${syncType} mode)`);
     
@@ -569,6 +656,21 @@ async function performHubSpotSync(options: {
 
   console.log(`[HubSpot Sync] Fetching deals from ${HUBSPOT_STAGES.length} HubSpot stages sequentially...`);
 
+  // Update status to show we're in deals phase
+  if (syncId) {
+    await supabase
+      .from('hubspot_sync_status')
+      .update({ 
+        metadata: { 
+          current_phase: 'deals', 
+          last_heartbeat: new Date().toISOString(),
+          skipped_contacts: skippedContacts
+        },
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', syncId);
+  }
+
   const deals: HubSpotObject[] = [];
   for (let i = 0; i < HUBSPOT_STAGES.length; i++) {
     const stage = HUBSPOT_STAGES[i];
@@ -577,7 +679,24 @@ async function performHubSpotSync(options: {
     try {
       const stageDeals = await fetchDealsByStage(token, stage);
       deals.push(...stageDeals);
-      console.log(`[HubSpot Sync] Stage '${stage}' complete: ${stageDeals.length} deals fetched`);
+      console.log(`[HubSpot Sync] Stage '${stage}' complete: ${stageDeals.length} deals fetched (total: ${deals.length})`);
+      
+      // Update progress after each stage
+      if (syncId) {
+        await supabase
+          .from('hubspot_sync_status')
+          .update({ 
+            deals_synced: deals.length,
+            updated_at: new Date().toISOString(),
+            metadata: { 
+              current_phase: 'deals',
+              current_stage: stage,
+              last_heartbeat: new Date().toISOString(),
+              skipped_contacts: skippedContacts
+            }
+          })
+          .eq('id', syncId);
+      }
       
       // Add delay between stages to respect rate limits (except after last stage)
       if (i < HUBSPOT_STAGES.length - 1) {
@@ -586,6 +705,23 @@ async function performHubSpotSync(options: {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       console.error(`[HubSpot Sync] Failed to fetch stage '${stage}':`, errorMessage);
+      
+      // Update sync status with error but continue
+      if (syncId) {
+        await supabase
+          .from('hubspot_sync_status')
+          .update({
+            metadata: { 
+              current_phase: 'deals',
+              current_stage: stage,
+              last_error: errorMessage,
+              last_heartbeat: new Date().toISOString(),
+              skipped_contacts: skippedContacts
+            },
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', syncId);
+      }
       // Continue with other stages even if one fails
     }
   }
@@ -831,6 +967,12 @@ async function handleSync(req?: Request): Promise<Response> {
         });
 
         // Update status record on success
+        const { data: currentStatus } = await supabase
+          .from('hubspot_sync_status')
+          .select('metadata')
+          .eq('id', syncId)
+          .single();
+
         await supabase
           .from('hubspot_sync_status')
           .update({
@@ -841,8 +983,10 @@ async function handleSync(req?: Request): Promise<Response> {
             contacts_synced: result.contacts,
             deals_synced: result.deals,
             metadata: {
+              ...currentStatus?.metadata,
               pipelineValue: result.pipelineValue,
-              lastSync: result.lastSync
+              lastSync: result.lastSync,
+              current_phase: 'completed'
             }
           })
           .eq('id', syncId);
