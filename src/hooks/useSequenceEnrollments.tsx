@@ -1,5 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useEffect, useRef } from "react";
 
 interface EnrollmentFilters {
   sequenceId?: string;
@@ -9,7 +10,10 @@ interface EnrollmentFilters {
 }
 
 export function useSequenceEnrollments(filters?: EnrollmentFilters) {
-  return useQuery({
+  const queryClient = useQueryClient();
+  const subscriptionRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+
+  const query = useQuery({
     queryKey: ['sequence-enrollments', filters],
     queryFn: async () => {
       let query = supabase
@@ -59,10 +63,66 @@ export function useSequenceEnrollments(filters?: EnrollmentFilters) {
       return data;
     },
   });
+
+  // Realtime subscription with debouncing
+  useEffect(() => {
+    let debounceTimer: NodeJS.Timeout;
+
+    // Clean up existing subscription
+    if (subscriptionRef.current) {
+      supabase.removeChannel(subscriptionRef.current);
+    }
+
+    // Create new subscription
+    const channel = supabase
+      .channel('sequence-enrollments')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'contact_sequence_enrollments',
+        },
+        (payload) => {
+          // Debounce rapid updates to prevent UI thrashing
+          clearTimeout(debounceTimer);
+          debounceTimer = setTimeout(() => {
+            // Apply filter logic to avoid unnecessary refetches
+            let shouldUpdate = true;
+
+            if (filters?.sequenceId && payload.new && 'sequence_id' in payload.new) {
+              shouldUpdate = payload.new.sequence_id === filters.sequenceId;
+            }
+
+            if (shouldUpdate) {
+              queryClient.invalidateQueries({ queryKey: ['sequence-enrollments'] });
+              queryClient.invalidateQueries({ queryKey: ['sequence-metrics'] });
+            }
+          }, 500);
+        }
+      )
+      .subscribe();
+
+    subscriptionRef.current = channel;
+
+    // Cleanup on unmount
+    return () => {
+      clearTimeout(debounceTimer);
+      if (subscriptionRef.current) {
+        supabase.removeChannel(subscriptionRef.current);
+        subscriptionRef.current = null;
+      }
+    };
+  }, [queryClient, filters?.sequenceId]);
+
+  return query;
 }
 
 export function useSequenceMetrics(sequenceId?: string) {
-  return useQuery({
+  const queryClient = useQueryClient();
+  const subscriptionRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+
+  const query = useQuery({
     queryKey: ['sequence-metrics', sequenceId],
     queryFn: async () => {
       let query = supabase
@@ -95,4 +155,51 @@ export function useSequenceMetrics(sequenceId?: string) {
       };
     },
   });
+
+  // Realtime subscription for metrics
+  useEffect(() => {
+    let debounceTimer: NodeJS.Timeout;
+
+    if (subscriptionRef.current) {
+      supabase.removeChannel(subscriptionRef.current);
+    }
+
+    const channel = supabase
+      .channel('sequence-metrics')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'contact_sequence_enrollments',
+        },
+        (payload) => {
+          clearTimeout(debounceTimer);
+          debounceTimer = setTimeout(() => {
+            let shouldUpdate = true;
+
+            if (sequenceId && payload.new && 'sequence_id' in payload.new) {
+              shouldUpdate = payload.new.sequence_id === sequenceId;
+            }
+
+            if (shouldUpdate) {
+              queryClient.invalidateQueries({ queryKey: ['sequence-metrics'] });
+            }
+          }, 500);
+        }
+      )
+      .subscribe();
+
+    subscriptionRef.current = channel;
+
+    return () => {
+      clearTimeout(debounceTimer);
+      if (subscriptionRef.current) {
+        supabase.removeChannel(subscriptionRef.current);
+        subscriptionRef.current = null;
+      }
+    };
+  }, [queryClient, sequenceId]);
+
+  return query;
 }

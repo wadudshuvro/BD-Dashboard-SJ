@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -10,14 +10,22 @@ import { useSequences } from "@/hooks/useSequences";
 import { useSequenceEnrollments, useSequenceMetrics } from "@/hooks/useSequenceEnrollments";
 import { SequenceExecutionMetrics } from "./SequenceExecutionMetrics";
 import { SequenceEnrollmentTable } from "./SequenceEnrollmentTable";
+import { SequenceExecutionLogStream } from "./SequenceExecutionLogStream";
+import { LiveStatusIndicator } from "./LiveStatusIndicator";
+import { useToast } from "@/hooks/use-toast";
 
 export function SequenceExecutionDashboard() {
   const [selectedSequence, setSelectedSequence] = useState<string>("all");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [dateFrom, setDateFrom] = useState<Date>();
   const [dateTo, setDateTo] = useState<Date>();
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+  const [isConnected, setIsConnected] = useState(true);
+  const [isReconnecting, setIsReconnecting] = useState(false);
 
+  const { toast } = useToast();
   const { data: sequences, isLoading: loadingSequences } = useSequences();
+  const prevDataRef = useRef<any>(null);
   
   const filters = {
     sequenceId: selectedSequence !== "all" ? selectedSequence : undefined,
@@ -26,10 +34,47 @@ export function SequenceExecutionDashboard() {
     dateTo: dateTo ? format(dateTo, "yyyy-MM-dd") : undefined,
   };
 
-  const { data: enrollments, isLoading: loadingEnrollments } = useSequenceEnrollments(filters);
+  const { data: enrollments, isLoading: loadingEnrollments, dataUpdatedAt } = useSequenceEnrollments(filters);
   const { data: metrics, isLoading: loadingMetrics } = useSequenceMetrics(
     selectedSequence !== "all" ? selectedSequence : undefined
   );
+
+  // Track updates and show notifications
+  useEffect(() => {
+    if (enrollments && prevDataRef.current && enrollments !== prevDataRef.current) {
+      setLastUpdated(new Date());
+      
+      // Show toast notification for data updates
+      const prevLength = prevDataRef.current?.length || 0;
+      const currentLength = enrollments.length || 0;
+      
+      if (currentLength > prevLength) {
+        toast({
+          title: "New enrollment detected",
+          description: `${currentLength - prevLength} new enrollment(s) added`,
+          duration: 3000,
+        });
+      }
+    }
+    prevDataRef.current = enrollments;
+  }, [enrollments, toast, dataUpdatedAt]);
+
+  // Monitor connection status
+  useEffect(() => {
+    const checkConnection = () => {
+      const timeSinceUpdate = Date.now() - lastUpdated.getTime();
+      if (timeSinceUpdate > 60000) { // 1 minute without updates
+        setIsReconnecting(true);
+        setTimeout(() => {
+          setIsConnected(true);
+          setIsReconnecting(false);
+        }, 2000);
+      }
+    };
+
+    const interval = setInterval(checkConnection, 10000); // Check every 10 seconds
+    return () => clearInterval(interval);
+  }, [lastUpdated]);
 
   const handleClearFilters = () => {
     setSelectedSequence("all");
@@ -41,11 +86,18 @@ export function SequenceExecutionDashboard() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h2 className="text-2xl font-bold">Sequence Execution Dashboard</h2>
-        <p className="text-muted-foreground">
-          Monitor real-time sequence performance and contact enrollment status
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold">Sequence Execution Dashboard</h2>
+          <p className="text-muted-foreground">
+            Monitor real-time sequence performance and contact enrollment status
+          </p>
+        </div>
+        <LiveStatusIndicator 
+          isConnected={isConnected} 
+          isReconnecting={isReconnecting}
+          lastUpdated={lastUpdated}
+        />
       </div>
 
       {/* Filters */}
@@ -133,21 +185,25 @@ export function SequenceExecutionDashboard() {
         <SequenceExecutionMetrics metrics={metrics} isLoading={loadingMetrics} />
       )}
 
-      {/* Enrollments Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Enrollment Status</CardTitle>
-          <CardDescription>
-            Track each contact's progress through the sequence
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <SequenceEnrollmentTable 
-            enrollments={enrollments || []} 
-            isLoading={loadingEnrollments}
-          />
-        </CardContent>
-      </Card>
+      {/* Enrollments Table and Live Log */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Enrollment Status</CardTitle>
+            <CardDescription>
+              Track each contact's progress through the sequence
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <SequenceEnrollmentTable 
+              enrollments={enrollments || []} 
+              isLoading={loadingEnrollments}
+            />
+          </CardContent>
+        </Card>
+
+        <SequenceExecutionLogStream />
+      </div>
     </div>
   );
 }
