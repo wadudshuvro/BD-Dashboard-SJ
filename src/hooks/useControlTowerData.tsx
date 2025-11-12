@@ -1,6 +1,7 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { createControlTowerClient } from '@/integrations/controlTower/client';
 import { useControlTowerConfig } from './useControlTowerConfig';
+import { supabase } from '@/integrations/supabase/client';
 import type {
   ControlTowerLead,
   ControlTowerWarmLead,
@@ -87,29 +88,29 @@ export const useControlTowerDeals = () => {
   });
 };
 
-// Hook for fetching clients
+// Hook for fetching clients (legacy - uses direct Supabase connection)
 export const useControlTowerClients = (page: number = 1, limit: number = 25) => {
   const { data: config } = useControlTowerConfig();
-  
+
   return useQuery({
     queryKey: ['control-tower-clients', page, limit],
     queryFn: async () => {
       if (!config?.url || !config?.anon_key) {
         throw new Error('Control Tower not configured');
       }
-      
+
       const from = (page - 1) * limit;
       const to = from + limit - 1;
-      
+
       const client = createControlTowerClient(config.url, config.anon_key);
       const { data, error, count } = await client
         .from('clients')
         .select('*', { count: 'exact' })
         .order('name', { ascending: true })
         .range(from, to);
-      
+
       if (error) throw error;
-      
+
       return {
         data: (data || []) as ControlTowerClient[],
         total: count || 0,
@@ -117,6 +118,40 @@ export const useControlTowerClients = (page: number = 1, limit: number = 25) => 
     },
     staleTime: 5 * 60 * 1000,
     enabled: !!config?.url && !!config?.anon_key && config?.is_active,
+  });
+};
+
+// Hook for fetching clients synced via REST API (from local database)
+export const useControlTowerClientsAPI = (page: number = 1, limit: number = 25) => {
+  const { data: config } = useControlTowerConfig();
+
+  return useQuery({
+    queryKey: ['control-tower-clients-api', page, limit],
+    queryFn: async () => {
+      // Query LOCAL clients table where synced_from_control_tower_api = true
+      // This ensures we're reading from our own database after sync
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(
+        import.meta.env.VITE_SUPABASE_URL!,
+        import.meta.env.VITE_SUPABASE_ANON_KEY!
+      );
+
+      const { data, error, count } = await supabase
+        .from('clients')
+        .select('*', { count: 'exact' })
+        .eq('synced_from_control_tower_api', true)
+        .order('name', { ascending: true })
+        .range((page - 1) * limit, page * limit - 1);
+
+      if (error) throw error;
+
+      return {
+        data: (data || []) as ControlTowerClient[],
+        total: count || 0
+      };
+    },
+    staleTime: 5 * 60 * 1000,
+    enabled: config?.is_active ?? true,
   });
 };
 
@@ -239,5 +274,36 @@ export const useControlTowerDealsByStage = (
     },
     staleTime: 5 * 60 * 1000,
     enabled: !!config?.url && !!config?.anon_key && config?.is_active,
+  });
+};
+
+// Hook for triggering REST API sync for clients
+export const useSyncControlTowerClientsAPI = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke(
+        'sync-control-tower-clients-api',
+        {
+          method: 'POST',
+        }
+      );
+
+      if (error) {
+        throw new Error(error.message || 'Failed to sync clients from API');
+      }
+
+      if (!data.success) {
+        throw new Error(data.error || 'Sync failed');
+      }
+
+      return data.result;
+    },
+    onSuccess: () => {
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries({ queryKey: ['control-tower-clients-api'] });
+      queryClient.invalidateQueries({ queryKey: ['control-tower-summary'] });
+    },
   });
 };
