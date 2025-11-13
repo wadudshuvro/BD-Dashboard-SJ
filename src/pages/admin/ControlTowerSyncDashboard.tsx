@@ -17,6 +17,7 @@ import { useSyncControlTowerEmployees } from '@/hooks/useSyncControlTowerEmploye
 import { usePodSync } from '@/hooks/usePodSync';
 import { usePushToControlTower } from '@/hooks/usePushToControlTower';
 import { useControlTowerHealth } from '@/hooks/useControlTowerHealth';
+import { useSyncControlTowerClientsAPI } from '@/hooks/useControlTowerData';
 import { HealthOverviewCard } from '@/components/admin/HealthOverviewCard';
 import { ActiveAlertsPanel } from '@/components/admin/ActiveAlertsPanel';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -100,6 +101,7 @@ const ControlTowerSyncDashboard = () => {
   const { mutate: triggerEmployeeSync, isPending: isSyncingEmployees } = useSyncControlTowerEmployees();
   const { syncPods } = usePodSync();
   const { pushDeal } = usePushToControlTower();
+  const { mutate: triggerClientsAPISync, isPending: isSyncingClientsAPI } = useSyncControlTowerClientsAPI();
   
   // Health monitoring
   const {
@@ -685,19 +687,46 @@ const ControlTowerSyncDashboard = () => {
                   {isSyncingPods ? 'Syncing...' : '📦 Sync PODs Only'}
                 </Button>
 
-                <Button 
+                <Button
                   variant="outline"
-                  onClick={() => syncDeals()} 
+                  onClick={() => syncDeals()}
                   disabled={isSyncingDeals || loading}
                   title="Syncs deals, clients, and checklists (requires employees & PODs)"
                 >
                   {isSyncingDeals ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Briefcase className="mr-2 h-4 w-4" />}
                   {isSyncingDeals ? 'Syncing...' : '💼 Sync Deals Only'}
                 </Button>
-                
-                <Button 
+
+                <Button
                   variant="outline"
-                  onClick={triggerPushSync} 
+                  onClick={() => {
+                    triggerClientsAPISync(undefined, {
+                      onSuccess: (result) => {
+                        toast({
+                          title: "Clients Synced via REST API",
+                          description: `✅ ${result.clients.new} new, ${result.clients.updated} updated, ${result.clients.skipped} skipped${result.clients.failed > 0 ? `, ⚠️ ${result.clients.failed} failed` : ''}`,
+                        });
+                        fetchSummary();
+                      },
+                      onError: (error: any) => {
+                        toast({
+                          title: "Client Sync Failed",
+                          description: error.message,
+                          variant: "destructive",
+                        });
+                      },
+                    });
+                  }}
+                  disabled={isSyncingClientsAPI || loading}
+                  title="Sync clients from Control Tower REST API (official API, not direct DB access)"
+                >
+                  {isSyncingClientsAPI ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Building2 className="mr-2 h-4 w-4" />}
+                  {isSyncingClientsAPI ? 'Syncing...' : '🏢 Sync Clients API'}
+                </Button>
+
+                <Button
+                  variant="outline"
+                  onClick={triggerPushSync}
                   disabled={isPushing || loading}
                   title="Push comments and checklist updates to Control Tower"
                 >
