@@ -36,6 +36,14 @@ interface ValidationResult {
     company: string;
     phone?: string;
     linkedinUrl?: string;
+    companyWebsite?: string;
+    companyIndustry?: string;
+    companySize?: string;
+    companyLinkedinUrl?: string;
+    streetAddress?: string;
+    city?: string;
+    state?: string;
+    country?: string;
     rowNumber: number;
   }>;
   errors: Array<{
@@ -56,11 +64,15 @@ const REQUIRED_FIELDS = [
 const OPTIONAL_FIELDS = [
   { key: 'phone', label: 'Phone' },
   { key: 'linkedinUrl', label: 'LinkedIn URL' },
+  { key: 'companyWebsite', label: 'Company Domain' },
+  { key: 'companyIndustry', label: 'Industry' },
+  { key: 'companySize', label: 'Company Size' },
+  { key: 'companyLinkedinUrl', label: 'Company LinkedIn' },
+  { key: 'streetAddress', label: 'Street Address' },
+  { key: 'city', label: 'City' },
+  { key: 'state', label: 'State' },
+  { key: 'country', label: 'Country' },
 ];
-
-const SAMPLE_TEMPLATE = `First Name,Last Name,Email,Job Title,Company,Phone,LinkedIn URL
-John,Doe,john.doe@company.com,CEO,Acme Inc,(555) 123-4567,https://linkedin.com/in/johndoe
-Jane,Smith,jane.smith@techcorp.com,CTO,TechCorp,(555) 987-6543,https://linkedin.com/in/janesmith`;
 
 export function CampaignGoogleSheetImportDialog({
   open,
@@ -103,16 +115,6 @@ export function CampaignGoogleSheetImportDialog({
     setIsImporting(false);
     setImportResult(null);
     setError(null);
-  };
-
-  const downloadTemplate = () => {
-    const blob = new Blob([SAMPLE_TEMPLATE], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'campaign-contacts-template.csv';
-    a.click();
-    URL.revokeObjectURL(url);
   };
 
   const handleSheetSelected = (sheet: { id: string; name: string; url: string }, data: string[][]) => {
@@ -232,16 +234,6 @@ export function CampaignGoogleSheetImportDialog({
                 Select a Google Sheet containing your campaign contacts. Make sure your sheet includes the required columns.
               </AlertDescription>
             </Alert>
-
-            <div className="space-y-2">
-              <Label>Download Sample Template</Label>
-              <Button variant="outline" onClick={downloadTemplate} className="w-full">
-                <Download className="mr-2 h-4 w-4" />
-                Download CSV Template
-              </Button>
-            </div>
-
-            <Separator />
 
             <div className="space-y-2">
               <Label>Required Columns</Label>
