@@ -49,7 +49,7 @@ import DealDetail from "./pages/bd/DealDetail";
 import DealFiles from "./pages/bd/DealFiles";
 import ClientDetail from "./pages/bd/ClientDetail";
 import ChecklistTemplateManager from "./pages/admin/ChecklistTemplateManager";
-import ControlTowerSyncDashboard from "./pages/admin/ControlTowerSyncDashboard";
+import DataSyncCenter from "./pages/admin/DataSyncCenter";
 import LeadDetail from "./pages/bd/LeadDetail";
 import AnalyticsDashboard from "./pages/analytics/Dashboard";
 import TeamPerformance from "./pages/analytics/TeamPerformance";
@@ -119,7 +119,8 @@ const App = () => (
               <Route path="users" element={<UserManagement />} />
               <Route path="users/:userId" element={<UserDetail />} />
               <Route path="integrations" element={<IntegrationManager />} />
-              <Route path="integrations/control-tower-sync" element={<ControlTowerSyncDashboard />} />
+              <Route path="data-sync" element={<DataSyncCenter />} />
+              <Route path="integrations/control-tower-sync" element={<Navigate to="/adminpanel/data-sync" replace />} />
               <Route path="documentation" element={<React.Suspense fallback={<div>Loading...</div>}><Documentation /></React.Suspense>} />
               <Route path="settings" element={<AdminSettings />} />
               <Route path="eod-management" element={<EODManagement />} />

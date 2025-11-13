@@ -67,10 +67,10 @@ const AdminLayout = () => {
         ],
       },
       {
-        section: "Integrations",
+        section: "Data Management",
         items: [
+          { name: "Data Sync Center", href: "/adminpanel/data-sync", icon: Network, roles: ['super_admin'] },
           { name: "Integration Manager", href: "/adminpanel/integrations", icon: Plug, roles: ['super_admin'] },
-          { name: "Control Tower", href: "/adminpanel/integrations/control-tower-sync", icon: Network, roles: ['super_admin'] },
         ],
       },
       {

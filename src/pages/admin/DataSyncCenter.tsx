@@ -8,9 +8,10 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Separator } from '@/components/ui/separator';
 import { toast } from '@/hooks/use-toast';
 import { formatDistanceToNow, format } from 'date-fns';
-import { Loader2, RefreshCw, CloudUpload, CloudDownload, AlertCircle, CheckCircle2, Clock, Trash2, Network, Activity, Settings, History, Calendar, Users, Package, Building2, Briefcase, ChevronDown, ChevronUp } from 'lucide-react';
+import { Loader2, RefreshCw, CloudUpload, CloudDownload, AlertCircle, CheckCircle2, Clock, Trash2, Network, Activity, Settings, History, Calendar, Users, Package, Building2, Briefcase, ChevronDown, ChevronUp, HelpCircle } from 'lucide-react';
 import { useSyncControlTowerFull } from '@/hooks/useSyncControlTowerFull';
 import { useSyncControlTowerDeals } from '@/hooks/useSyncControlTowerDeals';
 import { useSyncControlTowerEmployees } from '@/hooks/useSyncControlTowerEmployees';
@@ -20,6 +21,7 @@ import { useControlTowerHealth } from '@/hooks/useControlTowerHealth';
 import { useSyncControlTowerClientsAPI } from '@/hooks/useControlTowerData';
 import { HealthOverviewCard } from '@/components/admin/HealthOverviewCard';
 import { ActiveAlertsPanel } from '@/components/admin/ActiveAlertsPanel';
+import { DataFreshnessBadge } from '@/components/admin/DataFreshnessBadge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   AlertDialog,
@@ -74,7 +76,7 @@ const defaultConfig: SyncConfig = {
   push_schedule: 'hourly',
 };
 
-const ControlTowerSyncDashboard = () => {
+const DataSyncCenter = () => {
   const [logs, setLogs] = useState<SyncLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [pendingComments, setPendingComments] = useState(0);
@@ -482,9 +484,9 @@ const ControlTowerSyncDashboard = () => {
         <div className="flex items-center gap-3">
           {getSyncStatusIndicator()}
           <div>
-            <h1 className="text-3xl font-bold">Control Tower</h1>
+            <h1 className="text-3xl font-bold">Data Sync Center</h1>
             <p className="text-muted-foreground mt-1">
-              Bi-directional sync with Control Tower CRM
+              Keep your BD Portal synchronized with Control Tower CRM
             </p>
           </div>
         </div>
@@ -499,6 +501,63 @@ const ControlTowerSyncDashboard = () => {
           </Label>
         </div>
       </div>
+
+      {/* Instructions Panel */}
+      <Card className="border-primary/50 bg-primary/5">
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <HelpCircle className="h-5 w-5 text-primary" />
+            <CardTitle>How to Get Updated Data</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div>
+              <h4 className="font-semibold mb-2">📊 Quick Sync Guide</h4>
+              <ol className="list-decimal list-inside space-y-2 text-sm">
+                <li><strong>For All Data:</strong> Click "🔄 Full Sync" to update Employees, PODs, Deals, Projects, and Clients in one go</li>
+                <li><strong>For Deals Only:</strong> Click "💼 Sync Deals" to pull latest deals and projects from Control Tower</li>
+                <li><strong>For Clients Only:</strong> Click "🏢 Sync Clients API" to update client information via the official API</li>
+                <li><strong>Push Updates:</strong> Click "📤 Push Changes" to send your comments and checklist updates back to Control Tower</li>
+              </ol>
+            </div>
+            
+            <Separator />
+            
+            <div>
+              <h4 className="font-semibold mb-2">🔍 What Each Sync Does</h4>
+              <div className="grid gap-2 text-sm">
+                <div className="flex gap-2">
+                  <Badge variant="outline">Full Sync</Badge>
+                  <span>Employees → PODs → Deals → Projects → Clients → Checklists (in correct dependency order)</span>
+                </div>
+                <div className="flex gap-2">
+                  <Badge variant="outline">Deals Sync</Badge>
+                  <span>Active deals + associated projects, checklists, and client info</span>
+                </div>
+                <div className="flex gap-2">
+                  <Badge variant="outline">Clients API</Badge>
+                  <span>Client records via official REST API (recommended for client data)</span>
+                </div>
+                <div className="flex gap-2">
+                  <Badge variant="outline">Push Changes</Badge>
+                  <span>Sends your comments and completed checklist items to Control Tower</span>
+                </div>
+              </div>
+            </div>
+            
+            <Separator />
+            
+            <div className="bg-muted/50 p-3 rounded-md">
+              <p className="text-sm font-medium mb-1">💡 Best Practice</p>
+              <p className="text-sm text-muted-foreground">
+                Run "Full Sync" once daily. Use "Deals" or "Clients API" for quick updates throughout the day.
+                Automatic sync runs every hour, but you can trigger manual sync anytime.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <Tabs defaultValue="overview" className="w-full">
         <TabsList className="grid w-full grid-cols-5">
@@ -1190,4 +1249,4 @@ const ControlTowerSyncDashboard = () => {
   );
 };
 
-export default ControlTowerSyncDashboard;
+export default DataSyncCenter;

@@ -18,6 +18,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { PageInstructions } from '@/components/admin/PageInstructions';
 import { usePods, Pod } from '@/hooks/usePods';
 import { useTargetNiches } from '@/hooks/useTargetNiches';
 
@@ -59,6 +60,26 @@ export default function PODManagement() {
 
   return (
     <div className="container mx-auto py-8">
+      <PageInstructions
+        title="POD Management"
+        description="Organize teams into PODs (Profit Operating Divisions) for better collaboration"
+        steps={[
+          "Create PODs by clicking 'Create POD'",
+          "Assign team members to each POD",
+          "Set a POD leader who will manage the team",
+          "Sync PODs from Control Tower to import existing team structures"
+        ]}
+        tips={[
+          "PODs help organize deals by team",
+          "Each deal can be assigned to a POD for better tracking",
+          "POD data is synced from Control Tower every hour"
+        ]}
+        relatedLinks={[
+          { label: "Sync PODs from Control Tower", href: "/adminpanel/data-sync" },
+          { label: "User Management", href: "/adminpanel/users" }
+        ]}
+      />
+      
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-3xl font-bold">POD Management</h1>

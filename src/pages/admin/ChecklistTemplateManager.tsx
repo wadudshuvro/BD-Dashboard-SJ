@@ -28,6 +28,7 @@ import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
 import { Loader2, ListChecks, Plus, Trash2, Edit3, GripVertical } from 'lucide-react';
+import { PageInstructions } from '@/components/admin/PageInstructions';
 
 interface ChecklistTemplateItem {
   title: string;
@@ -328,6 +329,25 @@ const ChecklistTemplateManager = () => {
 
   return (
     <div className="space-y-6">
+      <PageInstructions
+        title="Checklist Templates"
+        description="Manage reusable checklist templates that power deal onboarding flows"
+        steps={[
+          "Create templates that automatically apply to specific deal stages",
+          "Add, reorder, and edit checklist items using drag-and-drop",
+          "Activate/deactivate templates to control which ones are in use",
+          "Templates are automatically applied when deals enter their assigned stage"
+        ]}
+        tips={[
+          "Templates with no stage apply to all deal stages",
+          "Drag items to reorder them as they should appear to users",
+          "Inactive templates won't apply to new deals but existing items remain"
+        ]}
+        relatedLinks={[
+          { label: "View Pipeline", href: "/prospecting" }
+        ]}
+      />
+      
       <Card>
         <CardHeader className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
           <div>

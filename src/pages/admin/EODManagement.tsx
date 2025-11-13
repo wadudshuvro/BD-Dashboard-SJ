@@ -22,6 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { PageInstructions } from "@/components/admin/PageInstructions";
 
 export default function EODManagement() {
   const [dateFilter, setDateFilter] = useState<string>("all");
@@ -117,6 +118,22 @@ export default function EODManagement() {
 
   return (
     <div className="space-y-6">
+      <PageInstructions
+        title="EOD Management"
+        description="View and manage all team End of Day submissions"
+        steps={[
+          "Review daily submission statistics and completion rates",
+          "Search and filter submissions by date range",
+          "Export submission data to CSV for reporting",
+          "Monitor team members who haven't submitted today"
+        ]}
+        tips={[
+          "EOD submissions are due daily by end of business",
+          "Check completion rate to identify submission patterns",
+          "Export historical data for performance reviews"
+        ]}
+      />
+      
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">EOD Management</h1>

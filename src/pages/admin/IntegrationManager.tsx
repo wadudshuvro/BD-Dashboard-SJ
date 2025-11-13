@@ -44,6 +44,7 @@ import {
   ScrollText,
   Trash2,
 } from "lucide-react";
+import { PageInstructions } from "@/components/admin/PageInstructions";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -800,6 +801,26 @@ const IntegrationManager = () => {
 
   return (
     <div className="space-y-8">
+      <PageInstructions
+        title="Integration Manager"
+        description="Connect and configure external services like HubSpot, Exa, and Perplexity"
+        steps={[
+          "View all available integrations and their connection status",
+          "Click 'Configure' on any integration to set up API keys",
+          "Test connections to ensure integrations are working",
+          "Monitor integration health and usage"
+        ]}
+        tips={[
+          "HubSpot sync runs automatically every 6 hours",
+          "Exa integration is used for lead enrichment",
+          "All API keys are encrypted and stored securely"
+        ]}
+        relatedLinks={[
+          { label: "Data Sync Center", href: "/adminpanel/data-sync" },
+          { label: "Documentation", href: "/adminpanel/documentation" }
+        ]}
+      />
+      
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-foreground">Integration Manager</h1>
