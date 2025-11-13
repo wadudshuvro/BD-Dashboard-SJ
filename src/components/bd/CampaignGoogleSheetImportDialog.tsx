@@ -1,0 +1,526 @@
+import { useState, useEffect } from "react";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Separator } from "@/components/ui/separator";
+import { AlertCircle, Download, FileSpreadsheet, Loader2, CheckCircle2 } from "lucide-react";
+import type { BDCampaign } from "@/hooks/useBDCampaigns";
+import { supabase } from "@/integrations/supabase/client";
+import { GoogleSheetPicker } from "./GoogleSheetPicker";
+import { FieldMappingTable } from "./FieldMappingTable";
+import { ImportPreviewTable } from "./ImportPreviewTable";
+
+interface CampaignGoogleSheetImportDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  campaign: BDCampaign;
+  onImportComplete: () => void;
+}
+
+type ImportStep = 'select' | 'map' | 'validate' | 'confirm' | 'importing' | 'complete';
+
+interface ValidationResult {
+  total: number;
+  valid: number;
+  invalid: number;
+  duplicateInSheet: number;
+  alreadyExists: number;
+  validContacts: Array<{
+    firstName: string;
+    lastName: string;
+    email: string;
+    jobTitle: string;
+    company: string;
+    phone?: string;
+    linkedinUrl?: string;
+    rowNumber: number;
+  }>;
+  errors: Array<{
+    rowNumber: number;
+    field: string;
+    message: string;
+  }>;
+}
+
+const REQUIRED_FIELDS = [
+  { key: 'firstName', label: 'First Name' },
+  { key: 'lastName', label: 'Last Name' },
+  { key: 'email', label: 'Email' },
+  { key: 'jobTitle', label: 'Job Title' },
+  { key: 'company', label: 'Company' },
+];
+
+const OPTIONAL_FIELDS = [
+  { key: 'phone', label: 'Phone' },
+  { key: 'linkedinUrl', label: 'LinkedIn URL' },
+];
+
+const SAMPLE_TEMPLATE = `First Name,Last Name,Email,Job Title,Company,Phone,LinkedIn URL
+John,Doe,john.doe@company.com,CEO,Acme Inc,(555) 123-4567,https://linkedin.com/in/johndoe
+Jane,Smith,jane.smith@techcorp.com,CTO,TechCorp,(555) 987-6543,https://linkedin.com/in/janesmith`;
+
+export function CampaignGoogleSheetImportDialog({
+  open,
+  onOpenChange,
+  campaign,
+  onImportComplete,
+}: CampaignGoogleSheetImportDialogProps) {
+  const [step, setStep] = useState<ImportStep>('select');
+  const [selectedSheet, setSelectedSheet] = useState<{ id: string; name: string; url: string } | null>(null);
+  const [sheetData, setSheetData] = useState<string[][]>([]);
+  const [customTag, setCustomTag] = useState("");
+  const [fieldMapping, setFieldMapping] = useState<Record<string, string>>({});
+  const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
+  const [isValidating, setIsValidating] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importResult, setImportResult] = useState<{
+    imported: number;
+    skipped: number;
+    failed: number;
+    tags: string[];
+  } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const campaignTag = `campaign-${campaign.name.toLowerCase().replace(/\s+/g, '-')}`;
+
+  useEffect(() => {
+    if (!open) {
+      resetDialog();
+    }
+  }, [open]);
+
+  const resetDialog = () => {
+    setStep('select');
+    setSelectedSheet(null);
+    setSheetData([]);
+    setCustomTag("");
+    setFieldMapping({});
+    setValidationResult(null);
+    setIsValidating(false);
+    setIsImporting(false);
+    setImportResult(null);
+    setError(null);
+  };
+
+  const downloadTemplate = () => {
+    const blob = new Blob([SAMPLE_TEMPLATE], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'campaign-contacts-template.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleSheetSelected = (sheet: { id: string; name: string; url: string }, data: string[][]) => {
+    setSelectedSheet(sheet);
+    setSheetData(data);
+    setError(null);
+    
+    // Auto-detect field mapping from headers
+    if (data.length > 0) {
+      const headers = data[0].map(h => h.toLowerCase().trim());
+      const mapping: Record<string, string> = {};
+      
+      [...REQUIRED_FIELDS, ...OPTIONAL_FIELDS].forEach(field => {
+        const fieldLower = field.label.toLowerCase();
+        const matchIndex = headers.findIndex(h => 
+          h === fieldLower || 
+          h.replace(/\s+/g, '') === fieldLower.replace(/\s+/g, '') ||
+          h === field.key.toLowerCase()
+        );
+        if (matchIndex !== -1) {
+          mapping[field.key] = data[0][matchIndex];
+        }
+      });
+      
+      setFieldMapping(mapping);
+    }
+    
+    setStep('map');
+  };
+
+  const handleMappingComplete = () => {
+    // Validate that all required fields are mapped
+    const missingFields = REQUIRED_FIELDS.filter(f => !fieldMapping[f.key]);
+    if (missingFields.length > 0) {
+      setError(`Please map all required fields: ${missingFields.map(f => f.label).join(', ')}`);
+      return;
+    }
+    
+    setStep('validate');
+    validateSheet();
+  };
+
+  const validateSheet = async () => {
+    setIsValidating(true);
+    setError(null);
+
+    try {
+      const { data, error: validateError } = await supabase.functions.invoke('campaign-google-sheet-import', {
+        body: {
+          action: 'validate',
+          campaignId: campaign.id,
+          sheetData,
+          fieldMapping,
+        },
+      });
+
+      if (validateError) throw validateError;
+      
+      setValidationResult(data.validation);
+      setStep('confirm');
+    } catch (err: any) {
+      console.error('Validation error:', err);
+      setError(err.message || 'Failed to validate sheet data');
+      setStep('map');
+    } finally {
+      setIsValidating(false);
+    }
+  };
+
+  const handleImport = async () => {
+    if (!validationResult) return;
+
+    setIsImporting(true);
+    setError(null);
+
+    try {
+      const tags = [campaignTag];
+      if (customTag.trim()) {
+        tags.push(customTag.trim());
+      }
+
+      const { data, error: importError } = await supabase.functions.invoke('campaign-google-sheet-import', {
+        body: {
+          action: 'import',
+          campaignId: campaign.id,
+          contacts: validationResult.validContacts,
+          tags,
+        },
+      });
+
+      if (importError) throw importError;
+
+      setImportResult(data.result);
+      setStep('complete');
+      
+      // Call onImportComplete after a short delay to allow user to see the success message
+      setTimeout(() => {
+        onImportComplete();
+      }, 2000);
+    } catch (err: any) {
+      console.error('Import error:', err);
+      setError(err.message || 'Failed to import contacts');
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  const renderStepContent = () => {
+    switch (step) {
+      case 'select':
+        return (
+          <div className="space-y-4">
+            <Alert>
+              <FileSpreadsheet className="h-4 w-4" />
+              <AlertTitle>Import from Google Sheets</AlertTitle>
+              <AlertDescription>
+                Select a Google Sheet containing your campaign contacts. Make sure your sheet includes the required columns.
+              </AlertDescription>
+            </Alert>
+
+            <div className="space-y-2">
+              <Label>Download Sample Template</Label>
+              <Button variant="outline" onClick={downloadTemplate} className="w-full">
+                <Download className="mr-2 h-4 w-4" />
+                Download CSV Template
+              </Button>
+            </div>
+
+            <Separator />
+
+            <div className="space-y-2">
+              <Label>Required Columns</Label>
+              <div className="flex flex-wrap gap-2">
+                {REQUIRED_FIELDS.map(field => (
+                  <Badge key={field.key} variant="default">{field.label}</Badge>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Optional Columns</Label>
+              <div className="flex flex-wrap gap-2">
+                {OPTIONAL_FIELDS.map(field => (
+                  <Badge key={field.key} variant="outline">{field.label}</Badge>
+                ))}
+              </div>
+            </div>
+
+            <Separator />
+
+            <GoogleSheetPicker onSheetSelected={handleSheetSelected} />
+
+            {error && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+          </div>
+        );
+
+      case 'map':
+        return (
+          <div className="space-y-4">
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Map Your Columns</AlertTitle>
+              <AlertDescription>
+                Match your sheet columns to the required contact fields. We've auto-detected some mappings.
+              </AlertDescription>
+            </Alert>
+
+            {selectedSheet && (
+              <div className="space-y-2">
+                <Label>Selected Sheet</Label>
+                <div className="p-3 bg-muted rounded-md">
+                  <p className="font-medium">{selectedSheet.name}</p>
+                  <p className="text-sm text-muted-foreground">{sheetData.length - 1} rows (excluding header)</p>
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label>Custom Tag (Optional)</Label>
+              <Input
+                placeholder="e.g., Q1-2024, HighValue"
+                value={customTag}
+                onChange={(e) => setCustomTag(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                All contacts will be tagged with: <Badge variant="outline">{campaignTag}</Badge>
+                {customTag && <> and <Badge variant="outline">{customTag}</Badge></>}
+              </p>
+            </div>
+
+            <Separator />
+
+            <FieldMappingTable
+              sheetHeaders={sheetData[0] || []}
+              requiredFields={REQUIRED_FIELDS}
+              optionalFields={OPTIONAL_FIELDS}
+              mapping={fieldMapping}
+              onMappingChange={setFieldMapping}
+            />
+
+            {error && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+          </div>
+        );
+
+      case 'validate':
+        return (
+          <div className="flex flex-col items-center justify-center py-8 space-y-4">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-lg font-medium">Validating sheet data...</p>
+            <p className="text-sm text-muted-foreground">Checking for duplicates and validating required fields</p>
+          </div>
+        );
+
+      case 'confirm':
+        return (
+          <div className="space-y-4">
+            {validationResult && (
+              <>
+                <Alert>
+                  <CheckCircle2 className="h-4 w-4" />
+                  <AlertTitle>Validation Complete</AlertTitle>
+                  <AlertDescription>
+                    Review the validation results below and proceed with import.
+                  </AlertDescription>
+                </Alert>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="p-4 bg-muted rounded-md">
+                    <p className="text-2xl font-bold">{validationResult.total}</p>
+                    <p className="text-sm text-muted-foreground">Total Rows</p>
+                  </div>
+                  <div className="p-4 bg-green-50 rounded-md">
+                    <p className="text-2xl font-bold text-green-700">{validationResult.valid}</p>
+                    <p className="text-sm text-green-700">Valid to Import</p>
+                  </div>
+                  <div className="p-4 bg-yellow-50 rounded-md">
+                    <p className="text-2xl font-bold text-yellow-700">{validationResult.duplicateInSheet}</p>
+                    <p className="text-sm text-yellow-700">Duplicates in Sheet</p>
+                  </div>
+                  <div className="p-4 bg-orange-50 rounded-md">
+                    <p className="text-2xl font-bold text-orange-700">{validationResult.alreadyExists}</p>
+                    <p className="text-sm text-orange-700">Already Exist</p>
+                  </div>
+                </div>
+
+                {validationResult.invalid > 0 && (
+                  <div className="p-4 bg-red-50 rounded-md">
+                    <p className="text-sm font-medium text-red-700 mb-2">
+                      {validationResult.invalid} Invalid Rows
+                    </p>
+                    <ImportPreviewTable errors={validationResult.errors.slice(0, 5)} />
+                    {validationResult.errors.length > 5 && (
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Showing first 5 of {validationResult.errors.length} errors
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <Label>Tags to Apply</Label>
+                  <div className="flex flex-wrap gap-2">
+                    <Badge>{campaignTag}</Badge>
+                    {customTag && <Badge>{customTag}</Badge>}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {error && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+          </div>
+        );
+
+      case 'importing':
+        return (
+          <div className="flex flex-col items-center justify-center py-8 space-y-4">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-lg font-medium">Importing contacts...</p>
+            <p className="text-sm text-muted-foreground">Please wait while we process your contacts</p>
+          </div>
+        );
+
+      case 'complete':
+        return (
+          <div className="space-y-4">
+            <Alert>
+              <CheckCircle2 className="h-4 w-4" />
+              <AlertTitle>Import Complete!</AlertTitle>
+              <AlertDescription>
+                Your contacts have been successfully imported to the campaign.
+              </AlertDescription>
+            </Alert>
+
+            {importResult && (
+              <div className="grid grid-cols-3 gap-4">
+                <div className="p-4 bg-green-50 rounded-md">
+                  <p className="text-2xl font-bold text-green-700">{importResult.imported}</p>
+                  <p className="text-sm text-green-700">Imported</p>
+                </div>
+                <div className="p-4 bg-yellow-50 rounded-md">
+                  <p className="text-2xl font-bold text-yellow-700">{importResult.skipped}</p>
+                  <p className="text-sm text-yellow-700">Skipped</p>
+                </div>
+                <div className="p-4 bg-red-50 rounded-md">
+                  <p className="text-2xl font-bold text-red-700">{importResult.failed}</p>
+                  <p className="text-sm text-red-700">Failed</p>
+                </div>
+              </div>
+            )}
+
+            {importResult && importResult.tags.length > 0 && (
+              <div className="space-y-2">
+                <Label>Applied Tags</Label>
+                <div className="flex flex-wrap gap-2">
+                  {importResult.tags.map(tag => (
+                    <Badge key={tag} variant="outline">{tag}</Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+    }
+  };
+
+  const renderFooter = () => {
+    switch (step) {
+      case 'select':
+        return (
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+        );
+
+      case 'map':
+        return (
+          <>
+            <Button variant="outline" onClick={() => setStep('select')}>
+              Back
+            </Button>
+            <Button onClick={handleMappingComplete}>
+              Continue to Validation
+            </Button>
+          </>
+        );
+
+      case 'validate':
+        return null;
+
+      case 'confirm':
+        return (
+          <>
+            <Button variant="outline" onClick={() => setStep('map')}>
+              Back
+            </Button>
+            <Button 
+              onClick={handleImport}
+              disabled={!validationResult || validationResult.valid === 0 || isImporting}
+            >
+              {isImporting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Import {validationResult?.valid || 0} Contacts
+            </Button>
+          </>
+        );
+
+      case 'importing':
+        return null;
+
+      case 'complete':
+        return (
+          <Button onClick={() => onOpenChange(false)}>
+            Done
+          </Button>
+        );
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Import Leads from Google Sheets</DialogTitle>
+          <DialogDescription>
+            Import campaign contacts from a Google Sheet with automatic validation and deduplication
+          </DialogDescription>
+        </DialogHeader>
+
+        {renderStepContent()}
+
+        <DialogFooter>
+          {renderFooter()}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
