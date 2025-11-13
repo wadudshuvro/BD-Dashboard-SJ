@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   Brain,
   CheckCircle2,
+  FileSpreadsheet,
   Linkedin,
   Loader2,
   Mail,
@@ -26,6 +27,7 @@ import type { CampaignContactStatus } from '@/hooks/useCampaignDetail';
 import { useExaIntegration } from '@/hooks/useExaIntegration';
 import { useUserPermissions } from '@/hooks/useUserPermissions';
 import { CampaignLeadImportDialog } from '@/components/bd/CampaignLeadImportDialog';
+import { CampaignGoogleSheetImportDialog } from '@/components/bd/CampaignGoogleSheetImportDialog';
 import { CampaignContactsTable } from '@/components/bd/CampaignContactsTable';
 import { ContactListControls } from '@/components/bd/ContactListControls';
 import { EmptyContactList } from '@/components/bd/EmptyContactList';
@@ -74,6 +76,7 @@ export default function CampaignDetail() {
   const { hasPermission } = useUserPermissions();
   const { mutateAsync: runContactResearch } = useCampaignContactResearch();
   const [leadImportDialogOpen, setLeadImportDialogOpen] = useState(false);
+  const [googleSheetImportDialogOpen, setGoogleSheetImportDialogOpen] = useState(false);
   
   // Smart List state
   const [viewMode, setViewMode] = useState<'list' | 'pipeline'>(() => {
@@ -320,6 +323,14 @@ export default function CampaignDetail() {
           >
             <Users className="h-4 w-4" />
             Add Leads
+          </Button>
+          <Button
+            variant="default"
+            className="gap-2"
+            onClick={() => setGoogleSheetImportDialogOpen(true)}
+          >
+            <FileSpreadsheet className="h-4 w-4" />
+            Import Leads
           </Button>
           <Button
             variant="outline"
@@ -578,17 +589,30 @@ export default function CampaignDetail() {
       </Card>
 
       {campaign && (
-        <CampaignLeadImportDialog
-          open={leadImportDialogOpen}
-          onOpenChange={setLeadImportDialogOpen}
-          campaign={campaign}
-          onImportComplete={() => {
-            toast({
-              title: "Leads imported",
-              description: "New contacts added to campaign pipeline",
-            });
-          }}
-        />
+        <>
+          <CampaignLeadImportDialog
+            open={leadImportDialogOpen}
+            onOpenChange={setLeadImportDialogOpen}
+            campaign={campaign}
+            onImportComplete={() => {
+              toast({
+                title: "Leads imported",
+                description: "New contacts added to campaign pipeline",
+              });
+            }}
+          />
+          <CampaignGoogleSheetImportDialog
+            open={googleSheetImportDialogOpen}
+            onOpenChange={setGoogleSheetImportDialogOpen}
+            campaign={campaign}
+            onImportComplete={() => {
+              toast({
+                title: "Import successful",
+                description: "Contacts imported from Google Sheets",
+              });
+            }}
+          />
+        </>
       )}
     </div>
   );
