@@ -3,7 +3,8 @@ import { Button } from '@/components/ui/button';
 import { useDeals } from '@/hooks/useDeals';
 import { useClients } from '@/hooks/useClients';
 import { useLeadList } from '@/hooks/useLeads';
-import { TrendingUp, Users, Target, Award } from 'lucide-react';
+import { useProposalMetrics } from '@/hooks/useProposalMetrics';
+import { TrendingUp, Users, Target, Award, FileText, Clock } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { SyncHubSpotButton } from '@/components/bd/SyncHubSpotButton';
 
@@ -17,9 +18,10 @@ export default function BDDashboard() {
     page: 1, 
     pageSize: 1000 
   });
+  const { data: proposalMetrics, isLoading: proposalsLoading } = useProposalMetrics();
   
   const leads = leadsData?.leads || [];
-  const isLoading = dealsLoading || clientsLoading || leadsLoading;
+  const isLoading = dealsLoading || clientsLoading || leadsLoading || proposalsLoading;
   
   const newLeads = leads.filter((l) => 
     new Date(l.created_at || '').getMonth() === new Date().getMonth()
@@ -178,6 +180,44 @@ export default function BDDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Proposal Performance Widget */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="flex items-center gap-2">
+            <FileText className="h-5 w-5 text-primary" />
+            Proposal Performance
+          </CardTitle>
+          <Button variant="outline" size="sm" asChild>
+            <Link to="/bd/proposals">View All</Link>
+          </Button>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 md:grid-cols-4">
+            <div className="space-y-1">
+              <p className="text-sm text-muted-foreground">Sent This Month</p>
+              <p className="text-2xl font-bold">{proposalMetrics?.sentThisMonth || 0}</p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm text-muted-foreground">Signed This Month</p>
+              <p className="text-2xl font-bold text-success">{proposalMetrics?.signedThisMonth || 0}</p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm text-muted-foreground">Conversion Rate</p>
+              <p className="text-2xl font-bold">{proposalMetrics?.conversionRate || 0}%</p>
+            </div>
+            <div className="space-y-1 flex items-center gap-2">
+              <Clock className="h-4 w-4 text-muted-foreground" />
+              <div>
+                <p className="text-sm text-muted-foreground">Avg Time to Sign</p>
+                <p className="text-2xl font-bold">
+                  {proposalMetrics?.avgTimeToSign ? `${proposalMetrics.avgTimeToSign}h` : '-'}
+                </p>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
