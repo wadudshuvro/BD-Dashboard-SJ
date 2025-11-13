@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { FileSignature, Plus, TrendingUp, Send, CheckCircle } from "lucide-react";
+import { FileSignature, Plus, TrendingUp, Send, CheckCircle, BarChart3 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { ProposalDialog } from "@/components/proposals/ProposalDialog";
 import { ProposalList } from "@/components/proposals/ProposalList";
 import { useProposals } from "@/hooks/useProposals";
@@ -9,6 +10,7 @@ import { useProposals } from "@/hooks/useProposals";
 export default function ProposalManagement() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const { data: proposals } = useProposals();
+  const navigate = useNavigate();
 
   const totalProposals = proposals?.length || 0;
   const sentThisMonth = proposals?.filter((p) => {
@@ -37,10 +39,16 @@ export default function ProposalManagement() {
           </h1>
           <p className="text-muted-foreground">Create, send, and track proposals with e-signature</p>
         </div>
-        <Button onClick={() => setCreateDialogOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Create Proposal
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => navigate('/bd/proposals/analytics')}>
+            <BarChart3 className="h-4 w-4 mr-2" />
+            Analytics
+          </Button>
+          <Button onClick={() => setCreateDialogOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Create Proposal
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-4">

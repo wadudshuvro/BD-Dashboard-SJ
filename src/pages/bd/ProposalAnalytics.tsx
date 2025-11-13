@@ -14,8 +14,29 @@ export default function ProposalAnalytics() {
   const [period, setPeriod] = useState<'7d' | '30d' | '90d'>('30d');
 
   const handleExport = () => {
-    // TODO: Implement CSV export
-    console.log("Exporting analytics data...");
+    const data = [
+      ['Metric', 'Value'],
+      ['Period', period],
+      ['Export Date', new Date().toLocaleDateString()],
+      ['', ''],
+      ['Conversion Funnel', ''],
+      ['Total Proposals', ''],
+      ['Sent', ''],
+      ['Viewed', ''],
+      ['Signed', ''],
+      ['Declined', ''],
+    ];
+    
+    const csv = data.map(row => row.join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `proposal-analytics-${period}-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
   };
 
   return (
