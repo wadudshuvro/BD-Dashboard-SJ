@@ -11,10 +11,6 @@ const corsHeaders = {
 
 const PANDADOC_API_BASE = 'https://api.pandadoc.com/public/v1';
 
-// Rate limiting configuration (requests per minute per user)
-const RATE_LIMIT_PER_MINUTE = 30;
-const RATE_LIMIT_WINDOW_MS = 60000; // 1 minute
-
 interface PandaDocIntegration {
   id: string;
   user_id: string;
@@ -57,20 +53,6 @@ serve(async (req) => {
     const { data: { user }, error: userError } = await supabase.auth.getUser(token);
     if (userError || !user) {
       throw new Error('Invalid user token');
-    }
-
-    // Rate limiting check (except for GET requests)
-    if (req.method !== 'GET') {
-      const isRateLimited = await checkRateLimit(user.id);
-      if (isRateLimited) {
-        return new Response(
-          JSON.stringify({ error: 'Rate limit exceeded. Please try again later.' }),
-          { 
-            status: 429, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-          }
-        );
-      }
     }
 
     console.log(`[pandadoc-manage] Processing ${req.method} ${endpoint} for user ${user.id}`);
@@ -363,7 +345,6 @@ serve(async (req) => {
       );
     }
 
-    // Note: Webhook handling moved to separate function for clarity
 
     return new Response(
       JSON.stringify({ error: 'Endpoint not found' }),
@@ -455,40 +436,7 @@ async function verifyWebhookSignature(
   return signature === expectedSignature;
 }
 
-// Rate limiting using in-memory store (could use Deno KV for persistent storage)
-const rateLimitStore = new Map<string, { count: number; resetAt: number }>();
-
-async function checkRateLimit(userId: string): Promise<boolean> {
-  const now = Date.now();
-  const userLimit = rateLimitStore.get(userId);
-
-  // Clean up expired entries
-  if (userLimit && now > userLimit.resetAt) {
-    rateLimitStore.delete(userId);
-  }
-
-  if (!userLimit || now > userLimit.resetAt) {
-    // First request or window expired - create new window
-    rateLimitStore.set(userId, {
-      count: 1,
-      resetAt: now + RATE_LIMIT_WINDOW_MS,
-    });
-    return false;
-  }
-
-  // Increment count
-  userLimit.count++;
-  
-  // Check if limit exceeded
-  if (userLimit.count > RATE_LIMIT_PER_MINUTE) {
-    console.log(`[pandadoc-manage] Rate limit exceeded for user ${userId}`);
-    return true;
-  }
-
-  return false;
-}
-
-// Separate webhook handler function
+// Webhook handler function (separated for clarity and security)
 async function handleWebhook(req: Request, supabase: any): Promise<Response> {
   try {
     const body = await req.text();
