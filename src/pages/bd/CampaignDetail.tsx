@@ -82,7 +82,7 @@ export default function CampaignDetail() {
   // Smart List state
   const [viewMode, setViewMode] = useState<'list' | 'pipeline'>(() => {
     const saved = localStorage.getItem('campaign-view-mode');
-    return (saved as 'list' | 'pipeline') || 'pipeline';
+    return (saved as 'list' | 'pipeline') || 'list';
   });
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<CampaignContactStatus[]>([]);
