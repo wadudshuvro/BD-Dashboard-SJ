@@ -24,29 +24,6 @@ type SortConfig = {
   direction: "asc" | "desc";
 };
 
-interface SortableHeaderProps {
-  label: string;
-  sortKey: string;
-  currentSort: SortConfig;
-  onSort: (key: string) => void;
-}
-
-const SortableHeader = ({ label, sortKey, currentSort, onSort }: SortableHeaderProps) => {
-  const isActive = currentSort.key === sortKey;
-  
-  return (
-    <TableHead 
-      className="cursor-pointer hover:bg-muted/50"
-      onClick={() => onSort(sortKey)}
-    >
-      <div className="flex items-center gap-2">
-        {label}
-        <ArrowUpDown className={`h-4 w-4 ${isActive ? 'text-primary' : 'text-muted-foreground'}`} />
-      </div>
-    </TableHead>
-  );
-};
-
 interface CampaignContactsTableProps {
   contacts: CampaignContact[];
   campaignSlug: string;
@@ -146,22 +123,46 @@ export function CampaignContactsTable({
 
   return (
     <>
-      <div className="border rounded-lg">
-        <Table>
+      <div className="w-full overflow-x-auto border rounded-lg">
+        <Table className="table-fixed min-w-[1200px]">
           <TableHeader>
             <TableRow>
-              <TableHead className="w-12">
+              <TableHead className="w-12 px-3 py-3">
                 <Checkbox
                   checked={selectedContacts.size === contacts.length && contacts.length > 0}
                   onCheckedChange={toggleSelectAll}
                 />
               </TableHead>
-              <SortableHeader label="Name" sortKey="contact_name" currentSort={sortConfig} onSort={handleSort} />
-              <TableHead>Contact Info</TableHead>
-              <SortableHeader label="Company & Title" sortKey="contact_company" currentSort={sortConfig} onSort={handleSort} />
-              <TableHead>Tags</TableHead>
-              <SortableHeader label="Status" sortKey="status" currentSort={sortConfig} onSort={handleSort} />
-              <TableHead className="w-20">Actions</TableHead>
+              <TableHead className="w-48 px-3 py-3">
+                <div 
+                  className="flex items-center gap-2 cursor-pointer hover:text-primary"
+                  onClick={() => handleSort("contact_name")}
+                >
+                  Name
+                  <ArrowUpDown className={`h-4 w-4 ${sortConfig.key === "contact_name" ? 'text-primary' : 'text-muted-foreground'}`} />
+                </div>
+              </TableHead>
+              <TableHead className="w-64 max-w-64 px-3 py-3">Contact Info</TableHead>
+              <TableHead className="w-56 max-w-56 px-3 py-3">
+                <div 
+                  className="flex items-center gap-2 cursor-pointer hover:text-primary"
+                  onClick={() => handleSort("contact_company")}
+                >
+                  Company & Title
+                  <ArrowUpDown className={`h-4 w-4 ${sortConfig.key === "contact_company" ? 'text-primary' : 'text-muted-foreground'}`} />
+                </div>
+              </TableHead>
+              <TableHead className="w-52 max-w-52 px-3 py-3">Tags</TableHead>
+              <TableHead className="w-32 px-3 py-3">
+                <div 
+                  className="flex items-center gap-2 cursor-pointer hover:text-primary"
+                  onClick={() => handleSort("status")}
+                >
+                  Status
+                  <ArrowUpDown className={`h-4 w-4 ${sortConfig.key === "status" ? 'text-primary' : 'text-muted-foreground'}`} />
+                </div>
+              </TableHead>
+              <TableHead className="w-20 px-3 py-3">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -170,7 +171,7 @@ export function CampaignContactsTable({
                 key={contact.id}
                 className="cursor-pointer hover:bg-muted/50"
               >
-                <TableCell onClick={(e) => e.stopPropagation()}>
+                <TableCell className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
                   <Checkbox
                     checked={selectedContacts.has(contact.id)}
                     onCheckedChange={() => toggleSelectContact(contact.id)}
@@ -178,25 +179,25 @@ export function CampaignContactsTable({
                 </TableCell>
                 
                 {/* Name with Avatar */}
-                <TableCell>
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-8 w-8">
+                <TableCell className="px-3 py-3">
+                  <div className="flex items-center gap-2">
+                    <Avatar className="h-8 w-8 flex-shrink-0">
                       <AvatarImage src={contact.linkedin_profile_image_url || undefined} />
                       <AvatarFallback>
                         {contact.contact_name?.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
-                    <span className="font-medium">{contact.contact_name}</span>
+                    <span className="font-medium truncate">{contact.contact_name}</span>
                   </div>
                 </TableCell>
 
                 {/* Contact Info */}
-                <TableCell onClick={(e) => e.stopPropagation()}>
-                  <div className="flex flex-col gap-1 text-sm min-w-[200px]">
+                <TableCell className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex flex-col gap-1 text-sm">
                     {contact.contact_email && (
-                      <div className="flex items-center gap-2 group">
+                      <div className="flex items-center gap-1 group min-w-0">
                         <Mail className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                        <span className="text-muted-foreground truncate">{contact.contact_email}</span>
+                        <span className="text-muted-foreground truncate flex-1 min-w-0">{contact.contact_email}</span>
                         <Button
                           variant="ghost"
                           size="sm"
@@ -208,9 +209,9 @@ export function CampaignContactsTable({
                       </div>
                     )}
                     {contact.contact_phone && (
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1">
                         <Phone className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                        <span className="text-muted-foreground">{contact.contact_phone}</span>
+                        <span className="text-muted-foreground truncate">{contact.contact_phone}</span>
                       </div>
                     )}
                     {contact.contact_linkedin_url && (
@@ -218,40 +219,40 @@ export function CampaignContactsTable({
                         href={contact.contact_linkedin_url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-2 text-primary hover:underline"
+                        className="flex items-center gap-1 text-primary hover:underline min-w-0"
                         onClick={(e) => e.stopPropagation()}
                       >
                         <Linkedin className="h-3 w-3 flex-shrink-0" />
-                        <span>View Profile</span>
+                        <span className="truncate">View Profile</span>
                       </a>
                     )}
                   </div>
                 </TableCell>
 
                 {/* Company & Title */}
-                <TableCell>
-                  <div className="flex flex-col min-w-[180px]">
-                    <span className="font-medium">{contact.contact_company || contact.current_employer}</span>
-                    <span className="text-sm text-muted-foreground">{contact.contact_title || contact.current_position_title}</span>
+                <TableCell className="px-3 py-3">
+                  <div className="flex flex-col">
+                    <span className="font-medium truncate">{contact.contact_company || contact.current_employer}</span>
+                    <span className="text-sm text-muted-foreground truncate">{contact.contact_title || contact.current_position_title}</span>
                   </div>
                 </TableCell>
 
                 {/* Tags */}
-                <TableCell onClick={(e) => e.stopPropagation()}>
-                  <div className="min-w-[200px]">
-                    <TagCell
-                      contactId={contact.id}
-                      tags={contact.tags || []}
-                      onTagsUpdate={(tags) => handleTagsUpdate(contact.id, tags)}
-                    />
-                  </div>
+                <TableCell className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
+                  <TagCell
+                    contactId={contact.id}
+                    tags={contact.tags || []}
+                    onTagsUpdate={(tags) => handleTagsUpdate(contact.id, tags)}
+                  />
                 </TableCell>
 
                 {/* Status */}
-                <StatusBadgeCell status={contact.status} />
+                <TableCell className="px-3 py-3">
+                  <StatusBadgeCell status={contact.status} />
+                </TableCell>
 
                 {/* Actions */}
-                <TableCell onClick={(e) => e.stopPropagation()}>
+                <TableCell className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
                   <QuickActionsCell 
                     contact={contact}
                     onAction={onQuickAction}
