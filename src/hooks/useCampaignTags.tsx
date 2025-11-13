@@ -27,13 +27,13 @@ export const useCampaignTags = (campaignId: string) => {
     queryKey: ["campaign-tags", campaignId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("campaign_tags")
+        .from("campaign_tags" as any)
         .select("*")
         .eq("campaign_id", campaignId)
         .order("usage_count", { ascending: false });
 
       if (error) throw error;
-      return data as CampaignTag[];
+      return data as unknown as CampaignTag[];
     },
     enabled: !!campaignId,
   });
@@ -49,7 +49,7 @@ export const useCampaignTags = (campaignId: string) => {
       const color = TAG_COLORS[colorIndex];
 
       const { data, error } = await supabase
-        .from("campaign_tags")
+        .from("campaign_tags" as any)
         .insert({
           campaign_id: campaignId,
           tag_name: tagName,
@@ -60,7 +60,7 @@ export const useCampaignTags = (campaignId: string) => {
         .single();
 
       if (error) throw error;
-      return data as CampaignTag;
+      return data as unknown as CampaignTag;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["campaign-tags", campaignId] });
@@ -80,7 +80,7 @@ export const useCampaignTags = (campaignId: string) => {
       if (!tag) return;
 
       const { error } = await supabase
-        .from("campaign_tags")
+        .from("campaign_tags" as any)
         .update({ usage_count: tag.usage_count + 1 })
         .eq("id", tag.id);
 
@@ -97,7 +97,7 @@ export const useCampaignTags = (campaignId: string) => {
       if (!tag || tag.usage_count === 0) return;
 
       const { error } = await supabase
-        .from("campaign_tags")
+        .from("campaign_tags" as any)
         .update({ usage_count: Math.max(0, tag.usage_count - 1) })
         .eq("id", tag.id);
 

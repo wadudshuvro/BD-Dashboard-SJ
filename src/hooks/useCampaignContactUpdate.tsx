@@ -38,6 +38,9 @@ export const useCampaignContactUpdate = () => {
       queryClient.invalidateQueries({ queryKey: ["campaign-by-slug"] });
       queryClient.invalidateQueries({ queryKey: ["campaign-contacts"] });
       
+      // Invalidate campaign tags to refresh tag lists
+      queryClient.invalidateQueries({ queryKey: ["campaign-tags"] });
+      
       toast({
         title: "Contact updated",
         description: "Changes saved successfully"
