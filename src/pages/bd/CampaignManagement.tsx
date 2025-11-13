@@ -9,7 +9,9 @@ import {
   TrendingUp,
   Users,
   Pencil,
+  History as HistoryIcon,
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { usePagination } from '@/hooks/usePagination';
 import {
   Pagination,
@@ -190,8 +192,8 @@ export default function CampaignManagement() {
           </div>
           <div className="flex gap-2">
             <Button variant="outline" asChild>
-              <Link to="/bd/campaigns/import-history">
-                <History className="mr-2 h-4 w-4" />
+              <Link to="/campaigns/import-history">
+                <HistoryIcon className="mr-2 h-4 w-4" />
                 Import History
               </Link>
             </Button>
