@@ -63,6 +63,10 @@ export interface CampaignContact {
   company_description?: string | null;
   company_headquarters?: string | null;
   company_founded_year?: number | null;
+  
+  // Tags
+  tags?: string[] | null;
+  tag_colors?: Record<string, string> | null;
 }
 
 export interface CampaignActivity {
