@@ -1,5 +1,12 @@
 project_id = "qzzvcqoletuummdsbbio"
 
+[functions.pandadoc-sync-status]
+verify_jwt = false
+timeout = 300
+
+[functions.pandadoc-sync-status.cron]
+schedule = "*/15 * * * *"
+
 [functions.monitor-control-tower-health]
 verify_jwt = false
 
