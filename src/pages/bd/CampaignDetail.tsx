@@ -452,6 +452,7 @@ export default function CampaignDetail() {
             filteredContacts.length > 0 ? (
               <CampaignContactsTable
                 contacts={filteredContacts}
+                campaignId={campaign.id}
                 campaignSlug={campaign.slug}
                 onQuickAction={handleQuickAction}
               />

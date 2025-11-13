@@ -26,12 +26,14 @@ type SortConfig = {
 
 interface CampaignContactsTableProps {
   contacts: CampaignContact[];
+  campaignId: string;
   campaignSlug: string;
   onQuickAction: (action: QuickActionType, contactSlug: string) => void;
 }
 
 export function CampaignContactsTable({
   contacts,
+  campaignId,
   campaignSlug,
   onQuickAction,
 }: CampaignContactsTableProps) {
@@ -241,6 +243,7 @@ export function CampaignContactsTable({
                 <TableCell className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
                   <TagCell
                     contactId={contact.id}
+                    campaignId={campaignId}
                     tags={contact.tags || []}
                     onTagsUpdate={(tags) => handleTagsUpdate(contact.id, tags)}
                   />
@@ -265,6 +268,7 @@ export function CampaignContactsTable({
       </div>
 
       <BulkActionsBar
+        campaignId={campaignId}
         selectedCount={selectedContacts.size}
         onClearSelection={() => setSelectedContacts(new Set())}
         onBulkTagUpdate={handleBulkTagUpdate}
