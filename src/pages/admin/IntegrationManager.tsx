@@ -192,6 +192,7 @@ const IntegrationManager = () => {
   const [pandadocWorkspaceId, setPandadocWorkspaceId] = useState("");
   const [testingPandadoc, setTestingPandadoc] = useState(false);
   const [pandadocTestResult, setPandadocTestResult] = useState<any>(null);
+  const [isConnectingPandadoc, setIsConnectingPandadoc] = useState(false);
 
   const hubspotIntegration = crmIntegrations.find((integration) => integration.type === "hubspot");
 
@@ -825,6 +826,120 @@ const IntegrationManager = () => {
     }
   };
 
+  const handleConnectPandaDoc = async () => {
+    if (!pandadocApiKey.trim()) {
+      toast({
+        title: "API key required",
+        description: "Enter your PandaDoc API key before connecting.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsConnectingPandadoc(true);
+    setPandadocTestResult(null);
+
+    try {
+      const { data, error } = await supabase.functions.invoke("pandadoc-manage/integration", {
+        method: "POST",
+        body: {
+          api_key: pandadocApiKey.trim(),
+          workspace_id: pandadocWorkspaceId.trim() || undefined,
+        },
+      });
+
+      if (error) throw error;
+      if (!data?.ok) throw new Error(data?.error || "Failed to connect PandaDoc");
+
+      toast({
+        title: "PandaDoc Connected",
+        description: "Your PandaDoc account has been successfully connected.",
+      });
+
+      setPandadocApiKey("");
+      setPandadocWorkspaceId("");
+      await loadIntegrations();
+    } catch (error) {
+      console.error("PandaDoc connection failed", error);
+      toast({
+        title: "Connection Failed",
+        description: error instanceof Error ? error.message : "Unable to connect to PandaDoc.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsConnectingPandadoc(false);
+    }
+  };
+
+  const handleTestPandaDocConnection = async () => {
+    setTestingPandadoc(true);
+    setPandadocTestResult(null);
+
+    try {
+      const { data, error } = await supabase.functions.invoke("pandadoc-manage/templates", {
+        method: "GET",
+      });
+
+      if (error) throw error;
+
+      setPandadocTestResult(data);
+
+      if (data?.ok) {
+        const templateCount = Array.isArray(data.templates) ? data.templates.length : 0;
+        toast({
+          title: "Connection successful",
+          description: `PandaDoc is working correctly. Found ${templateCount} template${templateCount !== 1 ? 's' : ''}.`,
+        });
+      } else {
+        toast({
+          title: "Connection failed",
+          description: data?.error || "Unable to connect to PandaDoc.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("PandaDoc test failed", error);
+      toast({
+        title: "Test failed",
+        description: error instanceof Error ? error.message : "Unable to test PandaDoc connection.",
+        variant: "destructive",
+      });
+      setPandadocTestResult({ ok: false, error: "Connection test failed" });
+    } finally {
+      setTestingPandadoc(false);
+    }
+  };
+
+  const handleDisconnectPandaDoc = async () => {
+    if (!confirm("Disconnect PandaDoc? This will remove your API key and all integration settings.")) {
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase.functions.invoke("pandadoc-manage/integration", {
+        method: "DELETE",
+      });
+
+      if (error) throw error;
+      if (!data?.ok) throw new Error(data?.error || "Failed to disconnect PandaDoc");
+
+      toast({
+        title: "PandaDoc Disconnected",
+        description: "Your PandaDoc account has been disconnected.",
+      });
+
+      setPandadocTestResult(null);
+      await loadIntegrations();
+    } catch (error) {
+      console.error("PandaDoc disconnect failed", error);
+      toast({
+        title: "Disconnect Failed",
+        description: error instanceof Error ? error.message : "Unable to disconnect PandaDoc.",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="space-y-8">
       <PageInstructions
@@ -1107,6 +1222,124 @@ const IntegrationManager = () => {
                         </>
                       )}
                     </Button>
+                  </>
+                )}
+                {integration.id === "pandadoc" && (
+                  <>
+                    {!integration.is_enabled ? (
+                      <div className="space-y-3">
+                        <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
+                          <h4 className="text-sm font-medium">Configure PandaDoc</h4>
+                          <div className="space-y-2">
+                            <Label htmlFor="pandadoc-api-key">PandaDoc API Key</Label>
+                            <Input
+                              id="pandadoc-api-key"
+                              type="password"
+                              placeholder="Enter your PandaDoc API key"
+                              value={pandadocApiKey}
+                              onChange={(e) => setPandadocApiKey(e.target.value)}
+                              disabled={isConnectingPandadoc}
+                            />
+                            <p className="text-xs text-muted-foreground">
+                              Get your API key from PandaDoc Settings → API
+                            </p>
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="pandadoc-workspace-id">Workspace ID (Optional)</Label>
+                            <Input
+                              id="pandadoc-workspace-id"
+                              type="text"
+                              placeholder="Enter workspace ID if using workspaces"
+                              value={pandadocWorkspaceId}
+                              onChange={(e) => setPandadocWorkspaceId(e.target.value)}
+                              disabled={isConnectingPandadoc}
+                            />
+                            <p className="text-xs text-muted-foreground">
+                              Leave empty to use your default workspace
+                            </p>
+                          </div>
+                          <Button
+                            onClick={handleConnectPandaDoc}
+                            disabled={isConnectingPandadoc || !pandadocApiKey.trim()}
+                            className="w-full"
+                          >
+                            {isConnectingPandadoc ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Connecting...
+                              </>
+                            ) : (
+                              <>
+                                <Plug className="mr-2 h-4 w-4" />
+                                Connect PandaDoc
+                              </>
+                            )}
+                          </Button>
+                          <Link
+                            to="/adminpanel/documentation?doc=pandadoc-integration"
+                            className="text-xs text-primary hover:underline block"
+                          >
+                            View PandaDoc Setup Guide →
+                          </Link>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
+                          <span className="h-2 w-2 rounded-full bg-green-500"></span>
+                          PandaDoc Connected
+                        </div>
+                        {pandadocTestResult && (
+                          <div className="text-sm">
+                            {pandadocTestResult.ok && (
+                              <p className="text-green-600 dark:text-green-400">
+                                ✓ Connection successful - {Array.isArray(pandadocTestResult.templates) ? pandadocTestResult.templates.length : 0} templates available
+                              </p>
+                            )}
+                            {!pandadocTestResult.ok && (
+                              <p className="text-destructive flex items-center gap-1">
+                                <AlertCircle className="h-3 w-3" />
+                                {pandadocTestResult.error}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={handleTestPandaDocConnection}
+                            disabled={testingPandadoc}
+                            variant="outline"
+                            size="sm"
+                          >
+                            {testingPandadoc ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Testing...
+                              </>
+                            ) : (
+                              <>
+                                <RefreshCw className="mr-2 h-4 w-4" />
+                                Test Connection
+                              </>
+                            )}
+                          </Button>
+                          <Button
+                            onClick={handleDisconnectPandaDoc}
+                            variant="destructive"
+                            size="sm"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Disconnect
+                          </Button>
+                        </div>
+                        <Link
+                          to="/adminpanel/documentation?doc=pandadoc-integration"
+                          className="text-xs text-primary hover:underline block"
+                        >
+                          View Documentation →
+                        </Link>
+                      </div>
+                    )}
                   </>
                 )}
               </CardContent>
