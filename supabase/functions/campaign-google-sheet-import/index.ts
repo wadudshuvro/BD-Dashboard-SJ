@@ -32,6 +32,14 @@ interface ImportAction {
     company: string;
     phone?: string;
     linkedinUrl?: string;
+    companyWebsite?: string;
+    companyIndustry?: string;
+    companySize?: string;
+    companyLinkedinUrl?: string;
+    streetAddress?: string;
+    city?: string;
+    state?: string;
+    country?: string;
   }>;
   tags: string[];
 }
@@ -263,17 +271,40 @@ async function handleImport(body: ImportAction, supabase: any, userId: string): 
   for (let i = 0; i < contacts.length; i += batchSize) {
     const batch = contacts.slice(i, i + batchSize);
     
-    const insertData = batch.map(contact => ({
-      campaign_id: campaignId,
-      contact_name: `${contact.firstName} ${contact.lastName}`,
-      contact_email: contact.email.toLowerCase(),
-      contact_title: contact.jobTitle,
-      contact_company: contact.company,
-      contact_phone: contact.phone || null,
-      contact_linkedin_url: contact.linkedinUrl || null,
-      status: 'identified',
-      metadata: { tags, imported_via: 'google_sheet', imported_by: userId },
-    }));
+    const insertData = batch.map(contact => {
+      // Build address object if any address fields are present
+      const addressData = {
+        streetAddress: contact.streetAddress || null,
+        city: contact.city || null,
+        state: contact.state || null,
+        country: contact.country || null,
+      };
+      
+      const hasAddress = Object.values(addressData).some(v => v !== null);
+
+      return {
+        campaign_id: campaignId,
+        contact_name: `${contact.firstName} ${contact.lastName}`,
+        contact_email: contact.email.toLowerCase(),
+        contact_title: contact.jobTitle,
+        contact_company: contact.company,
+        contact_phone: contact.phone || null,
+        contact_linkedin_url: contact.linkedinUrl || null,
+        // Company fields (map to existing columns)
+        company_website: contact.companyWebsite || null,
+        company_industry: contact.companyIndustry || null,
+        company_size: contact.companySize || null,
+        company_linkedin_url: contact.companyLinkedinUrl || null,
+        status: 'identified',
+        metadata: { 
+          tags, 
+          imported_via: 'google_sheet', 
+          imported_by: userId,
+          // Store address in metadata since no dedicated columns exist
+          ...(hasAddress ? { address: addressData } : {})
+        },
+      };
+    });
 
     const { data, error } = await supabase
       .from('campaign_contacts')
