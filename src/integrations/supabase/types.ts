@@ -3082,6 +3082,51 @@ export type Database = {
           },
         ]
       }
+      pandadoc_integrations: {
+        Row: {
+          api_key_encrypted: string
+          auto_send_enabled: boolean | null
+          config: Json | null
+          created_at: string
+          default_template_id: string | null
+          embed_enabled: boolean | null
+          id: string
+          is_active: boolean | null
+          last_synced_at: string | null
+          updated_at: string
+          user_id: string
+          workspace_id: string | null
+        }
+        Insert: {
+          api_key_encrypted: string
+          auto_send_enabled?: boolean | null
+          config?: Json | null
+          created_at?: string
+          default_template_id?: string | null
+          embed_enabled?: boolean | null
+          id?: string
+          is_active?: boolean | null
+          last_synced_at?: string | null
+          updated_at?: string
+          user_id: string
+          workspace_id?: string | null
+        }
+        Update: {
+          api_key_encrypted?: string
+          auto_send_enabled?: boolean | null
+          config?: Json | null
+          created_at?: string
+          default_template_id?: string | null
+          embed_enabled?: boolean | null
+          id?: string
+          is_active?: boolean | null
+          last_synced_at?: string | null
+          updated_at?: string
+          user_id?: string
+          workspace_id?: string | null
+        }
+        Relationships: []
+      }
       pods: {
         Row: {
           created_at: string
@@ -3300,6 +3345,97 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      proposal_documents: {
+        Row: {
+          brand_id: string | null
+          client_id: string | null
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          deal_id: string | null
+          editor_url: string | null
+          expires_at: string | null
+          id: string
+          metadata: Json | null
+          pandadoc_doc_id: string | null
+          pandadoc_session_id: string | null
+          pdf_url: string | null
+          recipient_url: string | null
+          sent_at: string | null
+          status: string
+          template_id: string | null
+          title: string
+          updated_at: string
+          viewed_at: string | null
+        }
+        Insert: {
+          brand_id?: string | null
+          client_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          deal_id?: string | null
+          editor_url?: string | null
+          expires_at?: string | null
+          id?: string
+          metadata?: Json | null
+          pandadoc_doc_id?: string | null
+          pandadoc_session_id?: string | null
+          pdf_url?: string | null
+          recipient_url?: string | null
+          sent_at?: string | null
+          status?: string
+          template_id?: string | null
+          title: string
+          updated_at?: string
+          viewed_at?: string | null
+        }
+        Update: {
+          brand_id?: string | null
+          client_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          deal_id?: string | null
+          editor_url?: string | null
+          expires_at?: string | null
+          id?: string
+          metadata?: Json | null
+          pandadoc_doc_id?: string | null
+          pandadoc_session_id?: string | null
+          pdf_url?: string | null
+          recipient_url?: string | null
+          sent_at?: string | null
+          status?: string
+          template_id?: string | null
+          title?: string
+          updated_at?: string
+          viewed_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proposal_documents_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "brands"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposal_documents_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposal_documents_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
             referencedColumns: ["id"]
           },
         ]
