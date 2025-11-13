@@ -9,7 +9,17 @@ const headers = { ...corsHeaders, "Content-Type": "application/json" } as const;
 
 const RequestSchema = z.object({
   campaignId: z.string().uuid(),
-  keywords: z.array(z.string()).min(1),
+  
+  // Required targeting filters
+  jobTitles: z.array(z.string()).min(1, "At least one job title required"),
+  industries: z.array(z.string()).min(1, "At least one industry required"),
+  country: z.string().min(2, "Country is required"),
+  companySize: z.array(z.string()).min(1, "Company size is required"),
+  
+  // Optional filters
+  city: z.string().optional(),
+  technologies: z.array(z.string()).optional(),
+  keywords: z.array(z.string()).optional(),
   maxResults: z.number().int().positive().max(100).default(25),
   dateRange: z.object({
     start: z.string().optional(),
@@ -22,6 +32,60 @@ const RequestSchema = z.object({
 type JsonRecord = Record<string, unknown>;
 
 const EXA_COST_PER_LEAD = 0.10;
+
+function buildSearchQuery(params: {
+  jobTitles: string[];
+  industries: string[];
+  country: string;
+  city?: string;
+  companySize: string[];
+  technologies?: string[];
+  keywords?: string[];
+}): string {
+  // Build job title part
+  const titlePart = params.jobTitles.length > 1
+    ? `(${params.jobTitles.join(" OR ")})`
+    : params.jobTitles[0];
+  
+  // Build industry part
+  const industryPart = params.industries.length > 1
+    ? `${params.industries.join(" OR ")} industry`
+    : `${params.industries[0]} industry`;
+  
+  // Build location part
+  const locationPart = params.city
+    ? `in ${params.city}, ${params.country}`
+    : `in ${params.country}`;
+  
+  // Build company size part
+  const sizePart = params.companySize.length > 0
+    ? params.companySize.join(" or ")
+    : "";
+  
+  // Build technology part
+  const techPart = params.technologies && params.technologies.length > 0
+    ? `using ${params.technologies.join(", ")}`
+    : "";
+  
+  // Build additional keywords
+  const keywordPart = params.keywords && params.keywords.length > 0
+    ? params.keywords.join(" ")
+    : "";
+  
+  // Combine all parts
+  const parts = [
+    titlePart,
+    "at",
+    industryPart,
+    "companies",
+    locationPart,
+    sizePart,
+    techPart,
+    keywordPart
+  ].filter(Boolean);
+  
+  return parts.join(" ");
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -107,6 +171,12 @@ serve(async (req) => {
         status: "pending",
         notify_email: user.email,
         criteria: {
+          jobTitles: payload.jobTitles,
+          industries: payload.industries,
+          country: payload.country,
+          city: payload.city,
+          companySize: payload.companySize,
+          technologies: payload.technologies,
           keywords: payload.keywords,
           max_results: payload.maxResults,
           dateRange: payload.dateRange,
@@ -169,7 +239,15 @@ function formatZodError(error: unknown) {
 
 async function searchExaLeads(
   apiKey: string,
-  query: string,
+  searchParams: {
+    jobTitles: string[];
+    industries: string[];
+    country: string;
+    city?: string;
+    companySize: string[];
+    technologies?: string[];
+    keywords?: string[];
+  },
   maxResults: number,
   dateRange?: { start?: string; end?: string },
   excludeText?: string[],
@@ -178,9 +256,13 @@ async function searchExaLeads(
   console.log("[searchExaLeads] Initializing Exa client...");
   const exa = new Exa(apiKey);
 
+  // Build enhanced semantic query
+  const query = buildSearchQuery(searchParams);
+  console.log("[searchExaLeads] Enhanced query:", query);
+
   const searchOptions: any = {
     text: true,
-    type: "auto",
+    type: "neural", // Use neural for better semantic matching
     category: "linkedin profile", // Only search LinkedIn profiles
     numResults: maxResults,
   };
@@ -202,7 +284,6 @@ async function searchExaLeads(
     searchOptions.excludeText = excludeText;
   }
 
-  console.log("[searchExaLeads] Searching with query:", query);
   console.log("[searchExaLeads] Search options:", JSON.stringify(searchOptions, null, 2));
 
   try {
@@ -344,7 +425,13 @@ async function processLeadImportJob(
   supabase: any,
   payload: {
     campaignId: string;
-    keywords: string[];
+    jobTitles: string[];
+    industries: string[];
+    country: string;
+    companySize: string[];
+    city?: string;
+    technologies?: string[];
+    keywords?: string[];
     maxResults: number;
     dateRange?: { start?: string; end?: string };
     excludeText?: string[];
@@ -361,11 +448,18 @@ async function processLeadImportJob(
 
     console.log(`[processLeadImportJob] Starting job ${jobId} for campaign ${payload.campaignId}`);
 
-    // Call Exa.ai Search API (synchronous, LinkedIn-specific)
-    const query = payload.keywords.join(" ");
+    // Call Exa.ai Search API with enhanced filters
     const results = await searchExaLeads(
       exaApiKey,
-      query,
+      {
+        jobTitles: payload.jobTitles,
+        industries: payload.industries,
+        country: payload.country,
+        city: payload.city,
+        companySize: payload.companySize,
+        technologies: payload.technologies,
+        keywords: payload.keywords,
+      },
       payload.maxResults,
       payload.dateRange,
       payload.excludeText,

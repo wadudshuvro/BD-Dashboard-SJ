@@ -30,6 +30,17 @@ export function CampaignLeadImportDialog({
   campaign,
   onImportComplete,
 }: CampaignLeadImportDialogProps) {
+  // Required filter fields
+  const [jobTitles, setJobTitles] = useState<string[]>([]);
+  const [jobTitleInput, setJobTitleInput] = useState("");
+  const [industries, setIndustries] = useState<string[]>([]);
+  const [country, setCountry] = useState("US");
+  const [city, setCity] = useState("");
+  const [companySize, setCompanySize] = useState<string[]>([]);
+  const [technologies, setTechnologies] = useState<string[]>([]);
+  const [technologyInput, setTechnologyInput] = useState("");
+  
+  // Optional filter fields
   const [suggestedKeywords, setSuggestedKeywords] = useState<string[]>([]);
   const [selectedKeywords, setSelectedKeywords] = useState<string[]>([]);
   const [customKeywords, setCustomKeywords] = useState("");
@@ -84,6 +95,46 @@ export function CampaignLeadImportDialog({
       .filter(Boolean);
     return Array.from(new Set([...selectedKeywords, ...custom]));
   }, [selectedKeywords, customKeywords]);
+  
+  // Search preview
+  const previewQuery = useMemo(() => {
+    if (jobTitles.length === 0 || industries.length === 0) {
+      return "Add job titles and industries to see search preview...";
+    }
+    
+    const titlePart = jobTitles.length > 1
+      ? `(${jobTitles.join(" OR ")})`
+      : jobTitles[0];
+    
+    const industryPart = industries.length > 1
+      ? `${industries.join(" OR ")} industry`
+      : `${industries[0]} industry`;
+    
+    const locationPart = city
+      ? `in ${city}, ${country}`
+      : `in ${country}`;
+    
+    const sizePart = companySize.length > 0
+      ? companySize.join(" or ")
+      : "";
+    
+    const techPart = technologies.length > 0
+      ? `using ${technologies.join(", ")}`
+      : "";
+    
+    const parts = [
+      titlePart,
+      "at",
+      industryPart,
+      "companies",
+      locationPart,
+      sizePart,
+      techPart,
+      finalKeywords.length > 0 ? finalKeywords.join(" ") : ""
+    ].filter(Boolean);
+    
+    return parts.join(" ");
+  }, [jobTitles, industries, country, city, companySize, technologies, finalKeywords]);
 
   const toggleKeyword = (keyword: string) => {
     setSelectedKeywords(prev =>
@@ -94,8 +145,17 @@ export function CampaignLeadImportDialog({
   };
 
   const handleImport = async () => {
-    if (finalKeywords.length === 0) {
-      return;
+    // Validation
+    if (jobTitles.length === 0) {
+      return; // Show error in UI
+    }
+    
+    if (industries.length === 0) {
+      return; // Show error in UI
+    }
+    
+    if (companySize.length === 0) {
+      return; // Show error in UI
     }
 
     setIsImporting(true);
@@ -108,12 +168,18 @@ export function CampaignLeadImportDialog({
       const { data, error } = await supabase.functions.invoke("campaign-lead-import", {
         body: {
           campaignId: campaign.id,
-          keywords: finalKeywords,
+          jobTitles,
+          industries,
+          country,
+          city: city || undefined,
+          companySize,
+          technologies: technologies.length > 0 ? technologies : undefined,
+          keywords: finalKeywords.length > 0 ? finalKeywords : undefined,
           maxResults,
-          dateRange: {
-            start: startDate ? startDate.toISOString() : undefined,
-            end: endDate ? endDate.toISOString() : undefined,
-          },
+          dateRange: startDate || endDate ? {
+            start: startDate?.toISOString(),
+            end: endDate?.toISOString(),
+          } : undefined,
           excludeText: excludeTextArray.length > 0 ? excludeTextArray : undefined,
           userLocation,
         },
@@ -194,9 +260,217 @@ export function CampaignLeadImportDialog({
             </p>
           </div>
 
+          {/* Required Target Criteria */}
+          <div className="space-y-4 rounded-lg border-2 border-primary/20 bg-primary/5 p-4">
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-semibold">🎯 Target Criteria (Required)</h3>
+            </div>
+            
+            {/* Job Titles */}
+            <div className="space-y-2">
+              <Label htmlFor="job-titles">Job Titles *</Label>
+              <div className="flex gap-2">
+                <input
+                  id="job-titles"
+                  type="text"
+                  placeholder="e.g., CTO, VP Engineering"
+                  value={jobTitleInput}
+                  onChange={(e) => setJobTitleInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && jobTitleInput.trim()) {
+                      setJobTitles([...jobTitles, jobTitleInput.trim()]);
+                      setJobTitleInput("");
+                    }
+                  }}
+                  className="flex-1 px-3 py-2 text-sm border rounded-md"
+                />
+                <Button 
+                  type="button" 
+                  size="sm"
+                  onClick={() => {
+                    if (jobTitleInput.trim()) {
+                      setJobTitles([...jobTitles, jobTitleInput.trim()]);
+                      setJobTitleInput("");
+                    }
+                  }}
+                >
+                  Add
+                </Button>
+              </div>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {jobTitles.map((title, idx) => (
+                  <Badge key={idx} variant="default">
+                    {title}
+                    <X 
+                      className="ml-1 h-3 w-3 cursor-pointer" 
+                      onClick={() => setJobTitles(jobTitles.filter((_, i) => i !== idx))}
+                    />
+                  </Badge>
+                ))}
+              </div>
+              {jobTitles.length === 0 && (
+                <p className="text-xs text-destructive">At least one job title is required</p>
+              )}
+            </div>
+
+            {/* Industries */}
+            <div className="space-y-2">
+              <Label htmlFor="industries">Industry/Niche *</Label>
+              <Select value={industries[0] || ""} onValueChange={(value) => !industries.includes(value) && setIndustries([...industries, value])}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select industries..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="SaaS">SaaS</SelectItem>
+                  <SelectItem value="FinTech">FinTech</SelectItem>
+                  <SelectItem value="HealthTech">HealthTech</SelectItem>
+                  <SelectItem value="E-commerce">E-commerce</SelectItem>
+                  <SelectItem value="AI/ML">AI/ML</SelectItem>
+                  <SelectItem value="EdTech">EdTech</SelectItem>
+                  <SelectItem value="MarTech">MarTech</SelectItem>
+                  <SelectItem value="Manufacturing">Manufacturing</SelectItem>
+                  <SelectItem value="Consulting">Consulting</SelectItem>
+                  <SelectItem value="Real Estate">Real Estate</SelectItem>
+                </SelectContent>
+              </Select>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {industries.map((industry, idx) => (
+                  <Badge key={idx} variant="default">
+                    {industry}
+                    <X 
+                      className="ml-1 h-3 w-3 cursor-pointer" 
+                      onClick={() => setIndustries(industries.filter((_, i) => i !== idx))}
+                    />
+                  </Badge>
+                ))}
+              </div>
+              {industries.length === 0 && (
+                <p className="text-xs text-destructive">At least one industry is required</p>
+              )}
+            </div>
+
+            {/* Location */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="country">Country *</Label>
+                <Select value={country} onValueChange={setCountry}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="US">United States</SelectItem>
+                    <SelectItem value="UK">United Kingdom</SelectItem>
+                    <SelectItem value="CA">Canada</SelectItem>
+                    <SelectItem value="AU">Australia</SelectItem>
+                    <SelectItem value="DE">Germany</SelectItem>
+                    <SelectItem value="FR">France</SelectItem>
+                    <SelectItem value="IN">India</SelectItem>
+                    <SelectItem value="SG">Singapore</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="city">City (Optional)</Label>
+                <input
+                  id="city"
+                  type="text"
+                  placeholder="e.g., San Francisco"
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border rounded-md"
+                />
+              </div>
+            </div>
+
+            {/* Company Size */}
+            <div className="space-y-2">
+              <Label htmlFor="company-size">Company Size *</Label>
+              <Select value={companySize[0] || ""} onValueChange={(value) => !companySize.includes(value) && setCompanySize([...companySize, value])}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select company sizes..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Startup (1-50)">Startup (1-50 employees)</SelectItem>
+                  <SelectItem value="Small (51-200)">Small (51-200 employees)</SelectItem>
+                  <SelectItem value="Medium (201-1000)">Medium (201-1,000 employees)</SelectItem>
+                  <SelectItem value="Large (1001-5000)">Large (1,001-5,000 employees)</SelectItem>
+                  <SelectItem value="Enterprise (5000+)">Enterprise (5,000+ employees)</SelectItem>
+                </SelectContent>
+              </Select>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {companySize.map((size, idx) => (
+                  <Badge key={idx} variant="default">
+                    {size}
+                    <X 
+                      className="ml-1 h-3 w-3 cursor-pointer" 
+                      onClick={() => setCompanySize(companySize.filter((_, i) => i !== idx))}
+                    />
+                  </Badge>
+                ))}
+              </div>
+              {companySize.length === 0 && (
+                <p className="text-xs text-destructive">At least one company size is required</p>
+              )}
+            </div>
+
+            {/* Technology Stack */}
+            <div className="space-y-2">
+              <Label htmlFor="technologies">Technology Stack (Optional)</Label>
+              <div className="flex gap-2">
+                <input
+                  id="technologies"
+                  type="text"
+                  placeholder="e.g., React, AWS, Python"
+                  value={technologyInput}
+                  onChange={(e) => setTechnologyInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && technologyInput.trim()) {
+                      setTechnologies([...technologies, technologyInput.trim()]);
+                      setTechnologyInput("");
+                    }
+                  }}
+                  className="flex-1 px-3 py-2 text-sm border rounded-md"
+                />
+                <Button 
+                  type="button" 
+                  size="sm"
+                  onClick={() => {
+                    if (technologyInput.trim()) {
+                      setTechnologies([...technologies, technologyInput.trim()]);
+                      setTechnologyInput("");
+                    }
+                  }}
+                >
+                  Add
+                </Button>
+              </div>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {technologies.map((tech, idx) => (
+                  <Badge key={idx} variant="secondary">
+                    {tech}
+                    <X 
+                      className="ml-1 h-3 w-3 cursor-pointer" 
+                      onClick={() => setTechnologies(technologies.filter((_, i) => i !== idx))}
+                    />
+                  </Badge>
+                ))}
+              </div>
+            </div>
+
+            {/* Search Preview */}
+            <div className="rounded-md bg-muted/50 p-3 border">
+              <p className="text-xs font-medium text-muted-foreground mb-1">💡 Search Preview:</p>
+              <p className="text-sm font-mono">{previewQuery}</p>
+            </div>
+          </div>
+
+          {/* Additional Filters */}
+          <div className="space-y-4">
+            <h3 className="text-sm font-semibold">📊 Additional Filters (Optional)</h3>
+
           {/* Suggested Keywords */}
           <div className="space-y-3">
-            <Label>Suggested Keywords</Label>
+            <Label>Additional Keywords</Label>
             <p className="text-sm text-muted-foreground">
               Click to select/deselect keywords based on your campaign
             </p>
@@ -332,6 +606,7 @@ export function CampaignLeadImportDialog({
               </div>
             </div>
           )}
+          </div>
 
           {/* Job Status */}
           {jobStatus && (
