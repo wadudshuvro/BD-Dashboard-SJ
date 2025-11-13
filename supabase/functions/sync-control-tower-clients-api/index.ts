@@ -336,7 +336,8 @@ serve(async (req) => {
           } catch (clientError) {
             console.error(`[ClientsAPI] Error processing client ${apiClient.id}:`, clientError);
             result.clients.failed++;
-            result.errors.push(`Error processing client ${apiClient.name || apiClient.id}: ${clientError.message}`);
+            const errorMessage = clientError instanceof Error ? clientError.message : String(clientError);
+            result.errors.push(`Error processing client ${apiClient.name || apiClient.id}: ${errorMessage}`);
           }
         }
 
@@ -371,7 +372,8 @@ serve(async (req) => {
 
       } catch (pageError) {
         console.error(`[ClientsAPI] Error fetching page ${currentPage}:`, pageError);
-        result.errors.push(`Failed to fetch page ${currentPage}: ${pageError.message}`);
+        const errorMessage = pageError instanceof Error ? pageError.message : String(pageError);
+        result.errors.push(`Failed to fetch page ${currentPage}: ${errorMessage}`);
         // Don't break the loop, try to continue with next page
         hasMorePages = false; // But stop trying
       }
@@ -446,8 +448,11 @@ serve(async (req) => {
   } catch (error) {
     console.error('[ClientsAPI] Sync failed:', error);
 
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : undefined;
+
     result.duration = Date.now() - startTime;
-    result.errors.push(error.message);
+    result.errors.push(errorMessage);
 
     // Try to log the error
     try {
@@ -462,11 +467,11 @@ serve(async (req) => {
           status: 'failed',
           records_synced: result.clients.new + result.clients.updated,
           records_failed: result.clients.failed,
-          error_message: error.message,
+          error_message: errorMessage,
           duration_ms: result.duration,
           metadata: {
-            error: error.message,
-            stack: error.stack,
+            error: errorMessage,
+            stack: errorStack,
             result,
           },
         });
@@ -477,7 +482,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message,
+        error: errorMessage,
         result,
       }),
       {

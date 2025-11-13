@@ -529,7 +529,7 @@ async function fetchAndProcessContactsBatch(
               company: props.company || null
             } as Record<string, unknown>;
           })
-          .filter((contact): contact is Record<string, unknown> => contact !== null);
+          .filter((contact: any): contact is Record<string, unknown> => contact !== null);
 
         // Only upsert if we have valid contacts
         if (contactRows.length > 0) {
