@@ -5,6 +5,7 @@ import { useState } from "react";
 import { TagEditor } from "./TagEditor";
 
 interface BulkActionsBarProps {
+  campaignId: string;
   selectedCount: number;
   onClearSelection: () => void;
   onBulkTagUpdate: (tags: string[]) => void;
@@ -12,6 +13,7 @@ interface BulkActionsBarProps {
 }
 
 export const BulkActionsBar = ({
+  campaignId,
   selectedCount,
   onClearSelection,
   onBulkTagUpdate,
@@ -61,6 +63,7 @@ export const BulkActionsBar = ({
       {showTagEditor && (
         <TagEditor
           contactId="bulk"
+          campaignId={campaignId}
           currentTags={[]}
           onClose={() => setShowTagEditor(false)}
           onSave={(tags) => {

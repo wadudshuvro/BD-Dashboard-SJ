@@ -3,15 +3,18 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { X, Plus } from "lucide-react";
 import { TagEditor } from "./TagEditor";
+import { useCampaignTags } from "@/hooks/useCampaignTags";
 
 interface TagCellProps {
   contactId: string;
+  campaignId: string;
   tags: string[];
   onTagsUpdate: (tags: string[]) => void;
 }
 
-export const TagCell = ({ contactId, tags = [], onTagsUpdate }: TagCellProps) => {
+export const TagCell = ({ contactId, campaignId, tags = [], onTagsUpdate }: TagCellProps) => {
   const [isEditing, setIsEditing] = useState(false);
+  const { getTagColor } = useCampaignTags(campaignId);
 
   const handleRemoveTag = (tagToRemove: string) => {
     onTagsUpdate(tags.filter(tag => tag !== tagToRemove));
@@ -22,8 +25,8 @@ export const TagCell = ({ contactId, tags = [], onTagsUpdate }: TagCellProps) =>
       {tags.map((tag) => (
         <Badge
           key={tag}
-          variant="secondary"
-          className="group hover:pr-1 transition-all"
+          className="group hover:pr-1 transition-all text-white"
+          style={{ backgroundColor: getTagColor(tag) }}
         >
           {tag}
           <button
@@ -52,6 +55,7 @@ export const TagCell = ({ contactId, tags = [], onTagsUpdate }: TagCellProps) =>
       {isEditing && (
         <TagEditor
           contactId={contactId}
+          campaignId={campaignId}
           currentTags={tags}
           onClose={() => setIsEditing(false)}
           onSave={onTagsUpdate}
