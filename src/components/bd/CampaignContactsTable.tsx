@@ -17,6 +17,7 @@ import { QuickActionsCell, type QuickActionType } from "./QuickActionsCell";
 import { TagCell } from "./TagCell";
 import { BulkActionsBar } from "./BulkActionsBar";
 import { useCampaignContactUpdate } from "@/hooks/useCampaignContactUpdate";
+import { useCampaignTags } from "@/hooks/useCampaignTags";
 import { useToast } from "@/hooks/use-toast";
 
 type SortConfig = {
@@ -40,6 +41,7 @@ export function CampaignContactsTable({
   const [selectedContacts, setSelectedContacts] = useState<Set<string>>(new Set());
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: null, direction: "asc" });
   const { mutate: updateContact } = useCampaignContactUpdate();
+  const { ensureTagExists, incrementUsage, decrementUsage } = useCampaignTags(campaignId);
   const { toast } = useToast();
 
   const handleSort = (key: string) => {
@@ -84,24 +86,60 @@ export function CampaignContactsTable({
     });
   };
 
-  const handleTagsUpdate = (contactId: string, tags: string[]) => {
+  const handleTagsUpdate = async (contactId: string, newTags: string[]) => {
+    const contact = contacts.find(c => c.id === contactId);
+    const oldTags = contact?.tags || [];
+    
+    // Calculate diff
+    const addedTags = newTags.filter(tag => !oldTags.includes(tag));
+    const removedTags = oldTags.filter(tag => !newTags.includes(tag));
+    
+    // Ensure all new tags exist and increment usage
+    for (const tag of addedTags) {
+      await ensureTagExists(tag);
+      await incrementUsage(tag);
+    }
+    
+    // Decrement usage for removed tags
+    for (const tag of removedTags) {
+      await decrementUsage(tag);
+    }
+    
+    // Update contact
     updateContact({
       contactId,
-      updates: { tags },
+      updates: { tags: newTags },
     });
   };
 
-  const handleBulkTagUpdate = (tags: string[]) => {
+  const handleBulkTagUpdate = async (tags: string[]) => {
     const selectedIds = Array.from(selectedContacts);
-    selectedIds.forEach((contactId) => {
+    
+    // Ensure all tags exist first
+    for (const tag of tags) {
+      await ensureTagExists(tag);
+    }
+    
+    // Update each contact
+    for (const contactId of selectedIds) {
       const contact = contacts.find(c => c.id === contactId);
       const existingTags = contact?.tags || [];
       const newTags = Array.from(new Set([...existingTags, ...tags]));
+      
+      // Calculate which tags are actually being added to this contact
+      const addedTags = newTags.filter(tag => !existingTags.includes(tag));
+      
+      // Increment usage for newly added tags
+      for (const tag of addedTags) {
+        await incrementUsage(tag);
+      }
+      
       updateContact({
         contactId,
         updates: { tags: newTags },
       });
-    });
+    }
+    
     toast({ title: `Added tags to ${selectedIds.length} contacts` });
     setSelectedContacts(new Set());
   };
