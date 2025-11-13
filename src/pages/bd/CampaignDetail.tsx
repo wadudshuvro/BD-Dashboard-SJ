@@ -67,6 +67,7 @@ export default function CampaignDetail() {
     contacts,
     markCompleted,
     softArchive,
+    refetch,
     isUpdating,
     isLoading,
     isError,
@@ -595,6 +596,7 @@ export default function CampaignDetail() {
             onOpenChange={setLeadImportDialogOpen}
             campaign={campaign}
             onImportComplete={() => {
+              refetch();
               toast({
                 title: "Leads imported",
                 description: "New contacts added to campaign pipeline",
@@ -606,6 +608,7 @@ export default function CampaignDetail() {
             onOpenChange={setGoogleSheetImportDialogOpen}
             campaign={campaign}
             onImportComplete={() => {
+              refetch();
               toast({
                 title: "Import successful",
                 description: "Contacts imported from Google Sheets",
