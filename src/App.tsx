@@ -38,6 +38,7 @@ import Prospecting from "./pages/bd/pipeline/Prospecting";
 import Qualification from "./pages/bd/pipeline/Qualification";
 import Proposal from "./pages/bd/pipeline/Proposal";
 import ProposalManagement from "./pages/bd/ProposalManagement";
+import ProposalAnalytics from "./pages/bd/ProposalAnalytics";
 import Negotiation from "./pages/bd/pipeline/Negotiation";
 import Clients from "./pages/bd/pipeline/Clients";
 import BDDashboard from "./pages/bd/Dashboard";
@@ -291,6 +292,7 @@ const App = () => (
               </ProtectedRoute>
             }>
               <Route index element={<ProposalManagement />} />
+              <Route path="analytics" element={<ProposalAnalytics />} />
             </Route>
 
             {/* Companies */}
