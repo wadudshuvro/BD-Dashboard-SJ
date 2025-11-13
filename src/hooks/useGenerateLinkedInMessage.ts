@@ -30,7 +30,7 @@ export function useGenerateLinkedInMessage() {
   
   return useMutation({
     mutationFn: async (params: GenerateMessageParams) => {
-      // Fetch contact WITH campaign and company data
+      // Fetch contact WITH campaign data
       const { data: contact, error: contactError } = await supabase
         .from('campaign_contacts')
         .select(`
@@ -38,10 +38,6 @@ export function useGenerateLinkedInMessage() {
           bd_campaigns!inner(
             id, name, campaign_type, status,
             target_contacts, target_regions
-          ),
-          companies(
-            id, name, website, linkedin_url, industry, 
-            employee_count, headquarters, description
           )
         `)
         .eq('id', params.contactId)
@@ -88,15 +84,16 @@ export function useGenerateLinkedInMessage() {
           target_contacts: (contact.bd_campaigns as any).target_contacts,
           target_regions: (contact.bd_campaigns as any).target_regions,
         },
-        company_context: contact.companies ? {
-          company_name: (contact.companies as any).name,
-          company_website: (contact.companies as any).website,
-          company_linkedin: (contact.companies as any).linkedin_url,
-          company_industry: (contact.companies as any).industry,
-          company_size: (contact.companies as any).employee_count,
-          company_headquarters: (contact.companies as any).headquarters,
-          company_description: (contact.companies as any).description,
-        } : null,
+        company_context: {
+          company_name: contact.contact_company,
+          company_website: contact.company_website,
+          company_linkedin: contact.company_linkedin_url,
+          company_industry: contact.company_industry,
+          company_size: contact.company_size,
+          company_headquarters: contact.company_headquarters,
+          company_description: contact.company_description,
+          company_founded_year: contact.company_founded_year,
+        },
         user_context: params.userContext || ''
       };
 
