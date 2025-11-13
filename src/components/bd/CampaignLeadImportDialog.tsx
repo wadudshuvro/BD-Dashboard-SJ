@@ -45,9 +45,6 @@ export function CampaignLeadImportDialog({
   const [selectedKeywords, setSelectedKeywords] = useState<string[]>([]);
   const [customKeywords, setCustomKeywords] = useState("");
   const [maxResults, setMaxResults] = useState(25);
-  const [startDate, setStartDate] = useState<Date>();
-  const [endDate, setEndDate] = useState<Date>();
-  const [excludeCompanies, setExcludeCompanies] = useState("");
   const [userLocation, setUserLocation] = useState("US");
   const [isImporting, setIsImporting] = useState(false);
   const [jobStatus, setJobStatus] = useState<{
@@ -160,11 +157,6 @@ export function CampaignLeadImportDialog({
 
     setIsImporting(true);
     try {
-      const excludeTextArray = excludeCompanies
-        .split(",")
-        .map(c => c.trim())
-        .filter(Boolean);
-
       const { data, error } = await supabase.functions.invoke("campaign-lead-import", {
         body: {
           campaignId: campaign.id,
@@ -176,11 +168,6 @@ export function CampaignLeadImportDialog({
           technologies: technologies.length > 0 ? technologies : undefined,
           keywords: finalKeywords.length > 0 ? finalKeywords : undefined,
           maxResults,
-          dateRange: startDate || endDate ? {
-            start: startDate?.toISOString(),
-            end: endDate?.toISOString(),
-          } : undefined,
-          excludeText: excludeTextArray.length > 0 ? excludeTextArray : undefined,
           userLocation,
         },
       });
@@ -503,56 +490,6 @@ export function CampaignLeadImportDialog({
             />
             <p className="text-xs text-muted-foreground">
               Example: SaaS CEO, AI Startup Founder, Series A CTO
-            </p>
-          </div>
-
-          {/* Date Range */}
-          <div className="space-y-3">
-            <Label>Published Date Range (optional)</Label>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label className="text-xs text-muted-foreground">Start Date</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !startDate && "text-muted-foreground")}>
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {startDate ? format(startDate, "PPP") : "Pick a date"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar mode="single" selected={startDate} onSelect={setStartDate} initialFocus className="pointer-events-auto" />
-                  </PopoverContent>
-                </Popover>
-              </div>
-              <div>
-                <Label className="text-xs text-muted-foreground">End Date</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !endDate && "text-muted-foreground")}>
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {endDate ? format(endDate, "PPP") : "Pick a date"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar mode="single" selected={endDate} onSelect={setEndDate} initialFocus className="pointer-events-auto" />
-                  </PopoverContent>
-                </Popover>
-              </div>
-            </div>
-          </div>
-
-          {/* Exclude Companies */}
-          <div className="space-y-3">
-            <Label htmlFor="exclude-companies">Exclude Companies (optional)</Label>
-            <Textarea
-              id="exclude-companies"
-              placeholder="Enter company names to exclude, separated by commas..."
-              value={excludeCompanies}
-              onChange={(e) => setExcludeCompanies(e.target.value)}
-              rows={2}
-            />
-            <p className="text-xs text-muted-foreground">
-              Example: Chase, Fannie Mae, Wells Fargo
             </p>
           </div>
 

@@ -21,11 +21,6 @@ const RequestSchema = z.object({
   technologies: z.array(z.string()).optional(),
   keywords: z.array(z.string()).optional(),
   maxResults: z.number().int().positive().max(100).default(25),
-  dateRange: z.object({
-    start: z.string().optional(),
-    end: z.string().optional(),
-  }).optional(),
-  excludeText: z.array(z.string()).optional(),
   userLocation: z.string().optional(),
 });
 
@@ -42,29 +37,34 @@ function buildSearchQuery(params: {
   technologies?: string[];
   keywords?: string[];
 }): string {
-  // Build job title part
-  const titlePart = params.jobTitles.length > 1
-    ? `(${params.jobTitles.join(" OR ")})`
-    : params.jobTitles[0];
+  // Simplified company size mapping
+  const sizeMap: Record<string, string> = {
+    "Startup (1-50)": "startup",
+    "Small (51-200)": "small",
+    "Medium (201-1,000)": "medium",
+    "Large (1,001-5,000)": "large",
+    "Enterprise (5,000+)": "enterprise",
+  };
   
-  // Build industry part
-  const industryPart = params.industries.length > 1
-    ? `${params.industries.join(" OR ")} industry`
-    : `${params.industries[0]} industry`;
+  // Build job title part with OR
+  const titlePart = params.jobTitles.join(" OR ");
+  
+  // Build industry part with OR
+  const industryPart = params.industries.join(" OR ");
   
   // Build location part
   const locationPart = params.city
-    ? `in ${params.city}, ${params.country}`
-    : `in ${params.country}`;
+    ? `${params.city}, ${params.country}`
+    : params.country;
   
-  // Build company size part
-  const sizePart = params.companySize.length > 0
-    ? params.companySize.join(" or ")
-    : "";
+  // Build company size part with simplified terms
+  const sizePart = params.companySize
+    .map(size => sizeMap[size] || size.toLowerCase())
+    .join(" OR ");
   
-  // Build technology part
+  // Build technology part (only if provided)
   const techPart = params.technologies && params.technologies.length > 0
-    ? `using ${params.technologies.join(", ")}`
+    ? params.technologies.join(", ")
     : "";
   
   // Build additional keywords
@@ -72,19 +72,19 @@ function buildSearchQuery(params: {
     ? params.keywords.join(" ")
     : "";
   
-  // Combine all parts
-  const parts = [
+  // Use pipe separators for clearer filter separation
+  const queryParts = [
     titlePart,
-    "at",
     industryPart,
-    "companies",
     locationPart,
     sizePart,
-    techPart,
-    keywordPart
-  ].filter(Boolean);
+  ];
   
-  return parts.join(" ");
+  // Add optional parts
+  if (techPart) queryParts.push(techPart);
+  if (keywordPart) queryParts.push(keywordPart);
+  
+  return queryParts.join(" | ");
 }
 
 serve(async (req) => {
@@ -179,8 +179,6 @@ serve(async (req) => {
           technologies: payload.technologies,
           keywords: payload.keywords,
           max_results: payload.maxResults,
-          dateRange: payload.dateRange,
-          excludeText: payload.excludeText,
           userLocation: payload.userLocation,
         },
         created_at: new Date().toISOString(),
@@ -249,16 +247,14 @@ async function searchExaLeads(
     keywords?: string[];
   },
   maxResults: number,
-  dateRange?: { start?: string; end?: string },
-  excludeText?: string[],
   userLocation?: string
 ): Promise<unknown[]> {
   console.log("[searchExaLeads] Initializing Exa client...");
   const exa = new Exa(apiKey);
 
-  // Build enhanced semantic query
+  // Build simplified semantic query
   const query = buildSearchQuery(searchParams);
-  console.log("[searchExaLeads] Enhanced query:", query);
+  console.log("[searchExaLeads] Simplified query:", query);
 
   const searchOptions: any = {
     text: true,
@@ -267,31 +263,27 @@ async function searchExaLeads(
     numResults: maxResults,
   };
 
-  // Add optional filters
+  // Add optional user location
   if (userLocation) {
-    searchOptions.userLocation = userLocation;
-  }
-
-  if (dateRange?.start) {
-    searchOptions.startPublishedDate = dateRange.start;
-  }
-
-  if (dateRange?.end) {
-    searchOptions.endPublishedDate = dateRange.end;
-  }
-
-  if (excludeText && excludeText.length > 0) {
-    searchOptions.excludeText = excludeText;
+    searchOptions.userLocation = userLocation.toLowerCase();
   }
 
   console.log("[searchExaLeads] Search options:", JSON.stringify(searchOptions, null, 2));
 
   try {
     const result = await exa.searchAndContents(query, searchOptions);
-    console.log(`[searchExaLeads] Found ${result.results?.length || 0} results`);
+    console.log(`[searchExaLeads] Exa API Response - Found ${result.results?.length || 0} results`);
+    
+    if (result.results?.length === 0) {
+      console.warn(`[searchExaLeads] Zero results for query: "${query}"`);
+      console.warn(`[searchExaLeads] Consider simplifying search criteria`);
+    }
+    
     return result.results || [];
   } catch (error) {
     console.error("[searchExaLeads] Error:", error);
+    console.error("[searchExaLeads] Query was:", query);
+    console.error("[searchExaLeads] Options were:", searchOptions);
     throw new Error(`Exa search failed: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
@@ -448,7 +440,7 @@ async function processLeadImportJob(
 
     console.log(`[processLeadImportJob] Starting job ${jobId} for campaign ${payload.campaignId}`);
 
-    // Call Exa.ai Search API with enhanced filters
+    // Call Exa.ai Search API with simplified filters
     const results = await searchExaLeads(
       exaApiKey,
       {
@@ -461,8 +453,6 @@ async function processLeadImportJob(
         keywords: payload.keywords,
       },
       payload.maxResults,
-      payload.dateRange,
-      payload.excludeText,
       payload.userLocation
     );
 
