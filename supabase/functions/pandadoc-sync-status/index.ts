@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { decryptSecret } from "../_shared/crypto.ts";
+import { sendProposalNotification, checkNotificationPreferences } from "../_shared/notifications.ts";
 import { insertAnalyticsMetrics } from "../_shared/analytics.ts";
 
 const PANDADOC_API_BASE = 'https://api.pandadoc.com/public/v1';
@@ -224,6 +225,7 @@ serve(async (req) => {
           }
 
           // Update proposal
+          const oldStatus = proposal.status;
           const { error: updateError } = await supabase
             .from('proposal_documents')
             .update(updates)
@@ -235,6 +237,74 @@ serve(async (req) => {
               error: `Failed to update proposal: ${updateError.message}`,
             });
             continue;
+          }
+
+          // Send notification if status changed
+          try {
+            const { data: fullProposal } = await supabase
+              .from('proposal_documents')
+              .select(`
+                id,
+                title,
+                deal_id,
+                deals!inner(
+                  id,
+                  title,
+                  owner_id,
+                  client_id,
+                  clients(name)
+                )
+              `)
+              .eq('id', proposal.id)
+              .single();
+
+            if (fullProposal && fullProposal.deals) {
+              const deal = fullProposal.deals as any;
+              const ownerId = deal.owner_id;
+
+              if (ownerId) {
+                const { data: owner } = await supabase
+                  .from('profiles')
+                  .select('email')
+                  .eq('id', ownerId)
+                  .single();
+
+                if (owner?.email) {
+                  let notificationType = '';
+                  let shouldSendNotification = false;
+
+                  if (newStatus === 'viewed' && oldStatus === 'sent') {
+                    notificationType = 'proposal_viewed';
+                    shouldSendNotification = await checkNotificationPreferences(supabase, ownerId, 'proposal_viewed');
+                  } else if (newStatus === 'signed') {
+                    notificationType = 'proposal_signed';
+                    shouldSendNotification = await checkNotificationPreferences(supabase, ownerId, 'proposal_signed');
+                  } else if (newStatus === 'declined') {
+                    notificationType = 'proposal_declined';
+                    shouldSendNotification = await checkNotificationPreferences(supabase, ownerId, 'proposal_declined');
+                  }
+
+                  if (shouldSendNotification && notificationType) {
+                    await sendProposalNotification(
+                      owner.email,
+                      notificationType as any,
+                      {
+                        proposalTitle: fullProposal.title,
+                        clientName: deal.clients?.name || 'Client',
+                        dealTitle: deal.title,
+                        viewedAt: newStatus === 'viewed' ? new Date().toISOString() : undefined,
+                        signedAt: newStatus === 'signed' ? new Date().toISOString() : undefined,
+                        declinedAt: newStatus === 'declined' ? new Date().toISOString() : undefined,
+                      }
+                    );
+                    console.log(`[sync] Sent ${notificationType} notification to ${owner.email}`);
+                  }
+                }
+              }
+            }
+          } catch (notificationError) {
+            console.error('[sync] Failed to send notification:', notificationError);
+            // Don't fail the sync if notification fails
           }
 
           proposalsUpdated++;

@@ -2,6 +2,9 @@ project_id = "qzzvcqoletuummdsbbio"
 
 [functions.pandadoc-sync-status]
 verify_jwt = false
+
+[functions.pandadoc-check-expiring]
+verify_jwt = false
 timeout = 300
 
 [functions.pandadoc-sync-status.cron]
