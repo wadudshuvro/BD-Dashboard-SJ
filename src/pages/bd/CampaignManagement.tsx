@@ -188,13 +188,21 @@ export default function CampaignManagement() {
             <h1 className="text-3xl font-bold">Campaign Management</h1>
             <p className="text-muted-foreground">Track and manage your outbound campaigns</p>
           </div>
-          <Button onClick={() => {
-            setEditingCampaign(null);
-            setDialogOpen(true);
-          }}>
-            <Plus className="mr-2 h-4 w-4" />
-            Create Campaign
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" asChild>
+              <Link to="/bd/campaigns/import-history">
+                <History className="mr-2 h-4 w-4" />
+                Import History
+              </Link>
+            </Button>
+            <Button onClick={() => {
+              setEditingCampaign(null);
+              setDialogOpen(true);
+            }}>
+              <Plus className="mr-2 h-4 w-4" />
+              Create Campaign
+            </Button>
+          </div>
         </div>
 
         {error ? (
