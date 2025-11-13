@@ -1,7 +1,7 @@
 project_id = "qzzvcqoletuummdsbbio"
 
 [functions.pandadoc-manage]
-verify_jwt = true
+verify_jwt = false
 
 [functions.pandadoc-sync-status]
 verify_jwt = false
