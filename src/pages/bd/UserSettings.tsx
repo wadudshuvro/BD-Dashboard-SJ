@@ -35,10 +35,10 @@ export default function UserSettings() {
 
       if (error) throw error;
 
-      if (data?.notification_preferences) {
+      if (data?.notification_preferences && typeof data.notification_preferences === 'object') {
         setNotifications(prev => ({
           ...prev,
-          ...data.notification_preferences,
+          ...(data.notification_preferences as Record<string, boolean>),
         }));
       }
     } catch (error) {
