@@ -59,10 +59,11 @@ import CampaignROI from "./pages/bd/CampaignROI";
 
 const queryClient = new QueryClient();
 
-// Lazy load Documentation
+// Lazy load Documentation and Feedback pages
 const Documentation = lazy(() => import("./pages/admin/Documentation"));
 const FeedbackSubmitPage = lazy(() => import("./pages/feedback/SubmitFeedback"));
 const AdminFeedbackManager = lazy(() => import("./pages/admin/FeedbackManager"));
+const CampaignImportHistory = lazy(() => import("./pages/bd/CampaignImportHistory"));
 
 // Smart redirect component - send everyone to BD Dashboard
 function DashboardRedirect() {
@@ -271,6 +272,7 @@ const App = () => (
               </ProtectedRoute>
             }>
               <Route index element={<CampaignManagement />} />
+              <Route path="import-history" element={<React.Suspense fallback={<div>Loading...</div>}><CampaignImportHistory /></React.Suspense>} />
               <Route path=":slug" element={<CampaignDetail />} />
               <Route path=":slug/roi" element={<CampaignROI />} />
               <Route path=":campaignSlug/contacts/:contactSlug" element={<CampaignContactDetail />} />
