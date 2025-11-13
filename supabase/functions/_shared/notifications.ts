@@ -3,6 +3,10 @@ interface SendGridEmailParams {
   subject: string;
   html: string;
   from?: string;
+  fromName?: string;
+  replyTo?: string;
+  cc?: string[];
+  bcc?: string[];
 }
 
 export async function sendEmail(params: SendGridEmailParams): Promise<void> {
@@ -13,21 +17,49 @@ export async function sendEmail(params: SendGridEmailParams): Promise<void> {
     return;
   }
 
-  const { to, subject, html, from = 'noreply@yourdomain.com' } = params;
+  const { 
+    to, 
+    subject, 
+    html, 
+    from = 'noreply@yourdomain.com',
+    fromName,
+    replyTo,
+    cc,
+    bcc
+  } = params;
 
   try {
+    const emailPayload: any = {
+      personalizations: [{
+        to: [{ email: to }]
+      }],
+      from: fromName ? { email: from, name: fromName } : { email: from },
+      subject,
+      content: [{ type: 'text/html', value: html }],
+    };
+
+    // Add reply-to if provided
+    if (replyTo) {
+      emailPayload.reply_to = { email: replyTo };
+    }
+
+    // Add CC if provided
+    if (cc && cc.length > 0) {
+      emailPayload.personalizations[0].cc = cc.map(email => ({ email }));
+    }
+
+    // Add BCC if provided
+    if (bcc && bcc.length > 0) {
+      emailPayload.personalizations[0].bcc = bcc.map(email => ({ email }));
+    }
+
     const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${sendGridApiKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        personalizations: [{ to: [{ email: to }] }],
-        from: { email: from },
-        subject,
-        content: [{ type: 'text/html', value: html }],
-      }),
+      body: JSON.stringify(emailPayload),
     });
 
     if (!response.ok) {

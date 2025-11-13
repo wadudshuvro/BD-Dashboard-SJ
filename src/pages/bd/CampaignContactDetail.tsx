@@ -37,6 +37,7 @@ import { EngagementCard } from "@/components/contact/EngagementCard";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
+import { EmailComposeDialog } from "@/components/bd/EmailComposeDialog";
 
 export default function CampaignContactDetail() {
   const { campaignSlug, contactSlug } = useParams<{ campaignSlug: string; contactSlug: string }>();
@@ -51,6 +52,7 @@ export default function CampaignContactDetail() {
   
   const [newComment, setNewComment] = useState("");
   const [activeTab, setActiveTab] = useState("overview");
+  const [emailDialogOpen, setEmailDialogOpen] = useState(false);
   
   // LinkedIn Message Generation
   const [messageType, setMessageType] = useState<'connection_request' | 'first_followup' | 'second_followup' | 'meeting_request'>('connection_request');
@@ -268,10 +270,13 @@ export default function CampaignContactDetail() {
           </Button>
           
           {contact?.contact_email && (
-            <Button variant="outline" size="sm" asChild className="gap-2">
-              <a href={`mailto:${contact.contact_email}`}>
-                <Mail className="h-4 w-4" /> Send Email
-              </a>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setEmailDialogOpen(true)}
+              className="gap-2"
+            >
+              <Mail className="h-4 w-4" /> Send Email
             </Button>
           )}
           
@@ -1365,6 +1370,16 @@ export default function CampaignContactDetail() {
           </Tabs>
         </CardContent>
       </Card>
+
+      {/* Email Compose Dialog */}
+      {contact && campaign && (
+        <EmailComposeDialog
+          open={emailDialogOpen}
+          onOpenChange={setEmailDialogOpen}
+          contact={contact}
+          campaign={campaign}
+        />
+      )}
     </div>
   );
 }
