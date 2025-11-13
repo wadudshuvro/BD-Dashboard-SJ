@@ -121,7 +121,7 @@ async function handleFetch(body: FetchAction): Promise<Response> {
 
   const response = await fetch(csvUrl);
   if (!response.ok) {
-    throw new Error('Failed to fetch Google Sheet. Make sure the sheet is publicly accessible.');
+    throw new Error(`Failed to fetch Google Sheet (HTTP ${response.status}). Make sure the sheet is shared publicly with "Anyone with the link" as Viewer.`);
   }
 
   const csvText = await response.text();
