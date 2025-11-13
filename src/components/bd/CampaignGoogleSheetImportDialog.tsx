@@ -127,13 +127,28 @@ export function CampaignGoogleSheetImportDialog({
       const headers = data[0].map(h => h.toLowerCase().trim());
       const mapping: Record<string, string> = {};
       
+      // Define alternative names for each field to improve auto-detection
+      const fieldAliases: Record<string, string[]> = {
+        companyWebsite: ['company domain', 'company website', 'website', 'domain', 'company url', 'company site'],
+        companyLinkedinUrl: ['company linkedin', 'company linkedin url', 'company li', 'company li url', 'company linkedin profile'],
+        linkedinUrl: ['linkedin', 'linkedin url', 'li url', 'profile url', 'linkedin profile'],
+        phone: ['phone', 'phone number', 'mobile', 'contact number', 'telephone'],
+        companyIndustry: ['industry', 'company industry', 'sector', 'business sector'],
+        companySize: ['company size', 'size', 'employee count', 'employees', 'number of employees'],
+      };
+      
       [...REQUIRED_FIELDS, ...OPTIONAL_FIELDS].forEach(field => {
         const fieldLower = field.label.toLowerCase();
-        const matchIndex = headers.findIndex(h => 
-          h === fieldLower || 
-          h.replace(/\s+/g, '') === fieldLower.replace(/\s+/g, '') ||
-          h === field.key.toLowerCase()
-        );
+        const aliases = fieldAliases[field.key] || [fieldLower];
+        
+        const matchIndex = headers.findIndex(h => {
+          // Check against field label, aliases, and field key
+          return aliases.some(alias => 
+            h === alias || 
+            h.replace(/\s+/g, '') === alias.replace(/\s+/g, '')
+          ) || h === field.key.toLowerCase();
+        });
+        
         if (matchIndex !== -1) {
           mapping[field.key] = data[0][matchIndex];
         }
