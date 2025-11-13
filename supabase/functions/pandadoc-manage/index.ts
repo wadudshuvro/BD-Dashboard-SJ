@@ -77,7 +77,15 @@ serve(async (req) => {
     // Route: POST /integration - Create/update integration
     if (req.method === 'POST' && endpoint === 'integration') {
       const body = await req.json();
-      const { apiKey, workspaceId, defaultTemplateId } = body;
+      console.log('[pandadoc-manage] Received body:', { 
+        hasApiKey: !!body.api_key, 
+        hasWorkspaceId: !!body.workspace_id 
+      });
+      
+      const { api_key, workspace_id, default_template_id } = body;
+      const apiKey = api_key;
+      const workspaceId = workspace_id;
+      const defaultTemplateId = default_template_id;
 
       if (!apiKey) {
         throw new Error('API key is required');
