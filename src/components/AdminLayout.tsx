@@ -28,7 +28,8 @@ import {
   MessageSquare,
   Package,
   ListChecks,
-  Network
+  Network,
+  FileSignature
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useMemo, useState } from "react";

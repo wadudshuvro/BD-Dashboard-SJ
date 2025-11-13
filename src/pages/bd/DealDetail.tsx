@@ -28,6 +28,7 @@ import {
   RefreshCw,
   FolderOpen,
   Loader2,
+  Plus,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -68,6 +69,8 @@ import { DocumentQAModal } from '@/components/ai/DocumentQAModal';
 import type { DealFile } from '@/hooks/useDeals';
 import { DEAL_STATUSES, STATUS_LABELS, STAGE_LABELS, type DealStatus } from '@/lib/dealStages';
 import { usePMContactInfo } from '@/hooks/usePMContactInfo';
+import { ProposalList } from '@/components/proposals/ProposalList';
+import { ProposalDialog } from '@/components/proposals/ProposalDialog';
 
 interface DealExternalLinks {
   n8n_workflow_url?: string | null;
@@ -594,6 +597,9 @@ export default function DealDetail() {
   const [syncingFolder, setSyncingFolder] = useState(false);
   const [showMapFolderDialog, setShowMapFolderDialog] = useState(false);
   const [folderUrl, setFolderUrl] = useState("");
+  
+  // Proposal state
+  const [createProposalOpen, setCreateProposalOpen] = useState(false);
 
   // Permission check for AI Lead Evaluation
   const canViewAiLeadEvaluation = Boolean(user && ['super_admin', 'manager', 'bd_user'].includes(user.role));
@@ -2194,7 +2200,26 @@ export default function DealDetail() {
                 </Button>
               </div>
             </CardContent>
-          </Card>
+            </Card>
+
+            {/* Proposals Section */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <FileSignature className="h-5 w-5" />
+                    Proposals
+                  </CardTitle>
+                  <Button size="sm" onClick={() => setCreateProposalOpen(true)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Proposal
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <ProposalList dealId={deal?.id} clientId={deal?.client_id || undefined} variant="cards" />
+              </CardContent>
+            </Card>
         </TabsContent>
 
         {/* Tasks Tab */}
@@ -2582,6 +2607,13 @@ export default function DealDetail() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ProposalDialog 
+        open={createProposalOpen} 
+        onOpenChange={setCreateProposalOpen}
+        dealId={deal?.id}
+        clientId={deal?.client_id || undefined}
+      />
     </div>
   );
 }

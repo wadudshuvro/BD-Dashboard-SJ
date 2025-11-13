@@ -37,6 +37,7 @@ import PODManagement from "./pages/admin/PODManagement";
 import Prospecting from "./pages/bd/pipeline/Prospecting";
 import Qualification from "./pages/bd/pipeline/Qualification";
 import Proposal from "./pages/bd/pipeline/Proposal";
+import ProposalManagement from "./pages/bd/ProposalManagement";
 import Negotiation from "./pages/bd/pipeline/Negotiation";
 import Clients from "./pages/bd/pipeline/Clients";
 import BDDashboard from "./pages/bd/Dashboard";
@@ -281,6 +282,15 @@ const App = () => (
               </ProtectedRoute>
             }>
               <Route index element={<SequenceManagement />} />
+            </Route>
+
+            {/* Proposals */}
+            <Route path="/proposals" element={
+              <ProtectedRoute requiredMinimumRole="team_member">
+                <Layout />
+              </ProtectedRoute>
+            }>
+              <Route index element={<ProposalManagement />} />
             </Route>
 
             {/* Companies */}

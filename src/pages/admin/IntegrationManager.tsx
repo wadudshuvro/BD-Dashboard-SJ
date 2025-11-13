@@ -150,6 +150,14 @@ const IntegrationManager = () => {
       icon: "📁",
       metadata: null,
     },
+    {
+      id: "pandadoc",
+      name: "PandaDoc",
+      description: "Create, send, and track proposals with e-signature",
+      category: "Documents",
+      is_enabled: false,
+      icon: "📝",
+    },
   ]);
   const [crmIntegrations, setCrmIntegrations] = useState<CrmIntegrationEntry[]>([]);
   const [isCrmLoading, setIsCrmLoading] = useState(false);
@@ -180,6 +188,10 @@ const IntegrationManager = () => {
   const [hubspotApiKey, setHubspotApiKey] = useState("");
   const [isConfiguringHubspot, setIsConfiguringHubspot] = useState(false);
   const [hubspotTestResult, setHubspotTestResult] = useState<any>(null);
+  const [pandadocApiKey, setPandadocApiKey] = useState("");
+  const [pandadocWorkspaceId, setPandadocWorkspaceId] = useState("");
+  const [testingPandadoc, setTestingPandadoc] = useState(false);
+  const [pandadocTestResult, setPandadocTestResult] = useState<any>(null);
 
   const hubspotIntegration = crmIntegrations.find((integration) => integration.type === "hubspot");
 
@@ -322,6 +334,20 @@ const IntegrationManager = () => {
       }
     } catch (error) {
       console.error("Failed to load GoHighLevel integrations", error);
+    }
+
+    // Check PandaDoc integration
+    try {
+      const { data: pandadocCheck } = await supabase.functions.invoke("pandadoc-manage/integration", {
+        method: "GET",
+      });
+      const pandadocConfigured = Boolean(pandadocCheck?.ok && pandadocCheck?.integration);
+      const pandadocIndex = nextGlobal.findIndex((integration) => integration.id === "pandadoc");
+      if (pandadocIndex !== -1) {
+        nextGlobal[pandadocIndex] = { ...nextGlobal[pandadocIndex], is_enabled: pandadocConfigured };
+      }
+    } catch (error) {
+      console.error("Failed to load PandaDoc config", error);
     }
 
     setGlobalIntegrations(nextGlobal);
