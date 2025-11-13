@@ -11,6 +11,10 @@ const corsHeaders = {
 
 const PANDADOC_API_BASE = 'https://api.pandadoc.com/public/v1';
 
+// Rate limiting configuration (requests per minute per user)
+const RATE_LIMIT_PER_MINUTE = 30;
+const RATE_LIMIT_WINDOW_MS = 60000; // 1 minute
+
 interface PandaDocIntegration {
   id: string;
   user_id: string;
@@ -33,7 +37,16 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Get auth header
+    const url = new URL(req.url);
+    const pathParts = url.pathname.split('/').filter(Boolean);
+    const endpoint = pathParts[pathParts.length - 1];
+
+    // Special handling for webhook endpoint (no auth required)
+    if (req.method === 'POST' && endpoint === 'webhook') {
+      return await handleWebhook(req, supabase);
+    }
+
+    // All other endpoints require authentication
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       throw new Error('No authorization header');
@@ -46,9 +59,19 @@ serve(async (req) => {
       throw new Error('Invalid user token');
     }
 
-    const url = new URL(req.url);
-    const pathParts = url.pathname.split('/').filter(Boolean);
-    const endpoint = pathParts[pathParts.length - 1];
+    // Rate limiting check (except for GET requests)
+    if (req.method !== 'GET') {
+      const isRateLimited = await checkRateLimit(user.id);
+      if (isRateLimited) {
+        return new Response(
+          JSON.stringify({ error: 'Rate limit exceeded. Please try again later.' }),
+          { 
+            status: 429, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
+      }
+    }
 
     console.log(`[pandadoc-manage] Processing ${req.method} ${endpoint} for user ${user.id}`);
 
@@ -340,195 +363,7 @@ serve(async (req) => {
       );
     }
 
-    // Route: POST /webhook - Handle PandaDoc webhooks
-    if (req.method === 'POST' && endpoint === 'webhook') {
-      const body = await req.text();
-      const signature = req.headers.get('x-pandadoc-signature') || '';
-      const webhookSecret = Deno.env.get('PANDADOC_WEBHOOK_SECRET');
-
-      if (webhookSecret) {
-        const isValid = await verifyWebhookSignature(body, signature, webhookSecret);
-        if (!isValid) {
-          throw new Error('Invalid webhook signature');
-        }
-      }
-
-      const event = JSON.parse(body);
-      console.log(`[pandadoc-manage] Webhook event: ${event.event}`, event.data);
-
-      const docId = event.data?.id;
-      if (!docId) {
-        return new Response(JSON.stringify({ received: true }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        });
-      }
-
-      // Fetch proposal
-      const { data: proposal } = await supabase
-        .from('proposal_documents')
-        .select('*, deals(*)')
-        .eq('pandadoc_doc_id', docId)
-        .single();
-
-      if (!proposal) {
-        console.log(`[pandadoc-manage] Proposal not found for doc ${docId}`);
-        return new Response(JSON.stringify({ received: true }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        });
-      }
-
-      // Handle different events
-      switch (event.event) {
-        case 'document_state_changed':
-          const newStatus = event.data.status;
-          const updates: any = {
-            status: newStatus,
-            updated_at: new Date().toISOString(),
-          };
-
-          if (newStatus === 'document.viewed') {
-            updates.viewed_at = new Date().toISOString();
-          } else if (newStatus === 'document.completed') {
-            updates.completed_at = new Date().toISOString();
-            updates.status = 'signed';
-
-            // Update deal to closed_won
-            if (proposal.deal_id) {
-              await supabase
-                .from('deals')
-                .update({
-                  stage: 'closed_won',
-                  status: 'won',
-                  close_date: new Date().toISOString().split('T')[0],
-                })
-                .eq('id', proposal.deal_id);
-
-              console.log(`[pandadoc-manage] Updated deal ${proposal.deal_id} to closed_won`);
-            }
-
-            // Get integration to download PDF
-            const { data: integration } = await supabase
-              .from('pandadoc_integrations')
-              .select('api_key_encrypted')
-              .eq('user_id', proposal.created_by)
-              .eq('is_active', true)
-              .single();
-
-            if (integration) {
-              const apiKey = await decryptSecret(integration.api_key_encrypted);
-              
-              // Download PDF
-              const pdfResponse = await fetch(`${PANDADOC_API_BASE}/documents/${docId}/download`, {
-                headers: {
-                  'Authorization': `API-Key ${apiKey}`,
-                },
-              });
-
-              if (pdfResponse.ok) {
-                const pdfBuffer = await pdfResponse.arrayBuffer();
-                const fileName = `proposals/${docId}.pdf`;
-
-                // Upload to storage
-                const { error: uploadError } = await supabase.storage
-                  .from('deal-files')
-                  .upload(fileName, pdfBuffer, {
-                    contentType: 'application/pdf',
-                    upsert: true,
-                  });
-
-                if (!uploadError) {
-                  updates.pdf_url = fileName;
-                  console.log(`[pandadoc-manage] Saved PDF to ${fileName}`);
-                }
-              }
-            }
-          }
-
-          // Update proposal
-          await supabase
-            .from('proposal_documents')
-            .update(updates)
-            .eq('pandadoc_doc_id', docId);
-
-          // Send email notification
-          try {
-            const { data: proposal } = await supabase
-              .from('proposal_documents')
-              .select(`
-                id,
-                title,
-                deal_id,
-                deals!inner(
-                  id,
-                  title,
-                  owner_id,
-                  client_id,
-                  clients(name)
-                )
-              `)
-              .eq('pandadoc_doc_id', docId)
-              .single();
-
-            if (proposal && proposal.deals) {
-              const deal = proposal.deals as any;
-              const ownerId = deal.owner_id;
-
-              if (ownerId) {
-                const { data: owner } = await supabase
-                  .from('profiles')
-                  .select('email')
-                  .eq('id', ownerId)
-                  .single();
-
-                if (owner?.email) {
-                  let notificationType = '';
-                  let shouldSendNotification = false;
-
-                  if (newStatus === 'document.viewed') {
-                    notificationType = 'proposal_viewed';
-                    shouldSendNotification = await checkNotificationPreferences(supabase, ownerId, 'proposal_viewed');
-                  } else if (newStatus === 'document.completed') {
-                    notificationType = 'proposal_signed';
-                    shouldSendNotification = await checkNotificationPreferences(supabase, ownerId, 'proposal_signed');
-                  } else if (newStatus === 'document.rejected') {
-                    notificationType = 'proposal_declined';
-                    shouldSendNotification = await checkNotificationPreferences(supabase, ownerId, 'proposal_declined');
-                  }
-
-                  if (shouldSendNotification && notificationType) {
-                    await sendProposalNotification(
-                      owner.email,
-                      notificationType as any,
-                      {
-                        proposalTitle: proposal.title,
-                        clientName: deal.clients?.name || 'Client',
-                        dealTitle: deal.title,
-                        viewedAt: newStatus === 'document.viewed' ? new Date().toISOString() : undefined,
-                        signedAt: newStatus === 'document.completed' ? new Date().toISOString() : undefined,
-                        declinedAt: newStatus === 'document.rejected' ? new Date().toISOString() : undefined,
-                      }
-                    );
-                    console.log(`[webhook] Sent ${notificationType} notification to ${owner.email}`);
-                  }
-                }
-              }
-            }
-          } catch (notificationError) {
-            console.error('[webhook] Failed to send notification:', notificationError);
-            // Don't fail the webhook if notification fails
-          }
-
-          break;
-
-        default:
-          console.log(`[pandadoc-manage] Unhandled event: ${event.event}`);
-      }
-
-      return new Response(
-        JSON.stringify({ received: true }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    // Note: Webhook handling moved to separate function for clarity
 
     return new Response(
       JSON.stringify({ error: 'Endpoint not found' }),
@@ -618,4 +453,306 @@ async function verifyWebhookSignature(
     .join('');
     
   return signature === expectedSignature;
+}
+
+// Rate limiting using in-memory store (could use Deno KV for persistent storage)
+const rateLimitStore = new Map<string, { count: number; resetAt: number }>();
+
+async function checkRateLimit(userId: string): Promise<boolean> {
+  const now = Date.now();
+  const userLimit = rateLimitStore.get(userId);
+
+  // Clean up expired entries
+  if (userLimit && now > userLimit.resetAt) {
+    rateLimitStore.delete(userId);
+  }
+
+  if (!userLimit || now > userLimit.resetAt) {
+    // First request or window expired - create new window
+    rateLimitStore.set(userId, {
+      count: 1,
+      resetAt: now + RATE_LIMIT_WINDOW_MS,
+    });
+    return false;
+  }
+
+  // Increment count
+  userLimit.count++;
+  
+  // Check if limit exceeded
+  if (userLimit.count > RATE_LIMIT_PER_MINUTE) {
+    console.log(`[pandadoc-manage] Rate limit exceeded for user ${userId}`);
+    return true;
+  }
+
+  return false;
+}
+
+// Separate webhook handler function
+async function handleWebhook(req: Request, supabase: any): Promise<Response> {
+  try {
+    const body = await req.text();
+    const signature = req.headers.get('x-pandadoc-signature') || '';
+    const webhookSecret = Deno.env.get('PANDADOC_WEBHOOK_SECRET');
+
+    // Verify webhook signature if secret is configured
+    if (webhookSecret) {
+      const isValid = await verifyWebhookSignature(body, signature, webhookSecret);
+      if (!isValid) {
+        console.error('[pandadoc-manage] Invalid webhook signature');
+        return new Response(
+          JSON.stringify({ error: 'Invalid signature' }), 
+          { 
+            status: 401, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
+      }
+    }
+
+    const event = JSON.parse(body);
+    console.log(`[pandadoc-manage] Webhook event: ${event.event}`, event.data);
+
+    const docId = event.data?.id;
+    if (!docId) {
+      return new Response(JSON.stringify({ received: true }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Fetch proposal
+    const { data: proposal } = await supabase
+      .from('proposal_documents')
+      .select('*, deals(*)')
+      .eq('pandadoc_doc_id', docId)
+      .single();
+
+    if (!proposal) {
+      console.log(`[pandadoc-manage] Proposal not found for doc ${docId}`);
+      return new Response(JSON.stringify({ received: true }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Handle different events
+    let updates: any = {
+      updated_at: new Date().toISOString(),
+    };
+
+    switch (event.event) {
+      case 'document_state_changed':
+        const newStatus = event.data.status;
+        updates.status = newStatus;
+
+        if (newStatus === 'document.viewed') {
+          updates.status = 'viewed';
+          updates.viewed_at = new Date().toISOString();
+          
+          // Send notification
+          if (proposal.created_by) {
+            const shouldNotify = await checkNotificationPreferences(supabase, proposal.created_by, 'proposal_viewed');
+            if (shouldNotify) {
+              const { data: profile } = await supabase
+                .from('profiles')
+                .select('email')
+                .eq('id', proposal.created_by)
+                .single();
+
+              if (profile?.email) {
+                await sendProposalNotification(
+                  profile.email,
+                  'proposal_viewed',
+                  {
+                    proposalTitle: proposal.title,
+                    clientName: proposal.deals?.title || 'Client',
+                    dealTitle: proposal.deals?.title || 'Deal',
+                    proposalUrl: proposal.recipient_url || '',
+                  }
+                );
+              }
+            }
+          }
+
+          // Log analytics
+          await supabase.from('analytics_data').insert({
+            source: 'pandadoc',
+            metric_name: 'proposal_viewed',
+            metric_value: 1,
+            dimensions: {
+              proposal_id: proposal.id,
+              deal_id: proposal.deal_id,
+              client_id: proposal.client_id,
+            },
+          });
+
+        } else if (newStatus === 'document.completed') {
+          updates.status = 'signed';
+          updates.completed_at = new Date().toISOString();
+
+          // Update deal to closed_won
+          if (proposal.deal_id) {
+            await supabase
+              .from('deals')
+              .update({
+                stage: 'closed_won',
+                status: 'won',
+                close_date: new Date().toISOString().split('T')[0],
+              })
+              .eq('id', proposal.deal_id);
+
+            console.log(`[pandadoc-manage] Updated deal ${proposal.deal_id} to closed_won`);
+          }
+
+          // Download PDF
+          const { data: integration } = await supabase
+            .from('pandadoc_integrations')
+            .select('api_key_encrypted')
+            .eq('user_id', proposal.created_by)
+            .eq('is_active', true)
+            .single();
+
+          if (integration) {
+            const apiKey = await decryptSecret(integration.api_key_encrypted);
+            
+            const pdfResponse = await fetch(`${PANDADOC_API_BASE}/documents/${docId}/download`, {
+              headers: {
+                'Authorization': `API-Key ${apiKey}`,
+              },
+            });
+
+            if (pdfResponse.ok) {
+              const pdfBuffer = await pdfResponse.arrayBuffer();
+              const fileName = `proposals/${docId}.pdf`;
+
+              const { error: uploadError } = await supabase.storage
+                .from('deal-files')
+                .upload(fileName, pdfBuffer, {
+                  contentType: 'application/pdf',
+                  upsert: true,
+                });
+
+              if (!uploadError) {
+                updates.pdf_url = fileName;
+                console.log(`[pandadoc-manage] Saved PDF to ${fileName}`);
+              }
+            }
+          }
+
+          // Send notification
+          if (proposal.created_by) {
+            const shouldNotify = await checkNotificationPreferences(supabase, proposal.created_by, 'proposal_signed');
+            if (shouldNotify) {
+              const { data: profile } = await supabase
+                .from('profiles')
+                .select('email')
+                .eq('id', proposal.created_by)
+                .single();
+
+              if (profile?.email) {
+                await sendProposalNotification(
+                  profile.email,
+                  'proposal_signed',
+                  {
+                    proposalTitle: proposal.title,
+                    clientName: proposal.deals?.title || 'Client',
+                    dealTitle: proposal.deals?.title || 'Deal',
+                    proposalUrl: proposal.recipient_url || '',
+                  }
+                );
+              }
+            }
+          }
+
+          // Log analytics
+          await supabase.from('analytics_data').insert({
+            source: 'pandadoc',
+            metric_name: 'proposal_signed',
+            metric_value: 1,
+            dimensions: {
+              proposal_id: proposal.id,
+              deal_id: proposal.deal_id,
+              client_id: proposal.client_id,
+            },
+          });
+
+        } else if (newStatus === 'document.declined') {
+          updates.status = 'declined';
+          
+          // Send notification
+          if (proposal.created_by) {
+            const shouldNotify = await checkNotificationPreferences(supabase, proposal.created_by, 'proposal_declined');
+            if (shouldNotify) {
+              const { data: profile } = await supabase
+                .from('profiles')
+                .select('email')
+                .eq('id', proposal.created_by)
+                .single();
+
+              if (profile?.email) {
+                await sendProposalNotification(
+                  profile.email,
+                  'proposal_declined',
+                  {
+                    proposalTitle: proposal.title,
+                    clientName: proposal.deals?.title || 'Client',
+                    dealTitle: proposal.deals?.title || 'Deal',
+                    proposalUrl: proposal.recipient_url || '',
+                  }
+                );
+              }
+            }
+          }
+
+          // Log analytics
+          await supabase.from('analytics_data').insert({
+            source: 'pandadoc',
+            metric_name: 'proposal_declined',
+            metric_value: 1,
+            dimensions: {
+              proposal_id: proposal.id,
+              deal_id: proposal.deal_id,
+              client_id: proposal.client_id,
+            },
+          });
+        }
+        break;
+
+      case 'document.sent':
+        updates.status = 'sent';
+        updates.sent_at = new Date().toISOString();
+        
+        // Log analytics
+        await supabase.from('analytics_data').insert({
+          source: 'pandadoc',
+          metric_name: 'proposal_sent',
+          metric_value: 1,
+          dimensions: {
+            proposal_id: proposal.id,
+            deal_id: proposal.deal_id,
+            client_id: proposal.client_id,
+          },
+        });
+        break;
+    }
+
+    // Update proposal
+    await supabase
+      .from('proposal_documents')
+      .update(updates)
+      .eq('pandadoc_doc_id', docId);
+
+    return new Response(JSON.stringify({ received: true }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+
+  } catch (error: any) {
+    console.error('[pandadoc-manage] Webhook error:', error);
+    return new Response(
+      JSON.stringify({ error: error.message }), 
+      { 
+        status: 500, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    );
+  }
 }
