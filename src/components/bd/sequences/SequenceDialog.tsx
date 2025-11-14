@@ -125,7 +125,7 @@ export function SequenceDialog({ open, onOpenChange, campaignId, sequence }: Seq
                     </SelectItem>
                   ))
                 ) : (
-                  <SelectItem value="" disabled>
+                  <SelectItem value="no-campaigns" disabled>
                     No campaigns available
                   </SelectItem>
                 )}
