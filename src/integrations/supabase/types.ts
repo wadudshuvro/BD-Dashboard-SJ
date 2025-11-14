@@ -772,6 +772,8 @@ export type Database = {
           research_summary: Json | null
           slug: string | null
           status: string
+          tag_colors: Json | null
+          tags: string[] | null
           total_years_experience: number | null
           updated_at: string
           years_in_current_role: number | null
@@ -819,6 +821,8 @@ export type Database = {
           research_summary?: Json | null
           slug?: string | null
           status?: string
+          tag_colors?: Json | null
+          tags?: string[] | null
           total_years_experience?: number | null
           updated_at?: string
           years_in_current_role?: number | null
@@ -866,6 +870,8 @@ export type Database = {
           research_summary?: Json | null
           slug?: string | null
           status?: string
+          tag_colors?: Json | null
+          tags?: string[] | null
           total_years_experience?: number | null
           updated_at?: string
           years_in_current_role?: number | null
@@ -876,6 +882,88 @@ export type Database = {
             columns: ["campaign_id"]
             isOneToOne: false
             referencedRelation: "bd_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campaign_emails: {
+        Row: {
+          bcc_emails: string[] | null
+          body: string
+          bounced_at: string | null
+          campaign_id: string
+          cc_emails: string[] | null
+          clicked_at: string | null
+          contact_id: string
+          created_at: string | null
+          id: string
+          opened_at: string | null
+          sendgrid_message_id: string | null
+          sent_at: string | null
+          sent_by: string
+          status: string | null
+          subject: string
+          to_email: string
+          updated_at: string | null
+        }
+        Insert: {
+          bcc_emails?: string[] | null
+          body: string
+          bounced_at?: string | null
+          campaign_id: string
+          cc_emails?: string[] | null
+          clicked_at?: string | null
+          contact_id: string
+          created_at?: string | null
+          id?: string
+          opened_at?: string | null
+          sendgrid_message_id?: string | null
+          sent_at?: string | null
+          sent_by: string
+          status?: string | null
+          subject: string
+          to_email: string
+          updated_at?: string | null
+        }
+        Update: {
+          bcc_emails?: string[] | null
+          body?: string
+          bounced_at?: string | null
+          campaign_id?: string
+          cc_emails?: string[] | null
+          clicked_at?: string | null
+          contact_id?: string
+          created_at?: string | null
+          id?: string
+          opened_at?: string | null
+          sendgrid_message_id?: string | null
+          sent_at?: string | null
+          sent_by?: string
+          status?: string | null
+          subject?: string
+          to_email?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_emails_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "bd_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_emails_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_emails_sent_by_fkey"
+            columns: ["sent_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -1082,6 +1170,44 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "campaign_sequences_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "bd_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campaign_tags: {
+        Row: {
+          campaign_id: string
+          color: string
+          created_at: string | null
+          created_by: string | null
+          id: string
+          tag_name: string
+          usage_count: number | null
+        }
+        Insert: {
+          campaign_id: string
+          color: string
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          tag_name: string
+          usage_count?: number | null
+        }
+        Update: {
+          campaign_id?: string
+          color?: string
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          tag_name?: string
+          usage_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_tags_campaign_id_fkey"
             columns: ["campaign_id"]
             isOneToOne: false
             referencedRelation: "bd_campaigns"
@@ -1486,45 +1612,75 @@ export type Database = {
       }
       contact_sequence_enrollments: {
         Row: {
+          batch_config: Json | null
           contact_id: string
           created_at: string
           current_step_id: string | null
+          email_template_id: string | null
           enrolled_at: string
           exit_reason: string | null
           id: string
           last_step_executed_at: string | null
           metadata: Json | null
+          next_batch_at: string | null
           next_step_scheduled_at: string | null
+          scheduling_mode: string | null
+          send_days: string[] | null
           sequence_id: string
+          start_date_time: string | null
           status: string
+          time_window_end: string | null
+          time_window_start: string | null
+          total_sent: number | null
+          total_to_send: number | null
           updated_at: string
         }
         Insert: {
+          batch_config?: Json | null
           contact_id: string
           created_at?: string
           current_step_id?: string | null
+          email_template_id?: string | null
           enrolled_at?: string
           exit_reason?: string | null
           id?: string
           last_step_executed_at?: string | null
           metadata?: Json | null
+          next_batch_at?: string | null
           next_step_scheduled_at?: string | null
+          scheduling_mode?: string | null
+          send_days?: string[] | null
           sequence_id: string
+          start_date_time?: string | null
           status?: string
+          time_window_end?: string | null
+          time_window_start?: string | null
+          total_sent?: number | null
+          total_to_send?: number | null
           updated_at?: string
         }
         Update: {
+          batch_config?: Json | null
           contact_id?: string
           created_at?: string
           current_step_id?: string | null
+          email_template_id?: string | null
           enrolled_at?: string
           exit_reason?: string | null
           id?: string
           last_step_executed_at?: string | null
           metadata?: Json | null
+          next_batch_at?: string | null
           next_step_scheduled_at?: string | null
+          scheduling_mode?: string | null
+          send_days?: string[] | null
           sequence_id?: string
+          start_date_time?: string | null
           status?: string
+          time_window_end?: string | null
+          time_window_start?: string | null
+          total_sent?: number | null
+          total_to_send?: number | null
           updated_at?: string
         }
         Relationships: [
@@ -1540,6 +1696,13 @@ export type Database = {
             columns: ["current_step_id"]
             isOneToOne: false
             referencedRelation: "sequence_steps"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contact_sequence_enrollments_email_template_id_fkey"
+            columns: ["email_template_id"]
+            isOneToOne: false
+            referencedRelation: "email_templates"
             referencedColumns: ["id"]
           },
           {
@@ -2349,6 +2512,45 @@ export type Database = {
           },
         ]
       }
+      email_templates: {
+        Row: {
+          body: string
+          category: string | null
+          created_at: string | null
+          created_by: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          subject: string
+          updated_at: string | null
+          variables: Json | null
+        }
+        Insert: {
+          body: string
+          category?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          subject: string
+          updated_at?: string | null
+          variables?: Json | null
+        }
+        Update: {
+          body?: string
+          category?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          subject?: string
+          updated_at?: string | null
+          variables?: Json | null
+        }
+        Relationships: []
+      }
       employees: {
         Row: {
           control_tower_id: string | null
@@ -2952,51 +3154,87 @@ export type Database = {
           completed_at: string | null
           created_at: string
           criteria: Json
+          duplicate_count: number | null
           error_details: string | null
+          failed_count: number | null
+          field_mapping: Json | null
           id: string
+          import_source: string | null
           imported_count: number
           initiated_by: string | null
+          is_rolled_back: boolean | null
           job_type: string | null
           notification_sent_at: string | null
           notify_email: string | null
+          rollback_data: Json | null
+          rolled_back_at: string | null
+          rolled_back_by: string | null
+          sheet_url: string | null
+          skipped_count: number | null
           started_at: string | null
           status: string
+          tags: string[] | null
           updated_at: string
           user_id: string | null
+          validation_results: Json | null
         }
         Insert: {
           campaign_id?: string | null
           completed_at?: string | null
           created_at?: string
           criteria?: Json
+          duplicate_count?: number | null
           error_details?: string | null
+          failed_count?: number | null
+          field_mapping?: Json | null
           id?: string
+          import_source?: string | null
           imported_count?: number
           initiated_by?: string | null
+          is_rolled_back?: boolean | null
           job_type?: string | null
           notification_sent_at?: string | null
           notify_email?: string | null
+          rollback_data?: Json | null
+          rolled_back_at?: string | null
+          rolled_back_by?: string | null
+          sheet_url?: string | null
+          skipped_count?: number | null
           started_at?: string | null
           status?: string
+          tags?: string[] | null
           updated_at?: string
           user_id?: string | null
+          validation_results?: Json | null
         }
         Update: {
           campaign_id?: string | null
           completed_at?: string | null
           created_at?: string
           criteria?: Json
+          duplicate_count?: number | null
           error_details?: string | null
+          failed_count?: number | null
+          field_mapping?: Json | null
           id?: string
+          import_source?: string | null
           imported_count?: number
           initiated_by?: string | null
+          is_rolled_back?: boolean | null
           job_type?: string | null
           notification_sent_at?: string | null
           notify_email?: string | null
+          rollback_data?: Json | null
+          rolled_back_at?: string | null
+          rolled_back_by?: string | null
+          sheet_url?: string | null
+          skipped_count?: number | null
           started_at?: string | null
           status?: string
+          tags?: string[] | null
           updated_at?: string
           user_id?: string | null
+          validation_results?: Json | null
         }
         Relationships: [
           {
@@ -3439,6 +3677,62 @@ export type Database = {
             columns: ["deal_id"]
             isOneToOne: false
             referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sequence_batch_queue: {
+        Row: {
+          batch_number: number
+          completed_at: string | null
+          contacts_in_batch: string[] | null
+          created_at: string | null
+          emails_failed: number | null
+          emails_sent: number | null
+          enrollment_id: string
+          error_message: string | null
+          id: string
+          scheduled_for: string
+          started_at: string | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          batch_number: number
+          completed_at?: string | null
+          contacts_in_batch?: string[] | null
+          created_at?: string | null
+          emails_failed?: number | null
+          emails_sent?: number | null
+          enrollment_id: string
+          error_message?: string | null
+          id?: string
+          scheduled_for: string
+          started_at?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          batch_number?: number
+          completed_at?: string | null
+          contacts_in_batch?: string[] | null
+          created_at?: string | null
+          emails_failed?: number | null
+          emails_sent?: number | null
+          enrollment_id?: string
+          error_message?: string | null
+          id?: string
+          scheduled_for?: string
+          started_at?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sequence_batch_queue_enrollment_id_fkey"
+            columns: ["enrollment_id"]
+            isOneToOne: false
+            referencedRelation: "contact_sequence_enrollments"
             referencedColumns: ["id"]
           },
         ]
