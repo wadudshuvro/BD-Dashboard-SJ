@@ -9,7 +9,9 @@ import { STAGE_LABELS, DealStage } from '@/lib/dealStages';
 import { DealFilters, DealFiltersState } from '@/components/bd/DealFilters';
 import { usePods } from '@/hooks/usePods';
 import { useCategories } from '@/hooks/useCategories';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, FileSignature } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { ProposalDialog } from '@/components/proposals/ProposalDialog';
 
 interface StagePipelineTableProps {
   stage: 'prospecting' | 'qualification' | 'proposal' | 'negotiation';
@@ -20,6 +22,8 @@ interface StagePipelineTableProps {
 export function StagePipelineTable({ stage, title, description }: StagePipelineTableProps) {
   const pagination = usePagination(25);
   const [filters, setFilters] = useState<DealFiltersState>({});
+  const [proposalDialogOpen, setProposalDialogOpen] = useState(false);
+  const [selectedDeal, setSelectedDeal] = useState<{ dealId: string; clientId: string } | null>(null);
   
   const { data, isLoading } = useLocalDealsByStage(
     stage,
@@ -108,6 +112,11 @@ export function StagePipelineTable({ stage, title, description }: StagePipelineT
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-|-$/g, '');
     return `/${stage}/${slug}-${dealId}`;
+  };
+
+  const handleRequestSignature = (dealId: string, clientId: string) => {
+    setSelectedDeal({ dealId, clientId });
+    setProposalDialogOpen(true);
   };
 
   const columns = [
@@ -213,6 +222,25 @@ export function StagePipelineTable({ stage, title, description }: StagePipelineT
       label: 'Source',
       render: (value: string) => value || '-'
     },
+    {
+      key: 'actions' as const,
+      label: 'Actions',
+      render: (value: any, row: any) => (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleRequestSignature(row.id, row.client_id);
+          }}
+          disabled={!row.client_id}
+          className="whitespace-nowrap"
+        >
+          <FileSignature className="h-4 w-4 mr-2" />
+          Request Signature
+        </Button>
+      )
+    },
   ];
 
   return (
@@ -256,6 +284,13 @@ export function StagePipelineTable({ stage, title, description }: StagePipelineT
           pagination.setPageSize(size);
           pagination.reset();
         }}
+      />
+
+      <ProposalDialog
+        open={proposalDialogOpen}
+        onOpenChange={setProposalDialogOpen}
+        dealId={selectedDeal?.dealId}
+        clientId={selectedDeal?.clientId}
       />
     </div>
   );
