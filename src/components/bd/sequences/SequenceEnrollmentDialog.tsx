@@ -9,6 +9,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -18,6 +28,7 @@ import type { SequenceWithSteps } from "@/Api/sequences";
 import { ContactSelectionTable } from "./ContactSelectionTable";
 import { EmailTemplateSelector } from "./EmailTemplateSelector";
 import { DripModeConfig, type BatchConfig } from "./DripModeConfig";
+import { useToggleSequence } from "@/hooks/useSequences";
 
 interface SequenceEnrollmentDialogProps {
   open: boolean;
@@ -44,8 +55,10 @@ export function SequenceEnrollmentDialog({
   const [schedulingMode, setSchedulingMode] = useState<'immediate' | 'scheduled' | 'drip'>('drip');
   const [scheduledDateTime, setScheduledDateTime] = useState('');
   const [batchConfig, setBatchConfig] = useState<BatchConfig>(DEFAULT_BATCH_CONFIG);
+  const [showActivateDialog, setShowActivateDialog] = useState(false);
 
   const queryClient = useQueryClient();
+  const toggleSequence = useToggleSequence();
 
   useEffect(() => {
     if (!open) {
@@ -105,7 +118,24 @@ export function SequenceEnrollmentDialog({
   });
 
   const handleEnroll = () => {
+    // Check if sequence is active
+    if (sequence?.status !== 'active') {
+      setShowActivateDialog(true);
+      return;
+    }
     enrollMutation.mutate();
+  };
+
+  const handleActivateAndEnroll = async () => {
+    if (!sequence) return;
+    
+    try {
+      await toggleSequence.mutateAsync({ id: sequence.id, isActive: true });
+      setShowActivateDialog(false);
+      enrollMutation.mutate();
+    } catch (error) {
+      toast.error('Failed to activate sequence');
+    }
   };
 
   const isValid = selectedContactIds.length > 0 && 
@@ -115,7 +145,26 @@ export function SequenceEnrollmentDialog({
   if (!sequence) return null;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <>
+      <AlertDialog open={showActivateDialog} onOpenChange={setShowActivateDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Activate Sequence?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This sequence is currently {sequence?.status === 'draft' ? 'in draft mode' : 'paused'}. 
+              Would you like to activate it before enrolling contacts? This will allow the automation to start sending emails.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleActivateAndEnroll}>
+              Activate & Enroll
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add to Automation</DialogTitle>
@@ -227,5 +276,6 @@ export function SequenceEnrollmentDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    </>
   );
 }
