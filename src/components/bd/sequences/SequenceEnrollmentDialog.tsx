@@ -105,7 +105,13 @@ export function SequenceEnrollmentDialog({
       return data;
     },
     onSuccess: (data) => {
-      toast.success(data.message || 'Contacts enrolled successfully');
+      // Show appropriate toast based on results
+      if (data.enrolled === 0 && data.alreadyEnrolled > 0) {
+        toast.info(data.message || 'These contacts are already enrolled');
+      } else {
+        toast.success(data.message || 'Contacts enrolled successfully');
+      }
+      
       queryClient.invalidateQueries({ queryKey: ['sequence-enrollments'] });
       queryClient.invalidateQueries({ queryKey: ['sequence-metrics'] });
       onOpenChange(false);
