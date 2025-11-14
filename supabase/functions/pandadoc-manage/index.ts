@@ -67,6 +67,7 @@ serve(async (req) => {
 
       return new Response(
         JSON.stringify({
+          ok: true,
           connected: !!integration,
           integration: integration || null,
         }),
