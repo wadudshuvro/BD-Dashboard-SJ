@@ -1615,6 +1615,7 @@ export type Database = {
           batch_config: Json | null
           contact_id: string
           created_at: string
+          current_step: number
           current_step_id: string | null
           email_template_id: string | null
           enrolled_at: string
@@ -1639,6 +1640,7 @@ export type Database = {
           batch_config?: Json | null
           contact_id: string
           created_at?: string
+          current_step?: number
           current_step_id?: string | null
           email_template_id?: string | null
           enrolled_at?: string
@@ -1663,6 +1665,7 @@ export type Database = {
           batch_config?: Json | null
           contact_id?: string
           created_at?: string
+          current_step?: number
           current_step_id?: string | null
           email_template_id?: string | null
           enrolled_at?: string
