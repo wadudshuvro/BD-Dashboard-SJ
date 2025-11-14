@@ -303,7 +303,7 @@ export function CampaignLeadImportDialog({
             {/* Industries */}
             <div className="space-y-2">
               <Label htmlFor="industries">Industry/Niche *</Label>
-              <Select value={industries[0] || ""} onValueChange={(value) => !industries.includes(value) && setIndustries([...industries, value])}>
+              <Select value={industries[0] || undefined} onValueChange={(value) => !industries.includes(value) && setIndustries([...industries, value])}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select industries..." />
                 </SelectTrigger>
@@ -372,7 +372,7 @@ export function CampaignLeadImportDialog({
             {/* Company Size */}
             <div className="space-y-2">
               <Label htmlFor="company-size">Company Size *</Label>
-              <Select value={companySize[0] || ""} onValueChange={(value) => !companySize.includes(value) && setCompanySize([...companySize, value])}>
+              <Select value={companySize[0] || undefined} onValueChange={(value) => !companySize.includes(value) && setCompanySize([...companySize, value])}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select company sizes..." />
                 </SelectTrigger>
