@@ -6,6 +6,7 @@ export interface Sequence {
   description: string | null;
   campaign_id: string | null;
   is_active: boolean;
+  status?: 'draft' | 'active' | 'paused';
   created_at: string;
   updated_at: string;
 }
