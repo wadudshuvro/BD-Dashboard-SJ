@@ -143,7 +143,7 @@ serve(async (req) => {
       }
 
       return new Response(
-        JSON.stringify({ success: true, message: 'PandaDoc integration configured successfully' }),
+        JSON.stringify({ ok: true, message: 'PandaDoc integration configured successfully' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -158,7 +158,7 @@ serve(async (req) => {
       if (error) throw error;
 
       return new Response(
-        JSON.stringify({ success: true }),
+        JSON.stringify({ ok: true }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
