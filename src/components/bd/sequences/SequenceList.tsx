@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Play, Pause, Trash2, Eye, Pencil } from "lucide-react";
+import { Play, Pause, Trash2, Eye, Pencil, Users } from "lucide-react";
 import { useSequences, useToggleSequence, useDeleteSequence } from "@/hooks/useSequences";
 import type { SequenceWithSteps } from "@/Api/sequences";
 
@@ -9,9 +9,10 @@ interface SequenceListProps {
   campaignId?: string;
   onViewSequence?: (sequence: SequenceWithSteps) => void;
   onEditSequence?: (sequence: SequenceWithSteps) => void;
+  onEnrollContacts?: (sequence: SequenceWithSteps) => void;
 }
 
-export function SequenceList({ campaignId, onViewSequence, onEditSequence }: SequenceListProps) {
+export function SequenceList({ campaignId, onViewSequence, onEditSequence, onEnrollContacts }: SequenceListProps) {
   const { data: sequences, isLoading } = useSequences(campaignId);
   const toggleSequence = useToggleSequence();
   const deleteSequence = useDeleteSequence();
@@ -67,6 +68,16 @@ export function SequenceList({ campaignId, onViewSequence, onEditSequence }: Seq
                     <Play className="h-4 w-4" />
                   )}
                 </Button>
+                {onEnrollContacts && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onEnrollContacts(sequence)}
+                    title="Enroll Contacts"
+                  >
+                    <Users className="h-4 w-4" />
+                  </Button>
+                )}
                 {onEditSequence && (
                   <Button
                     variant="outline"
