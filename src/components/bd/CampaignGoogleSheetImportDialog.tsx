@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
-import { AlertCircle, Download, FileSpreadsheet, Loader2, CheckCircle2 } from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { AlertCircle, Download, FileSpreadsheet, Loader2, CheckCircle2, RefreshCw } from "lucide-react";
 import type { BDCampaign } from "@/hooks/useBDCampaigns";
 import { supabase } from "@/integrations/supabase/client";
 import { GoogleSheetPicker } from "./GoogleSheetPicker";
@@ -81,6 +82,7 @@ export function CampaignGoogleSheetImportDialog({
   onImportComplete,
 }: CampaignGoogleSheetImportDialogProps) {
   const [step, setStep] = useState<ImportStep>('select');
+  const [importMode, setImportMode] = useState<'create' | 'update'>('create');
   const [selectedSheet, setSelectedSheet] = useState<{ id: string; name: string; url: string } | null>(null);
   const [sheetData, setSheetData] = useState<string[][]>([]);
   const [customTag, setCustomTag] = useState("");
@@ -89,9 +91,12 @@ export function CampaignGoogleSheetImportDialog({
   const [isValidating, setIsValidating] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [importResult, setImportResult] = useState<{
-    imported: number;
-    skipped: number;
-    failed: number;
+    imported?: number;
+    skipped?: number;
+    failed?: number;
+    matched?: number;
+    updated?: number;
+    created?: number;
     tags: string[];
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -106,6 +111,7 @@ export function CampaignGoogleSheetImportDialog({
 
   const resetDialog = () => {
     setStep('select');
+    setImportMode('create');
     setSelectedSheet(null);
     setSheetData([]);
     setCustomTag("");
@@ -211,9 +217,11 @@ export function CampaignGoogleSheetImportDialog({
         tags.push(customTag.trim());
       }
 
+      const action = importMode === 'update' ? 'update' : 'import';
+      
       const { data, error: importError } = await supabase.functions.invoke('campaign-google-sheet-import', {
         body: {
-          action: 'import',
+          action,
           campaignId: campaign.id,
           contacts: validationResult.validContacts,
           tags,
@@ -231,7 +239,7 @@ export function CampaignGoogleSheetImportDialog({
       }, 2000);
     } catch (err: any) {
       console.error('Import error:', err);
-      setError(err.message || 'Failed to import contacts');
+      setError(err.message || 'Failed to ' + (importMode === 'update' ? 'update' : 'import') + ' contacts');
     } finally {
       setIsImporting(false);
     }
@@ -249,6 +257,31 @@ export function CampaignGoogleSheetImportDialog({
                 Select a Google Sheet containing your campaign contacts. Make sure your sheet includes the required columns.
               </AlertDescription>
             </Alert>
+
+            <div className="space-y-3">
+              <Label>Import Mode</Label>
+              <RadioGroup value={importMode} onValueChange={(v) => setImportMode(v as 'create' | 'update')}>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="create" id="mode-create" />
+                  <Label htmlFor="mode-create" className="font-normal cursor-pointer">
+                    <span className="font-medium">Import New Contacts</span>
+                    <p className="text-sm text-muted-foreground">Add contacts with unique emails (skips duplicates)</p>
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="update" id="mode-update" />
+                  <Label htmlFor="mode-update" className="font-normal cursor-pointer flex items-center gap-2">
+                    <RefreshCw className="h-4 w-4" />
+                    <div>
+                      <span className="font-medium">Update Existing Contacts</span>
+                      <p className="text-sm text-muted-foreground">Match by Name + Company, update emails and other fields</p>
+                    </div>
+                  </Label>
+                </div>
+              </RadioGroup>
+            </div>
+
+            <Separator />
 
             <div className="space-y-2">
               <Label>Required Columns</Label>
@@ -412,7 +445,7 @@ export function CampaignGoogleSheetImportDialog({
         return (
           <div className="flex flex-col items-center justify-center py-8 space-y-4">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <p className="text-lg font-medium">Importing contacts...</p>
+            <p className="text-lg font-medium">{importMode === 'update' ? 'Updating' : 'Importing'} contacts...</p>
             <p className="text-sm text-muted-foreground">Please wait while we process your contacts</p>
           </div>
         );
@@ -422,26 +455,45 @@ export function CampaignGoogleSheetImportDialog({
           <div className="space-y-4">
             <Alert>
               <CheckCircle2 className="h-4 w-4" />
-              <AlertTitle>Import Complete!</AlertTitle>
+              <AlertTitle>{importMode === 'update' ? 'Update' : 'Import'} Complete!</AlertTitle>
               <AlertDescription>
-                Your contacts have been successfully imported to the campaign.
+                Your contacts have been successfully {importMode === 'update' ? 'updated' : 'imported'}.
               </AlertDescription>
             </Alert>
 
             {importResult && (
               <div className="grid grid-cols-3 gap-4">
-                <div className="p-4 bg-green-50 rounded-md">
-                  <p className="text-2xl font-bold text-green-700">{importResult.imported}</p>
-                  <p className="text-sm text-green-700">Imported</p>
-                </div>
-                <div className="p-4 bg-yellow-50 rounded-md">
-                  <p className="text-2xl font-bold text-yellow-700">{importResult.skipped}</p>
-                  <p className="text-sm text-yellow-700">Skipped</p>
-                </div>
-                <div className="p-4 bg-red-50 rounded-md">
-                  <p className="text-2xl font-bold text-red-700">{importResult.failed}</p>
-                  <p className="text-sm text-red-700">Failed</p>
-                </div>
+                {importMode === 'update' ? (
+                  <>
+                    <div className="p-4 bg-green-50 rounded-md">
+                      <p className="text-2xl font-bold text-green-700">{importResult.updated || 0}</p>
+                      <p className="text-sm text-green-700">Updated</p>
+                    </div>
+                    <div className="p-4 bg-blue-50 rounded-md">
+                      <p className="text-2xl font-bold text-blue-700">{importResult.created || 0}</p>
+                      <p className="text-sm text-blue-700">Created</p>
+                    </div>
+                    <div className="p-4 bg-red-50 rounded-md">
+                      <p className="text-2xl font-bold text-red-700">{importResult.failed || 0}</p>
+                      <p className="text-sm text-red-700">Failed</p>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="p-4 bg-green-50 rounded-md">
+                      <p className="text-2xl font-bold text-green-700">{importResult.imported || 0}</p>
+                      <p className="text-sm text-green-700">Imported</p>
+                    </div>
+                    <div className="p-4 bg-yellow-50 rounded-md">
+                      <p className="text-2xl font-bold text-yellow-700">{importResult.skipped || 0}</p>
+                      <p className="text-sm text-yellow-700">Skipped</p>
+                    </div>
+                    <div className="p-4 bg-red-50 rounded-md">
+                      <p className="text-2xl font-bold text-red-700">{importResult.failed || 0}</p>
+                      <p className="text-sm text-red-700">Failed</p>
+                    </div>
+                  </>
+                )}
               </div>
             )}
 
@@ -495,7 +547,10 @@ export function CampaignGoogleSheetImportDialog({
               disabled={!validationResult || validationResult.valid === 0 || isImporting}
             >
               {isImporting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Import {validationResult?.valid || 0} Contacts
+              {importMode === 'update' 
+                ? `Update ${validationResult?.valid || 0} Contacts`
+                : `Import ${validationResult?.valid || 0} Contacts`
+              }
             </Button>
           </>
         );

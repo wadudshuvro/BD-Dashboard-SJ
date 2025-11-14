@@ -44,7 +44,30 @@ interface ImportAction {
   tags: string[];
 }
 
-type RequestBody = FetchAction | ValidateAction | ImportAction;
+interface UpdateAction {
+  action: 'update';
+  campaignId: string;
+  contacts: Array<{
+    firstName: string;
+    lastName: string;
+    email: string;
+    jobTitle: string;
+    company: string;
+    phone?: string;
+    linkedinUrl?: string;
+    companyWebsite?: string;
+    companyIndustry?: string;
+    companySize?: string;
+    companyLinkedinUrl?: string;
+    streetAddress?: string;
+    city?: string;
+    state?: string;
+    country?: string;
+  }>;
+  tags: string[];
+}
+
+type RequestBody = FetchAction | ValidateAction | ImportAction | UpdateAction;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -96,6 +119,8 @@ serve(async (req) => {
       return await handleValidate(body, supabase);
     } else if (body.action === 'import') {
       return await handleImport(body, supabase, user.id);
+    } else if (body.action === 'update') {
+      return await handleUpdate(body, supabase, user.id);
     } else {
       return new Response(
         JSON.stringify({ error: "Invalid action" }),
@@ -327,6 +352,134 @@ async function handleImport(body: ImportAction, supabase: any, userId: string): 
   };
 
   console.log('[import] Complete:', result);
+
+  return new Response(JSON.stringify({ result }), { status: 200, headers: jsonHeaders });
+}
+
+async function handleUpdate(body: UpdateAction, supabase: any, userId: string): Promise<Response> {
+  const { campaignId, contacts, tags } = body;
+
+  console.log('[update] Updating/creating', contacts.length, 'contacts');
+
+  const matched: string[] = [];
+  const updated: string[] = [];
+  const created: string[] = [];
+  const failed: Array<{ name: string; error: string }> = [];
+
+  // Process each contact individually for update/create logic
+  for (const contact of contacts) {
+    const fullName = `${contact.firstName} ${contact.lastName}`;
+    
+    try {
+      // Try to find existing contact by name + company (case-insensitive)
+      const { data: existingContacts, error: searchError } = await supabase
+        .from('campaign_contacts')
+        .select('id, contact_email')
+        .eq('campaign_id', campaignId)
+        .ilike('contact_name', fullName)
+        .ilike('contact_company', contact.company)
+        .limit(1);
+
+      if (searchError) {
+        console.error('[update] Search error:', searchError);
+        failed.push({ name: fullName, error: searchError.message });
+        continue;
+      }
+
+      const addressData = {
+        streetAddress: contact.streetAddress || null,
+        city: contact.city || null,
+        state: contact.state || null,
+        country: contact.country || null,
+      };
+      const hasAddress = Object.values(addressData).some(v => v !== null);
+
+      if (existingContacts && existingContacts.length > 0) {
+        // Contact exists - update it
+        const existingContact = existingContacts[0];
+        matched.push(fullName);
+
+        const updateData = {
+          contact_email: contact.email.toLowerCase(),
+          contact_title: contact.jobTitle,
+          contact_phone: contact.phone || null,
+          contact_linkedin_url: contact.linkedinUrl || null,
+          company_website: contact.companyWebsite || null,
+          company_industry: contact.companyIndustry || null,
+          company_size: contact.companySize || null,
+          company_linkedin_url: contact.companyLinkedinUrl || null,
+          metadata: {
+            tags,
+            updated_via: 'google_sheet_update',
+            updated_by: userId,
+            ...(hasAddress ? { address: addressData } : {})
+          },
+          updated_at: new Date().toISOString(),
+        };
+
+        const { error: updateError } = await supabase
+          .from('campaign_contacts')
+          .update(updateData)
+          .eq('id', existingContact.id);
+
+        if (updateError) {
+          console.error('[update] Update error:', updateError);
+          failed.push({ name: fullName, error: updateError.message });
+        } else {
+          updated.push(fullName);
+          console.log('[update] Updated:', fullName);
+        }
+      } else {
+        // Contact doesn't exist - create new
+        const insertData = {
+          campaign_id: campaignId,
+          contact_name: fullName,
+          contact_email: contact.email.toLowerCase(),
+          contact_title: contact.jobTitle,
+          contact_company: contact.company,
+          contact_phone: contact.phone || null,
+          contact_linkedin_url: contact.linkedinUrl || null,
+          company_website: contact.companyWebsite || null,
+          company_industry: contact.companyIndustry || null,
+          company_size: contact.companySize || null,
+          company_linkedin_url: contact.companyLinkedinUrl || null,
+          status: 'identified',
+          metadata: {
+            tags,
+            imported_via: 'google_sheet_update',
+            imported_by: userId,
+            ...(hasAddress ? { address: addressData } : {})
+          },
+        };
+
+        const { error: insertError } = await supabase
+          .from('campaign_contacts')
+          .insert(insertData);
+
+        if (insertError) {
+          console.error('[update] Insert error:', insertError);
+          failed.push({ name: fullName, error: insertError.message });
+        } else {
+          created.push(fullName);
+          console.log('[update] Created:', fullName);
+        }
+      }
+    } catch (error: any) {
+      console.error('[update] Error processing contact:', error);
+      failed.push({ name: fullName, error: error.message });
+    }
+  }
+
+  const result = {
+    matched: matched.length,
+    updated: updated.length,
+    created: created.length,
+    failed: failed.length,
+    tags,
+    failedDetails: failed,
+  };
+
+  console.log('[update] Complete:', result);
 
   return new Response(JSON.stringify({ result }), { status: 200, headers: jsonHeaders });
 }
