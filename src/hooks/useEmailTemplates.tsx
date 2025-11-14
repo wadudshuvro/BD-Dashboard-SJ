@@ -19,13 +19,13 @@ export function useEmailTemplates() {
     queryKey: ['email-templates'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('email_templates')
+        .from('email_templates' as any)
         .select('*')
         .eq('is_active', true)
-        .order('name');
+        .order('name') as any;
 
       if (error) throw error;
-      return data as EmailTemplate[];
+      return (data || []) as EmailTemplate[];
     },
   });
 }
