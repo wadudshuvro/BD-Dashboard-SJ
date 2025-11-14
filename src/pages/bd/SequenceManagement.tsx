@@ -5,15 +5,23 @@ import { Plus } from "lucide-react";
 import { SequenceDialog } from "@/components/bd/sequences/SequenceDialog";
 import { SequenceList } from "@/components/bd/sequences/SequenceList";
 import { SequenceExecutionDashboard } from "@/components/bd/sequences/SequenceExecutionDashboard";
+import { SequenceEnrollmentDialog } from "@/components/bd/sequences/SequenceEnrollmentDialog";
 import type { SequenceWithSteps } from "@/Api/sequences";
 
 export default function SequenceManagement() {
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [enrollDialogOpen, setEnrollDialogOpen] = useState(false);
   const [editingSequence, setEditingSequence] = useState<SequenceWithSteps | undefined>(undefined);
+  const [enrollingSequence, setEnrollingSequence] = useState<SequenceWithSteps | null>(null);
 
   const handleEdit = (sequence: SequenceWithSteps) => {
     setEditingSequence(sequence);
     setDialogOpen(true);
+  };
+
+  const handleEnroll = (sequence: SequenceWithSteps) => {
+    setEnrollingSequence(sequence);
+    setEnrollDialogOpen(true);
   };
 
   const handleDialogChange = (open: boolean) => {
@@ -45,7 +53,7 @@ export default function SequenceManagement() {
         </TabsList>
 
         <TabsContent value="sequences" className="mt-6">
-          <SequenceList onEditSequence={handleEdit} />
+          <SequenceList onEditSequence={handleEdit} onEnrollContacts={handleEnroll} />
         </TabsContent>
 
         <TabsContent value="execution" className="mt-6">
@@ -57,6 +65,12 @@ export default function SequenceManagement() {
         open={dialogOpen}
         onOpenChange={handleDialogChange}
         sequence={editingSequence}
+      />
+
+      <SequenceEnrollmentDialog
+        open={enrollDialogOpen}
+        onOpenChange={setEnrollDialogOpen}
+        sequence={enrollingSequence}
       />
     </div>
   );
