@@ -26,13 +26,19 @@ interface EnrollRequest {
   config: EnrollmentConfig;
 }
 
+interface CreatedEnrollment {
+  id: string;
+  contact_id: string;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const supabase = createClient(
+    // User client for authorization checks
+    const userClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       {
@@ -42,17 +48,27 @@ serve(async (req) => {
       }
     );
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    // Service role client for writes (bypasses RLS)
+    const serviceClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    const { data: { user }, error: authError } = await userClient.auth.getUser();
     if (authError || !user) {
       throw new Error('Unauthorized');
     }
 
     const { sequenceId, contactIds, config }: EnrollRequest = await req.json();
 
-    console.log('Enrolling contacts:', { sequenceId, contactCount: contactIds.length, config });
+    console.log('Enrollment request:', { 
+      sequenceId, 
+      contactCount: contactIds.length, 
+      mode: config.scheduling_mode 
+    });
 
     // Validate sequence exists and is active
-    const { data: sequence, error: seqError } = await supabase
+    const { data: sequence, error: seqError } = await userClient
       .from('campaign_sequences')
       .select('id, campaign_id, status')
       .eq('id', sequenceId)
@@ -67,7 +83,7 @@ serve(async (req) => {
     }
 
     // Validate contacts belong to campaign
-    const { data: contacts, error: contactsError } = await supabase
+    const { data: contacts, error: contactsError } = await userClient
       .from('campaign_contacts')
       .select('id')
       .eq('campaign_id', sequence.campaign_id)
@@ -77,11 +93,51 @@ serve(async (req) => {
       throw new Error('Some contacts do not belong to this campaign');
     }
 
-    const totalToSend = contactIds.length;
+    // Check for existing enrollments (idempotency)
+    const { data: existingEnrollments, error: existingError } = await serviceClient
+      .from('contact_sequence_enrollments')
+      .select('contact_id')
+      .eq('sequence_id', sequenceId)
+      .in('contact_id', contactIds)
+      .in('status', ['active', 'paused', 'pending', 'processing']);
+
+    if (existingError) {
+      console.error('Error checking existing enrollments:', existingError);
+      throw new Error('Failed to check existing enrollments');
+    }
+
+    const alreadyEnrolledIds = new Set(
+      (existingEnrollments || []).map(e => e.contact_id)
+    );
+    const newContactIds = contactIds.filter(id => !alreadyEnrolledIds.has(id));
+    const alreadyEnrolledCount = alreadyEnrolledIds.size;
+
+    console.log('Enrollment analysis:', {
+      total: contactIds.length,
+      new: newContactIds.length,
+      alreadyEnrolled: alreadyEnrolledCount
+    });
+
+    // If all contacts are already enrolled, return success with message
+    if (newContactIds.length === 0) {
+      return new Response(
+        JSON.stringify({
+          enrolled: 0,
+          alreadyEnrolled: alreadyEnrolledCount,
+          batchesCreated: 0,
+          message: `All ${alreadyEnrolledCount} contact(s) are already enrolled`,
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
+        }
+      );
+    }
+
     const startTime = config.start_date_time ? new Date(config.start_date_time) : new Date();
 
-    // Create enrollments for each contact
-    const enrollments = contactIds.map(contactId => ({
+    // Create enrollments only for new contacts
+    const enrollments = newContactIds.map(contactId => ({
       sequence_id: sequenceId,
       contact_id: contactId,
       status: 'active',
@@ -94,15 +150,15 @@ serve(async (req) => {
       start_date_time: startTime.toISOString(),
       next_batch_at: config.scheduling_mode === 'drip' ? startTime.toISOString() : null,
       total_sent: 0,
-      total_to_send: totalToSend,
+      total_to_send: newContactIds.length,
       email_template_id: config.email_template_id,
       enrolled_at: new Date().toISOString(),
     }));
 
-    const { data: createdEnrollments, error: enrollError } = await supabase
+    const { data: createdEnrollments, error: enrollError } = await serviceClient
       .from('contact_sequence_enrollments')
       .insert(enrollments)
-      .select('id');
+      .select('id, contact_id');
 
     if (enrollError) {
       console.error('Error creating enrollments:', enrollError);
@@ -112,44 +168,58 @@ serve(async (req) => {
     let batchesCreated = 0;
 
     // Create batch queue for drip mode
-    if (config.scheduling_mode === 'drip' && createdEnrollments) {
+    if (config.scheduling_mode === 'drip' && createdEnrollments && createdEnrollments.length > 0) {
       const batchSize = config.batch_config?.messagesPerBatch || 25;
       const interval = config.batch_config?.interval || 1;
       const intervalUnit = config.batch_config?.intervalUnit || 'days';
 
-      // Calculate batches
-      const batches = [];
-      for (let i = 0; i < contactIds.length; i += batchSize) {
-        const batchNumber = Math.floor(i / batchSize) + 1;
-        const batchContacts = contactIds.slice(i, i + batchSize);
-        
-        // Calculate scheduled time for this batch
-        let scheduledFor = new Date(startTime);
-        const batchDelay = (batchNumber - 1) * interval;
-        
-        if (intervalUnit === 'minutes') {
-          scheduledFor.setMinutes(scheduledFor.getMinutes() + batchDelay);
-        } else if (intervalUnit === 'hours') {
-          scheduledFor.setHours(scheduledFor.getHours() + batchDelay);
-        } else {
-          scheduledFor.setDate(scheduledFor.getDate() + batchDelay);
-        }
-
-        batches.push({
-          enrollment_id: createdEnrollments[0].id,
-          batch_number: batchNumber,
-          scheduled_for: scheduledFor.toISOString(),
-          status: 'pending',
-          contacts_in_batch: batchContacts,
-        });
+      // Group enrollments into waves based on batch size
+      const waves: CreatedEnrollment[][] = [];
+      for (let i = 0; i < createdEnrollments.length; i += batchSize) {
+        waves.push(createdEnrollments.slice(i, i + batchSize));
       }
 
-      const { error: batchError } = await supabase
+      // Create batches per enrollment within each wave
+      const batches: Array<{
+        enrollment_id: string;
+        batch_number: number;
+        scheduled_for: string;
+        status: string;
+        contacts_in_batch: string[];
+      }> = [];
+      
+      waves.forEach((wave, waveIndex) => {
+        // Calculate scheduled time for this wave
+        let scheduledFor = new Date(startTime);
+        const waveDelay = waveIndex * interval;
+        
+        if (intervalUnit === 'minutes') {
+          scheduledFor.setMinutes(scheduledFor.getMinutes() + waveDelay);
+        } else if (intervalUnit === 'hours') {
+          scheduledFor.setHours(scheduledFor.getHours() + waveDelay);
+        } else {
+          scheduledFor.setDate(scheduledFor.getDate() + waveDelay);
+        }
+
+        // Create one batch per enrollment in this wave
+        wave.forEach((enrollment) => {
+          batches.push({
+            enrollment_id: enrollment.id,
+            batch_number: waveIndex + 1,
+            scheduled_for: scheduledFor.toISOString(),
+            status: 'pending',
+            contacts_in_batch: [enrollment.contact_id],
+          });
+        });
+      });
+
+      const { error: batchError } = await serviceClient
         .from('sequence_batch_queue')
         .insert(batches);
 
       if (batchError) {
         console.error('Error creating batches:', batchError);
+        // Don't throw here, enrollments are already created
       } else {
         batchesCreated = batches.length;
       }
@@ -157,15 +227,31 @@ serve(async (req) => {
 
     console.log('Enrollment complete:', {
       enrolled: createdEnrollments?.length || 0,
+      alreadyEnrolled: alreadyEnrolledCount,
       batchesCreated,
     });
 
+    const enrolledCount = createdEnrollments?.length || 0;
+    let message = '';
+    
+    if (alreadyEnrolledCount > 0 && enrolledCount > 0) {
+      message = `Added to automation: ${enrolledCount} enrolled • ${alreadyEnrolledCount} already enrolled`;
+    } else if (alreadyEnrolledCount > 0) {
+      message = `All ${alreadyEnrolledCount} contact(s) are already enrolled`;
+    } else {
+      message = `Successfully enrolled ${enrolledCount} contact(s)`;
+    }
+
+    if (batchesCreated > 0) {
+      message += ` • ${batchesCreated} batch(es) scheduled`;
+    }
+
     return new Response(
       JSON.stringify({
-        enrolled: createdEnrollments?.length || 0,
-        failed: contactIds.length - (createdEnrollments?.length || 0),
+        enrolled: enrolledCount,
+        alreadyEnrolled: alreadyEnrolledCount,
         batchesCreated,
-        message: `Successfully enrolled ${createdEnrollments?.length} contacts${batchesCreated > 0 ? ` in ${batchesCreated} batches` : ''}`,
+        message,
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
