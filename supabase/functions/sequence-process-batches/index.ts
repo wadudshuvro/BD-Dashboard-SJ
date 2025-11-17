@@ -170,9 +170,11 @@ serve(async (req) => {
             // Send email via send-campaign-email function
             const { error: sendError } = await supabase.functions.invoke('send-campaign-email', {
               body: {
-                contactId: contact.id,
+                to: contact.contact_email,
                 subject,
-                message: body,
+                body,
+                contactId: contact.id,
+                campaignId: enrollment.sequence.campaign_id,
               },
             });
 
