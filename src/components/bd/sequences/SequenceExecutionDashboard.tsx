@@ -14,6 +14,7 @@ import { SequenceEnrollmentTable } from "./SequenceEnrollmentTable";
 import { SequenceExecutionLogStream } from "./SequenceExecutionLogStream";
 import { LiveStatusIndicator } from "./LiveStatusIndicator";
 import { ExecutionLogViewer } from "./ExecutionLogViewer";
+import { EmailDiagnostics } from "./EmailDiagnostics";
 import { useToast } from "@/hooks/use-toast";
 
 export function SequenceExecutionDashboard() {
@@ -107,6 +108,7 @@ export function SequenceExecutionDashboard() {
         <TabsList>
           <TabsTrigger value="live">Live Monitor</TabsTrigger>
           <TabsTrigger value="history">History Explorer</TabsTrigger>
+          <TabsTrigger value="diagnostics">Email Diagnostics</TabsTrigger>
         </TabsList>
 
         <TabsContent value="live" className="space-y-6 mt-6">
@@ -219,6 +221,10 @@ export function SequenceExecutionDashboard() {
 
         <TabsContent value="history" className="mt-6">
           <ExecutionLogViewer />
+        </TabsContent>
+
+        <TabsContent value="diagnostics" className="mt-6">
+          <EmailDiagnostics />
         </TabsContent>
       </Tabs>
     </div>

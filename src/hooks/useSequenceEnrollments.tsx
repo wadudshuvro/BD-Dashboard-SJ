@@ -19,7 +19,13 @@ export function useSequenceEnrollments(filters?: EnrollmentFilters) {
       let query = supabase
         .from('contact_sequence_enrollments')
         .select(`
-          *,
+          id,
+          status,
+          enrolled_at,
+          last_step_executed_at,
+          next_step_scheduled_at,
+          total_sent,
+          total_to_send,
           contact:campaign_contacts(
             id,
             contact_name,

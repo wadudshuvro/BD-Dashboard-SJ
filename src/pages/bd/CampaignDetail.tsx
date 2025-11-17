@@ -28,6 +28,7 @@ import { useExaIntegration } from '@/hooks/useExaIntegration';
 import { useUserPermissions } from '@/hooks/useUserPermissions';
 import { CampaignLeadImportDialog } from '@/components/bd/CampaignLeadImportDialog';
 import { CampaignGoogleSheetImportDialog } from '@/components/bd/CampaignGoogleSheetImportDialog';
+import { AddCampaignContactDialog } from '@/components/bd/AddCampaignContactDialog';
 import { CampaignContactsTable } from '@/components/bd/CampaignContactsTable';
 import { ContactListControls } from '@/components/bd/ContactListControls';
 import { EmptyContactList } from '@/components/bd/EmptyContactList';
@@ -78,6 +79,7 @@ export default function CampaignDetail() {
   const { mutateAsync: runContactResearch } = useCampaignContactResearch();
   const [leadImportDialogOpen, setLeadImportDialogOpen] = useState(false);
   const [googleSheetImportDialogOpen, setGoogleSheetImportDialogOpen] = useState(false);
+  const [addContactDialogOpen, setAddContactDialogOpen] = useState(false);
   
   // Smart List state
   const [viewMode, setViewMode] = useState<'list' | 'pipeline'>(() => {
@@ -318,6 +320,14 @@ export default function CampaignDetail() {
             </Button>
           )}
           <Button
+            variant="default"
+            className="gap-2"
+            onClick={() => setAddContactDialogOpen(true)}
+          >
+            <Users className="h-4 w-4" />
+            Add Contact
+          </Button>
+          <Button
             variant="outline"
             className="gap-2"
             onClick={() => setLeadImportDialogOpen(true)}
@@ -326,7 +336,7 @@ export default function CampaignDetail() {
             Add Leads
           </Button>
           <Button
-            variant="default"
+            variant="outline"
             className="gap-2"
             onClick={() => setGoogleSheetImportDialogOpen(true)}
           >
@@ -613,6 +623,18 @@ export default function CampaignDetail() {
               toast({
                 title: "Import successful",
                 description: "Contacts imported from Google Sheets",
+              });
+            }}
+          />
+          <AddCampaignContactDialog
+            open={addContactDialogOpen}
+            onOpenChange={setAddContactDialogOpen}
+            campaignId={campaign.id}
+            onContactAdded={() => {
+              refetch();
+              toast({
+                title: "Contact added",
+                description: "New contact has been added to the campaign",
               });
             }}
           />

@@ -1,7 +1,7 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { formatDistanceToNow } from "date-fns";
-import { Mail, Linkedin, Phone, MessageSquare } from "lucide-react";
+import { Mail, Linkedin, Phone, MessageSquare, CheckCircle2 } from "lucide-react";
 
 interface EnrollmentData {
   id: string;
@@ -9,6 +9,7 @@ interface EnrollmentData {
   enrolled_at: string;
   last_step_executed_at: string | null;
   next_step_scheduled_at: string | null;
+  total_sent?: number;
   contact: {
     contact_name: string;
     contact_email: string | null;
@@ -60,78 +61,92 @@ export function SequenceEnrollmentTable({ enrollments, isLoading }: SequenceEnro
   }
 
   return (
-    <div className="border rounded-lg">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Contact</TableHead>
-            <TableHead>Sequence</TableHead>
-            <TableHead>Current Step</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Enrolled</TableHead>
-            <TableHead>Last Activity</TableHead>
-            <TableHead>Next Scheduled</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {enrollments.map((enrollment) => {
-            const Icon = enrollment.current_step?.channel 
-              ? channelIcons[enrollment.current_step.channel] || MessageSquare
-              : MessageSquare;
+    <div className="w-full border rounded-lg overflow-hidden">
+      <div className="overflow-x-auto">
+        <Table className="w-full">
+          <TableHeader>
+            <TableRow>
+              <TableHead className="min-w-[180px]">Contact</TableHead>
+              <TableHead className="min-w-[150px]">Sequence</TableHead>
+              <TableHead className="min-w-[120px]">Current Step</TableHead>
+              <TableHead className="min-w-[150px]">Status</TableHead>
+              <TableHead className="min-w-[120px]">Enrolled</TableHead>
+              <TableHead className="min-w-[130px]">Last Activity</TableHead>
+              <TableHead className="min-w-[130px]">Next Scheduled</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {enrollments.map((enrollment) => {
+              const Icon = enrollment.current_step?.channel 
+                ? channelIcons[enrollment.current_step.channel] || MessageSquare
+                : MessageSquare;
+              
+              const hasEmailsSent = enrollment.total_sent && enrollment.total_sent > 0;
 
-            return (
-              <TableRow key={enrollment.id}>
-                <TableCell>
-                  <div>
+              return (
+                <TableRow key={enrollment.id}>
+                  <TableCell className="min-w-[180px]">
+                    <div className="space-y-1">
+                      <div className="font-medium">
+                        {enrollment.contact?.contact_name || "Unknown"}
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        {enrollment.contact?.contact_company || "—"}
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell className="min-w-[150px]">
                     <div className="font-medium">
-                      {enrollment.contact?.contact_name || "Unknown"}
+                      {enrollment.sequence?.name || "Unknown"}
                     </div>
-                    <div className="text-sm text-muted-foreground">
-                      {enrollment.contact?.contact_company}
+                  </TableCell>
+                  <TableCell className="min-w-[120px]">
+                    {enrollment.current_step ? (
+                      <div className="flex items-center gap-2">
+                        <Icon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                        <span className="text-sm">Step {enrollment.current_step.step_order}</span>
+                      </div>
+                    ) : (
+                      <span className="text-sm text-muted-foreground">Not started</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="min-w-[150px]">
+                    <div className="flex flex-col gap-1.5">
+                      <Badge 
+                        variant="outline" 
+                        className={`${statusColors[enrollment.status] || ""} text-xs w-fit`}
+                      >
+                        {enrollment.status}
+                      </Badge>
+                      {hasEmailsSent && (
+                        <div className="flex items-center gap-1 text-xs text-green-600">
+                          <CheckCircle2 className="h-3 w-3" />
+                          <span className="font-medium">
+                            {enrollment.total_sent} Email{enrollment.total_sent > 1 ? 's' : ''} Sent
+                          </span>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="font-medium">
-                    {enrollment.sequence?.name || "Unknown"}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  {enrollment.current_step ? (
-                    <div className="flex items-center gap-2">
-                      <Icon className="h-4 w-4 text-muted-foreground" />
-                      <span>Step {enrollment.current_step.step_order}</span>
-                    </div>
-                  ) : (
-                    <span className="text-muted-foreground">Not started</span>
-                  )}
-                </TableCell>
-                <TableCell>
-                  <Badge 
-                    variant="outline" 
-                    className={statusColors[enrollment.status] || ""}
-                  >
-                    {enrollment.status}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-sm text-muted-foreground">
-                  {formatDistanceToNow(new Date(enrollment.enrolled_at), { addSuffix: true })}
-                </TableCell>
-                <TableCell className="text-sm text-muted-foreground">
-                  {enrollment.last_step_executed_at
-                    ? formatDistanceToNow(new Date(enrollment.last_step_executed_at), { addSuffix: true })
-                    : "—"}
-                </TableCell>
-                <TableCell className="text-sm text-muted-foreground">
-                  {enrollment.next_step_scheduled_at
-                    ? formatDistanceToNow(new Date(enrollment.next_step_scheduled_at), { addSuffix: true })
-                    : "—"}
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
+                  </TableCell>
+                  <TableCell className="min-w-[120px] text-sm text-muted-foreground">
+                    {formatDistanceToNow(new Date(enrollment.enrolled_at), { addSuffix: true })}
+                  </TableCell>
+                  <TableCell className="min-w-[130px] text-sm text-muted-foreground">
+                    {enrollment.last_step_executed_at
+                      ? formatDistanceToNow(new Date(enrollment.last_step_executed_at), { addSuffix: true })
+                      : "—"}
+                  </TableCell>
+                  <TableCell className="min-w-[130px] text-sm text-muted-foreground">
+                    {enrollment.next_step_scheduled_at
+                      ? formatDistanceToNow(new Date(enrollment.next_step_scheduled_at), { addSuffix: true })
+                      : "—"}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }
