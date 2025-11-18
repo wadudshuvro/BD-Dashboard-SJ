@@ -7,7 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { AlertCircle, Download, FileSpreadsheet, Loader2, CheckCircle2, RefreshCw } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AlertCircle, Download, FileSpreadsheet, Loader2, CheckCircle2, RefreshCw, Upload } from "lucide-react";
 import type { BDCampaign } from "@/hooks/useBDCampaigns";
 import { supabase } from "@/integrations/supabase/client";
 import { GoogleSheetPicker } from "./GoogleSheetPicker";
@@ -83,13 +84,16 @@ export function CampaignGoogleSheetImportDialog({
 }: CampaignGoogleSheetImportDialogProps) {
   const [step, setStep] = useState<ImportStep>('select');
   const [importMode, setImportMode] = useState<'create' | 'update'>('create');
+  const [importSource, setImportSource] = useState<'google-sheets' | 'csv'>('google-sheets');
   const [selectedSheet, setSelectedSheet] = useState<{ id: string; name: string; url: string } | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [sheetData, setSheetData] = useState<string[][]>([]);
   const [customTag, setCustomTag] = useState("");
   const [fieldMapping, setFieldMapping] = useState<Record<string, string>>({});
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null);
   const [isValidating, setIsValidating] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [isUploadingCSV, setIsUploadingCSV] = useState(false);
   const [importResult, setImportResult] = useState<{
     imported?: number;
     skipped?: number;
@@ -112,15 +116,121 @@ export function CampaignGoogleSheetImportDialog({
   const resetDialog = () => {
     setStep('select');
     setImportMode('create');
+    setImportSource('google-sheets');
     setSelectedSheet(null);
+    setSelectedFile(null);
     setSheetData([]);
     setCustomTag("");
     setFieldMapping({});
     setValidationResult(null);
     setIsValidating(false);
     setIsImporting(false);
+    setIsUploadingCSV(false);
     setImportResult(null);
     setError(null);
+  };
+
+  // Parse CSV file
+  const parseCSV = (text: string): string[][] => {
+    const lines = text.split('\n');
+    const result: string[][] = [];
+    
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      
+      const row: string[] = [];
+      let currentField = '';
+      let insideQuotes = false;
+      
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        
+        if (char === '"') {
+          insideQuotes = !insideQuotes;
+        } else if (char === ',' && !insideQuotes) {
+          row.push(currentField.trim());
+          currentField = '';
+        } else {
+          currentField += char;
+        }
+      }
+      
+      row.push(currentField.trim());
+      result.push(row);
+    }
+    
+    return result;
+  };
+
+  // Handle CSV file upload
+  const handleCSVUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.name.endsWith('.csv')) {
+      setError('Please upload a CSV file');
+      return;
+    }
+
+    setSelectedFile(file);
+    setIsUploadingCSV(true);
+    setError(null);
+
+    try {
+      const text = await file.text();
+      const data = parseCSV(text);
+      
+      if (data.length === 0) {
+        throw new Error('CSV file is empty');
+      }
+
+      if (data.length === 1) {
+        throw new Error('CSV file only contains headers, no data rows');
+      }
+
+      setSheetData(data);
+      
+      // Auto-detect field mapping from headers
+      if (data.length > 0) {
+        const headers = data[0].map(h => h.toLowerCase().trim());
+        const mapping: Record<string, string> = {};
+        
+        // Define alternative names for each field to improve auto-detection
+        const fieldAliases: Record<string, string[]> = {
+          companyWebsite: ['company domain', 'company website', 'website', 'domain', 'company url', 'company site'],
+          companyLinkedinUrl: ['company linkedin', 'company linkedin url', 'company li', 'company li url', 'company linkedin profile'],
+          linkedinUrl: ['linkedin', 'linkedin url', 'li url', 'profile url', 'linkedin profile'],
+          phone: ['phone', 'phone number', 'mobile', 'contact number', 'telephone'],
+          companyIndustry: ['industry', 'company industry', 'sector', 'business sector'],
+          companySize: ['company size', 'size', 'employee count', 'employees', 'number of employees'],
+        };
+        
+        [...REQUIRED_FIELDS, ...OPTIONAL_FIELDS].forEach(field => {
+          const fieldLower = field.label.toLowerCase();
+          const aliases = fieldAliases[field.key] || [fieldLower];
+          
+          const matchIndex = headers.findIndex(h => {
+            // Check against field label, aliases, and field key
+            return aliases.some(alias => 
+              h === alias || 
+              h.replace(/\s+/g, '') === alias.replace(/\s+/g, '')
+            ) || h === field.key.toLowerCase();
+          });
+          
+          if (matchIndex !== -1) {
+            mapping[field.key] = data[0][matchIndex];
+          }
+        });
+        
+        setFieldMapping(mapping);
+      }
+      
+      setStep('map');
+    } catch (err: any) {
+      setError(err.message || 'Failed to parse CSV file');
+    } finally {
+      setIsUploadingCSV(false);
+    }
   };
 
   const handleSheetSelected = (sheet: { id: string; name: string; url: string }, data: string[][]) => {
@@ -252,9 +362,9 @@ export function CampaignGoogleSheetImportDialog({
           <div className="space-y-4">
             <Alert>
               <FileSpreadsheet className="h-4 w-4" />
-              <AlertTitle>Import from Google Sheets</AlertTitle>
+              <AlertTitle>Import Campaign Contacts</AlertTitle>
               <AlertDescription>
-                Select a Google Sheet containing your campaign contacts. Make sure your sheet includes the required columns.
+                Import contacts from Google Sheets or upload a CSV file. Make sure your data includes the required columns.
               </AlertDescription>
             </Alert>
 
@@ -303,7 +413,98 @@ export function CampaignGoogleSheetImportDialog({
 
             <Separator />
 
-            <GoogleSheetPicker onSheetSelected={handleSheetSelected} />
+            <Tabs value={importSource} onValueChange={(v) => setImportSource(v as 'google-sheets' | 'csv')}>
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="google-sheets">
+                  <FileSpreadsheet className="h-4 w-4 mr-2" />
+                  Google Sheets
+                </TabsTrigger>
+                <TabsTrigger value="csv">
+                  <Upload className="h-4 w-4 mr-2" />
+                  Upload CSV
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="google-sheets" className="space-y-4 mt-4">
+                <div className="space-y-2">
+                  <Label>Select Google Sheet</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Connect to a Google Sheet containing your campaign contacts.
+                  </p>
+                </div>
+                <GoogleSheetPicker onSheetSelected={handleSheetSelected} />
+              </TabsContent>
+
+              <TabsContent value="csv" className="space-y-4 mt-4">
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Upload CSV File</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Upload a CSV file from your computer. The first row should contain column headers.
+                    </p>
+                  </div>
+
+                  <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center">
+                    <div className="flex flex-col items-center gap-4">
+                      <div className="p-4 bg-primary/10 rounded-full">
+                        <Upload className="h-8 w-8 text-primary" />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <h3 className="font-semibold">Upload CSV File</h3>
+                        <p className="text-sm text-muted-foreground">
+                          Click to browse and select a CSV file
+                        </p>
+                      </div>
+
+                      <div className="relative">
+                        <Input
+                          type="file"
+                          accept=".csv"
+                          onChange={handleCSVUpload}
+                          className="cursor-pointer"
+                          disabled={isUploadingCSV}
+                        />
+                      </div>
+
+                      {selectedFile && !isUploadingCSV && (
+                        <div className="mt-4 p-3 bg-muted rounded-md w-full">
+                          <p className="text-sm font-medium">Selected: {selectedFile.name}</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {(selectedFile.size / 1024).toFixed(2)} KB
+                          </p>
+                        </div>
+                      )}
+
+                      {isUploadingCSV && (
+                        <div className="flex items-center gap-2 text-sm">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <span>Processing CSV file...</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <Alert>
+                    <Download className="h-4 w-4" />
+                    <AlertTitle>CSV Format Requirements</AlertTitle>
+                    <AlertDescription>
+                      <ul className="list-disc list-inside text-sm space-y-1 mt-2">
+                        <li>First row must contain column headers</li>
+                        <li className="text-base">
+                          <span className="font-bold text-red-600 text-base">
+                            Required columns: First Name, Last Name, Email, Job Title, Company
+                          </span>
+                        </li>
+                        <li>Optional: Phone, LinkedIn URL, Company Website, Industry, etc.</li>
+                        <li>Use comma (,) as separator</li>
+                        <li>UTF-8 encoding recommended</li>
+                      </ul>
+                    </AlertDescription>
+                  </Alert>
+                </div>
+              </TabsContent>
+            </Tabs>
 
             {error && (
               <Alert variant="destructive">
@@ -325,11 +526,11 @@ export function CampaignGoogleSheetImportDialog({
               </AlertDescription>
             </Alert>
 
-            {selectedSheet && (
+            {(selectedSheet || selectedFile) && (
               <div className="space-y-2">
-                <Label>Selected Sheet</Label>
+                <Label>{importSource === 'csv' ? 'Selected File' : 'Selected Sheet'}</Label>
                 <div className="p-3 bg-muted rounded-md">
-                  <p className="font-medium">{selectedSheet.name}</p>
+                  <p className="font-medium">{selectedFile ? selectedFile.name : selectedSheet?.name}</p>
                   <p className="text-sm text-muted-foreground">{sheetData.length - 1} rows (excluding header)</p>
                 </div>
               </div>

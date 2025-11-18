@@ -259,8 +259,9 @@ async function searchExaLeads(
   const searchOptions: any = {
     text: true,
     type: "neural", // Use neural for better semantic matching
-    category: "linkedin profile", // Only search LinkedIn profiles
+    category: "company", // Use "company" category for business profiles
     numResults: maxResults,
+    includeDomains: ["linkedin.com"], // Restrict to LinkedIn only
   };
 
   // Add optional user location
@@ -271,6 +272,7 @@ async function searchExaLeads(
   console.log("[searchExaLeads] Search options:", JSON.stringify(searchOptions, null, 2));
 
   try {
+    console.log("[searchExaLeads] Calling Exa API...");
     const result = await exa.searchAndContents(query, searchOptions);
     console.log(`[searchExaLeads] Exa API Response - Found ${result.results?.length || 0} results`);
     
@@ -281,10 +283,23 @@ async function searchExaLeads(
     
     return result.results || [];
   } catch (error) {
-    console.error("[searchExaLeads] Error:", error);
+    console.error("[searchExaLeads] Exa API Error:", error);
     console.error("[searchExaLeads] Query was:", query);
-    console.error("[searchExaLeads] Options were:", searchOptions);
-    throw new Error(`Exa search failed: ${error instanceof Error ? error.message : String(error)}`);
+    console.error("[searchExaLeads] Options were:", JSON.stringify(searchOptions));
+    
+    // Provide more helpful error message
+    let errorMessage = error instanceof Error ? error.message : String(error);
+    
+    // Check for common issues
+    if (errorMessage.includes("<!DOCTYPE") || errorMessage.includes("is not valid JSON")) {
+      errorMessage = "EXA_API_KEY is not configured or invalid. Please add your Exa API key to Supabase secrets and redeploy the function. See EXA_SETUP_GUIDE.md for instructions.";
+    } else if (errorMessage.includes("401") || errorMessage.includes("unauthorized")) {
+      errorMessage = "Invalid Exa API key. Please verify your EXA_API_KEY in Supabase secrets.";
+    } else if (errorMessage.includes("429") || errorMessage.includes("rate limit")) {
+      errorMessage = "Exa API rate limit exceeded. Please wait a few minutes and try again, or upgrade your Exa plan.";
+    }
+    
+    throw new Error(`Exa search failed: ${errorMessage}`);
   }
 }
 
