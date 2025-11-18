@@ -19,6 +19,7 @@ import {
   TrendingUp,
   User
 } from "lucide-react";
+import { getValidUrl } from "@/lib/urlUtils";
 
 export default function CompanyDetail() {
   const { slug } = useParams<{ slug: string }>();
@@ -142,10 +143,10 @@ export default function CompanyDetail() {
           </div>
 
           <div className="flex gap-2">
-            {company.website && (
+            {getValidUrl(company.website) && (
               <Button variant="outline" size="sm" asChild>
                 <a 
-                  href={company.website.startsWith('http') ? company.website : `https://${company.website}`} 
+                  href={getValidUrl(company.website)!} 
                   target="_blank" 
                   rel="noopener noreferrer"
                 >

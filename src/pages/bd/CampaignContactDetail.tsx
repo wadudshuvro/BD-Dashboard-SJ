@@ -29,6 +29,7 @@ import { useLinkedInMessageHistory } from "@/hooks/useLinkedInMessageHistory";
 import { toast } from "sonner";
 import { parseLinkedInProfile } from "@/utils/parseLinkedInData";
 import { LinkedInProfileCard } from "@/components/contact/LinkedInProfileCard";
+import { getValidUrl } from "@/lib/urlUtils";
 
 import { ExperienceTimelineCard } from "@/components/contact/ExperienceTimelineCard";
 import { EducationCard } from "@/components/contact/EducationCard";
@@ -1223,10 +1224,10 @@ export default function CampaignContactDetail() {
                     </div>
 
                     <div className="flex gap-2">
-                      {contact.company_website && (
+                      {getValidUrl(contact.company_website) && (
                         <Button variant="outline" size="sm" asChild>
                           <a 
-                            href={contact.company_website.startsWith('http') ? contact.company_website : `https://${contact.company_website}`} 
+                            href={getValidUrl(contact.company_website)!} 
                             target="_blank" 
                             rel="noopener noreferrer"
                           >
@@ -1255,7 +1256,7 @@ export default function CampaignContactDetail() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    {contact.company_website || contact.company_description ? (
+                    {getValidUrl(contact.company_website) || contact.company_description ? (
                       <div className="space-y-4">
                         {contact.company_description && (
                           <div>
@@ -1263,10 +1264,10 @@ export default function CampaignContactDetail() {
                             <p className="text-sm">{contact.company_description}</p>
                           </div>
                         )}
-                        {contact.company_website && (
+                        {getValidUrl(contact.company_website) && (
                           <Button variant="outline" size="sm" asChild>
                             <a 
-                              href={contact.company_website.startsWith('http') ? contact.company_website : `https://${contact.company_website}`} 
+                              href={getValidUrl(contact.company_website)!} 
                               target="_blank" 
                               rel="noopener noreferrer"
                             >
