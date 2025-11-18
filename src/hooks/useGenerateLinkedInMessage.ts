@@ -132,10 +132,22 @@ export function useGenerateLinkedInMessage() {
 
       return result;
     },
-    onSuccess: (_, variables) => {
-      toast.success("LinkedIn messages generated & saved", {
-        description: "Messages saved to your outreach history",
-      });
+    onSuccess: (data, variables) => {
+      // Validate character counts
+      const messageType = variables.messageType;
+      const maxChars = messageType === 'connection_request' ? 200 : 500;
+      
+      const overLimitVariants = data.message_variants.filter(v => v.character_count > maxChars);
+      
+      if (overLimitVariants.length > 0) {
+        toast.warning("Some message variants exceed the LinkedIn limit", {
+          description: `${overLimitVariants.length} variant(s) are over ${maxChars} characters. Consider regenerating with more specific constraints.`,
+        });
+      } else {
+        toast.success("LinkedIn messages generated & saved", {
+          description: `All variants are within the ${maxChars} character limit`,
+        });
+      }
       
       queryClient.invalidateQueries({ 
         queryKey: ['linkedin-message-history', variables.contactId] 
