@@ -297,26 +297,57 @@ serve(async (req) => {
 
         const offset = (page - 1) * limit
 
+        console.log('[admin-users] Fetching user statistics...');
+
         // Calculate stats from database
-        const { count: totalCount } = await supabaseClient
+        const { count: totalCount, error: totalError } = await supabaseClient
           .from('users')
           .select('*', { count: 'exact', head: true });
 
-        const { count: activeCount } = await supabaseClient
+        if (totalError) {
+          console.error('[admin-users] Error fetching total count:', totalError);
+          return new Response(
+            JSON.stringify({ error: `Failed to fetch total count: ${totalError.message}` }),
+            { 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              status: 400 
+            }
+          );
+        }
+
+        const { count: activeCount, error: activeError } = await supabaseClient
           .from('users')
           .select('*', { count: 'exact', head: true })
           .eq('status', 'active');
 
-        const { data: managersData } = await supabaseClient
+        if (activeError) {
+          console.error('[admin-users] Error fetching active count:', activeError);
+          return new Response(
+            JSON.stringify({ error: `Failed to fetch active count: ${activeError.message}` }),
+            { 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              status: 400 
+            }
+          );
+        }
+
+        const { data: managersData, error: managersError } = await supabaseClient
           .from('user_roles')
           .select('user_id', { count: 'exact', head: false })
           .eq('role', 'manager');
+
+        if (managersError) {
+          console.error('[admin-users] Error fetching managers:', managersError);
+          // Don't throw - just log and continue with 0 managers
+        }
 
         const stats = {
           total: totalCount || 0,
           active: activeCount || 0,
           managers: managersData?.length || 0,
         };
+
+        console.log('[admin-users] Statistics:', stats);
 
         let query = supabaseClient
           .from('users')
@@ -330,13 +361,16 @@ serve(async (req) => {
           query = query.eq('status', statusFilter)
         }
 
+        console.log('[admin-users] Executing main users query...');
+
         const { data: users, error: usersError, count } = await query
           .range(offset, offset + limit - 1)
           .order('created_at', { ascending: false })
 
         if (usersError) {
+          console.error('[admin-users] Error fetching users:', usersError);
           return new Response(
-            JSON.stringify({ error: usersError.message }),
+            JSON.stringify({ error: `Database error: ${usersError.message}` }),
             { 
               headers: { ...corsHeaders, 'Content-Type': 'application/json' },
               status: 400 
@@ -344,16 +378,24 @@ serve(async (req) => {
           )
         }
 
+        console.log('[admin-users] Fetched', users?.length || 0, 'users');
+
         // Fetch roles for all users
         const userIds = (users && Array.isArray(users)) ? users.map((u: any) => u.id) : [];
+        
+        console.log('[admin-users] Fetching roles for', userIds.length, 'users');
+        
         const { data: rolesData, error: rolesError } = await supabaseClient
           .from('user_roles')
           .select('user_id, role')
           .in('user_id', userIds);
 
         if (rolesError) {
-          console.error('Error fetching user roles:', rolesError);
+          console.error('[admin-users] Error fetching user roles:', rolesError);
+          // Continue without roles rather than failing completely
         }
+
+        console.log('[admin-users] Fetched', rolesData?.length || 0, 'roles');
 
         // Create role map
         const roleMap = new Map((rolesData || []).map(r => [r.user_id, r.role]));
