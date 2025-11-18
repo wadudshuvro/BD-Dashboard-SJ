@@ -491,7 +491,11 @@ export function CampaignGoogleSheetImportDialog({
                     <AlertDescription>
                       <ul className="list-disc list-inside text-sm space-y-1 mt-2">
                         <li>First row must contain column headers</li>
-                        <li>Required columns: First Name, Last Name, Email, Job Title, Company</li>
+                        <li className="text-base">
+                          <span className="font-bold text-red-600 text-base">
+                            Required columns: First Name, Last Name, Email, Job Title, Company
+                          </span>
+                        </li>
                         <li>Optional: Phone, LinkedIn URL, Company Website, Industry, etc.</li>
                         <li>Use comma (,) as separator</li>
                         <li>UTF-8 encoding recommended</li>
