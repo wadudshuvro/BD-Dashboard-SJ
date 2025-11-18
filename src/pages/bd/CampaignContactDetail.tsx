@@ -1225,7 +1225,11 @@ export default function CampaignContactDetail() {
                     <div className="flex gap-2">
                       {contact.company_website && (
                         <Button variant="outline" size="sm" asChild>
-                          <a href={contact.company_website} target="_blank" rel="noopener noreferrer">
+                          <a 
+                            href={contact.company_website.startsWith('http') ? contact.company_website : `https://${contact.company_website}`} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                          >
                             <Globe className="h-4 w-4 mr-2" />
                             Website
                           </a>
@@ -1261,7 +1265,11 @@ export default function CampaignContactDetail() {
                         )}
                         {contact.company_website && (
                           <Button variant="outline" size="sm" asChild>
-                            <a href={contact.company_website} target="_blank" rel="noopener noreferrer">
+                            <a 
+                              href={contact.company_website.startsWith('http') ? contact.company_website : `https://${contact.company_website}`} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                            >
                               <Globe className="h-4 w-4 mr-2" />
                               Visit Website
                             </a>

@@ -144,7 +144,11 @@ export default function CompanyDetail() {
           <div className="flex gap-2">
             {company.website && (
               <Button variant="outline" size="sm" asChild>
-                <a href={company.website} target="_blank" rel="noopener noreferrer">
+                <a 
+                  href={company.website.startsWith('http') ? company.website : `https://${company.website}`} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                >
                   <Globe className="h-4 w-4 mr-2" />
                   Website
                   <ExternalLink className="h-3 w-3 ml-1" />
