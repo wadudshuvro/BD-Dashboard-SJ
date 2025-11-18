@@ -6,6 +6,7 @@ import { sendProposalNotification, checkNotificationPreferences } from "../_shar
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
 };
 
 const PANDADOC_API_BASE = 'https://api.pandadoc.com/public/v1';
@@ -166,13 +167,28 @@ serve(async (req) => {
 
     // Route: GET /templates - List available templates
     if (req.method === 'GET' && endpoint === 'templates') {
-      const integration = await getPandaDocIntegration(supabase, user.id);
-      const templates = await fetchPandaDoc('/templates', integration.apiKey);
+      try {
+        const integration = await getPandaDocIntegration(supabase, user.id);
+        const templates = await fetchPandaDoc('/templates', integration.apiKey);
 
-      return new Response(
-        JSON.stringify({ templates: templates.results || [] }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+        return new Response(
+          JSON.stringify({ 
+            ok: true, 
+            templates: templates.results || [] 
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      } catch (error) {
+        console.error('[pandadoc-manage] Template fetch failed:', error);
+        return new Response(
+          JSON.stringify({ 
+            ok: false, 
+            error: error instanceof Error ? error.message : 'Failed to fetch templates',
+            templates: []
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     // Route: POST /create-proposal - Create new proposal
@@ -265,7 +281,7 @@ serve(async (req) => {
 
       return new Response(
         JSON.stringify({
-          success: true,
+          ok: true,
           proposal,
           pandadoc_doc_id: pandadocDoc.id,
         }),
@@ -332,27 +348,139 @@ serve(async (req) => {
       const docId = pathParts[pathParts.length - 1];
       const integration = await getPandaDocIntegration(supabase, user.id);
 
-      // Create session
-      const session = await fetchPandaDoc(`/documents/${docId}/session`, integration.apiKey, 'POST', {
-        recipient: user.email,
-        lifetime: 3600, // 1 hour
-      });
+      // Get document status
+      const pandadocDoc = await fetchPandaDoc(`/documents/${docId}`, integration.apiKey);
+      
+      let sessionUrl: string;
+      
+      // For draft documents: Return PandaDoc dashboard URL (no session API support)
+      if (pandadocDoc.status === 'document.draft') {
+        sessionUrl = `https://app.pandadoc.com/documents/${docId}`;
+      } 
+      // For sent documents: Use recipient URL or create session
+      else {
+        // Use existing recipient URL if available
+        if (pandadocDoc.recipient_url) {
+          sessionUrl = pandadocDoc.recipient_url;
+        } 
+        // Create a new session for the user
+        else {
+          const session = await fetchPandaDoc(
+            `/documents/${docId}/session`, 
+            integration.apiKey, 
+            'POST', 
+            {
+              recipient: user.email,
+              lifetime: 3600,
+            }
+          );
+          sessionUrl = session.url;
+        }
+      }
 
       // Update database with session info
       await supabase
         .from('proposal_documents')
         .update({
-          pandadoc_session_id: session.id,
-          editor_url: session.url,
+          editor_url: sessionUrl,
         })
         .eq('pandadoc_doc_id', docId);
 
       return new Response(
-        JSON.stringify({ url: session.url }),
+        JSON.stringify({ url: sessionUrl }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
+    // Route: DELETE /delete/:doc_id - Delete draft proposal
+    if (req.method === 'DELETE' && pathParts[pathParts.length - 2] === 'delete') {
+      const docId = pathParts[pathParts.length - 1];
+
+      // Get the proposal
+      const { data: proposal, error: fetchError } = await supabase
+        .from('proposal_documents')
+        .select('*')
+        .eq('id', docId)
+        .maybeSingle();
+
+      if (fetchError || !proposal) {
+        return new Response(
+          JSON.stringify({ ok: false, error: 'Proposal not found' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
+        );
+      }
+
+      // Security Check #1: Verify user owns the proposal
+      if (proposal.created_by !== user.id) {
+        return new Response(
+          JSON.stringify({ ok: false, error: 'You do not have permission to delete this proposal' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403 }
+        );
+      }
+
+      // Security Check #2: Verify proposal is in draft status
+      if (proposal.status !== 'draft') {
+        return new Response(
+          JSON.stringify({ 
+            ok: false, 
+            error: 'Only draft proposals can be deleted. Sent proposals cannot be deleted for audit trail purposes.',
+            status: proposal.status 
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403 }
+        );
+      }
+
+      // Optional: Try to delete from PandaDoc (soft failure)
+      if (proposal.pandadoc_doc_id) {
+        try {
+          const integration = await getPandaDocIntegration(supabase, user.id);
+          if (integration) {
+            await fetchPandaDoc(
+              `/documents/${proposal.pandadoc_doc_id}`,
+              integration.apiKey,
+              'DELETE'
+            );
+            console.log(`[pandadoc-manage] Deleted document ${proposal.pandadoc_doc_id} from PandaDoc`);
+          }
+        } catch (error) {
+          // Log but don't fail - we still want to delete from our database
+          console.error('[pandadoc-manage] Failed to delete from PandaDoc (non-fatal):', error);
+        }
+      }
+
+      // Delete from database
+      const { error: deleteError } = await supabase
+        .from('proposal_documents')
+        .delete()
+        .eq('id', docId);
+
+      if (deleteError) {
+        console.error('[pandadoc-manage] Database deletion error:', deleteError);
+        return new Response(
+          JSON.stringify({ ok: false, error: 'Failed to delete proposal from database' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+        );
+      }
+
+      // Log analytics
+      await supabase.from('analytics_data').insert({
+        metric_name: 'proposal_deleted',
+        metric_value: 1,
+        source: 'pandadoc',
+        dimensions: {
+          user_id: user.id,
+          proposal_id: docId,
+          pandadoc_doc_id: proposal.pandadoc_doc_id,
+        },
+      });
+
+      console.log(`[pandadoc-manage] Successfully deleted proposal ${docId}`);
+
+      return new Response(
+        JSON.stringify({ ok: true, message: 'Draft proposal deleted successfully' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     return new Response(
       JSON.stringify({ error: 'Endpoint not found' }),
@@ -389,31 +517,59 @@ async function getPandaDocIntegration(client: any, userId: string): Promise<{ in
   return { integration: data, apiKey };
 }
 
-// Helper function to call PandaDoc API
+// Helper function to call PandaDoc API with retry logic
 async function fetchPandaDoc(
   endpoint: string,
   apiKey: string,
   method: string = 'GET',
-  body?: any
+  body?: any,
+  retries: number = 3
 ): Promise<any> {
   const url = `${PANDADOC_API_BASE}${endpoint}`;
   
-  const response = await fetch(url, {
-    method,
-    headers: {
-      'Authorization': `API-Key ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Authorization': `API-Key ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: body ? JSON.stringify(body) : undefined,
+      });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error(`[pandadoc-manage] PandaDoc API error (${response.status}):`, errorText);
-    throw new Error(`PandaDoc API error (${response.status}): ${errorText}`);
+      if (!response.ok) {
+        const errorText = await response.text();
+        
+        // Handle rate limiting with retry
+        if (response.status === 429 && attempt < retries) {
+          const retryAfter = response.headers.get('Retry-After');
+          const waitTime = retryAfter ? parseInt(retryAfter) * 1000 : Math.pow(2, attempt) * 1000;
+          
+          console.log(`[pandadoc-manage] Rate limited. Retrying in ${waitTime}ms (attempt ${attempt + 1}/${retries})`);
+          await new Promise(resolve => setTimeout(resolve, waitTime));
+          continue;
+        }
+        
+        console.error(`[pandadoc-manage] PandaDoc API error (${response.status}):`, errorText);
+        throw new Error(`PandaDoc API error (${response.status}): ${errorText}`);
+      }
+
+      return response.json();
+    } catch (error) {
+      // If it's the last attempt or not a network error, throw
+      if (attempt === retries || !(error instanceof TypeError)) {
+        throw error;
+      }
+      
+      // Wait before retrying
+      const waitTime = Math.pow(2, attempt) * 1000;
+      console.log(`[pandadoc-manage] Network error. Retrying in ${waitTime}ms (attempt ${attempt + 1}/${retries})`);
+      await new Promise(resolve => setTimeout(resolve, waitTime));
+    }
   }
-
-  return response.json();
+  
+  throw new Error('Max retries exceeded');
 }
 
 // Helper function to verify webhook signature

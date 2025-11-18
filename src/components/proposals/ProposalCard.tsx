@@ -1,12 +1,23 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ProposalStatusBadge } from "./ProposalStatusBadge";
-import { Eye, Edit, Send, Download } from "lucide-react";
+import { Eye, Edit, Send, Download, Trash2 } from "lucide-react";
 import type { ProposalDocument } from "@/types/proposal";
 import { format } from "date-fns";
 import { useState } from "react";
 import { ProposalEditor } from "./ProposalEditor";
-import { useSendProposal } from "@/hooks/useProposals";
+import { useSendProposal, useDeleteProposal } from "@/hooks/useProposals";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface ProposalCardProps {
   proposal: ProposalDocument;
@@ -14,16 +25,34 @@ interface ProposalCardProps {
 
 export const ProposalCard = ({ proposal }: ProposalCardProps) => {
   const [editorOpen, setEditorOpen] = useState(false);
+  const [isViewMode, setIsViewMode] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const sendProposal = useSendProposal();
+  const deleteProposal = useDeleteProposal();
+  const isDraft = proposal.status === "draft";
 
   const handleSend = async () => {
     await sendProposal.mutateAsync({ docId: proposal.pandadoc_doc_id });
   };
 
   const handleView = () => {
-    if (proposal.recipient_url) {
-      window.open(proposal.recipient_url, "_blank");
+    if (isDraft) {
+      // For drafts: Open PandaDoc dashboard directly
+      window.open(`https://app.pandadoc.com/documents/${proposal.pandadoc_doc_id}`, "_blank");
     } else {
+      // For sent documents: Always open in modal viewer
+      setIsViewMode(true);
+      setEditorOpen(true);
+    }
+  };
+
+  const handleEdit = () => {
+    if (isDraft) {
+      // For drafts: Open PandaDoc dashboard directly
+      window.open(`https://app.pandadoc.com/documents/${proposal.pandadoc_doc_id}`, "_blank");
+    } else {
+      // For sent documents: Open in modal editor
+      setIsViewMode(false);
       setEditorOpen(true);
     }
   };
@@ -32,6 +61,11 @@ export const ProposalCard = ({ proposal }: ProposalCardProps) => {
     if (proposal.pdf_url) {
       window.open(proposal.pdf_url, "_blank");
     }
+  };
+
+  const handleDelete = async () => {
+    await deleteProposal.mutateAsync({ proposalId: proposal.id });
+    setDeleteDialogOpen(false);
   };
 
   return (
@@ -59,29 +93,46 @@ export const ProposalCard = ({ proposal }: ProposalCardProps) => {
             </div>
 
             <div className="flex flex-wrap gap-2">
-              <Button variant="outline" size="sm" onClick={handleView}>
-                <Eye className="h-4 w-4 mr-1" />
-                View
-              </Button>
+              <TooltipProvider>
+                <Button variant="outline" size="sm" onClick={handleView}>
+                  <Eye className="h-4 w-4 mr-1" />
+                  View
+                </Button>
 
-              {proposal.status === "draft" && (
-                <Button variant="outline" size="sm" onClick={() => setEditorOpen(true)}>
+                <Button variant="outline" size="sm" onClick={handleEdit}>
                   <Edit className="h-4 w-4 mr-1" />
                   Edit
                 </Button>
+              </TooltipProvider>
+
+              {isDraft && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setDeleteDialogOpen(true)}
+                  disabled={deleteProposal.isPending}
+                >
+                  <Trash2 className="h-4 w-4 mr-1" />
+                  Delete
+                </Button>
               )}
 
-              {(proposal.status === "draft" || proposal.status === "viewed") && (
-                <Button variant="default" size="sm" onClick={handleSend} disabled={sendProposal.isPending}>
+              {(isDraft || proposal.status === "viewed") && (
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={handleSend}
+                  disabled={sendProposal.isPending}
+                >
                   <Send className="h-4 w-4 mr-1" />
                   Send
                 </Button>
               )}
 
-              {proposal.status === "signed" && proposal.pdf_url && (
+              {proposal.pdf_url && (
                 <Button variant="outline" size="sm" onClick={handleDownload}>
                   <Download className="h-4 w-4 mr-1" />
-                  PDF
+                  Download PDF
                 </Button>
               )}
             </div>
@@ -89,7 +140,32 @@ export const ProposalCard = ({ proposal }: ProposalCardProps) => {
         </CardContent>
       </Card>
 
-      <ProposalEditor open={editorOpen} onOpenChange={setEditorOpen} docId={proposal.pandadoc_doc_id} />
+      <ProposalEditor
+        open={editorOpen}
+        onOpenChange={setEditorOpen}
+        docId={proposal.pandadoc_doc_id}
+        mode={isViewMode ? 'view' : 'edit'}
+      />
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Draft Proposal?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this draft proposal? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };

@@ -81,9 +81,9 @@ export const useCreateProposal = () => {
       const { data, error } = await supabase.functions.invoke("pandadoc-manage/create-proposal", {
         method: "POST",
         body: {
-          deal_id: dealId,
-          client_id: clientId,
-          template_id: templateId,
+          dealId,
+          clientId,
+          templateId,
           title,
         },
       });
@@ -142,6 +142,37 @@ export const useSendProposal = () => {
   });
 };
 
+export const useDeleteProposal = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ proposalId }: { proposalId: string }) => {
+      const { data, error } = await supabase.functions.invoke(`pandadoc-manage/delete/${proposalId}`, {
+        method: "DELETE",
+      });
+
+      if (error) throw error;
+      if (!data?.ok) throw new Error(data?.error || "Failed to delete proposal");
+
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["proposals"] });
+      toast({
+        title: "Proposal Deleted",
+        description: "Draft proposal deleted successfully.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Delete Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+};
+
 export const useProposalStatus = (docId?: string) => {
   return useQuery({
     queryKey: ["proposal-status", docId],
@@ -162,7 +193,7 @@ export const useProposalStatus = (docId?: string) => {
   });
 };
 
-export const useProposalEmbedUrl = (docId?: string) => {
+export const useProposalEmbedUrl = (docId?: string, enabled = false) => {
   return useQuery({
     queryKey: ["proposal-embed", docId],
     queryFn: async () => {
@@ -173,11 +204,13 @@ export const useProposalEmbedUrl = (docId?: string) => {
       });
 
       if (error) throw error;
-      if (!data?.ok) throw new Error(data?.error || "Failed to get embed URL");
+      if (!data?.url) throw new Error(data?.error || "Failed to get embed URL");
 
       return data.url as string;
     },
-    enabled: !!docId,
+    enabled: enabled && !!docId,
     staleTime: 1000 * 60 * 30, // 30 minutes
+    retry: false, // Don't retry on errors (prevents rate limiting)
+    refetchOnWindowFocus: false, // Don't refetch when window regains focus
   });
 };

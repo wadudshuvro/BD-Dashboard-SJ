@@ -11,7 +11,6 @@ export interface AdminUser {
   status: 'active' | 'inactive' | 'pending';
   title: string | null;
   department: string | null;
-  is_marketing: boolean;
   created_at: string;
   updated_at: string;
   user_brands?: Array<{
@@ -46,7 +45,6 @@ export interface CreateUserData {
   status?: 'active' | 'inactive' | 'pending';
   title?: string | null;
   department?: string | null;
-  isMarketing?: boolean;
   brandAssignments?: BrandAssignment[];
 }
 
@@ -58,7 +56,6 @@ export interface UpdateUserData {
   status?: 'active' | 'inactive' | 'pending';
   title?: string | null;
   department?: string | null;
-  isMarketing?: boolean;
   brandAssignments?: BrandAssignment[];
 }
 
@@ -71,7 +68,6 @@ export interface UsersResponse {
     total: number;
     active: number;
     managers: number;
-    marketing: number;
   };
 }
 
@@ -89,7 +85,6 @@ export function useAdminUsers() {
     search?: string;
     role?: string;
     status?: string;
-    isMarketing?: boolean;
   } = {}) => {
     setLoading(true);
     setError(null);
@@ -106,7 +101,6 @@ export function useAdminUsers() {
       if (params.search) queryParams.append('search', params.search);
       if (params.role) queryParams.append('role', params.role);
       if (params.status) queryParams.append('status', params.status);
-      if (params.isMarketing !== undefined) queryParams.append('is_marketing', params.isMarketing.toString());
 
       const { data, error: functionError } = await supabase.functions.invoke(
         `admin-users${queryParams.toString() ? '?' + queryParams.toString() : ''}`,

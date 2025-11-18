@@ -6,16 +6,17 @@ interface ProposalEditorProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   docId: string;
+  mode?: 'view' | 'edit';
 }
 
-export const ProposalEditor = ({ open, onOpenChange, docId }: ProposalEditorProps) => {
-  const { data: embedUrl, isLoading } = useProposalEmbedUrl(docId);
+export const ProposalEditor = ({ open, onOpenChange, docId, mode = 'edit' }: ProposalEditorProps) => {
+  const { data: embedUrl, isLoading, error } = useProposalEmbedUrl(docId, open);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-6xl h-[90vh]">
         <DialogHeader>
-          <DialogTitle>Edit Proposal</DialogTitle>
+          <DialogTitle>{mode === 'view' ? 'View Proposal' : 'Edit Proposal'}</DialogTitle>
         </DialogHeader>
         <div className="flex-1 h-full">
           {isLoading ? (
@@ -33,7 +34,7 @@ export const ProposalEditor = ({ open, onOpenChange, docId }: ProposalEditorProp
             />
           ) : (
             <div className="flex items-center justify-center h-full text-muted-foreground">
-              Unable to load editor
+              {error?.message || "Unable to load editor"}
             </div>
           )}
         </div>
