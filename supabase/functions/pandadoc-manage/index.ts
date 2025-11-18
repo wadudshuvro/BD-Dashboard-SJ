@@ -353,18 +353,9 @@ serve(async (req) => {
       
       let sessionUrl: string;
       
-      // For draft documents: Create EDITOR session (allows editing)
+      // For draft documents: Return PandaDoc dashboard URL (no session API support)
       if (pandadocDoc.status === 'document.draft') {
-        const session = await fetchPandaDoc(
-          `/documents/${docId}/session`, 
-          integration.apiKey, 
-          'POST', 
-          {
-            recipient: user.email,
-            lifetime: 3600, // 1 hour
-          }
-        );
-        sessionUrl = session.url;
+        sessionUrl = `https://app.pandadoc.com/documents/${docId}`;
       } 
       // For sent documents: Use recipient URL or create session
       else {
