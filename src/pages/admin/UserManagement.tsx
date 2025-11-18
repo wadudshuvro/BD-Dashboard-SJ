@@ -33,7 +33,6 @@ interface NewUserForm {
   role: 'super_admin' | 'admin' | 'manager' | 'project_manager' | 'team_member' | 'client' | 'bd_user';
   title: string;
   department: string;
-  isMarketing: boolean;
   brandIds: string[];
 }
 
@@ -60,7 +59,6 @@ const UserManagement = () => {
     role: 'team_member',
     title: '',
     department: '',
-    isMarketing: false,
     brandIds: [],
   });
 
@@ -148,7 +146,6 @@ const UserManagement = () => {
         status: updates.status,
         title: updates.title,
         department: updates.department,
-        isMarketing: updates.isMarketing,
         brandAssignments: updates.brandAssignments,
       });
       setIsPermissionDialogOpen(false);
@@ -216,7 +213,6 @@ const UserManagement = () => {
         role: newUser.role,
         title: newUser.title.trim() || null,
         department: newUser.department.trim() || null,
-        isMarketing: newUser.isMarketing,
         brandAssignments,
       };
 
@@ -230,7 +226,6 @@ const UserManagement = () => {
         role: 'team_member',
         title: '',
         department: '',
-        isMarketing: false,
         brandIds: [],
       });
       setFieldErrors({
@@ -460,21 +455,6 @@ const UserManagement = () => {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium">Business Development Team</Label>
-                  <div className="flex items-center gap-2 rounded-md border p-3">
-                    <Checkbox
-                      id="user-marketing"
-                      checked={newUser.isMarketing}
-                      onCheckedChange={(checked) =>
-                        setNewUser(prev => ({ ...prev, isMarketing: checked === true }))
-                      }
-                    />
-                    <Label htmlFor="user-marketing" className="text-sm font-normal">
-                      Add to business development team
-                    </Label>
-                  </div>
-                </div>
-                <div className="space-y-2">
                   <Label>Assign Brands</Label>
                   <ScrollArea className="max-h-40 rounded-md border p-3">
                     <div className="space-y-2">
@@ -606,15 +586,6 @@ const UserManagement = () => {
             <div className="text-2xl font-bold">{stats?.managers ?? 0}</div>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Marketing Team</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats?.marketing ?? 0}</div>
-            <p className="text-xs text-muted-foreground">Marketing team members</p>
-          </CardContent>
-        </Card>
       </div>
 
       {/* User List */}
@@ -626,7 +597,6 @@ const UserManagement = () => {
                 <TableHead>User</TableHead>
                 <TableHead>Title</TableHead>
                 <TableHead>Department</TableHead>
-                <TableHead>Marketing</TableHead>
                 <TableHead>Role</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Brands</TableHead>
@@ -659,13 +629,6 @@ const UserManagement = () => {
                   </TableCell>
                   <TableCell className="text-sm">
                     {user.department ? user.department : <span className="text-muted-foreground">—</span>}
-                  </TableCell>
-                  <TableCell>
-                    {user.is_marketing ? (
-                      <Badge variant="outline" className="text-xs">Marketing</Badge>
-                    ) : (
-                      <span className="text-sm text-muted-foreground">—</span>
-                    )}
                   </TableCell>
                   <TableCell>
                     <Badge className={getRoleColor(user.role)}>
@@ -758,9 +721,6 @@ const UserManagement = () => {
                     <div>
                       <div className="flex items-center gap-2">
                         <CardTitle className="text-base">{user.name}</CardTitle>
-                        {user.is_marketing && (
-                          <Badge variant="outline" className="text-xs">Marketing</Badge>
-                        )}
                       </div>
                       <CardDescription className="text-sm">{user.email}</CardDescription>
                       {(user.title || user.department) && (

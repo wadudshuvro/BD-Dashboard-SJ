@@ -35,7 +35,6 @@ interface UserPermissionDialogProps {
       status: 'active' | 'inactive' | 'pending';
       title: string | null;
       department: string | null;
-      isMarketing: boolean;
       brandAssignments: BrandAssignment[];
     }
   ) => Promise<void> | void;
@@ -51,7 +50,6 @@ type FormState = {
   status: 'active' | 'inactive' | 'pending';
   title: string;
   department: string;
-  isMarketing: boolean;
   brandAssignments: BrandAssignment[];
 };
 
@@ -63,7 +61,6 @@ const defaultState: FormState = {
   status: 'active',
   title: '',
   department: '',
-  isMarketing: false,
   brandAssignments: [],
 };
 
@@ -78,7 +75,6 @@ const getInitialState = (user: UserPermissionDialogProps['user']): FormState => 
     status: user.status,
     title: user.title ?? '',
     department: user.department ?? '',
-    isMarketing: Boolean(user.is_marketing),
     brandAssignments:
       user.user_brands?.map((assignment) => ({
         brand_id: assignment.brand_id,
@@ -166,7 +162,6 @@ export const UserPermissionDialog = ({
         status: formState.status,
         title: formState.title.trim() || null,
         department: formState.department.trim() || null,
-        isMarketing: formState.isMarketing,
         brandAssignments: formState.brandAssignments,
       });
       onClose();
@@ -267,21 +262,6 @@ export const UserPermissionDialog = ({
                   </SelectContent>
                 </Select>
               </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Checkbox
-                id="marketing"
-                checked={formState.isMarketing}
-                onCheckedChange={(checked) =>
-                  updateField('isMarketing', checked === true)
-                }
-              />
-              <Label htmlFor="marketing" className="flex items-center gap-2">
-                Business Development team member
-                {formState.isMarketing && (
-                  <Badge variant="outline" className="text-xs">Business Development Team</Badge>
-                )}
-              </Label>
             </div>
           </div>
 

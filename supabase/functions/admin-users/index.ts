@@ -15,7 +15,6 @@ interface UserWithDetails {
   status: string;
   title: string | null;
   department: string | null;
-  is_marketing: boolean;
   created_at: string;
   updated_at: string;
   user_brands?: Array<{
@@ -69,7 +68,6 @@ interface RawUserRecord {
   status: string;
   title: string | null;
   department: string | null;
-  is_marketing: boolean | null;
   created_at: string;
   updated_at: string;
   user_brands?: RawUserBrand[] | null;
@@ -85,7 +83,6 @@ interface CreateUserRequest {
   status?: string;
   title?: string | null;
   department?: string | null;
-  isMarketing?: boolean;
   brandAssignments?: BrandAssignmentInput[];
 }
 
@@ -97,7 +94,6 @@ interface UpdateUserRequest {
   status?: string;
   title?: string | null;
   department?: string | null;
-  isMarketing?: boolean;
   brandAssignments?: BrandAssignmentInput[];
 }
 
@@ -110,7 +106,6 @@ const buildUserSelect = () => `
   status,
   title,
   department,
-  is_marketing,
   created_at,
   updated_at
 `;
@@ -120,7 +115,6 @@ const transformUser = (userData: RawUserRecord, role: string = 'user'): UserWith
   role,
   title: userData.title ?? null,
   department: userData.department ?? null,
-  is_marketing: userData.is_marketing ?? false,
   user_brands: [],
   permissions: [],
 });
@@ -300,7 +294,6 @@ serve(async (req) => {
         const search = searchParams.get('search') || ''
         const roleFilter = searchParams.get('role') || ''
         const statusFilter = searchParams.get('status') || ''
-        const marketingFilter = searchParams.get('is_marketing')
 
         const offset = (page - 1) * limit
 
@@ -319,16 +312,10 @@ serve(async (req) => {
           .select('user_id', { count: 'exact', head: false })
           .eq('role', 'manager');
 
-        const { data: marketingData } = await supabaseClient
-          .from('users')
-          .select('id', { count: 'exact', head: false })
-          .eq('is_marketing', true);
-
         const stats = {
           total: totalCount || 0,
           active: activeCount || 0,
           managers: managersData?.length || 0,
-          marketing: marketingData?.length || 0
         };
 
         let query = supabaseClient
@@ -341,12 +328,6 @@ serve(async (req) => {
         }
         if (statusFilter) {
           query = query.eq('status', statusFilter)
-        }
-        if (marketingFilter === 'true') {
-          query = query.eq('is_marketing', true)
-        }
-        if (marketingFilter === 'false') {
-          query = query.eq('is_marketing', false)
         }
 
         const { data: users, error: usersError, count } = await query
@@ -415,7 +396,6 @@ serve(async (req) => {
         status = 'active',
         title = null,
         department = null,
-        isMarketing = false,
         brandAssignments = [],
       } = await req.json() as CreateUserRequest
 
@@ -474,7 +454,6 @@ serve(async (req) => {
               status,
               title,
               department,
-              is_marketing: isMarketing
             })
           
           if (repairError) {
@@ -541,7 +520,6 @@ serve(async (req) => {
           last_name: lastName,
           title,
           department,
-          is_marketing: isMarketing
         }
       })
 
@@ -593,7 +571,6 @@ serve(async (req) => {
           status,
           title,
           department,
-          is_marketing: isMarketing
         }, {
           onConflict: 'id'
         })
@@ -780,9 +757,6 @@ serve(async (req) => {
       if (typeof rawUpdates.department !== 'undefined') {
         updatePayload.department = rawUpdates.department
       }
-      if (typeof rawUpdates.isMarketing !== 'undefined') {
-        updatePayload.is_marketing = rawUpdates.isMarketing
-      }
 
       if (Object.keys(updatePayload).length > 0) {
         const { error: userError } = await supabaseClient
@@ -883,9 +857,6 @@ serve(async (req) => {
       }
       if (typeof rawUpdates.department !== 'undefined') {
         metadataUpdates.department = rawUpdates.department
-      }
-      if (typeof rawUpdates.isMarketing !== 'undefined') {
-        metadataUpdates.is_marketing = rawUpdates.isMarketing
       }
 
       if (Object.keys(metadataUpdates).length > 0) {
