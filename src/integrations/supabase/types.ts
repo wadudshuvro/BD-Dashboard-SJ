@@ -4296,7 +4296,6 @@ export type Database = {
           email: string
           first_name: string | null
           id: string
-          is_marketing: boolean | null
           last_name: string | null
           status: string | null
           title: string | null
@@ -4308,7 +4307,6 @@ export type Database = {
           email: string
           first_name?: string | null
           id: string
-          is_marketing?: boolean | null
           last_name?: string | null
           status?: string | null
           title?: string | null
@@ -4320,7 +4318,6 @@ export type Database = {
           email?: string
           first_name?: string | null
           id?: string
-          is_marketing?: boolean | null
           last_name?: string | null
           status?: string | null
           title?: string | null
