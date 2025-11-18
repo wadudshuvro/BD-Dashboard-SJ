@@ -34,6 +34,7 @@ export function CampaignLeadImportDialog({
   const [jobTitles, setJobTitles] = useState<string[]>([]);
   const [jobTitleInput, setJobTitleInput] = useState("");
   const [industries, setIndustries] = useState<string[]>([]);
+  const [customIndustryInput, setCustomIndustryInput] = useState("");
   const [country, setCountry] = useState("US");
   const [city, setCity] = useState("");
   const [companySize, setCompanySize] = useState<string[]>([]);
@@ -303,9 +304,15 @@ export function CampaignLeadImportDialog({
             {/* Industries */}
             <div className="space-y-2">
               <Label htmlFor="industries">Industry/Niche *</Label>
-              <Select value={industries[0] || undefined} onValueChange={(value) => !industries.includes(value) && setIndustries([...industries, value])}>
+              
+              {/* Quick Select Dropdown */}
+              <Select value="" onValueChange={(value) => {
+                if (!industries.includes(value)) {
+                  setIndustries([...industries, value]);
+                }
+              }}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Select industries..." />
+                  <SelectValue placeholder="Quick select from common industries..." />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="SaaS">SaaS</SelectItem>
@@ -320,6 +327,41 @@ export function CampaignLeadImportDialog({
                   <SelectItem value="Real Estate">Real Estate</SelectItem>
                 </SelectContent>
               </Select>
+
+              {/* Custom Industry Input */}
+              <div className="flex gap-2">
+                <input
+                  id="custom-industry"
+                  type="text"
+                  placeholder="Or type custom industry/niche (e.g., Legal Tech, PropTech)"
+                  value={customIndustryInput}
+                  onChange={(e) => setCustomIndustryInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && customIndustryInput.trim()) {
+                      if (!industries.includes(customIndustryInput.trim())) {
+                        setIndustries([...industries, customIndustryInput.trim()]);
+                        setCustomIndustryInput("");
+                      }
+                    }
+                  }}
+                  className="flex-1 px-3 py-2 text-sm border rounded-md"
+                />
+                <Button 
+                  type="button" 
+                  size="sm"
+                  onClick={() => {
+                    if (customIndustryInput.trim()) {
+                      if (!industries.includes(customIndustryInput.trim())) {
+                        setIndustries([...industries, customIndustryInput.trim()]);
+                        setCustomIndustryInput("");
+                      }
+                    }
+                  }}
+                >
+                  Add
+                </Button>
+              </div>
+
               <div className="flex flex-wrap gap-2 mt-2">
                 {industries.map((industry, idx) => (
                   <Badge key={idx} variant="default">
