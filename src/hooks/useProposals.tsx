@@ -162,7 +162,7 @@ export const useProposalStatus = (docId?: string) => {
   });
 };
 
-export const useProposalEmbedUrl = (docId?: string) => {
+export const useProposalEmbedUrl = (docId?: string, enabled = false) => {
   return useQuery({
     queryKey: ["proposal-embed", docId],
     queryFn: async () => {
@@ -183,7 +183,7 @@ export const useProposalEmbedUrl = (docId?: string) => {
 
       return data.url as string;
     },
-    enabled: !!docId,
+    enabled: enabled && !!docId,
     staleTime: 1000 * 60 * 30, // 30 minutes
     retry: false, // Don't retry on errors (prevents rate limiting)
     refetchOnWindowFocus: false, // Don't refetch when window regains focus
