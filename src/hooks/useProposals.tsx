@@ -173,11 +173,19 @@ export const useProposalEmbedUrl = (docId?: string) => {
       });
 
       if (error) throw error;
-      if (!data?.ok) throw new Error(data?.error || "Failed to get embed URL");
+      
+      // Handle draft status error - don't retry
+      if (data?.requiresSend) {
+        throw new Error("Document must be sent before viewing. Please send the proposal first.");
+      }
+      
+      if (!data?.url) throw new Error(data?.error || "Failed to get embed URL");
 
       return data.url as string;
     },
     enabled: !!docId,
     staleTime: 1000 * 60 * 30, // 30 minutes
+    retry: false, // Don't retry on errors (prevents rate limiting)
+    refetchOnWindowFocus: false, // Don't refetch when window regains focus
   });
 };
