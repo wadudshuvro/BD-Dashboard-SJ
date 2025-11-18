@@ -142,6 +142,37 @@ export const useSendProposal = () => {
   });
 };
 
+export const useDeleteProposal = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ proposalId }: { proposalId: string }) => {
+      const { data, error } = await supabase.functions.invoke(`pandadoc-manage/delete/${proposalId}`, {
+        method: "DELETE",
+      });
+
+      if (error) throw error;
+      if (!data?.ok) throw new Error(data?.error || "Failed to delete proposal");
+
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["proposals"] });
+      toast({
+        title: "Proposal Deleted",
+        description: "Draft proposal deleted successfully.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Delete Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+};
+
 export const useProposalStatus = (docId?: string) => {
   return useQuery({
     queryKey: ["proposal-status", docId],

@@ -1,13 +1,23 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ProposalStatusBadge } from "./ProposalStatusBadge";
-import { Eye, Edit, Send, Download } from "lucide-react";
+import { Eye, Edit, Send, Download, Trash2 } from "lucide-react";
 import type { ProposalDocument } from "@/types/proposal";
 import { format } from "date-fns";
 import { useState } from "react";
 import { ProposalEditor } from "./ProposalEditor";
-import { useSendProposal } from "@/hooks/useProposals";
+import { useSendProposal, useDeleteProposal } from "@/hooks/useProposals";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface ProposalCardProps {
   proposal: ProposalDocument;
@@ -15,7 +25,9 @@ interface ProposalCardProps {
 
 export const ProposalCard = ({ proposal }: ProposalCardProps) => {
   const [editorOpen, setEditorOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const sendProposal = useSendProposal();
+  const deleteProposal = useDeleteProposal();
   const isDraft = proposal.status === "draft";
 
   const handleSend = async () => {
@@ -40,6 +52,11 @@ export const ProposalCard = ({ proposal }: ProposalCardProps) => {
     if (proposal.pdf_url) {
       window.open(proposal.pdf_url, "_blank");
     }
+  };
+
+  const handleDelete = async () => {
+    await deleteProposal.mutateAsync({ proposalId: proposal.id });
+    setDeleteDialogOpen(false);
   };
 
   return (
@@ -100,6 +117,25 @@ export const ProposalCard = ({ proposal }: ProposalCardProps) => {
                   </Tooltip>
                 )}
 
+                {isDraft && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button 
+                        variant="destructive" 
+                        size="sm" 
+                        onClick={() => setDeleteDialogOpen(true)}
+                        disabled={deleteProposal.isPending}
+                      >
+                        <Trash2 className="h-4 w-4 mr-1" />
+                        Delete
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Delete this draft proposal</p>
+                    </TooltipContent>
+                  </Tooltip>
+                )}
+
                 {(isDraft || proposal.status === "viewed") && (
                   <Button variant="default" size="sm" onClick={handleSend} disabled={sendProposal.isPending}>
                     <Send className="h-4 w-4 mr-1" />
@@ -120,6 +156,26 @@ export const ProposalCard = ({ proposal }: ProposalCardProps) => {
       </Card>
 
       <ProposalEditor open={editorOpen} onOpenChange={setEditorOpen} docId={proposal.pandadoc_doc_id} />
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Draft Proposal?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this draft proposal? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };
