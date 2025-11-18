@@ -35,7 +35,6 @@ import { ExperienceTimelineCard } from "@/components/contact/ExperienceTimelineC
 import { EducationCard } from "@/components/contact/EducationCard";
 import { ProfessionalNetworkCard } from "@/components/contact/ProfessionalNetworkCard";
 import { EngagementCard } from "@/components/contact/EngagementCard";
-import { CompanyDataDebug } from "@/components/bd/CompanyDataDebug";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
@@ -1284,38 +1283,30 @@ export default function CampaignContactDetail() {
                             Run research to get complete company profile and link to company page.
                           </AlertDescription>
                         </Alert>
-                        
-                        {/* Debug Component - Shows what data is actually stored */}
-                        <CompanyDataDebug contact={contact} />
                       </div>
                     ) : (
-                      <div className="space-y-4">
-                        <div className="text-center py-8">
-                          <Building className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                          <h3 className="font-semibold mb-2">No Company Information Available</h3>
-                          <p className="text-sm text-muted-foreground mb-4">
-                            Run research to gather company insights and create a company profile
-                          </p>
-                          <Button 
-                            onClick={handleRunResearch}
-                            disabled={researchMutation.isPending}
-                          >
-                            {researchMutation.isPending ? (
-                              <>
-                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                Researching...
-                              </>
-                            ) : (
-                              <>
-                                <Sparkles className="h-4 w-4 mr-2" />
-                                Research Company
-                              </>
-                            )}
-                          </Button>
-                        </div>
-                        
-                        {/* Debug Component - Shows what data is actually stored */}
-                        <CompanyDataDebug contact={contact} />
+                      <div className="text-center py-8">
+                        <Building className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                        <h3 className="font-semibold mb-2">No Company Information Available</h3>
+                        <p className="text-sm text-muted-foreground mb-4">
+                          Run research to gather company insights and create a company profile
+                        </p>
+                        <Button 
+                          onClick={handleRunResearch}
+                          disabled={researchMutation.isPending}
+                        >
+                          {researchMutation.isPending ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Researching...
+                            </>
+                          ) : (
+                            <>
+                              <Sparkles className="h-4 w-4 mr-2" />
+                              Research Company
+                            </>
+                          )}
+                        </Button>
                       </div>
                     )}
                   </CardContent>
