@@ -1,6 +1,32 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 import { corsHeaders } from "../_shared/cors.ts";
 
+// Simple URL validation function
+function isValidUrl(url: string | null | undefined): boolean {
+  if (!url || typeof url !== 'string') return false;
+  
+  url = url.trim();
+  if (!url || url.length < 4) return false;
+  
+  // Reject common placeholder patterns
+  const placeholderPatterns = [
+    /^url\**/i, /^\[url\]/i, /^<url>/i, /^website$/i,
+    /^n\/?a$/i, /^none$/i, /^tbd$/i, /^pending$/i,
+    /^\*+$/, /^-+$/, /^_+$/,
+  ];
+  
+  if (placeholderPatterns.some(pattern => pattern.test(url))) {
+    return false;
+  }
+  
+  // Must contain a dot and look like a domain
+  if (!url.includes('.') || url.length < 4) return false;
+  
+  // Basic domain pattern check
+  const domainPattern = /^(?:https?:\/\/)?(?:www\.)?([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(?:\/[^\s]*)?$/;
+  return domainPattern.test(url);
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -124,22 +150,102 @@ Format your response clearly with "CONTACT:" and "COMPANY:" section headers.`;
     const contactSection = fullResearchResponse.split('COMPANY:')[0].replace('CONTACT:', '').trim();
     const companySection = fullResearchResponse.split('COMPANY:')[1]?.trim() || '';
 
-    // Extract company data using regex patterns
-    const websiteMatch = companySection.match(/website[:\s]+([^\s\n]+)/i);
-    const linkedinMatch = companySection.match(/linkedin[:\s]+([^\s\n]+)/i);
-    const industryMatch = companySection.match(/industry[:\s]+([^\n]+)/i);
-    const sizeMatch = companySection.match(/size[:\s]+([^\n]+)/i);
-    const hqMatch = companySection.match(/headquarters[:\s]+([^\n]+)/i);
-    const descMatch = companySection.match(/description[:\s]+([^\n]+(?:\n[^\n]+)?)/i);
+    // Extract company data using multiple regex patterns for better matching
+    // Website extraction - try multiple patterns
+    const websitePatterns = [
+      /(?:website|site|web|url|domain)[:\s]+([^\s\n]+)/i,
+      /(?:https?:\/\/)?(?:www\.)?([a-zA-Z0-9-]+\.[a-zA-Z]{2,}(?:\/[^\s]*)?)/,
+      /\b([a-zA-Z0-9-]+\.(?:com|org|net|io|ai|co|dev|app|tech|edu|gov))\b/i,
+    ];
+    
+    let websiteUrl = null;
+    for (const pattern of websitePatterns) {
+      const match = companySection.match(pattern);
+      if (match && match[1]) {
+        websiteUrl = match[1].trim();
+        // Clean up common artifacts
+        websiteUrl = websiteUrl.replace(/[,;.)\]]+$/, '').trim();
+        if (websiteUrl.length > 4 && !websiteUrl.includes('linkedin.com')) {
+          break;
+        }
+      }
+    }
+
+    // LinkedIn extraction - try multiple patterns
+    const linkedinPatterns = [
+      /(?:linkedin|LinkedIn)[:\s]+([^\s\n]+(?:linkedin\.com[^\s\n]*))/i,
+      /(https?:\/\/(?:www\.)?linkedin\.com\/company\/[^\s\n]+)/i,
+    ];
+    
+    let linkedinUrl = null;
+    for (const pattern of linkedinPatterns) {
+      const match = companySection.match(pattern);
+      if (match && match[1]) {
+        linkedinUrl = match[1].trim().replace(/[,;.)\]]+$/, '').trim();
+        break;
+      }
+    }
+
+    const industryMatch = companySection.match(/(?:industry|sector)[:\s]+([^\n]+)/i);
+    const sizeMatch = companySection.match(/(?:size|employee|employees|count)[:\s]+([^\n]+)/i);
+    const hqMatch = companySection.match(/(?:headquarters|hq|location)[:\s]+([^\n]+)/i);
+    const descMatch = companySection.match(/(?:description|about)[:\s]+([^\n]+(?:\n[^\n]+)?(?:\n[^\n]+)?)/i);
 
     const companyData = {
-      website: websiteMatch?.[1]?.trim(),
-      linkedin_url: linkedinMatch?.[1]?.trim(),
+      website: websiteUrl,
+      linkedin_url: linkedinUrl,
       industry: industryMatch?.[1]?.trim(),
       employee_count: sizeMatch?.[1]?.trim(),
       headquarters: hqMatch?.[1]?.trim(),
       description: descMatch?.[1]?.trim(),
     };
+
+    console.log("Extracted company data:", JSON.stringify(companyData, null, 2));
+
+    // Fallback: If website not found but we have a company name, do a targeted search
+    if (!companyData.website && contact.contact_company) {
+      console.log("Website not found, attempting fallback search for:", contact.contact_company);
+      
+      try {
+        const fallbackResponse = await fetch("https://api.perplexity.ai/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${perplexityApiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "sonar",
+            messages: [
+              {
+                role: "system",
+                content: "You are a company information extractor. Provide only the official website URL.",
+              },
+              {
+                role: "user",
+                content: `What is the official website URL for the company "${contact.contact_company}"? Respond with only the URL, nothing else.`,
+              },
+            ],
+            temperature: 0.1,
+            max_tokens: 100,
+          }),
+        });
+
+        if (fallbackResponse.ok) {
+          const fallbackData = await fallbackResponse.json();
+          const websiteText = fallbackData.choices?.[0]?.message?.content?.trim();
+          
+          // Extract URL from response
+          const urlMatch = websiteText?.match(/(?:https?:\/\/)?(?:www\.)?([a-zA-Z0-9-]+\.[a-zA-Z]{2,})/);
+          if (urlMatch && urlMatch[0]) {
+            companyData.website = urlMatch[0].replace(/[,;.)\]]+$/, '').trim();
+            console.log("Fallback search found website:", companyData.website);
+          }
+        }
+      } catch (fallbackError) {
+        console.error("Fallback website search failed:", fallbackError);
+        // Continue without website - don't fail the entire research
+      }
+    }
 
     // Parse LinkedIn data from metadata if available
     const { data: contactData } = await supabase
@@ -162,6 +268,16 @@ Format your response clearly with "CONTACT:" and "COMPANY:" section headers.`;
         current_employer: employerMatch?.[1]?.trim(),
         current_position_title: headlineMatch?.[1]?.trim(),
       };
+    }
+
+    // Validate and clean website URL
+    const validWebsite = isValidUrl(companyData.website) ? companyData.website : null;
+    if (validWebsite) {
+      companyData.website = validWebsite;
+      console.log("Valid website URL:", validWebsite);
+    } else {
+      console.log("Invalid or missing website URL, setting to null");
+      companyData.website = null;
     }
 
     // Handle company data upsert if we have company information
@@ -222,26 +338,41 @@ Format your response clearly with "CONTACT:" and "COMPANY:" section headers.`;
     }
 
     // Update contact with research summary, company link, and parsed fields
+    // Only include valid website URL (or null)
+    const updateData: any = {
+      research_summary: {
+        summary: contactSection,
+        generated_at: new Date().toISOString(),
+        generated_by: user.id,
+        model: model,
+        query: query,
+      },
+      last_enriched_at: new Date().toISOString(),
+      company_linkedin_url: companyData.linkedin_url,
+      company_industry: companyData.industry,
+      company_size: companyData.employee_count,
+      company_description: companyData.description,
+      company_headquarters: companyData.headquarters,
+      ...linkedInFields,
+    };
+
+    // Only add company_website if it's valid (or explicitly set to null to clear invalid data)
+    if (companyData.website) {
+      updateData.company_website = companyData.website;
+      console.log("Setting valid company website:", companyData.website);
+    } else {
+      updateData.company_website = null;
+      console.log("Clearing invalid company website");
+    }
+
+    // Only add company_id if we successfully created/found a company
+    if (companyId) {
+      updateData.company_id = companyId;
+    }
+
     const { error: updateError } = await supabase
       .from("campaign_contacts")
-      .update({
-        research_summary: {
-          summary: contactSection,
-          generated_at: new Date().toISOString(),
-          generated_by: user.id,
-          model: model,
-          query: query,
-        },
-        last_enriched_at: new Date().toISOString(),
-        company_id: companyId,
-        company_website: companyData.website,
-        company_linkedin_url: companyData.linkedin_url,
-        company_industry: companyData.industry,
-        company_size: companyData.employee_count,
-        company_description: companyData.description,
-        company_headquarters: companyData.headquarters,
-        ...linkedInFields,
-      })
+      .update(updateData)
       .eq("id", contactId);
 
     if (updateError) {
