@@ -348,6 +348,21 @@ serve(async (req) => {
       const docId = pathParts[pathParts.length - 1];
       const integration = await getPandaDocIntegration(supabase, user.id);
 
+      // First, check document status
+      const pandadocDoc = await fetchPandaDoc(`/documents/${docId}`, integration.apiKey);
+      
+      // Only create session if document is not in draft status
+      if (pandadocDoc.status === 'document.draft') {
+        return new Response(
+          JSON.stringify({ 
+            error: 'Document must be sent before creating embed session',
+            status: pandadocDoc.status,
+            requiresSend: true
+          }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
       // Create session
       const session = await fetchPandaDoc(`/documents/${docId}/session`, integration.apiKey, 'POST', {
         recipient: user.email,
@@ -405,31 +420,59 @@ async function getPandaDocIntegration(client: any, userId: string): Promise<{ in
   return { integration: data, apiKey };
 }
 
-// Helper function to call PandaDoc API
+// Helper function to call PandaDoc API with retry logic
 async function fetchPandaDoc(
   endpoint: string,
   apiKey: string,
   method: string = 'GET',
-  body?: any
+  body?: any,
+  retries: number = 3
 ): Promise<any> {
   const url = `${PANDADOC_API_BASE}${endpoint}`;
   
-  const response = await fetch(url, {
-    method,
-    headers: {
-      'Authorization': `API-Key ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Authorization': `API-Key ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: body ? JSON.stringify(body) : undefined,
+      });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error(`[pandadoc-manage] PandaDoc API error (${response.status}):`, errorText);
-    throw new Error(`PandaDoc API error (${response.status}): ${errorText}`);
+      if (!response.ok) {
+        const errorText = await response.text();
+        
+        // Handle rate limiting with retry
+        if (response.status === 429 && attempt < retries) {
+          const retryAfter = response.headers.get('Retry-After');
+          const waitTime = retryAfter ? parseInt(retryAfter) * 1000 : Math.pow(2, attempt) * 1000;
+          
+          console.log(`[pandadoc-manage] Rate limited. Retrying in ${waitTime}ms (attempt ${attempt + 1}/${retries})`);
+          await new Promise(resolve => setTimeout(resolve, waitTime));
+          continue;
+        }
+        
+        console.error(`[pandadoc-manage] PandaDoc API error (${response.status}):`, errorText);
+        throw new Error(`PandaDoc API error (${response.status}): ${errorText}`);
+      }
+
+      return response.json();
+    } catch (error) {
+      // If it's the last attempt or not a network error, throw
+      if (attempt === retries || !(error instanceof TypeError)) {
+        throw error;
+      }
+      
+      // Wait before retrying
+      const waitTime = Math.pow(2, attempt) * 1000;
+      console.log(`[pandadoc-manage] Network error. Retrying in ${waitTime}ms (attempt ${attempt + 1}/${retries})`);
+      await new Promise(resolve => setTimeout(resolve, waitTime));
+    }
   }
-
-  return response.json();
+  
+  throw new Error('Max retries exceeded');
 }
 
 // Helper function to verify webhook signature
