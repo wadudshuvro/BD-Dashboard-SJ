@@ -1007,9 +1007,9 @@ export default function CampaignContactDetail() {
                                   <Badge variant="secondary">
                                     {variant.tone}
                                   </Badge>
-                                  {variant.character_count > 300 && messageType === 'connection_request' && (
+                                  {variant.character_count > 200 && messageType === 'connection_request' && (
                                     <Badge variant="destructive">
-                                      ⚠️ Over LinkedIn limit
+                                      ⚠️ Over LinkedIn limit (max 200)
                                     </Badge>
                                   )}
                                 </div>

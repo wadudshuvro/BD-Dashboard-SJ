@@ -223,7 +223,7 @@ const linkedInMessageToolSchema = {
   type: "function" as const,
   function: {
     name: "generate_linkedin_messages",
-    description: "Generate personalized LinkedIn outreach messages with 3 variants",
+    description: "Generate personalized LinkedIn outreach messages with 3 variants. Connection requests must be under 200 characters each. Follow-up messages can be up to 500 characters.",
     parameters: {
       type: "object",
       properties: {
@@ -240,7 +240,7 @@ const linkedInMessageToolSchema = {
               },
               message: {
                 type: "string",
-                description: "The complete LinkedIn message text"
+                description: "The complete LinkedIn message text. MUST be under 200 characters for connection_request type, under 500 for other types."
               },
               character_count: {
                 type: "integer",
@@ -1192,6 +1192,17 @@ serve(async (req) => {
     const isLinkedInMessage = (agent as any).slug === 'linkedin-message-generator' || agent.category === 'linkedin_outreach';
 
     if (isLinkedInMessage && !parsedResponse) {
+      // Extract message type from execution context for character limit enforcement
+      const messageType = (executionContext as any)?.message_type || 'connection_request';
+      const charLimit = messageType === 'connection_request' ? 200 : 500;
+      
+      // Add character limit reminder to the system prompt
+      const enhancedMessages = [...messages];
+      enhancedMessages[0] = {
+        ...enhancedMessages[0],
+        content: `${enhancedMessages[0].content}\n\nIMPORTANT: For ${messageType} messages, STRICTLY limit each message variant to ${charLimit} characters or less. This is a hard LinkedIn platform constraint.`
+      };
+      
       // Use OpenAI with tool calling for LinkedIn messages
       const openaiKey = Deno.env.get('OPENAI_API_KEY');
       
@@ -1204,13 +1215,13 @@ serve(async (req) => {
               'Authorization': `Bearer ${openaiKey}`,
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-              model: 'gpt-4o-mini',
-              messages,
-              tools: [linkedInMessageToolSchema],
-              tool_choice: { type: "function", function: { name: "generate_linkedin_messages" } },
-              temperature: 0.8,
-            }),
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: enhancedMessages,
+          tools: [linkedInMessageToolSchema],
+          tool_choice: { type: "function", function: { name: "generate_linkedin_messages" } },
+          temperature: 0.8,
+        }),
           });
 
           const toolCallResult = await toolCallResponse.json();
