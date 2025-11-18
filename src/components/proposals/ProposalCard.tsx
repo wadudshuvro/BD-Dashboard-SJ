@@ -25,6 +25,7 @@ interface ProposalCardProps {
 
 export const ProposalCard = ({ proposal }: ProposalCardProps) => {
   const [editorOpen, setEditorOpen] = useState(false);
+  const [isViewMode, setIsViewMode] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const sendProposal = useSendProposal();
   const deleteProposal = useDeleteProposal();
@@ -38,9 +39,9 @@ export const ProposalCard = ({ proposal }: ProposalCardProps) => {
     if (isDraft) {
       // For drafts: Open PandaDoc dashboard directly
       window.open(`https://app.pandadoc.com/documents/${proposal.pandadoc_doc_id}`, "_blank");
-    } else if (proposal.recipient_url) {
-      window.open(proposal.recipient_url, "_blank");
     } else {
+      // For sent documents: Always open in modal viewer
+      setIsViewMode(true);
       setEditorOpen(true);
     }
   };
@@ -50,6 +51,8 @@ export const ProposalCard = ({ proposal }: ProposalCardProps) => {
       // For drafts: Open PandaDoc dashboard directly
       window.open(`https://app.pandadoc.com/documents/${proposal.pandadoc_doc_id}`, "_blank");
     } else {
+      // For sent documents: Open in modal editor
+      setIsViewMode(false);
       setEditorOpen(true);
     }
   };
@@ -141,6 +144,7 @@ export const ProposalCard = ({ proposal }: ProposalCardProps) => {
         open={editorOpen}
         onOpenChange={setEditorOpen}
         docId={proposal.pandadoc_doc_id}
+        mode={isViewMode ? 'view' : 'edit'}
       />
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
