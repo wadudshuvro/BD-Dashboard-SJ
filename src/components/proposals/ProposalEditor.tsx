@@ -9,7 +9,7 @@ interface ProposalEditorProps {
 }
 
 export const ProposalEditor = ({ open, onOpenChange, docId }: ProposalEditorProps) => {
-  const { data: embedUrl, isLoading, error } = useProposalEmbedUrl(docId);
+  const { data: embedUrl, isLoading, error } = useProposalEmbedUrl(docId, open);
 
   const isDraftStatus = error?.message?.includes("must be sent before viewing");
 
