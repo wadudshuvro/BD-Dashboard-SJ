@@ -166,13 +166,28 @@ serve(async (req) => {
 
     // Route: GET /templates - List available templates
     if (req.method === 'GET' && endpoint === 'templates') {
-      const integration = await getPandaDocIntegration(supabase, user.id);
-      const templates = await fetchPandaDoc('/templates', integration.apiKey);
+      try {
+        const integration = await getPandaDocIntegration(supabase, user.id);
+        const templates = await fetchPandaDoc('/templates', integration.apiKey);
 
-      return new Response(
-        JSON.stringify({ templates: templates.results || [] }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+        return new Response(
+          JSON.stringify({ 
+            ok: true, 
+            templates: templates.results || [] 
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      } catch (error) {
+        console.error('[pandadoc-manage] Template fetch failed:', error);
+        return new Response(
+          JSON.stringify({ 
+            ok: false, 
+            error: error instanceof Error ? error.message : 'Failed to fetch templates',
+            templates: []
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     // Route: POST /create-proposal - Create new proposal
