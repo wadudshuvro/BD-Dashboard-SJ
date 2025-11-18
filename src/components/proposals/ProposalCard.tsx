@@ -35,7 +35,10 @@ export const ProposalCard = ({ proposal }: ProposalCardProps) => {
   };
 
   const handleView = () => {
-    if (proposal.recipient_url) {
+    if (isDraft) {
+      // For drafts: Open PandaDoc dashboard directly
+      window.open(`https://app.pandadoc.com/documents/${proposal.pandadoc_doc_id}`, "_blank");
+    } else if (proposal.recipient_url) {
       window.open(proposal.recipient_url, "_blank");
     } else {
       setEditorOpen(true);
@@ -43,7 +46,12 @@ export const ProposalCard = ({ proposal }: ProposalCardProps) => {
   };
 
   const handleEdit = () => {
-    setEditorOpen(true);
+    if (isDraft) {
+      // For drafts: Open PandaDoc dashboard directly
+      window.open(`https://app.pandadoc.com/documents/${proposal.pandadoc_doc_id}`, "_blank");
+    } else {
+      setEditorOpen(true);
+    }
   };
 
   const handleDownload = () => {
