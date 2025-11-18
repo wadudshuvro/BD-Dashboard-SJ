@@ -204,12 +204,6 @@ export const useProposalEmbedUrl = (docId?: string, enabled = false) => {
       });
 
       if (error) throw error;
-      
-      // Handle draft status error - don't retry
-      if (data?.requiresSend) {
-        throw new Error("Document must be sent before viewing. Please send the proposal first.");
-      }
-      
       if (!data?.url) throw new Error(data?.error || "Failed to get embed URL");
 
       return data.url as string;

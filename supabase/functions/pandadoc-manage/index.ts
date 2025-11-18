@@ -348,38 +348,55 @@ serve(async (req) => {
       const docId = pathParts[pathParts.length - 1];
       const integration = await getPandaDocIntegration(supabase, user.id);
 
-      // First, check document status
+      // Get document status
       const pandadocDoc = await fetchPandaDoc(`/documents/${docId}`, integration.apiKey);
       
-      // Only create session if document is not in draft status
+      let sessionUrl: string;
+      
+      // For draft documents: Create EDITOR session (allows editing)
       if (pandadocDoc.status === 'document.draft') {
-        return new Response(
-          JSON.stringify({ 
-            error: 'Document must be sent before creating embed session',
-            status: pandadocDoc.status,
-            requiresSend: true
-          }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        const session = await fetchPandaDoc(
+          `/documents/${docId}/session`, 
+          integration.apiKey, 
+          'POST', 
+          {
+            recipient: user.email,
+            lifetime: 3600, // 1 hour
+          }
         );
+        sessionUrl = session.url;
+      } 
+      // For sent documents: Use recipient URL or create session
+      else {
+        // Use existing recipient URL if available
+        if (pandadocDoc.recipient_url) {
+          sessionUrl = pandadocDoc.recipient_url;
+        } 
+        // Create a new session for the user
+        else {
+          const session = await fetchPandaDoc(
+            `/documents/${docId}/session`, 
+            integration.apiKey, 
+            'POST', 
+            {
+              recipient: user.email,
+              lifetime: 3600,
+            }
+          );
+          sessionUrl = session.url;
+        }
       }
-
-      // Create session
-      const session = await fetchPandaDoc(`/documents/${docId}/session`, integration.apiKey, 'POST', {
-        recipient: user.email,
-        lifetime: 3600, // 1 hour
-      });
 
       // Update database with session info
       await supabase
         .from('proposal_documents')
         .update({
-          pandadoc_session_id: session.id,
-          editor_url: session.url,
+          editor_url: sessionUrl,
         })
         .eq('pandadoc_doc_id', docId);
 
       return new Response(
-        JSON.stringify({ url: session.url }),
+        JSON.stringify({ url: sessionUrl }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
