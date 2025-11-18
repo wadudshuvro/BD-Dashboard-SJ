@@ -384,6 +384,95 @@ serve(async (req) => {
       );
     }
 
+    // Route: DELETE /delete/:doc_id - Delete draft proposal
+    if (req.method === 'DELETE' && pathParts[pathParts.length - 2] === 'delete') {
+      const docId = pathParts[pathParts.length - 1];
+
+      // Get the proposal
+      const { data: proposal, error: fetchError } = await supabase
+        .from('proposal_documents')
+        .select('*')
+        .eq('id', docId)
+        .maybeSingle();
+
+      if (fetchError || !proposal) {
+        return new Response(
+          JSON.stringify({ ok: false, error: 'Proposal not found' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
+        );
+      }
+
+      // Security Check #1: Verify user owns the proposal
+      if (proposal.created_by !== user.id) {
+        return new Response(
+          JSON.stringify({ ok: false, error: 'You do not have permission to delete this proposal' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403 }
+        );
+      }
+
+      // Security Check #2: Verify proposal is in draft status
+      if (proposal.status !== 'draft') {
+        return new Response(
+          JSON.stringify({ 
+            ok: false, 
+            error: 'Only draft proposals can be deleted. Sent proposals cannot be deleted for audit trail purposes.',
+            status: proposal.status 
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403 }
+        );
+      }
+
+      // Optional: Try to delete from PandaDoc (soft failure)
+      if (proposal.pandadoc_doc_id) {
+        try {
+          const integration = await getPandaDocIntegration(supabase, user.id);
+          if (integration) {
+            await fetchPandaDoc(
+              `/documents/${proposal.pandadoc_doc_id}`,
+              integration.apiKey,
+              'DELETE'
+            );
+            console.log(`[pandadoc-manage] Deleted document ${proposal.pandadoc_doc_id} from PandaDoc`);
+          }
+        } catch (error) {
+          // Log but don't fail - we still want to delete from our database
+          console.error('[pandadoc-manage] Failed to delete from PandaDoc (non-fatal):', error);
+        }
+      }
+
+      // Delete from database
+      const { error: deleteError } = await supabase
+        .from('proposal_documents')
+        .delete()
+        .eq('id', docId);
+
+      if (deleteError) {
+        console.error('[pandadoc-manage] Database deletion error:', deleteError);
+        return new Response(
+          JSON.stringify({ ok: false, error: 'Failed to delete proposal from database' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+        );
+      }
+
+      // Log analytics
+      await supabase.from('analytics_data').insert({
+        metric_name: 'proposal_deleted',
+        metric_value: 1,
+        source: 'pandadoc',
+        dimensions: {
+          user_id: user.id,
+          proposal_id: docId,
+          pandadoc_doc_id: proposal.pandadoc_doc_id,
+        },
+      });
+
+      console.log(`[pandadoc-manage] Successfully deleted proposal ${docId}`);
+
+      return new Response(
+        JSON.stringify({ ok: true, message: 'Draft proposal deleted successfully' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     return new Response(
       JSON.stringify({ error: 'Endpoint not found' }),
