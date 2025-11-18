@@ -281,7 +281,7 @@ serve(async (req) => {
 
       return new Response(
         JSON.stringify({
-          success: true,
+          ok: true,
           proposal,
           pandadoc_doc_id: pandadocDoc.id,
         }),
