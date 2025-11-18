@@ -81,9 +81,9 @@ export const useCreateProposal = () => {
       const { data, error } = await supabase.functions.invoke("pandadoc-manage/create-proposal", {
         method: "POST",
         body: {
-          deal_id: dealId,
-          client_id: clientId,
-          template_id: templateId,
+          dealId,
+          clientId,
+          templateId,
           title,
         },
       });
