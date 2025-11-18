@@ -246,7 +246,7 @@ serve(async (req) => {
     // Check if user has admin privileges from user_roles table
     const userRole = await getUserRole(supabaseClient, user.id);
     
-    if (!userRole || !['super_admin', 'manager'].includes(userRole)) {
+    if (!userRole || !['super_admin', 'admin'].includes(userRole)) {
       return new Response(
         JSON.stringify({ error: 'Insufficient privileges' }),
         { 
