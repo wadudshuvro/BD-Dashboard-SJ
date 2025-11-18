@@ -7,7 +7,7 @@ import { format } from "date-fns";
 import { useState } from "react";
 import { ProposalEditor } from "./ProposalEditor";
 import { useSendProposal, useDeleteProposal } from "@/hooks/useProposals";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,7 +35,6 @@ export const ProposalCard = ({ proposal }: ProposalCardProps) => {
   };
 
   const handleView = () => {
-    if (isDraft) return; // Don't open for draft proposals
     if (proposal.recipient_url) {
       window.open(proposal.recipient_url, "_blank");
     } else {
@@ -44,7 +43,6 @@ export const ProposalCard = ({ proposal }: ProposalCardProps) => {
   };
 
   const handleEdit = () => {
-    if (isDraft) return; // Don't open editor for draft proposals
     setEditorOpen(true);
   };
 
@@ -85,77 +83,57 @@ export const ProposalCard = ({ proposal }: ProposalCardProps) => {
 
             <div className="flex flex-wrap gap-2">
               <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span>
-                      <Button variant="outline" size="sm" onClick={handleView} disabled={isDraft}>
-                        <Eye className="h-4 w-4 mr-1" />
-                        View
-                      </Button>
-                    </span>
-                  </TooltipTrigger>
-                  {isDraft && (
-                    <TooltipContent>
-                      <p>Send the proposal first to view it</p>
-                    </TooltipContent>
-                  )}
-                </Tooltip>
+                <Button variant="outline" size="sm" onClick={handleView}>
+                  <Eye className="h-4 w-4 mr-1" />
+                  View
+                </Button>
 
-                {isDraft && (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span>
-                        <Button variant="outline" size="sm" onClick={handleEdit} disabled={isDraft}>
-                          <Edit className="h-4 w-4 mr-1" />
-                          Edit
-                        </Button>
-                      </span>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Send the proposal first to edit it</p>
-                    </TooltipContent>
-                  </Tooltip>
-                )}
-
-                {isDraft && (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button 
-                        variant="destructive" 
-                        size="sm" 
-                        onClick={() => setDeleteDialogOpen(true)}
-                        disabled={deleteProposal.isPending}
-                      >
-                        <Trash2 className="h-4 w-4 mr-1" />
-                        Delete
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Delete this draft proposal</p>
-                    </TooltipContent>
-                  </Tooltip>
-                )}
-
-                {(isDraft || proposal.status === "viewed") && (
-                  <Button variant="default" size="sm" onClick={handleSend} disabled={sendProposal.isPending}>
-                    <Send className="h-4 w-4 mr-1" />
-                    Send
-                  </Button>
-                )}
-
-                {proposal.status === "signed" && proposal.pdf_url && (
-                  <Button variant="outline" size="sm" onClick={handleDownload}>
-                    <Download className="h-4 w-4 mr-1" />
-                    PDF
-                  </Button>
-                )}
+                <Button variant="outline" size="sm" onClick={handleEdit}>
+                  <Edit className="h-4 w-4 mr-1" />
+                  Edit
+                </Button>
               </TooltipProvider>
+
+              {isDraft && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setDeleteDialogOpen(true)}
+                  disabled={deleteProposal.isPending}
+                >
+                  <Trash2 className="h-4 w-4 mr-1" />
+                  Delete
+                </Button>
+              )}
+
+              {(isDraft || proposal.status === "viewed") && (
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={handleSend}
+                  disabled={sendProposal.isPending}
+                >
+                  <Send className="h-4 w-4 mr-1" />
+                  Send
+                </Button>
+              )}
+
+              {proposal.pdf_url && (
+                <Button variant="outline" size="sm" onClick={handleDownload}>
+                  <Download className="h-4 w-4 mr-1" />
+                  Download PDF
+                </Button>
+              )}
             </div>
           </div>
         </CardContent>
       </Card>
 
-      <ProposalEditor open={editorOpen} onOpenChange={setEditorOpen} docId={proposal.pandadoc_doc_id} />
+      <ProposalEditor
+        open={editorOpen}
+        onOpenChange={setEditorOpen}
+        docId={proposal.pandadoc_doc_id}
+      />
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
