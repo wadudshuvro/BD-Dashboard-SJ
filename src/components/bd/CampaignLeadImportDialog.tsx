@@ -42,9 +42,6 @@ export function CampaignLeadImportDialog({
   const [technologyInput, setTechnologyInput] = useState("");
   
   // Optional filter fields
-  const [suggestedKeywords, setSuggestedKeywords] = useState<string[]>([]);
-  const [selectedKeywords, setSelectedKeywords] = useState<string[]>([]);
-  const [customKeywords, setCustomKeywords] = useState("");
   const [maxResults, setMaxResults] = useState(25);
   const [userLocation, setUserLocation] = useState("US");
   const [isImporting, setIsImporting] = useState(false);
@@ -56,43 +53,9 @@ export function CampaignLeadImportDialog({
     errorMessage?: string;
   } | null>(null);
 
-  // Generate keyword suggestions from campaign data
-  useEffect(() => {
-    if (!open) return;
-
-    const keywords: string[] = [];
-
-    // Extract from campaign name
-    if (campaign.name) {
-      keywords.push(...extractKeywordsFromText(campaign.name));
-    }
-
-    // Extract from campaign target contacts
-    if (campaign.target_contacts && Array.isArray(campaign.target_contacts)) {
-      campaign.target_contacts.forEach(contact => {
-        if (typeof contact === "string") {
-          keywords.push(contact);
-        }
-      });
-    }
-
-    // Remove duplicates and limit to top 7
-    const uniqueKeywords = Array.from(new Set(keywords)).slice(0, 7);
-    setSuggestedKeywords(uniqueKeywords);
-    setSelectedKeywords(uniqueKeywords.slice(0, 3)); // Pre-select top 3
-  }, [campaign, open]);
-
   const estimatedCost = useMemo(() => {
     return maxResults * EXA_COST_PER_LEAD;
   }, [maxResults]);
-
-  const finalKeywords = useMemo(() => {
-    const custom = customKeywords
-      .split(",")
-      .map(k => k.trim())
-      .filter(Boolean);
-    return Array.from(new Set([...selectedKeywords, ...custom]));
-  }, [selectedKeywords, customKeywords]);
   
   // Search preview
   const previewQuery = useMemo(() => {
@@ -127,20 +90,11 @@ export function CampaignLeadImportDialog({
       "companies",
       locationPart,
       sizePart,
-      techPart,
-      finalKeywords.length > 0 ? finalKeywords.join(" ") : ""
+      techPart
     ].filter(Boolean);
     
     return parts.join(" ");
-  }, [jobTitles, industries, country, city, companySize, technologies, finalKeywords]);
-
-  const toggleKeyword = (keyword: string) => {
-    setSelectedKeywords(prev =>
-      prev.includes(keyword)
-        ? prev.filter(k => k !== keyword)
-        : [...prev, keyword]
-    );
-  };
+  }, [jobTitles, industries, country, city, companySize, technologies]);
 
   const handleImport = async () => {
     // Validation
@@ -167,7 +121,6 @@ export function CampaignLeadImportDialog({
           city: city || undefined,
           companySize,
           technologies: technologies.length > 0 ? technologies : undefined,
-          keywords: finalKeywords.length > 0 ? finalKeywords : undefined,
           maxResults,
           userLocation,
         },
@@ -497,44 +450,6 @@ export function CampaignLeadImportDialog({
           <div className="space-y-4">
             <h3 className="text-sm font-semibold">📊 Additional Filters (Optional)</h3>
 
-          {/* Suggested Keywords */}
-          <div className="space-y-3">
-            <Label>Additional Keywords</Label>
-            <p className="text-sm text-muted-foreground">
-              Click to select/deselect keywords based on your campaign
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {suggestedKeywords.map(keyword => (
-                <Badge
-                  key={keyword}
-                  variant={selectedKeywords.includes(keyword) ? "default" : "outline"}
-                  className="cursor-pointer hover:bg-primary/90"
-                  onClick={() => toggleKeyword(keyword)}
-                >
-                  {keyword}
-                  {selectedKeywords.includes(keyword) && (
-                    <X className="ml-1 h-3 w-3" />
-                  )}
-                </Badge>
-              ))}
-            </div>
-          </div>
-
-          {/* Custom Keywords */}
-          <div className="space-y-3">
-            <Label htmlFor="custom-keywords">Additional Keywords (optional)</Label>
-            <Textarea
-              id="custom-keywords"
-              placeholder="Enter additional keywords separated by commas..."
-              value={customKeywords}
-              onChange={(e) => setCustomKeywords(e.target.value)}
-              rows={3}
-            />
-            <p className="text-xs text-muted-foreground">
-              Example: SaaS CEO, AI Startup Founder, Series A CTO
-            </p>
-          </div>
-
           {/* User Location */}
           <div className="space-y-3">
             <Label>User Location</Label>
@@ -570,21 +485,6 @@ export function CampaignLeadImportDialog({
               className="w-full"
             />
           </div>
-
-          {/* Final Keywords Preview */}
-          {finalKeywords.length > 0 && (
-            <div className="space-y-2">
-              <Label>LinkedIn Search Query</Label>
-              <div className="rounded-lg border bg-muted/30 p-3">
-                <p className="text-sm font-mono">
-                  {finalKeywords.join(" ")}
-                </p>
-                <p className="text-xs text-muted-foreground mt-2">
-                  Category: LinkedIn Profiles | Location: {userLocation}
-                </p>
-              </div>
-            </div>
-          )}
           </div>
 
           {/* Job Status */}
@@ -638,7 +538,7 @@ export function CampaignLeadImportDialog({
           </Button>
           <Button
             onClick={handleImport}
-            disabled={isImporting || finalKeywords.length === 0}
+            disabled={isImporting || jobTitles.length === 0 || industries.length === 0}
           >
             {isImporting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Import {maxResults} Leads
@@ -647,22 +547,4 @@ export function CampaignLeadImportDialog({
       </DialogContent>
     </Dialog>
   );
-}
-
-function extractKeywordsFromText(text: string): string[] {
-  const patterns = [
-    /\b(CEO|CTO|CFO|CMO|VP|Director|Head|Manager|Founder|President|Executive)\b/gi,
-    /\b(SaaS|AI|ML|Fintech|Healthcare|Enterprise|B2B|E-commerce|EdTech)\b/gi,
-    /\b(Startup|Series [A-Z]|Fortune \d+|SMB|Mid-market)\b/gi,
-  ];
-
-  const matches: string[] = [];
-  patterns.forEach(pattern => {
-    const found = text.match(pattern);
-    if (found) {
-      matches.push(...found);
-    }
-  });
-
-  return Array.from(new Set(matches.map(m => m.trim())));
 }
