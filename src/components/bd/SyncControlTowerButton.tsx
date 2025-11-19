@@ -4,6 +4,8 @@ import { Badge } from '@/components/ui/badge';
 import { useSyncControlTowerDeals } from '@/hooks/useSyncControlTowerDeals';
 import { useSyncControlTowerFull } from '@/hooks/useSyncControlTowerFull';
 import { useControlTowerStatus } from '@/hooks/useControlTowerStatus';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,12 +31,42 @@ import {
 } from '@/components/ui/tooltip';
 import { format } from 'date-fns';
 
-export function SyncControlTowerButton() {
+interface SyncControlTowerButtonProps {
+  mode?: 'clients-only' | 'full';
+}
+
+export function SyncControlTowerButton({ mode = 'full' }: SyncControlTowerButtonProps) {
   const { syncDeals, isSyncing: isSyncingDeals } = useSyncControlTowerDeals();
   const { mutate: syncFull, isPending: isSyncingFull } = useSyncControlTowerFull();
   const { isConfigured, isActive, lastSync, isLoading } = useControlTowerStatus();
 
   const isSyncing = isSyncingDeals || isSyncingFull;
+
+  const handleClientSync = async () => {
+    if (!isConfigured || !isActive) {
+      toast.error('Control Tower not configured', {
+        description: 'Please configure Control Tower in Admin Settings first.'
+      });
+      return;
+    }
+
+    try {
+      // Call the sync-control-tower-clients-api edge function directly
+      const { data, error } = await supabase.functions.invoke('sync-control-tower-clients-api');
+      
+      if (error) throw error;
+      
+      const result = data as { clients: { new: number; updated: number; total_fetched: number } };
+      
+      toast.success('Clients synced successfully', {
+        description: `${result.clients.new} new, ${result.clients.updated} updated, ${result.clients.total_fetched} total fetched`
+      });
+    } catch (error: any) {
+      toast.error('Client sync failed', {
+        description: error.message || 'An error occurred during sync'
+      });
+    }
+  };
 
   const handleSyncDeals = async () => {
     await syncDeals();
@@ -82,6 +114,67 @@ export function SyncControlTowerButton() {
 
   const isButtonDisabled = isSyncing || isLoading || !isConfigured || !isActive;
 
+  // Clients-only mode: Simple button without dropdown
+  if (mode === 'clients-only') {
+    return (
+      <div className="flex flex-col gap-1">
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex items-center gap-2">
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="outline" disabled={isButtonDisabled}>
+                      <RefreshCw className={`h-4 w-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
+                      {isSyncing ? 'Syncing Clients...' : 'Sync Clients from Control Tower'}
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>
+                        {isConfigured && isActive ? 'Sync Clients from Control Tower?' : 'Control Tower Not Configured'}
+                      </AlertDialogTitle>
+                      <AlertDialogDescription>
+                        {isConfigured && isActive ? (
+                          <>
+                            This will pull all <strong>client records</strong> from Control Tower and sync them to your database.
+                            <br/><br/>
+                            • Updates existing clients<br/>
+                            • Creates new clients<br/>
+                            • Preserves local customizations
+                          </>
+                        ) : (
+                          <>
+                            Control Tower integration is not configured. Please configure the Control Tower URL and API key in Admin Settings → Integration Manager to enable syncing.
+                          </>
+                        )}
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      {isConfigured && isActive && (
+                        <AlertDialogAction onClick={handleClientSync}>
+                          Sync Clients
+                        </AlertDialogAction>
+                      )}
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+                {getStatusBadge()}
+              </div>
+            </TooltipTrigger>
+            {lastSync && (
+              <TooltipContent>
+                <p>Last sync: {format(lastSync, 'PPpp')}</p>
+              </TooltipContent>
+            )}
+          </Tooltip>
+        </TooltipProvider>
+      </div>
+    );
+  }
+
+  // Full mode: Dropdown with multiple sync options
   return (
     <div className="flex flex-col gap-1">
       <TooltipProvider>

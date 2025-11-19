@@ -49,7 +49,7 @@ export default function Clients() {
             Directory of all converted accounts
           </p>
         </div>
-        <SyncControlTowerButton />
+        <SyncControlTowerButton mode="clients-only" />
       </div>
 
       <LastSyncDetails />
