@@ -1,31 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 import { corsHeaders } from "../_shared/cors.ts";
-
-// Simple URL validation function
-function isValidUrl(url: string | null | undefined): boolean {
-  if (!url || typeof url !== 'string') return false;
-  
-  url = url.trim();
-  if (!url || url.length < 4) return false;
-  
-  // Reject common placeholder patterns
-  const placeholderPatterns = [
-    /^url\**/i, /^\[url\]/i, /^<url>/i, /^website$/i,
-    /^n\/?a$/i, /^none$/i, /^tbd$/i, /^pending$/i,
-    /^\*+$/, /^-+$/, /^_+$/,
-  ];
-  
-  if (placeholderPatterns.some(pattern => pattern.test(url))) {
-    return false;
-  }
-  
-  // Must contain a dot and look like a domain
-  if (!url.includes('.') || url.length < 4) return false;
-  
-  // Basic domain pattern check
-  const domainPattern = /^(?:https?:\/\/)?(?:www\.)?([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(?:\/[^\s]*)?$/;
-  return domainPattern.test(url);
-}
+import { getValidUrl } from "../_shared/urlUtils.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -270,14 +245,12 @@ Format your response clearly with "CONTACT:" and "COMPANY:" section headers.`;
       };
     }
 
-    // Validate and clean website URL
-    const validWebsite = isValidUrl(companyData.website) ? companyData.website : null;
-    if (validWebsite) {
-      companyData.website = validWebsite;
-      console.log("Valid website URL:", validWebsite);
+    // Validate and normalize website URL (adds https:// if missing)
+    companyData.website = getValidUrl(companyData.website);
+    if (companyData.website) {
+      console.log("Normalized website URL:", companyData.website);
     } else {
       console.log("Invalid or missing website URL, setting to null");
-      companyData.website = null;
     }
 
     // Company data will be stored directly in campaign_contacts fields
