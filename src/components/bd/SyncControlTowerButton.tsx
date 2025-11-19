@@ -47,6 +47,7 @@ export function SyncControlTowerButton({ mode = 'full', onSyncStateChange }: Syn
     current: number;
     total: number;
   } | null>(null);
+  const [abortController, setAbortController] = useState<AbortController | null>(null);
 
   const isSyncing = isSyncingDeals || isSyncingFull;
 
@@ -65,14 +66,26 @@ export function SyncControlTowerButton({ mode = 'full', onSyncStateChange }: Syn
       return;
     }
 
+    const controller = new AbortController();
+    setAbortController(controller);
     setIsClientSyncing(true);
     setClientSyncProgress(null);
 
     try {
       // Call the sync-control-tower-clients-api edge function directly
-      const { data, error } = await supabase.functions.invoke('sync-control-tower-clients-api');
+      const { data, error } = await supabase.functions.invoke('sync-control-tower-clients-api', {
+        signal: controller.signal
+      });
       
-      if (error) throw error;
+      if (error) {
+        if (error.name === 'AbortError' || error.message?.includes('aborted')) {
+          toast.info('Client sync stopped', {
+            description: 'Sync operation was cancelled'
+          });
+          return;
+        }
+        throw error;
+      }
       
       const result = data as { clients: { new: number; updated: number; total_fetched: number } };
       
@@ -80,12 +93,28 @@ export function SyncControlTowerButton({ mode = 'full', onSyncStateChange }: Syn
         description: `${result.clients.new} new, ${result.clients.updated} updated, ${result.clients.total_fetched} total fetched`
       });
     } catch (error: any) {
-      toast.error('Client sync failed', {
-        description: error.message || 'An error occurred during sync'
-      });
+      if (error.name === 'AbortError' || error.message?.includes('aborted')) {
+        toast.info('Client sync stopped', {
+          description: 'Sync operation was cancelled'
+        });
+      } else {
+        toast.error('Client sync failed', {
+          description: error.message || 'An error occurred during sync'
+        });
+      }
     } finally {
       setIsClientSyncing(false);
       setClientSyncProgress(null);
+      setAbortController(null);
+    }
+  };
+
+  const handleStopSync = () => {
+    if (abortController) {
+      abortController.abort();
+      toast.info('Stopping sync...', {
+        description: 'Cancelling the sync operation'
+      });
     }
   };
 
@@ -143,13 +172,19 @@ export function SyncControlTowerButton({ mode = 'full', onSyncStateChange }: Syn
           <Tooltip>
             <TooltipTrigger asChild>
               <div className="flex items-center gap-2">
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="outline" disabled={isButtonDisabled}>
-                      <RefreshCw className={`h-4 w-4 mr-2 ${isClientSyncing ? 'animate-spin' : ''}`} />
-                      {isClientSyncing ? 'Syncing Clients...' : 'Sync Clients from Control Tower'}
-                    </Button>
-                  </AlertDialogTrigger>
+                {isClientSyncing ? (
+                  <Button variant="outline" onClick={handleStopSync}>
+                    <XCircle className="h-4 w-4 mr-2" />
+                    Stop Sync
+                  </Button>
+                ) : (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="outline" disabled={isButtonDisabled}>
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                        Sync Clients from Control Tower
+                      </Button>
+                    </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>
                       <AlertDialogTitle>
@@ -181,6 +216,7 @@ export function SyncControlTowerButton({ mode = 'full', onSyncStateChange }: Syn
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
+                )}
                 {getStatusBadge()}
               </div>
             </TooltipTrigger>
