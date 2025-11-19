@@ -1,6 +1,8 @@
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { useSyncControlTowerDeals } from '@/hooks/useSyncControlTowerDeals';
+import { useControlTowerStatus } from '@/hooks/useControlTowerStatus';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -12,37 +14,116 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { format } from 'date-fns';
 
 export function SyncControlTowerButton() {
   const { syncDeals, isSyncing } = useSyncControlTowerDeals();
+  const { isConfigured, isActive, lastSync, isLoading } = useControlTowerStatus();
 
   const handleSync = async () => {
     await syncDeals();
   };
 
+  const getStatusBadge = () => {
+    if (isLoading) {
+      return (
+        <Badge variant="secondary" className="ml-2">
+          <AlertCircle className="h-3 w-3 mr-1" />
+          Checking...
+        </Badge>
+      );
+    }
+
+    if (isSyncing) {
+      return (
+        <Badge variant="secondary" className="ml-2">
+          <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+          Syncing
+        </Badge>
+      );
+    }
+
+    if (isConfigured && isActive) {
+      return (
+        <Badge variant="default" className="ml-2 bg-green-600 hover:bg-green-700">
+          <CheckCircle2 className="h-3 w-3 mr-1" />
+          Connected
+        </Badge>
+      );
+    }
+
+    return (
+      <Badge variant="destructive" className="ml-2">
+        <XCircle className="h-3 w-3 mr-1" />
+        Not Configured
+      </Badge>
+    );
+  };
+
+  const isButtonDisabled = isSyncing || isLoading || !isConfigured || !isActive;
+
   return (
-    <AlertDialog>
-      <AlertDialogTrigger asChild>
-        <Button variant="outline" disabled={isSyncing}>
-          <RefreshCw className={`h-4 w-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
-          {isSyncing ? 'Syncing...' : 'Sync from Control Tower'}
-        </Button>
-      </AlertDialogTrigger>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Sync Active Deals from Control Tower?</AlertDialogTitle>
-          <AlertDialogDescription>
-            This will copy all active deals from Control Tower to your BD database.
-            Existing deals will be updated with the latest information.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction onClick={handleSync}>
-            Sync Deals
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+    <div className="flex flex-col gap-1">
+      <AlertDialog>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex items-center">
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline" disabled={isButtonDisabled}>
+                    <RefreshCw className={`h-4 w-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
+                    {isSyncing ? 'Syncing...' : 'Sync from Control Tower'}
+                  </Button>
+                </AlertDialogTrigger>
+                {getStatusBadge()}
+              </div>
+            </TooltipTrigger>
+            {lastSync && (
+              <TooltipContent>
+                <p>Last sync: {format(lastSync, 'PPpp')}</p>
+              </TooltipContent>
+            )}
+          </Tooltip>
+        </TooltipProvider>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {isConfigured && isActive ? 'Sync Active Deals from Control Tower?' : 'Control Tower Not Configured'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {isConfigured && isActive ? (
+                <>
+                  This will copy all <strong>active deals</strong> from Control Tower to your BD database.
+                  Existing deals will be updated with the latest information including:
+                  <br/><br/>
+                  • Deal details and status<br/>
+                  • Client information<br/>
+                  • Checklist items<br/>
+                  • Owner assignments
+                </>
+              ) : (
+                <>
+                  Control Tower integration is not configured. Please configure the Control Tower URL and API key in Admin Settings → Integration Manager to enable syncing.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            {isConfigured && isActive && (
+              <AlertDialogAction onClick={handleSync}>
+                Sync Deals
+              </AlertDialogAction>
+            )}
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
   );
 }

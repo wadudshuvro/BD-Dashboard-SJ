@@ -1,5 +1,5 @@
 import { StagePipelineTable } from '@/components/bd/StagePipelineTable';
-import { SyncHubSpotButton } from '@/components/bd/SyncHubSpotButton';
+import { SyncControlTowerButton } from '@/components/bd/SyncControlTowerButton';
 
 export default function Qualification() {
   return (
@@ -9,7 +9,7 @@ export default function Qualification() {
           <h1 className="text-3xl font-bold">Estimation</h1>
           <p className="text-muted-foreground">Qualifying leads and assessing opportunity fit</p>
         </div>
-        <SyncHubSpotButton />
+        <SyncControlTowerButton />
       </div>
       <StagePipelineTable
         stage="qualification"
