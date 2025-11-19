@@ -42,6 +42,7 @@ export function CampaignLeadImportDialog({
   const [technologyInput, setTechnologyInput] = useState("");
   
   // Optional filter fields
+  const [customKeywords, setCustomKeywords] = useState("");
   const [maxResults, setMaxResults] = useState(25);
   const [userLocation, setUserLocation] = useState("US");
   const [isImporting, setIsImporting] = useState(false);
@@ -56,6 +57,14 @@ export function CampaignLeadImportDialog({
   const estimatedCost = useMemo(() => {
     return maxResults * EXA_COST_PER_LEAD;
   }, [maxResults]);
+
+  const finalKeywords = useMemo(() => {
+    const custom = customKeywords
+      .split(",")
+      .map(k => k.trim())
+      .filter(Boolean);
+    return Array.from(new Set(custom));
+  }, [customKeywords]);
   
   // Search preview
   const previewQuery = useMemo(() => {
@@ -90,11 +99,12 @@ export function CampaignLeadImportDialog({
       "companies",
       locationPart,
       sizePart,
-      techPart
+      techPart,
+      finalKeywords.length > 0 ? finalKeywords.join(" ") : ""
     ].filter(Boolean);
     
     return parts.join(" ");
-  }, [jobTitles, industries, country, city, companySize, technologies]);
+  }, [jobTitles, industries, country, city, companySize, technologies, finalKeywords]);
 
   const handleImport = async () => {
     // Validation
@@ -121,6 +131,7 @@ export function CampaignLeadImportDialog({
           city: city || undefined,
           companySize,
           technologies: technologies.length > 0 ? technologies : undefined,
+          keywords: finalKeywords.length > 0 ? finalKeywords : undefined,
           maxResults,
           userLocation,
         },
@@ -449,6 +460,21 @@ export function CampaignLeadImportDialog({
           {/* Additional Filters */}
           <div className="space-y-4">
             <h3 className="text-sm font-semibold">📊 Additional Filters (Optional)</h3>
+
+          {/* Custom Keywords */}
+          <div className="space-y-3">
+            <Label htmlFor="custom-keywords">Additional Keywords</Label>
+            <Textarea
+              id="custom-keywords"
+              placeholder="Enter additional keywords separated by commas..."
+              value={customKeywords}
+              onChange={(e) => setCustomKeywords(e.target.value)}
+              rows={3}
+            />
+            <p className="text-xs text-muted-foreground">
+              Example: SaaS CEO, AI Startup Founder, Series A CTO
+            </p>
+          </div>
 
           {/* User Location */}
           <div className="space-y-3">
