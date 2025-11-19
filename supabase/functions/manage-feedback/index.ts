@@ -416,7 +416,7 @@ serve(async (req) => {
 
     if (req.method === "POST" && routeSegments[1] === "comment") {
       try {
-        await assertAdmin(serviceClient, user.id);
+        await assertAtLeastAdmin(serviceClient, user.id);
       } catch (error) {
         const message = error instanceof Error ? error.message : "Forbidden";
         const status = message === "Insufficient privileges" ? 403 : 500;
@@ -431,7 +431,7 @@ serve(async (req) => {
 
     if (req.method === "PUT" && routeSegments[1] === "status") {
       try {
-        await assertAdmin(serviceClient, user.id);
+        await assertAtLeastAdmin(serviceClient, user.id);
       } catch (error) {
         const message = error instanceof Error ? error.message : "Forbidden";
         const status = message === "Insufficient privileges" ? 403 : 500;
@@ -446,7 +446,7 @@ serve(async (req) => {
 
     if (req.method === "DELETE" && routeSegments.length === 1) {
       try {
-        await assertAdmin(serviceClient, user.id);
+        await assertAtLeastAdmin(serviceClient, user.id);
       } catch (error) {
         const message = error instanceof Error ? error.message : "Forbidden";
         const status = message === "Insufficient privileges" ? 403 : 500;

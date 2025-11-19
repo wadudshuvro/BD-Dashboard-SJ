@@ -88,7 +88,9 @@ export default function FeedbackManager() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  const isViewOnly = user?.role === 'admin';
+  // Only super_admin and admin should have full access
+  // All other roles (manager, project_manager, bd_user, team_member) are view-only
+  const isViewOnly = !['super_admin', 'admin'].includes(user?.role || '');
   const { enabled: feedbackEnabled } = useFeatureFlag("feedback_enabled");
 
   const tabConfig = TABS[activeTab];
