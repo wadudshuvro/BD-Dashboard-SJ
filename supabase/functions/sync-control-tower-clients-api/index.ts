@@ -259,11 +259,21 @@ serve(async (req) => {
 
     for (const ctClient of clients) {
       try {
+        // Build safe OR condition for checking existing client
+        const orConditions = [];
+        if (ctClient.id) {
+          orConditions.push(`control_tower_id.eq.${ctClient.id}`);
+        }
+        const companyName = (ctClient.company || ctClient.name || '').replace(/[()]/g, '');
+        if (companyName) {
+          orConditions.push(`company.ilike.${companyName}`);
+        }
+
         // Check if client already exists by control_tower_id or company name
         const { data: existingClient, error: checkError } = await supabase
           .from('clients')
           .select('id, name, updated_at')
-          .or(`control_tower_id.eq.${ctClient.id},company.ilike.${ctClient.company || ctClient.name}`)
+          .or(orConditions.join(','))
           .maybeSingle();
 
         if (checkError) {
@@ -289,7 +299,6 @@ serve(async (req) => {
           country: ctClient.country || null,
           postal_code: ctClient.postal_code || null,
           control_tower_id: ctClient.id,
-          last_synced_at: new Date().toISOString(),
         };
 
         if (existingClient) {
