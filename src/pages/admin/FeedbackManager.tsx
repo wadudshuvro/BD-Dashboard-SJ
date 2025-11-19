@@ -84,6 +84,7 @@ export default function FeedbackManager() {
   const [activeTab, setActiveTab] = useState<keyof typeof TABS>("bugs");
   const [selectedFeedbackId, setSelectedFeedbackId] = useState<string | null>(null);
   const [commentDraft, setCommentDraft] = useState("");
+  const [statusFilter, setStatusFilter] = useState<FeedbackStatus | 'all'>('all');
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -96,7 +97,7 @@ export default function FeedbackManager() {
   const tabConfig = TABS[activeTab];
 
   const listQuery = useQuery({
-    queryKey: ["feedback-list", activeTab],
+    queryKey: ["feedback-list", activeTab, statusFilter],
     queryFn: async () => {
       const params: Record<string, unknown> = {};
 
@@ -108,6 +109,11 @@ export default function FeedbackManager() {
       if ("status" in tabConfig) {
         params.status = tabConfig.status;
         params.includeClosed = tabConfig.includeClosed;
+      }
+
+      // Add status filter if not "all" and not in "Closed" tab
+      if (statusFilter !== 'all' && activeTab !== 'closed') {
+        params.status = statusFilter;
       }
 
       const response = await listFeedbackReports(params);
@@ -125,7 +131,9 @@ export default function FeedbackManager() {
     } else {
       setSelectedFeedbackId(null);
     }
-  }, [listQuery.data, selectedFeedbackId]);
+    // Reset status filter when switching tabs
+    setStatusFilter('all');
+  }, [activeTab, listQuery.data, selectedFeedbackId]);
 
   const detailQuery = useQuery({
     queryKey: ["feedback-detail", selectedFeedbackId],
@@ -264,11 +272,41 @@ export default function FeedbackManager() {
                   <CardTitle className="text-xl">{config.label}</CardTitle>
                   <CardDescription>{config.description}</CardDescription>
                 </div>
-                <Badge variant="outline" className="gap-2 text-xs">
-                  <Inbox className="h-3.5 w-3.5" /> {totalItems} items
-                </Badge>
+                <div className="flex items-center gap-3">
+                  {activeTab !== 'closed' && (
+                    <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as FeedbackStatus | 'all')}>
+                      <SelectTrigger className="w-[160px]">
+                        <SelectValue placeholder="Filter by status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Statuses</SelectItem>
+                        <SelectItem value="open">Open</SelectItem>
+                        <SelectItem value="in_review">In Review</SelectItem>
+                        <SelectItem value="resolved">Resolved</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                  <Badge variant="outline" className="gap-2 text-xs">
+                    <Inbox className="h-3.5 w-3.5" /> {totalItems} items
+                  </Badge>
+                </div>
               </CardHeader>
               <CardContent className="p-0">
+                {statusFilter !== 'all' && activeTab !== 'closed' && (
+                  <div className="px-6 py-3 bg-muted/50 border-b">
+                    <p className="text-sm text-muted-foreground">
+                      Showing <span className="font-medium">{STATUS_LABELS[statusFilter]}</span> items only
+                      <Button
+                        variant="link"
+                        size="sm"
+                        className="ml-2 h-auto p-0 text-xs"
+                        onClick={() => setStatusFilter('all')}
+                      >
+                        Clear filter
+                      </Button>
+                    </p>
+                  </div>
+                )}
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
