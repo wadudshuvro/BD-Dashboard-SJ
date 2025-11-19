@@ -23,7 +23,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
-import { Trash2 } from 'lucide-react';
+import { Trash2, Plus, X } from 'lucide-react';
 import {
   Form,
   FormControl,
@@ -42,10 +42,11 @@ import {
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Textarea } from '@/components/ui/textarea';
 import { useBDCampaigns, type BDCampaign } from '@/hooks/useBDCampaigns';
 import { useCampaignOwners } from '@/hooks/useCampaignOwners';
 import type { CampaignType } from '@/Api/adminCampaigns';
-import type { TargetNiche } from '@/hooks/useTargetNiches';
+import { useTargetNiches, type TargetNiche } from '@/hooks/useTargetNiches';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -150,8 +151,13 @@ export function CampaignDialog({ open, onOpenChange, niches, campaign, mode = 'c
   const { user } = useAuth();
   const isEditMode = mode === 'edit' && campaign;
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showCreateNiche, setShowCreateNiche] = useState(false);
+  const [newNicheName, setNewNicheName] = useState('');
+  const [newNicheDescription, setNewNicheDescription] = useState('');
+  const [isCreatingNiche, setIsCreatingNiche] = useState(false);
   
   const { data: campaignOwners = [], isLoading: ownersLoading } = useCampaignOwners();
+  const { createNiche } = useTargetNiches();
 
   const form = useForm<CampaignFormValues>({
     resolver: zodResolver(campaignFormSchema),
@@ -217,6 +223,48 @@ export function CampaignDialog({ open, onOpenChange, niches, campaign, mode = 'c
       });
     }
   }, [open, isEditMode, campaign, form]);
+
+  const handleCreateNewNiche = async () => {
+    if (!newNicheName.trim()) {
+      toast({
+        title: 'Error',
+        description: 'Please enter a niche name',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsCreatingNiche(true);
+    try {
+      const newNiche = await createNiche.mutateAsync({
+        name: newNicheName.trim(),
+        description: newNicheDescription.trim() || undefined,
+        status: 'active',
+        priority: 'medium',
+        created_by: user?.id,
+      });
+
+      // Set the newly created niche as the selected value
+      form.setValue('nicheId', newNiche.id);
+      
+      // Reset form and hide the create section
+      setNewNicheName('');
+      setNewNicheDescription('');
+      setShowCreateNiche(false);
+      
+      // Invalidate the niches query to refresh the list
+      queryClient.invalidateQueries({ queryKey: ['target_niches'] });
+      
+      toast({
+        title: 'Success',
+        description: 'New niche created and selected',
+      });
+    } catch (error) {
+      console.error('Failed to create niche:', error);
+    } finally {
+      setIsCreatingNiche(false);
+    }
+  };
 
   const handleDelete = async () => {
     if (!campaign) return;
@@ -339,6 +387,62 @@ export function CampaignDialog({ open, onOpenChange, niches, campaign, mode = 'c
                       </SelectContent>
                     </Select>
                     <FormMessage />
+                    
+                    {!showCreateNiche ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="mt-2 w-full"
+                        onClick={() => setShowCreateNiche(true)}
+                      >
+                        <Plus className="mr-2 h-4 w-4" />
+                        Create New Niche
+                      </Button>
+                    ) : (
+                      <div className="mt-3 space-y-3 p-3 border rounded-lg bg-muted/50">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium">Create New Niche</span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setShowCreateNiche(false);
+                              setNewNicheName('');
+                              setNewNicheDescription('');
+                            }}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Input
+                            placeholder="Niche name (e.g., AI Solutions)"
+                            value={newNicheName}
+                            onChange={(e) => setNewNicheName(e.target.value)}
+                            disabled={isCreatingNiche}
+                          />
+                          <Textarea
+                            placeholder="Description (optional)"
+                            value={newNicheDescription}
+                            onChange={(e) => setNewNicheDescription(e.target.value)}
+                            disabled={isCreatingNiche}
+                            rows={2}
+                          />
+                          <Button
+                            type="button"
+                            size="sm"
+                            className="w-full"
+                            onClick={handleCreateNewNiche}
+                            disabled={isCreatingNiche || !newNicheName.trim()}
+                          >
+                            {isCreatingNiche ? 'Creating...' : 'Create & Select'}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </FormItem>
                 )}
               />
