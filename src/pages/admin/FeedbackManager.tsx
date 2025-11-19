@@ -122,6 +122,7 @@ export default function FeedbackManager() {
     enabled: feedbackEnabled,
   });
 
+  // Effect 1: Manage selected feedback item when data changes
   useEffect(() => {
     if (listQuery.data?.items?.length) {
       const hasSelection = listQuery.data.items.some((item) => item.id === selectedFeedbackId);
@@ -131,9 +132,12 @@ export default function FeedbackManager() {
     } else {
       setSelectedFeedbackId(null);
     }
-    // Reset status filter when switching tabs
+  }, [listQuery.data, selectedFeedbackId]);
+
+  // Effect 2: Reset status filter ONLY when switching tabs
+  useEffect(() => {
     setStatusFilter('all');
-  }, [activeTab, listQuery.data, selectedFeedbackId]);
+  }, [activeTab]);
 
   const detailQuery = useQuery({
     queryKey: ["feedback-detail", selectedFeedbackId],
