@@ -53,8 +53,8 @@ export default function CampaignManagement() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCampaign, setEditingCampaign] = useState<BDCampaign | null>(null);
   
-  // Only apply search when empty or 4+ characters
-  const effectiveSearchQuery = searchQuery.length === 0 || searchQuery.length >= 4 
+  // Only apply search when empty or 3+ characters
+  const effectiveSearchQuery = searchQuery.length === 0 || searchQuery.length >= 3 
     ? searchQuery 
     : undefined;
   
@@ -255,15 +255,15 @@ export default function CampaignManagement() {
                   <div className="relative">
                     <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                     <Input
-                      placeholder="Search campaigns (min 4 characters)..."
+                      placeholder="Search campaigns (min 3 characters)..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className="pl-10"
                     />
                   </div>
-                  {searchQuery.length > 0 && searchQuery.length < 4 && (
+                  {searchQuery.length > 0 && searchQuery.length < 3 && (
                     <p className="text-xs text-muted-foreground mt-1 ml-1">
-                      Type {4 - searchQuery.length} more character{4 - searchQuery.length !== 1 ? 's' : ''} to search
+                      Type {3 - searchQuery.length} more character{3 - searchQuery.length !== 1 ? 's' : ''} to search
                     </p>
                   )}
                 </div>
