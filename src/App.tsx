@@ -56,6 +56,7 @@ import LeadDetail from "./pages/bd/LeadDetail";
 import AnalyticsDashboard from "./pages/analytics/Dashboard";
 import TeamPerformance from "./pages/analytics/TeamPerformance";
 import CampaignROI from "./pages/bd/CampaignROI";
+import TestEmailPage from "./pages/TestEmailPage";
 
 const queryClient = new QueryClient();
 
@@ -285,6 +286,15 @@ const App = () => (
               </ProtectedRoute>
             }>
               <Route index element={<SequenceManagement />} />
+            </Route>
+
+            {/* Test Email - for testing email automation system */}
+            <Route path="/test-email" element={
+              <ProtectedRoute requiredMinimumRole="team_member">
+                <Layout />
+              </ProtectedRoute>
+            }>
+              <Route index element={<TestEmailPage />} />
             </Route>
 
             {/* Proposals */}

@@ -144,7 +144,8 @@ serve(async (req) => {
       current_step: 0,
       scheduling_mode: config.scheduling_mode,
       batch_config: config.batch_config || { messagesPerBatch: 25, interval: 1, intervalUnit: 'days' },
-      send_days: config.send_days || ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
+      // Only store time restrictions for drip mode
+      send_days: config.send_days || null,
       time_window_start: config.time_window_start || null,
       time_window_end: config.time_window_end || null,
       start_date_time: startTime.toISOString(),
@@ -167,19 +168,8 @@ serve(async (req) => {
 
     let batchesCreated = 0;
 
-    // Create batch queue for drip mode
-    if (config.scheduling_mode === 'drip' && createdEnrollments && createdEnrollments.length > 0) {
-      const batchSize = config.batch_config?.messagesPerBatch || 25;
-      const interval = config.batch_config?.interval || 1;
-      const intervalUnit = config.batch_config?.intervalUnit || 'days';
-
-      // Group enrollments into waves based on batch size
-      const waves: CreatedEnrollment[][] = [];
-      for (let i = 0; i < createdEnrollments.length; i += batchSize) {
-        waves.push(createdEnrollments.slice(i, i + batchSize));
-      }
-
-      // Create batches per enrollment within each wave
+    // Create batch queue for ALL scheduling modes
+    if (createdEnrollments && createdEnrollments.length > 0) {
       const batches: Array<{
         enrollment_id: string;
         batch_number: number;
@@ -187,31 +177,55 @@ serve(async (req) => {
         status: string;
         contacts_in_batch: string[];
       }> = [];
-      
-      waves.forEach((wave, waveIndex) => {
-        // Calculate scheduled time for this wave
-        let scheduledFor = new Date(startTime);
-        const waveDelay = waveIndex * interval;
-        
-        if (intervalUnit === 'minutes') {
-          scheduledFor.setMinutes(scheduledFor.getMinutes() + waveDelay);
-        } else if (intervalUnit === 'hours') {
-          scheduledFor.setHours(scheduledFor.getHours() + waveDelay);
-        } else {
-          scheduledFor.setDate(scheduledFor.getDate() + waveDelay);
+
+      if (config.scheduling_mode === 'drip') {
+        // DRIP MODE: Create multiple batches over time
+        const batchSize = config.batch_config?.messagesPerBatch || 25;
+        const interval = config.batch_config?.interval || 1;
+        const intervalUnit = config.batch_config?.intervalUnit || 'days';
+
+        // Group enrollments into waves based on batch size
+        const waves: CreatedEnrollment[][] = [];
+        for (let i = 0; i < createdEnrollments.length; i += batchSize) {
+          waves.push(createdEnrollments.slice(i, i + batchSize));
         }
 
-        // Create one batch per enrollment in this wave
-        wave.forEach((enrollment) => {
+        waves.forEach((wave, waveIndex) => {
+          // Calculate scheduled time for this wave
+          let scheduledFor = new Date(startTime);
+          const waveDelay = waveIndex * interval;
+          
+          if (intervalUnit === 'minutes') {
+            scheduledFor.setMinutes(scheduledFor.getMinutes() + waveDelay);
+          } else if (intervalUnit === 'hours') {
+            scheduledFor.setHours(scheduledFor.getHours() + waveDelay);
+          } else {
+            scheduledFor.setDate(scheduledFor.getDate() + waveDelay);
+          }
+
+          // Create one batch per enrollment in this wave
+          wave.forEach((enrollment) => {
+            batches.push({
+              enrollment_id: enrollment.id,
+              batch_number: waveIndex + 1,
+              scheduled_for: scheduledFor.toISOString(),
+              status: 'pending',
+              contacts_in_batch: [enrollment.contact_id],
+            });
+          });
+        });
+      } else {
+        // IMMEDIATE or SCHEDULED MODE: Create one batch per enrollment, send ASAP
+        createdEnrollments.forEach((enrollment) => {
           batches.push({
             enrollment_id: enrollment.id,
-            batch_number: waveIndex + 1,
-            scheduled_for: scheduledFor.toISOString(),
+            batch_number: 1,
+            scheduled_for: startTime.toISOString(),
             status: 'pending',
             contacts_in_batch: [enrollment.contact_id],
           });
         });
-      });
+      }
 
       const { error: batchError } = await serviceClient
         .from('sequence_batch_queue')
@@ -222,6 +236,7 @@ serve(async (req) => {
         // Don't throw here, enrollments are already created
       } else {
         batchesCreated = batches.length;
+        console.log(`Created ${batchesCreated} batch(es) for ${config.scheduling_mode} mode`);
       }
     }
 

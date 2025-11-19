@@ -60,10 +60,12 @@ serve(async (req) => {
         enrollment:contact_sequence_enrollments(
           id,
           sequence_id,
+          scheduling_mode,
           send_days,
           time_window_start,
           time_window_end,
           email_template_id,
+          total_sent,
           sequence:campaign_sequences(
             id,
             name,
@@ -95,15 +97,21 @@ serve(async (req) => {
     for (const batch of batches) {
       const enrollment = batch.enrollment as any;
       
-      // Check time and day constraints
-      if (!isAllowedDay(enrollment.send_days)) {
-        console.log(`Batch ${batch.id} skipped: Not an allowed day`);
+      // Check time and day constraints ONLY for drip mode
+      // Immediate and scheduled modes should send regardless of time window
+      const schedulingMode = enrollment.scheduling_mode || 'drip';
+      const hasSendDays = enrollment.send_days && enrollment.send_days.length > 0;
+      const hasTimeWindow = enrollment.time_window_start && enrollment.time_window_end;
+      
+      // Only enforce time restrictions if send_days or time_window are explicitly set
+      if (hasSendDays && !isAllowedDay(enrollment.send_days)) {
+        console.log(`Batch ${batch.id} skipped: Not an allowed day (${new Date().toLocaleDateString('en-US', { weekday: 'long' })})`);
         skipped++;
         continue;
       }
 
-      if (!isWithinTimeWindow(enrollment.time_window_start, enrollment.time_window_end)) {
-        console.log(`Batch ${batch.id} skipped: Outside time window`);
+      if (hasTimeWindow && !isWithinTimeWindow(enrollment.time_window_start, enrollment.time_window_end)) {
+        console.log(`Batch ${batch.id} skipped: Outside time window (${new Date().toTimeString().split(' ')[0].substring(0, 5)})`);
         skipped++;
         continue;
       }

@@ -92,9 +92,10 @@ export function SequenceEnrollmentDialog({
               interval: batchConfig.repeatInterval,
               intervalUnit: batchConfig.repeatUnit,
             } : undefined,
-            send_days: schedulingMode === 'drip' ? batchConfig.sendDays : undefined,
-            time_window_start: schedulingMode === 'drip' ? batchConfig.timeWindowStart : undefined,
-            time_window_end: schedulingMode === 'drip' ? batchConfig.timeWindowEnd : undefined,
+            // Only apply time restrictions for drip mode
+            send_days: schedulingMode === 'drip' ? batchConfig.sendDays : null,
+            time_window_start: schedulingMode === 'drip' ? batchConfig.timeWindowStart : null,
+            time_window_end: schedulingMode === 'drip' ? batchConfig.timeWindowEnd : null,
             start_date_time: startDateTime,
             email_template_id: emailTemplateId,
           },
