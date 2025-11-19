@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   Layers,
@@ -48,19 +48,26 @@ type AggregateStats = {
 export default function CampaignManagement() {
   const pagination = usePagination(12);
   const queryClient = useQueryClient();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
   const { campaigns, total, isLoading, error } = useBDCampaigns(
     undefined,
     pagination.currentPage,
     pagination.pageSize,
+    searchQuery,
+    statusFilter
   );
   const { niches } = useTargetNiches();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCampaign, setEditingCampaign] = useState<BDCampaign | null>(null);
   
   const errorMessage = error instanceof Error && error.message ? error.message : null;
   const totalPages = Math.ceil(total / pagination.pageSize);
+
+  // Reset to page 1 when search or filter changes
+  useEffect(() => {
+    pagination.reset();
+  }, [searchQuery, statusFilter]);
 
   const handleRetry = () => {
     if (pagination.currentPage !== 1) {
@@ -68,12 +75,6 @@ export default function CampaignManagement() {
     }
     void queryClient.invalidateQueries({ queryKey: ['admin-campaigns'] });
   };
-
-  const filteredCampaigns = campaigns.filter((campaign) => {
-    const matchesSearch = campaign.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || campaign.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
 
   const aggregateStats = useMemo(() => {
     return campaigns.reduce<AggregateStats>(
@@ -96,7 +97,7 @@ export default function CampaignManagement() {
   const metrics = [
     {
       title: 'Total Campaigns',
-      value: campaigns.length,
+      value: total,
       icon: Layers,
     },
     {
@@ -270,8 +271,8 @@ export default function CampaignManagement() {
 
               <div className="space-y-6">
                 <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-                  {filteredCampaigns.map((campaign) => (
-                    <CampaignCard 
+                  {campaigns.map((campaign) => (
+                    <CampaignCard
                       key={campaign.id} 
                       campaign={campaign} 
                       niches={niches}

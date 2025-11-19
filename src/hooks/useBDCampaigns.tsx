@@ -68,16 +68,28 @@ function buildOptimisticCampaign(id: string, payload: CampaignPayload): Campaign
   };
 }
 
-export const useBDCampaigns = (nicheId?: string, page: number = 1, limit: number = 12) => {
+export const useBDCampaigns = (
+  nicheId?: string, 
+  page: number = 1, 
+  limit: number = 12,
+  search?: string,
+  status?: string
+) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const queryKey = ['admin-campaigns', { nicheId, page, limit }];
+  const queryKey = ['admin-campaigns', { nicheId, page, limit, search, status }];
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey,
     queryFn: async () => {
-      const response = await listCampaigns({ nicheId, page, pageSize: limit });
+      const response = await listCampaigns({ 
+        nicheId, 
+        page, 
+        pageSize: limit,
+        search,
+        status: status !== 'all' ? status : undefined
+      });
       return response;
     },
   });
