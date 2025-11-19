@@ -153,7 +153,7 @@ export interface CampaignDetailResponse {
 export interface CampaignListParams {
   page?: number;
   pageSize?: number;
-  status?: CampaignStatus;
+  status?: CampaignStatus | string;
   nicheId?: string;
   ownerId?: string;
   brandId?: string;
@@ -163,7 +163,18 @@ export interface CampaignListParams {
 }
 
 export async function listCampaigns(params: CampaignListParams = {}): Promise<CampaignListResponse> {
-  const response = await axiosPrivate.get<CampaignListResponse>("/admin-campaigns/list", { params });
+  const queryParams: Record<string, string> = {};
+  
+  if (params.page) queryParams.page = params.page.toString();
+  if (params.pageSize) queryParams.pageSize = params.pageSize.toString();
+  if (params.nicheId) queryParams.nicheId = params.nicheId;
+  if (params.search) queryParams.search = params.search;
+  if (params.status && params.status !== 'all') queryParams.status = params.status;
+  if (params.ownerId) queryParams.ownerId = params.ownerId;
+  if (params.brandId) queryParams.brandId = params.brandId;
+  if (params.includeArchived !== undefined) queryParams.includeArchived = params.includeArchived.toString();
+  
+  const response = await axiosPrivate.get<CampaignListResponse>("/admin-campaigns/list", { params: queryParams });
   return response.data;
 }
 
