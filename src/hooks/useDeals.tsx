@@ -536,16 +536,15 @@ export function useLocalDealsByStage(
           query = query.eq('stage', stage);
         }
         
-        // Smart status filtering - default to active + on_hold (matches Control Tower)
-        let statusFilter = filters?.statuses || ['active', 'on_hold'];
-        
-        // If hideStaleDeals is enabled, remove 'on_hold' from filter
-        if (filters?.hideStaleDeals) {
-          statusFilter = statusFilter.filter(s => s !== 'on_hold');
+        // Apply status filter ONLY if explicitly provided by user
+        // By default, show ALL deals in the stage regardless of status
+        if (filters?.statuses && filters.statuses.length > 0) {
+          query = query.in('status', filters.statuses);
         }
         
-        if (statusFilter.length > 0) {
-          query = query.in('status', statusFilter);
+        // If hideStaleDeals is enabled, explicitly exclude 'on_hold' status
+        if (filters?.hideStaleDeals) {
+          query = query.neq('status', 'on_hold');
         }
 
         // Apply filters
