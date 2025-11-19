@@ -1,8 +1,15 @@
-import { RefreshCw, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
+import { RefreshCw, CheckCircle2, XCircle, AlertCircle, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useSyncControlTowerDeals } from '@/hooks/useSyncControlTowerDeals';
+import { useSyncControlTowerFull } from '@/hooks/useSyncControlTowerFull';
 import { useControlTowerStatus } from '@/hooks/useControlTowerStatus';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,11 +30,18 @@ import {
 import { format } from 'date-fns';
 
 export function SyncControlTowerButton() {
-  const { syncDeals, isSyncing } = useSyncControlTowerDeals();
+  const { syncDeals, isSyncing: isSyncingDeals } = useSyncControlTowerDeals();
+  const { mutate: syncFull, isPending: isSyncingFull } = useSyncControlTowerFull();
   const { isConfigured, isActive, lastSync, isLoading } = useControlTowerStatus();
 
-  const handleSync = async () => {
+  const isSyncing = isSyncingDeals || isSyncingFull;
+
+  const handleSyncDeals = async () => {
     await syncDeals();
+  };
+
+  const handleFullSync = () => {
+    syncFull();
   };
 
   const getStatusBadge = () => {
@@ -70,60 +84,114 @@ export function SyncControlTowerButton() {
 
   return (
     <div className="flex flex-col gap-1">
-      <AlertDialog>
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div className="flex items-center">
-                <AlertDialogTrigger asChild>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="flex items-center gap-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
                   <Button variant="outline" disabled={isButtonDisabled}>
                     <RefreshCw className={`h-4 w-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
                     {isSyncing ? 'Syncing...' : 'Sync from Control Tower'}
+                    <ChevronDown className="h-4 w-4 ml-2" />
                   </Button>
-                </AlertDialogTrigger>
-                {getStatusBadge()}
-              </div>
-            </TooltipTrigger>
-            {lastSync && (
-              <TooltipContent>
-                <p>Last sync: {format(lastSync, 'PPpp')}</p>
-              </TooltipContent>
-            )}
-          </Tooltip>
-        </TooltipProvider>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {isConfigured && isActive ? 'Sync Active Deals from Control Tower?' : 'Control Tower Not Configured'}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {isConfigured && isActive ? (
-                <>
-                  This will copy all <strong>active deals</strong> from Control Tower to your BD database.
-                  Existing deals will be updated with the latest information including:
-                  <br/><br/>
-                  • Deal details and status<br/>
-                  • Client information<br/>
-                  • Checklist items<br/>
-                  • Owner assignments
-                </>
-              ) : (
-                <>
-                  Control Tower integration is not configured. Please configure the Control Tower URL and API key in Admin Settings → Integration Manager to enable syncing.
-                </>
-              )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            {isConfigured && isActive && (
-              <AlertDialogAction onClick={handleSync}>
-                Sync Deals
-              </AlertDialogAction>
-            )}
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                        Full Sync (Recommended)
+                      </DropdownMenuItem>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>
+                          {isConfigured && isActive ? 'Run Full Sync from Control Tower?' : 'Control Tower Not Configured'}
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                          {isConfigured && isActive ? (
+                            <>
+                              This will sync <strong>everything</strong> from Control Tower:
+                              <br/><br/>
+                              • Employees (team members)<br/>
+                              • PODs (project teams)<br/>
+                              • Deals (active deals)<br/>
+                              • Clients (from deals)<br/>
+                              • Checklists (deal tasks)
+                              <br/><br/>
+                              This may take 2-5 minutes to complete.
+                            </>
+                          ) : (
+                            <>
+                              Control Tower integration is not configured. Please configure the Control Tower URL and API key in Admin Settings → Integration Manager to enable syncing.
+                            </>
+                          )}
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        {isConfigured && isActive && (
+                          <AlertDialogAction onClick={handleFullSync}>
+                            Run Full Sync
+                          </AlertDialogAction>
+                        )}
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                  
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                        Sync Deals Only
+                      </DropdownMenuItem>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>
+                          {isConfigured && isActive ? 'Sync Active Deals from Control Tower?' : 'Control Tower Not Configured'}
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                          {isConfigured && isActive ? (
+                            <>
+                              This will copy all <strong>active deals</strong> from Control Tower to your BD database.
+                              Existing deals will be updated with the latest information including:
+                              <br/><br/>
+                              • Deal details and status<br/>
+                              • Client information<br/>
+                              • Checklist items<br/>
+                              • Owner assignments
+                            </>
+                          ) : (
+                            <>
+                              Control Tower integration is not configured. Please configure the Control Tower URL and API key in Admin Settings → Integration Manager to enable syncing.
+                            </>
+                          )}
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        {isConfigured && isActive && (
+                          <AlertDialogAction onClick={handleSyncDeals}>
+                            Sync Deals
+                          </AlertDialogAction>
+                        )}
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              {getStatusBadge()}
+            </div>
+          </TooltipTrigger>
+          {lastSync && (
+            <TooltipContent>
+              <p>Last sync: {format(lastSync, 'PPpp')}</p>
+            </TooltipContent>
+          )}
+        </Tooltip>
+      </TooltipProvider>
     </div>
   );
 }
