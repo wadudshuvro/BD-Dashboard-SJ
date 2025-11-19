@@ -43,10 +43,10 @@ function useDealCounts() {
   return useQuery({
     queryKey: ['deal-counts-nav'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('deals')
-        .select('stage')
-        .eq('status', 'active');
+    const { data, error } = await supabase
+      .from('deals')
+      .select('stage');
+      // Count ALL deals by stage regardless of status
       
       if (error) throw error;
       
