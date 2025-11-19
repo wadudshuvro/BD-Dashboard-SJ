@@ -1008,7 +1008,24 @@ async function performSync(
         sync_type: 'pull',
         entity_type: 'deal',
         status: 'success',
-        payload: { synced: syncedCount, duration },
+        payload: {
+          deals: {
+            new: 0,
+            updated: syncedCount,
+            failed: 0
+          },
+          clients: {
+            new: clientsCreated,
+            updated: clientsUpdated
+          },
+          checklists: {
+            synced: checklistSyncedCount,
+            failed: checklistFailedCount
+          },
+          duration: duration,
+          timestamp: new Date().toISOString(),
+          errors: []
+        },
         synced_by: userId,
       });
     } catch (logError) {

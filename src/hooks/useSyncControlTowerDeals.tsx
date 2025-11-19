@@ -37,6 +37,8 @@ export const useSyncControlTowerDeals = (dealId?: string) => {
     },
     onSuccess: async (result) => {
       queryClient.invalidateQueries({ queryKey: ['deals'] });
+      queryClient.invalidateQueries({ queryKey: ['control-tower-last-sync'] });
+      
       if (dealId) {
         // Invalidate all deal-related queries
         queryClient.invalidateQueries({ queryKey: ['deal-checklist', dealId] });
