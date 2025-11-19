@@ -5,10 +5,15 @@ import { usePagination } from '@/hooks/usePagination';
 import { useNavigate } from 'react-router-dom';
 import { SyncControlTowerButton } from '@/components/bd/SyncControlTowerButton';
 import { LastSyncDetails } from '@/components/bd/LastSyncDetails';
+import { ClientSyncProgress } from '@/components/bd/ClientSyncProgress';
+import { useState } from 'react';
 
 export default function Clients() {
   const pagination = usePagination(25);
   const navigate = useNavigate();
+  const [isClientSyncing, setIsClientSyncing] = useState(false);
+  const [syncProgress, setSyncProgress] = useState<{ current: number; total: number } | null>(null);
+  
   const { clients, loading: isLoading, totalCount } = useClients({
     page: pagination.currentPage,
     limit: pagination.pageSize
@@ -49,8 +54,19 @@ export default function Clients() {
             Directory of all converted accounts
           </p>
         </div>
-        <SyncControlTowerButton mode="clients-only" />
+        <SyncControlTowerButton 
+          mode="clients-only"
+          onSyncStateChange={(isSyncing, progress) => {
+            setIsClientSyncing(isSyncing);
+            setSyncProgress(progress);
+          }}
+        />
       </div>
+
+      <ClientSyncProgress 
+        isVisible={isClientSyncing}
+        progress={syncProgress}
+      />
 
       <LastSyncDetails />
 

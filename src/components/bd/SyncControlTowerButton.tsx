@@ -6,6 +6,7 @@ import { useSyncControlTowerFull } from '@/hooks/useSyncControlTowerFull';
 import { useControlTowerStatus } from '@/hooks/useControlTowerStatus';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useState, useEffect } from 'react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,14 +34,28 @@ import { format } from 'date-fns';
 
 interface SyncControlTowerButtonProps {
   mode?: 'clients-only' | 'full';
+  onSyncStateChange?: (isSyncing: boolean, progress?: { current: number; total: number } | null) => void;
 }
 
-export function SyncControlTowerButton({ mode = 'full' }: SyncControlTowerButtonProps) {
+export function SyncControlTowerButton({ mode = 'full', onSyncStateChange }: SyncControlTowerButtonProps) {
   const { syncDeals, isSyncing: isSyncingDeals } = useSyncControlTowerDeals();
   const { mutate: syncFull, isPending: isSyncingFull } = useSyncControlTowerFull();
   const { isConfigured, isActive, lastSync, isLoading } = useControlTowerStatus();
 
+  const [isClientSyncing, setIsClientSyncing] = useState(false);
+  const [clientSyncProgress, setClientSyncProgress] = useState<{
+    current: number;
+    total: number;
+  } | null>(null);
+
   const isSyncing = isSyncingDeals || isSyncingFull;
+
+  // Notify parent component when sync state changes
+  useEffect(() => {
+    if (mode === 'clients-only' && onSyncStateChange) {
+      onSyncStateChange(isClientSyncing, clientSyncProgress);
+    }
+  }, [isClientSyncing, clientSyncProgress, mode, onSyncStateChange]);
 
   const handleClientSync = async () => {
     if (!isConfigured || !isActive) {
@@ -49,6 +64,9 @@ export function SyncControlTowerButton({ mode = 'full' }: SyncControlTowerButton
       });
       return;
     }
+
+    setIsClientSyncing(true);
+    setClientSyncProgress(null);
 
     try {
       // Call the sync-control-tower-clients-api edge function directly
@@ -65,6 +83,9 @@ export function SyncControlTowerButton({ mode = 'full' }: SyncControlTowerButton
       toast.error('Client sync failed', {
         description: error.message || 'An error occurred during sync'
       });
+    } finally {
+      setIsClientSyncing(false);
+      setClientSyncProgress(null);
     }
   };
 
@@ -112,7 +133,7 @@ export function SyncControlTowerButton({ mode = 'full' }: SyncControlTowerButton
     );
   };
 
-  const isButtonDisabled = isSyncing || isLoading || !isConfigured || !isActive;
+  const isButtonDisabled = isSyncing || isLoading || !isConfigured || !isActive || isClientSyncing;
 
   // Clients-only mode: Simple button without dropdown
   if (mode === 'clients-only') {
@@ -125,8 +146,8 @@ export function SyncControlTowerButton({ mode = 'full' }: SyncControlTowerButton
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button variant="outline" disabled={isButtonDisabled}>
-                      <RefreshCw className={`h-4 w-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
-                      {isSyncing ? 'Syncing Clients...' : 'Sync Clients from Control Tower'}
+                      <RefreshCw className={`h-4 w-4 mr-2 ${isClientSyncing ? 'animate-spin' : ''}`} />
+                      {isClientSyncing ? 'Syncing Clients...' : 'Sync Clients from Control Tower'}
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
