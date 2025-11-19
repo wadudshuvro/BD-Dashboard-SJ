@@ -280,62 +280,8 @@ Format your response clearly with "CONTACT:" and "COMPANY:" section headers.`;
       companyData.website = null;
     }
 
-    // Handle company data upsert if we have company information
-    let companyId = null;
-    if (contact.contact_company && companyData.website) {
-      // Check if company exists
-      const { data: existingCompany } = await supabase
-        .from('companies')
-        .select('id')
-        .ilike('name', contact.contact_company)
-        .maybeSingle();
-
-      if (existingCompany) {
-        // Update existing company
-        await supabase
-          .from('companies')
-          .update({
-            website: companyData.website,
-            linkedin_url: companyData.linkedin_url,
-            industry: companyData.industry,
-            employee_count: companyData.employee_count,
-            headquarters: companyData.headquarters,
-            description: companyData.description,
-            last_researched_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', existingCompany.id);
-        
-        companyId = existingCompany.id;
-        console.log("Updated existing company:", existingCompany.id);
-      } else {
-        // Create new company with slug
-        const slug = contact.contact_company
-          .toLowerCase()
-          .replace(/[^a-z0-9]+/g, '-')
-          .replace(/^-+|-+$/g, '');
-        
-        const { data: newCompany } = await supabase
-          .from('companies')
-          .insert({
-            name: contact.contact_company,
-            slug: slug,
-            website: companyData.website,
-            linkedin_url: companyData.linkedin_url,
-            industry: companyData.industry,
-            employee_count: companyData.employee_count,
-            headquarters: companyData.headquarters,
-            description: companyData.description,
-            last_researched_at: new Date().toISOString(),
-            created_by: user.id,
-          })
-          .select('id, slug')
-          .single();
-        
-        companyId = newCompany?.id;
-        console.log("Created new company:", companyId, "with slug:", newCompany?.slug);
-      }
-    }
+    // Company data will be stored directly in campaign_contacts fields
+    console.log("Company data ready for contact update");
 
     // Update contact with research summary, company link, and parsed fields
     // Only include valid website URL (or null)
@@ -365,11 +311,6 @@ Format your response clearly with "CONTACT:" and "COMPANY:" section headers.`;
       console.log("Clearing invalid company website");
     }
 
-    // Only add company_id if we successfully created/found a company
-    if (companyId) {
-      updateData.company_id = companyId;
-    }
-
     const { error: updateError } = await supabase
       .from("campaign_contacts")
       .update(updateData)
@@ -387,7 +328,6 @@ Format your response clearly with "CONTACT:" and "COMPANY:" section headers.`;
         success: true,
         research_summary: contactSection,
         company_data: companyData,
-        company_id: companyId,
         contact_id: contactId,
       }),
       {
