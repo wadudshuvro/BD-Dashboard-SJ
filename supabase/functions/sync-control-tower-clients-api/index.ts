@@ -1,12 +1,11 @@
 /**
- * Control Tower Clients REST API Sync Edge Function
+ * Control Tower Clients Direct Database Sync Edge Function
  *
- * Syncs clients from Control Tower REST API to local BD Portal database.
- * Uses the official Control Tower REST API instead of direct Supabase-to-Supabase connection.
+ * Syncs clients from Control Tower using direct Supabase-to-Supabase connection
+ * (same approach as deal sync, not REST API)
  *
  * Features:
- * - Pagination support (fetches all pages)
- * - Rate limit handling
+ * - Direct database connection to Control Tower
  * - Upsert logic (prevents duplicates)
  * - Comprehensive error handling
  * - Progress tracking
@@ -37,45 +36,30 @@ interface SyncResult {
     failed: number;
     total_fetched: number;
   };
-  rateLimit?: {
-    limit: number;
-    remaining: number;
-    reset: string;
-  };
   errors: string[];
   warnings: string[];
   duration: number;
-  pages_fetched: number;
 }
 
-interface APIClient {
+interface CTClient {
   id: string;
   name: string;
   email?: string;
   company?: string;
   phone?: string;
-  status: 'active' | 'inactive' | 'archived';
+  status?: string;
   website?: string;
   industry?: string;
   contact_person?: string;
+  contact_name?: string;
+  primary_contact?: string;
   address?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-interface PaginationInfo {
-  page: number;
-  limit: number;
-  total_items: number;
-  total_pages: number;
-  has_next_page: boolean;
-  has_previous_page: boolean;
-}
-
-interface RateLimitInfo {
-  limit: number;
-  remaining: number;
-  reset: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  postal_code?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 // ============================================================================
@@ -99,11 +83,10 @@ serve(async (req) => {
     errors: [],
     warnings: [],
     duration: 0,
-    pages_fetched: 0,
   };
 
   try {
-    console.log('[ClientsAPI] Starting Control Tower Clients REST API sync...');
+    console.log('[ClientSync] Starting Control Tower Clients sync...');
 
     // ========================================================================
     // Authentication & Setup
@@ -123,28 +106,27 @@ serve(async (req) => {
     const { data: { user }, error: authError } = await supabase.auth.getUser(token);
 
     if (authError) {
-      console.warn('[ClientsAPI] Unable to resolve user:', authError.message);
+      console.warn('[ClientSync] Unable to resolve user:', authError.message);
     }
 
     const userId = user?.id ?? null;
-    console.log(`[ClientsAPI] User ID: ${userId || 'service'}`);
+    console.log(`[ClientSync] User ID: ${userId || 'service'}`);
 
     // ========================================================================
-    // Get Control Tower REST API Configuration
+    // Get Control Tower Direct Connection
     // ========================================================================
 
-    // Get API base URL from edge secrets
-    const apiBaseUrl = Deno.env.get('CONTROL_TOWER_API_URL') ||
-                      'https://ttlmdbgptqlvjswtcrnq.supabase.co/functions/v1';
+    const ctUrl = Deno.env.get('Controltowerurl');
+    const ctKey = Deno.env.get('CONTROLTOWERAPIKEY');
 
-    // Get API key from edge secrets (required scope: clients)
-    const apiKey = Deno.env.get('CONTROLTOWERAPIKEY');
-
-    if (!apiKey) {
-      throw new Error('Control Tower API key not configured in edge secrets (CONTROLTOWERAPIKEY)');
+    if (!ctUrl || !ctKey) {
+      throw new Error('Control Tower credentials not configured in edge secrets (Controltowerurl, CONTROLTOWERAPIKEY)');
     }
 
-    console.log(`[ClientsAPI] Using API base URL: ${apiBaseUrl}`);
+    console.log(`[ClientSync] Connecting to Control Tower: ${ctUrl}`);
+
+    // Create Control Tower client
+    const ctClient = createClient(ctUrl, ctKey);
 
     // ========================================================================
     // Create or Update Sync Status Record
@@ -156,12 +138,12 @@ serve(async (req) => {
       const { data: statusData, error: statusError } = await supabase
         .from('control_tower_sync_status')
         .upsert({
-          sync_type: 'clients_api',
+          sync_type: 'clients_direct',
           status: 'running',
           started_at: new Date().toISOString(),
           metadata: {
             current_phase: 'clients',
-            api_sync: true,
+            direct_db_sync: true,
             user_id: userId,
           },
         }, {
@@ -171,211 +153,187 @@ serve(async (req) => {
         .single();
 
       if (statusError) {
-        console.warn('[ClientsAPI] Could not create sync status:', statusError);
+        console.warn('[ClientSync] Could not create sync status:', statusError);
       } else {
         syncStatusId = statusData?.id;
       }
     } catch (e) {
-      console.warn('[ClientsAPI] Sync status tracking unavailable:', e);
+      console.warn('[ClientSync] Sync status tracking unavailable:', e);
     }
 
     // ========================================================================
-    // Fetch Clients from Control Tower REST API
+    // Fetch Clients from Control Tower Database
     // ========================================================================
 
-    let currentPage = 1;
-    let hasMorePages = true;
-    let totalPages = 1;
-    const pageLimit = 100; // Max allowed by API
+    console.log('[ClientSync] Fetching clients from Control Tower database...');
 
-    while (hasMorePages) {
-      console.log(`[ClientsAPI] Fetching page ${currentPage}/${totalPages}...`);
+    // Try 'Client' table first (capitalized), then 'clients' (lowercase)
+    let clients: CTClient[] = [];
+    let fetchError: any = null;
 
-      try {
-        // Make API request
-        const apiUrl = `${apiBaseUrl}/api-v1-clients?page=${currentPage}&limit=${pageLimit}`;
-        const response = await fetch(apiUrl, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
+    // Try Client table
+    const { data: clientsData, error: clientsError } = await ctClient
+      .from('Client')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(1000);
+
+    if (clientsError) {
+      console.log('[ClientSync] Client table not found, trying clients table...');
+      
+      // Try clients table
+      const { data: clientsDataLower, error: clientsErrorLower } = await ctClient
+        .from('clients')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(1000);
+
+      if (clientsErrorLower) {
+        fetchError = clientsErrorLower;
+        console.error('[ClientSync] Neither Client nor clients table found:', clientsErrorLower);
+      } else {
+        clients = clientsDataLower || [];
+      }
+    } else {
+      clients = clientsData || [];
+    }
+
+    // If no clients found and there was an error, provide helpful message
+    if (clients.length === 0 && fetchError) {
+      const errorMessage = 'Control Tower does not have a Client/clients table. Clients are extracted from deals during Full Sync.';
+      
+      result.warnings.push(errorMessage);
+      result.duration = Date.now() - startTime;
+
+      // Log the result
+      await supabase
+        .from('control_tower_sync_log')
+        .insert({
+          sync_type: 'pull_clients_direct',
+          status: 'info',
+          records_synced: 0,
+          records_failed: 0,
+          error_message: errorMessage,
+          duration_ms: result.duration,
+          metadata: {
+            message: 'No Client table in Control Tower',
+            suggestion: 'Use Full Sync to populate clients from deals'
           },
         });
 
-        // Extract rate limit info
-        const rateLimitHeader = {
-          limit: response.headers.get('X-RateLimit-Limit'),
-          remaining: response.headers.get('X-RateLimit-Remaining'),
-          reset: response.headers.get('X-RateLimit-Reset'),
+      if (syncStatusId) {
+        await supabase
+          .from('control_tower_sync_status')
+          .update({
+            status: 'completed',
+            completed_at: new Date().toISOString(),
+            metadata: {
+              current_phase: 'completed',
+              direct_db_sync: true,
+              user_id: userId,
+              message: errorMessage,
+            },
+          })
+          .eq('id', syncStatusId);
+      }
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: errorMessage,
+          result,
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
+        }
+      );
+    }
+
+    console.log(`[ClientSync] Fetched ${clients.length} clients from Control Tower`);
+    result.clients.total_fetched = clients.length;
+
+    // ========================================================================
+    // Sync Clients to Local Database
+    // ========================================================================
+
+    for (const ctClient of clients) {
+      try {
+        // Check if client already exists by control_tower_id or company name
+        const { data: existingClient, error: checkError } = await supabase
+          .from('clients')
+          .select('id, name, updated_at')
+          .or(`control_tower_id.eq.${ctClient.id},company.ilike.${ctClient.company || ctClient.name}`)
+          .maybeSingle();
+
+        if (checkError) {
+          console.error(`[ClientSync] Error checking existing client ${ctClient.id}:`, checkError);
+          result.clients.failed++;
+          result.errors.push(`Failed to check client ${ctClient.name}: ${checkError.message}`);
+          continue;
+        }
+
+        // Map Control Tower client to local schema
+        const clientData = {
+          name: ctClient.name || ctClient.company || 'Unknown Client',
+          email: ctClient.email || null,
+          company: ctClient.company || ctClient.name || null,
+          phone: ctClient.phone || null,
+          status: mapClientStatus(ctClient.status),
+          website: ctClient.website || null,
+          industry: ctClient.industry || null,
+          contact_person: ctClient.contact_person || ctClient.contact_name || ctClient.primary_contact || null,
+          address: ctClient.address || null,
+          city: ctClient.city || null,
+          state: ctClient.state || null,
+          country: ctClient.country || null,
+          postal_code: ctClient.postal_code || null,
+          control_tower_id: ctClient.id,
+          last_synced_at: new Date().toISOString(),
         };
 
-        if (rateLimitHeader.limit && rateLimitHeader.remaining && rateLimitHeader.reset) {
-          result.rateLimit = {
-            limit: parseInt(rateLimitHeader.limit, 10),
-            remaining: parseInt(rateLimitHeader.remaining, 10),
-            reset: rateLimitHeader.reset,
-          };
+        if (existingClient) {
+          // Update existing client
+          const { error: updateError } = await supabase
+            .from('clients')
+            .update(clientData)
+            .eq('id', existingClient.id);
 
-          console.log(`[ClientsAPI] Rate limit: ${result.rateLimit.remaining}/${result.rateLimit.limit}`);
-
-          // Warning if running low on rate limit
-          if (result.rateLimit.remaining < 10) {
-            const warning = `Rate limit nearly exceeded: ${result.rateLimit.remaining} requests remaining`;
-            result.warnings.push(warning);
-            console.warn(`[ClientsAPI] ${warning}`);
-          }
-        }
-
-        // Handle rate limiting
-        if (response.status === 429) {
-          const resetTime = response.headers.get('X-RateLimit-Reset');
-          throw new Error(`Rate limit exceeded. Resets at ${resetTime}`);
-        }
-
-        // Parse response
-        const responseData = await response.json();
-
-        // Handle API errors
-        if (!response.ok) {
-          const errorCode = responseData.error?.code || 'unknown';
-          const errorMessage = responseData.error?.message || 'Unknown API error';
-          throw new Error(`API Error [${errorCode}]: ${errorMessage} (HTTP ${response.status})`);
-        }
-
-        // Extract clients and pagination from response
-        const clients: APIClient[] = responseData.clients || responseData.data || [];
-        const pagination: PaginationInfo | undefined = responseData.pagination;
-
-        console.log(`[ClientsAPI] Fetched ${clients.length} clients from page ${currentPage}`);
-        result.clients.total_fetched += clients.length;
-        result.pages_fetched++;
-
-        // Update pagination info
-        if (pagination) {
-          totalPages = pagination.total_pages;
-          hasMorePages = pagination.has_next_page;
-          console.log(`[ClientsAPI] Pagination: page ${pagination.page}/${pagination.total_pages}, total items: ${pagination.total_items}`);
-        } else {
-          // No pagination info, assume this is the only page
-          hasMorePages = false;
-        }
-
-        // ====================================================================
-        // Sync Clients to Local Database
-        // ====================================================================
-
-        for (const apiClient of clients) {
-          try {
-            // Check if client already exists by control_tower_client_id
-            const { data: existingClient, error: checkError } = await supabase
-              .from('clients')
-              .select('id, name, updated_at')
-              .eq('control_tower_client_id', apiClient.id)
-              .maybeSingle();
-
-            if (checkError) {
-              console.error(`[ClientsAPI] Error checking existing client ${apiClient.id}:`, checkError);
-              result.clients.failed++;
-              result.errors.push(`Failed to check client ${apiClient.name}: ${checkError.message}`);
-              continue;
-            }
-
-            // Prepare client data for upsert
-            const clientData = {
-              name: apiClient.name,
-              email: apiClient.email || null,
-              company: apiClient.company || null,
-              phone: apiClient.phone || null,
-              status: apiClient.status || 'active',
-              website: apiClient.website || null,
-              industry: apiClient.industry || null,
-              contact_person: apiClient.contact_person || null,
-              address: apiClient.address || null,
-              control_tower_client_id: apiClient.id,
-              synced_from_control_tower_api: true,
-              last_api_sync_at: new Date().toISOString(),
-            };
-
-            if (existingClient) {
-              // Update existing client
-              const { error: updateError } = await supabase
-                .from('clients')
-                .update(clientData)
-                .eq('id', existingClient.id);
-
-              if (updateError) {
-                console.error(`[ClientsAPI] Failed to update client ${apiClient.id}:`, updateError);
-                result.clients.failed++;
-                result.errors.push(`Failed to update client ${apiClient.name}: ${updateError.message}`);
-              } else {
-                result.clients.updated++;
-                console.log(`[ClientsAPI] Updated client: ${apiClient.name}`);
-              }
-            } else {
-              // Insert new client
-              const { error: insertError } = await supabase
-                .from('clients')
-                .insert(clientData);
-
-              if (insertError) {
-                // Check if it's a duplicate error (unique constraint on name or email)
-                if (insertError.code === '23505') {
-                  console.warn(`[ClientsAPI] Client already exists: ${apiClient.name}`);
-                  result.clients.skipped++;
-                  result.warnings.push(`Client already exists: ${apiClient.name}`);
-                } else {
-                  console.error(`[ClientsAPI] Failed to insert client ${apiClient.id}:`, insertError);
-                  result.clients.failed++;
-                  result.errors.push(`Failed to insert client ${apiClient.name}: ${insertError.message}`);
-                }
-              } else {
-                result.clients.new++;
-                console.log(`[ClientsAPI] Created new client: ${apiClient.name}`);
-              }
-            }
-          } catch (clientError) {
-            console.error(`[ClientsAPI] Error processing client ${apiClient.id}:`, clientError);
+          if (updateError) {
+            console.error(`[ClientSync] Failed to update client ${ctClient.id}:`, updateError);
             result.clients.failed++;
-            const errorMessage = clientError instanceof Error ? clientError.message : String(clientError);
-            result.errors.push(`Error processing client ${apiClient.name || apiClient.id}: ${errorMessage}`);
+            result.errors.push(`Failed to update client ${ctClient.name}: ${updateError.message}`);
+          } else {
+            result.clients.updated++;
+            console.log(`[ClientSync] Updated client: ${ctClient.name}`);
+          }
+        } else {
+          // Insert new client
+          const { error: insertError } = await supabase
+            .from('clients')
+            .insert(clientData);
+
+          if (insertError) {
+            // Check if it's a duplicate error (unique constraint)
+            if (insertError.code === '23505') {
+              console.warn(`[ClientSync] Client already exists: ${ctClient.name}`);
+              result.clients.skipped++;
+              result.warnings.push(`Client already exists: ${ctClient.name}`);
+            } else {
+              console.error(`[ClientSync] Failed to insert client ${ctClient.id}:`, insertError);
+              result.clients.failed++;
+              result.errors.push(`Failed to insert client ${ctClient.name}: ${insertError.message}`);
+            }
+          } else {
+            result.clients.new++;
+            console.log(`[ClientSync] Created new client: ${ctClient.name}`);
           }
         }
-
-        // ====================================================================
-        // Update Sync Status Progress
-        // ====================================================================
-
-        if (syncStatusId && currentPage % 5 === 0) {
-          // Update every 5 pages
-          await supabase
-            .from('control_tower_sync_status')
-            .update({
-              metadata: {
-                current_phase: 'clients',
-                api_sync: true,
-                user_id: userId,
-                pages_fetched: result.pages_fetched,
-                clients_synced: result.clients.new + result.clients.updated,
-                last_heartbeat: new Date().toISOString(),
-              },
-            })
-            .eq('id', syncStatusId);
-        }
-
-        // Move to next page
-        currentPage++;
-
-        // Small delay to be nice to the API (and avoid hitting rate limits)
-        if (hasMorePages) {
-          await new Promise(resolve => setTimeout(resolve, 100));
-        }
-
-      } catch (pageError) {
-        console.error(`[ClientsAPI] Error fetching page ${currentPage}:`, pageError);
-        const errorMessage = pageError instanceof Error ? pageError.message : String(pageError);
-        result.errors.push(`Failed to fetch page ${currentPage}: ${errorMessage}`);
-        // Don't break the loop, try to continue with next page
-        hasMorePages = false; // But stop trying
+      } catch (clientError) {
+        console.error(`[ClientSync] Error processing client ${ctClient.id}:`, clientError);
+        result.clients.failed++;
+        const errorMessage = clientError instanceof Error ? clientError.message : String(clientError);
+        result.errors.push(`Error processing client ${ctClient.name || ctClient.id}: ${errorMessage}`);
       }
     }
 
@@ -385,15 +343,15 @@ serve(async (req) => {
 
     result.duration = Date.now() - startTime;
 
-    console.log(`[ClientsAPI] Sync completed in ${result.duration}ms`);
-    console.log(`[ClientsAPI] Results:`, JSON.stringify(result.clients, null, 2));
+    console.log(`[ClientSync] Sync completed in ${result.duration}ms`);
+    console.log(`[ClientSync] Results:`, JSON.stringify(result.clients, null, 2));
 
     // Create sync log entry
     try {
       await supabase
         .from('control_tower_sync_log')
         .insert({
-          sync_type: 'pull_clients_api',
+          sync_type: 'pull_clients_direct',
           status: result.errors.length > 0 ? 'partial_success' : 'success',
           records_synced: result.clients.new + result.clients.updated,
           records_failed: result.clients.failed,
@@ -405,13 +363,11 @@ serve(async (req) => {
             skipped: result.clients.skipped,
             failed: result.clients.failed,
             total_fetched: result.clients.total_fetched,
-            pages_fetched: result.pages_fetched,
             warnings: result.warnings,
-            rate_limit: result.rateLimit,
           },
         });
     } catch (logError) {
-      console.warn('[ClientsAPI] Failed to create sync log:', logError);
+      console.warn('[ClientSync] Failed to create sync log:', logError);
     }
 
     // Update sync status to completed
@@ -423,9 +379,8 @@ serve(async (req) => {
           completed_at: new Date().toISOString(),
           metadata: {
             current_phase: 'completed',
-            api_sync: true,
+            direct_db_sync: true,
             user_id: userId,
-            pages_fetched: result.pages_fetched,
             clients_synced: result.clients.new + result.clients.updated,
             result,
           },
@@ -446,7 +401,7 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('[ClientsAPI] Sync failed:', error);
+    console.error('[ClientSync] Sync failed:', error);
 
     const errorMessage = error instanceof Error ? error.message : String(error);
     const errorStack = error instanceof Error ? error.stack : undefined;
@@ -463,7 +418,7 @@ serve(async (req) => {
       await supabase
         .from('control_tower_sync_log')
         .insert({
-          sync_type: 'pull_clients_api',
+          sync_type: 'pull_clients_direct',
           status: 'failed',
           records_synced: result.clients.new + result.clients.updated,
           records_failed: result.clients.failed,
@@ -476,7 +431,7 @@ serve(async (req) => {
           },
         });
     } catch (logError) {
-      console.warn('[ClientsAPI] Failed to log error:', logError);
+      console.warn('[ClientSync] Failed to log error:', logError);
     }
 
     return new Response(
@@ -492,3 +447,23 @@ serve(async (req) => {
     );
   }
 });
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
+function mapClientStatus(status?: string): string {
+  if (!status) return 'active';
+  
+  const statusLower = status.toLowerCase();
+  
+  if (statusLower.includes('active') || statusLower === 'open') {
+    return 'active';
+  } else if (statusLower.includes('inactive') || statusLower === 'closed') {
+    return 'inactive';
+  } else if (statusLower.includes('archive')) {
+    return 'archived';
+  }
+  
+  return 'active'; // Default to active
+}
