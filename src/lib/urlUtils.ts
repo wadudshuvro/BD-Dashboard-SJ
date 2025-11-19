@@ -14,7 +14,7 @@ export function isValidUrl(url: string | null | undefined): boolean {
   
   // Reject common placeholder patterns
   const placeholderPatterns = [
-    /^url\**/i,
+    /^url\*\*$/i,
     /^\[url\]/i,
     /^<url>/i,
     /^website$/i,
