@@ -437,11 +437,29 @@ export function CampaignGoogleSheetImportDialog({
 
               <TabsContent value="csv" className="space-y-4 mt-4">
                 <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>Upload CSV File</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Upload a CSV file from your computer. The first row should contain column headers.
-                    </p>
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-2">
+                      <Label>Upload CSV File</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Upload a CSV file from your computer. The first row should contain column headers.
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-2"
+                      onClick={() => {
+                        const link = document.createElement('a');
+                        link.href = '/lead-import-template.csv';
+                        link.download = 'lead-import-template.csv';
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                      }}
+                    >
+                      <Download className="h-4 w-4" />
+                      Download CSV sample format
+                    </Button>
                   </div>
 
                   <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center">

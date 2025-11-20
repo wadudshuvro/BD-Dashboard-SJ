@@ -209,6 +209,7 @@ async function handleDetail(client: any, id: string) {
 
   const profileMap = await fetchProfileMap(client, userIds);
 
+  // Legacy single attachment support
   let attachmentSignedUrl: string | null = null;
   if (report.attachment_url) {
     const { data: signedUrlData, error: signedUrlError } = await client
@@ -218,6 +219,34 @@ async function handleDetail(client: any, id: string) {
 
     if (!signedUrlError) {
       attachmentSignedUrl = signedUrlData?.signedUrl ?? null;
+    }
+  }
+
+  // Fetch multiple attachments from new table
+  const { data: attachmentsData, error: attachmentsError } = await client
+    .from("feedback_attachments")
+    .select("*")
+    .eq("feedback_id", id)
+    .order("created_at", { ascending: true });
+
+  const attachments = [];
+  if (!attachmentsError && attachmentsData && attachmentsData.length > 0) {
+    for (const att of attachmentsData) {
+      const { data: signedUrlData, error: signedUrlError } = await client
+        .storage
+        .from("feedback")
+        .createSignedUrl(att.file_path, 60 * 60);
+
+      if (!signedUrlError && signedUrlData?.signedUrl) {
+        attachments.push({
+          id: att.id,
+          fileName: att.file_name,
+          fileSize: att.file_size,
+          contentType: att.content_type,
+          signedUrl: signedUrlData.signedUrl,
+          createdAt: att.created_at,
+        });
+      }
     }
   }
 
@@ -237,7 +266,8 @@ async function handleDetail(client: any, id: string) {
     JSON.stringify({
       feedback: mappedFeedback,
       comments: mappedComments,
-      attachment_signed_url: attachmentSignedUrl,
+      attachment_signed_url: attachmentSignedUrl, // Legacy support
+      attachments: attachments.length > 0 ? attachments : undefined, // New multiple attachments
     }),
     {
       status: 200,
