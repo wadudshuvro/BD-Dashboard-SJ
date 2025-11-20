@@ -166,6 +166,7 @@ const App = () => (
               
               {/* Performance */}
               <Route path="performance/personal" element={<PersonalDashboard />} />
+              <Route path="performance/reports" element={<PerformanceReports />} />
               
               {/* Actions */}
               <Route path="actions/tasks" element={<ActionsTasks />} />
@@ -266,9 +267,6 @@ const App = () => (
             {/* Analytics Routes */}
             <Route path="/analytics" element={<ProtectedRoute requiredMinimumRole="team_member"><AnalyticsDashboard /></ProtectedRoute>} />
             <Route path="/analytics/team" element={<ProtectedRoute requiredMinimumRole="manager"><TeamPerformance /></ProtectedRoute>} />
-            
-            {/* Performance Reports Route */}
-            <Route path="/bd/performance/reports" element={<ProtectedRoute requiredMinimumRole="team_member"><PerformanceReports /></ProtectedRoute>} />
             
             {/* Campaigns at root level */}
             <Route path="/campaigns" element={
