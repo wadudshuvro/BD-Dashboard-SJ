@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   Archive,
   ArrowLeft,
+  ArrowUpDown,
   Brain,
   CheckCircle2,
   FileSpreadsheet,
@@ -88,6 +89,9 @@ export default function CampaignDetail() {
   });
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<CampaignContactStatus[]>([]);
+  
+  // Pipeline sorting state
+  const [pipelineSortOrder, setPipelineSortOrder] = useState<'asc' | 'desc'>('asc');
 
   // Save view mode preference
   useEffect(() => {
@@ -97,13 +101,19 @@ export default function CampaignDetail() {
   const linkedinStats = (campaign?.linkedin_stats as Record<string, number | undefined>) || {};
   const ghlStats = (campaign?.ghl_stats as Record<string, number | undefined>) || {};
 
-  const totalContacts = campaign?.target_contacts_count || 0;
-  const researchedCount = Number((campaign?.research_data as Record<string, unknown>)?.contacts_researched ?? 0);
+  // Calculate metrics dynamically from actual contacts instead of static campaign fields
+  const totalContactsCount = Object.values(contactByStatus).reduce((sum, contacts) => sum + contacts.length, 0);
+  const researchedCount = contactByStatus.researched?.length || 0;
+  const connectedCount = contactByStatus.connected?.length || 0;
+  const meetingsBooked = contactByStatus.meeting_booked?.length || 0;
+  const respondedCount = contactByStatus.responded?.length || 0;
+  
   const acceptanceRate = linkedinStats.requests_sent
     ? Math.round(((linkedinStats.connections_accepted || 0) / linkedinStats.requests_sent) * 100)
     : 0;
-  const responseTotal =
-    (linkedinStats.responses_received || 0) + (ghlStats.replies || 0) + (campaign?.responses_received || 0);
+  
+  // Response total: use dynamic count from contacts + any external stats
+  const responseTotal = respondedCount + (linkedinStats.responses_received || 0) + (ghlStats.replies || 0);
 
   const campaignMetadata = (campaign?.metadata as Record<string, unknown>) ?? {};
   const researchReportUrl = typeof campaignMetadata["research_report_url"] === "string"
@@ -115,8 +125,7 @@ export default function CampaignDetail() {
   const canRunResearch = hasPermission(["campaigns", "campaign_research", "research", "exa"], "edit")
     || hasPermission(/research/i, "edit");
 
-  const totalContactsCount = Object.values(contactByStatus).reduce((sum, contacts) => sum + contacts.length, 0);
-  const meetingsBooked = contactByStatus.meeting_booked?.length || 0;
+  // Calculate conversion rate from actual contacts
   const conversionRate = totalContactsCount > 0 
     ? Math.round((meetingsBooked / totalContactsCount) * 100) 
     : 0;
@@ -274,6 +283,27 @@ export default function CampaignDetail() {
     setStatusFilter([]);
   };
 
+  const handleTogglePipelineSort = () => {
+    setPipelineSortOrder(current => current === 'asc' ? 'desc' : 'asc');
+  };
+
+  // Sort contacts by name for pipeline view
+  const sortedContactByStatus = useMemo(() => {
+    const sorted: Record<CampaignContactStatus, typeof contacts> = {} as Record<CampaignContactStatus, typeof contacts>;
+    
+    PIPELINE_STAGES.forEach((stage) => {
+      const stageContacts = contactByStatus[stage.status] || [];
+      sorted[stage.status] = [...stageContacts].sort((a, b) => {
+        const nameA = (a.contact_name || '').toLowerCase();
+        const nameB = (b.contact_name || '').toLowerCase();
+        const comparison = nameA.localeCompare(nameB);
+        return pipelineSortOrder === 'asc' ? comparison : -comparison;
+      });
+    });
+    
+    return sorted;
+  }, [contactByStatus, pipelineSortOrder]);
+
   if (isLoading) {
     return <div className="container mx-auto py-10">Loading campaign...</div>;
   }
@@ -414,7 +444,7 @@ export default function CampaignDetail() {
             />
             <MetricCard
               label="Connected"
-              value={contactByStatus.connected?.length || 0}
+              value={connectedCount}
               icon={Linkedin}
               iconColor="text-blue-700"
             />
@@ -479,13 +509,24 @@ export default function CampaignDetail() {
             <ScrollArea className="h-[520px]">
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 {PIPELINE_STAGES.map((stage) => {
-                  const stageContacts = contactByStatus[stage.status] || [];
+                  const stageContacts = sortedContactByStatus[stage.status] || [];
                   return (
                     <div key={stage.status} className="space-y-4">
                       <div className="sticky top-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-10 pb-2">
                         <div className="flex items-center justify-between">
-                          <div>
-                            <p className="font-semibold">{stage.title}</p>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <p className="font-semibold">{stage.title}</p>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 w-6 p-0 hover:bg-accent"
+                                onClick={handleTogglePipelineSort}
+                                title={`Sort ${pipelineSortOrder === 'asc' ? 'Z-A' : 'A-Z'}`}
+                              >
+                                <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground hover:text-primary" />
+                              </Button>
+                            </div>
                             <p className="text-xs text-muted-foreground">{stage.description}</p>
                           </div>
                           <Badge variant="secondary" className={stageBadgeClass(stage.status)}>

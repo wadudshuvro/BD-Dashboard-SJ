@@ -12,13 +12,21 @@ interface FeatureFlagRow {
   configuration_data: Record<string, unknown> | null;
 }
 
+interface AttachmentInfo {
+  fileName: string;
+  filePath: string;
+  fileSize?: number;
+  contentType?: string;
+}
+
 interface SubmitFeedbackRequest {
   id?: string;
   type?: string;
   subject?: string;
   description?: string;
-  attachmentPath?: string | null;
-  attachmentName?: string | null;
+  attachmentPath?: string | null; // Legacy single attachment support
+  attachmentName?: string | null; // Legacy single attachment support
+  attachments?: AttachmentInfo[]; // New multiple attachments support
 }
 
 async function getFeatureFlags(client: any): Promise<FeatureFlags> {
@@ -162,6 +170,8 @@ serve(async (req) => {
     }
 
     const id = body.id ?? crypto.randomUUID();
+    
+    // Insert feedback report
     const { data, error } = await serviceClient
       .from("feedback_reports")
       .insert({
@@ -171,7 +181,7 @@ serve(async (req) => {
         description: body.description ?? null,
         status: "open",
         email: user.email ?? "",
-        attachment_url: body.attachmentPath ?? null,
+        attachment_url: body.attachmentPath ?? null, // Legacy support for single attachment
         created_by: user.id,
       })
       .select("id, status")
@@ -189,6 +199,28 @@ serve(async (req) => {
     }
 
     console.log("[submit-feedback] Successfully created feedback:", data.id);
+
+    // Insert multiple attachments if provided
+    if (body.attachments && body.attachments.length > 0) {
+      const attachmentRecords = body.attachments.map((att) => ({
+        feedback_id: id,
+        file_name: att.fileName,
+        file_path: att.filePath,
+        file_size: att.fileSize ?? null,
+        content_type: att.contentType ?? null,
+      }));
+
+      const { error: attachmentsError } = await serviceClient
+        .from("feedback_attachments")
+        .insert(attachmentRecords);
+
+      if (attachmentsError) {
+        console.error("[submit-feedback] Failed to insert attachments:", attachmentsError);
+        // Don't fail the entire request, just log the error
+      } else {
+        console.log(`[submit-feedback] Successfully inserted ${attachmentRecords.length} attachments`);
+      }
+    }
 
     if (featureFlags.feedback_auto_email) {
       try {

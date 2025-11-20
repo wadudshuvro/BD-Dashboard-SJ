@@ -4,13 +4,21 @@ import axiosPrivate from "@/lib/axiosPrivate";
 export type FeedbackType = "bug" | "feature";
 export type FeedbackStatus = "open" | "in_review" | "resolved" | "closed";
 
+export interface AttachmentInfo {
+  fileName: string;
+  filePath: string;
+  fileSize?: number;
+  contentType?: string;
+}
+
 export interface SubmitFeedbackPayload {
   id?: string;
   type: FeedbackType;
   subject: string;
   description?: string;
-  attachmentPath?: string | null;
-  attachmentName?: string | null;
+  attachmentPath?: string | null; // Legacy single attachment support
+  attachmentName?: string | null; // Legacy single attachment support
+  attachments?: AttachmentInfo[]; // New multiple attachments support
 }
 
 export interface FeedbackReport {
@@ -45,10 +53,20 @@ export interface FeedbackListResponse {
   total: number;
 }
 
+export interface FeedbackAttachment {
+  id: string;
+  fileName: string;
+  fileSize: number | null;
+  contentType: string | null;
+  signedUrl: string;
+  createdAt: string;
+}
+
 export interface FeedbackDetailResponse {
   feedback: FeedbackReport;
   comments: FeedbackComment[];
-  attachment_signed_url?: string | null;
+  attachment_signed_url?: string | null; // Legacy single attachment
+  attachments?: FeedbackAttachment[]; // New multiple attachments
 }
 
 export async function submitFeedback(payload: SubmitFeedbackPayload) {

@@ -12,7 +12,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useFeatureFlag } from "@/hooks/useFeatureFlag";
 import { supabase } from "@/integrations/supabase/client";
 import { submitFeedback, type FeedbackType } from "@/features/feedback/api";
-import { Bug, Sparkles, UploadCloud } from "lucide-react";
+import { Bug, Sparkles, UploadCloud, X } from "lucide-react";
 
 const TYPE_OPTIONS: FeedbackType[] = ["bug", "feature"];
 
@@ -35,7 +35,7 @@ export default function SubmitFeedback() {
   const [selectedType, setSelectedType] = useState<FeedbackType>(validType);
   const [subject, setSubject] = useState("");
   const [description, setDescription] = useState("");
-  const [attachment, setAttachment] = useState<File | null>(null);
+  const [attachments, setAttachments] = useState<File[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submittedDate, setSubmittedDate] = useState(() => new Date().toLocaleString());
 
@@ -70,8 +70,17 @@ export default function SubmitFeedback() {
   };
 
   const handleAttachmentChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    setAttachment(file ?? null);
+    const files = event.target.files;
+    if (files && files.length > 0) {
+      const newFiles = Array.from(files);
+      setAttachments(prev => [...prev, ...newFiles]);
+    }
+    // Reset input value to allow re-selecting the same file
+    event.target.value = '';
+  };
+
+  const removeAttachment = (index: number) => {
+    setAttachments(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -121,7 +130,6 @@ export default function SubmitFeedback() {
 
     try {
       const feedbackId = crypto.randomUUID();
-      let attachmentPath: string | null = null;
 
       // Force token refresh to ensure we have a valid JWT
       console.log("Refreshing authentication session...");
@@ -142,21 +150,36 @@ export default function SubmitFeedback() {
       // Add small delay to ensure localStorage is updated
       await new Promise(resolve => setTimeout(resolve, 100));
 
-      if (attachment) {
-        console.log("Uploading attachment:", attachment.name);
-        const safeName = normalizeFileName(attachment.name);
-        attachmentPath = `${feedbackId}/${safeName}`;
-        const { error: uploadError } = await supabase.storage
-          .from("feedback")
-          .upload(attachmentPath, attachment, {
-            contentType: attachment.type || "application/octet-stream",
-            upsert: false,
-          });
+      // Upload multiple attachments
+      const uploadedAttachments = [];
+      if (attachments.length > 0) {
+        console.log(`Uploading ${attachments.length} attachment(s)...`);
+        
+        for (const file of attachments) {
+          const safeName = normalizeFileName(file.name);
+          const filePath = `${feedbackId}/${safeName}`;
+          
+          const { error: uploadError } = await supabase.storage
+            .from("feedback")
+            .upload(filePath, file, {
+              contentType: file.type || "application/octet-stream",
+              upsert: false,
+            });
 
-        if (uploadError) {
-          console.error("Upload error:", uploadError);
-          throw new Error(`Failed to upload attachment: ${uploadError.message}`);
+          if (uploadError) {
+            console.error("Upload error:", uploadError);
+            throw new Error(`Failed to upload ${file.name}: ${uploadError.message}`);
+          }
+
+          uploadedAttachments.push({
+            fileName: file.name,
+            filePath: filePath,
+            fileSize: file.size,
+            contentType: file.type || "application/octet-stream",
+          });
         }
+        
+        console.log(`Successfully uploaded ${uploadedAttachments.length} file(s)`);
       }
 
       console.log("Submitting feedback:", { type: selectedType, subject: subject.trim(), userId: user.id });
@@ -166,8 +189,7 @@ export default function SubmitFeedback() {
         type: selectedType,
         subject: subject.trim(),
         description: description.trim() || undefined,
-        attachmentPath,
-        attachmentName: attachment?.name ?? null,
+        attachments: uploadedAttachments.length > 0 ? uploadedAttachments : undefined,
       });
 
       toast({
@@ -179,7 +201,7 @@ export default function SubmitFeedback() {
 
       setSubject("");
       setDescription("");
-      setAttachment(null);
+      setAttachments([]);
       setSubmittedDate(new Date().toLocaleString());
     } catch (error) {
       console.error("Failed to submit feedback:", error);
@@ -263,18 +285,45 @@ export default function SubmitFeedback() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="feedback-attachment">Attachment (optional)</Label>
+                <Label htmlFor="feedback-attachment">Attachments (optional)</Label>
                 <Input
                   id="feedback-attachment"
                   type="file"
                   accept="image/*,application/pdf,.zip,.log,.txt"
                   onChange={handleAttachmentChange}
+                  multiple
                 />
-                {attachment ? (
-                  <p className="text-xs text-muted-foreground">Selected file: {attachment.name}</p>
+                {attachments.length > 0 ? (
+                  <div className="space-y-2 mt-3">
+                    <p className="text-xs text-muted-foreground">Selected files ({attachments.length}):</p>
+                    <div className="space-y-1">
+                      {attachments.map((file, index) => (
+                        <div
+                          key={`${file.name}-${index}`}
+                          className="flex items-center justify-between gap-2 p-2 bg-muted/50 rounded-md text-sm"
+                        >
+                          <div className="flex-1 min-w-0">
+                            <p className="truncate font-medium">{file.name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {(file.size / 1024).toFixed(2)} KB
+                            </p>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0"
+                            onClick={() => removeAttachment(index)}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 ) : (
                   <p className="text-xs text-muted-foreground">
-                    Upload screenshots, logs, or other helpful context. Files are stored securely in Supabase Storage.
+                    Upload screenshots, logs, or other helpful context. You can select multiple files. Files are stored securely in Supabase Storage.
                   </p>
                 )}
               </div>

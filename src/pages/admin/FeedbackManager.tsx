@@ -41,7 +41,7 @@ import {
   type FeedbackType,
 } from "@/features/feedback/api";
 import { cn } from "@/lib/utils";
-import { Clock, Inbox, MessageCircle, ShieldCheck, Sparkles, Bug, Archive } from "lucide-react";
+import { Clock, Inbox, MessageCircle, ShieldCheck, Sparkles, Bug, Archive, Download } from "lucide-react";
 
 const TABS = {
   bugs: {
@@ -486,7 +486,38 @@ export default function FeedbackManager() {
                         </div>
                       ) : null}
 
-                      {detailQuery.data?.attachment_signed_url ? (
+                      {/* Display multiple attachments if available */}
+                      {detailQuery.data?.attachments && detailQuery.data.attachments.length > 0 ? (
+                        <div className="space-y-2">
+                          <p className="text-sm font-semibold">Attachments ({detailQuery.data.attachments.length})</p>
+                          <div className="space-y-2">
+                            {detailQuery.data.attachments.map((attachment) => (
+                              <Button
+                                key={attachment.id}
+                                asChild
+                                variant="outline"
+                                size="sm"
+                                className="w-full justify-start gap-2"
+                              >
+                                <a
+                                  href={attachment.signedUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                >
+                                  <Download className="h-4 w-4" />
+                                  <span className="truncate flex-1 text-left">{attachment.fileName}</span>
+                                  {attachment.fileSize && (
+                                    <span className="text-xs text-muted-foreground">
+                                      {(attachment.fileSize / 1024).toFixed(2)} KB
+                                    </span>
+                                  )}
+                                </a>
+                              </Button>
+                            ))}
+                          </div>
+                        </div>
+                      ) : detailQuery.data?.attachment_signed_url ? (
+                        // Legacy single attachment support
                         <Button asChild variant="outline" className="gap-2">
                           <a
                             href={detailQuery.data.attachment_signed_url}

@@ -414,6 +414,53 @@ function summarizeAnalytics(rows: AnalyticsRow[]): AnalyticsSummary[] {
   return Array.from(metrics.values());
 }
 
+async function calculateCampaignStats(
+  client: SupabaseClient,
+  campaignId: string
+): Promise<{
+  total_contacts: number;
+  researched: number;
+  connected: number;
+  responded: number;
+  meetings_booked: number;
+}> {
+  try {
+    const { data: contacts, error } = await client
+      .from("campaign_contacts")
+      .select("status")
+      .eq("campaign_id", campaignId);
+
+    if (error || !contacts) {
+      return {
+        total_contacts: 0,
+        researched: 0,
+        connected: 0,
+        responded: 0,
+        meetings_booked: 0,
+      };
+    }
+
+    const stats = {
+      total_contacts: contacts.length,
+      researched: contacts.filter((c: { status: string }) => c.status === 'researched').length,
+      connected: contacts.filter((c: { status: string }) => c.status === 'connected').length,
+      responded: contacts.filter((c: { status: string }) => c.status === 'responded').length,
+      meetings_booked: contacts.filter((c: { status: string }) => c.status === 'meeting_booked').length,
+    };
+
+    return stats;
+  } catch (error) {
+    console.error(`[admin-campaigns] Error calculating stats for campaign ${campaignId}:`, error);
+    return {
+      total_contacts: 0,
+      researched: 0,
+      connected: 0,
+      responded: 0,
+      meetings_booked: 0,
+    };
+  }
+}
+
 async function hydrateCampaigns(
   client: SupabaseClient,
   campaigns: CampaignDatabaseRow[],
@@ -425,10 +472,23 @@ async function hydrateCampaigns(
   const baseCampaigns = campaigns.map((campaign) => ({ ...campaign }));
   const { brandMap, campaignBrandsMap, profileMap } = await fetchRelatedMaps(client, baseCampaigns);
 
-  return baseCampaigns.map((campaign) => {
+  // Calculate stats for all campaigns in parallel
+  const statsPromises = baseCampaigns.map(campaign => 
+    calculateCampaignStats(client, campaign.id)
+  );
+  const allStats = await Promise.all(statsPromises);
+
+  return baseCampaigns.map((campaign, index) => {
     const brandIds = campaignBrandsMap.get(campaign.id) || [];
+    const stats = allStats[index];
+    
     return {
       ...campaign,
+      // Override with calculated values from actual contacts
+      actual_contacts_reached: stats.total_contacts,
+      responses_received: stats.responded,
+      meetings_booked: stats.meetings_booked,
+      // Keep target_contacts_count as is - this is the goal
       brand_ids: brandIds,
       brands: brandIds.map(id => brandMap.get(id)).filter((b): b is BrandRow => !!b),
       brand: campaign.brand_id ? brandMap.get(campaign.brand_id) ?? null : null,

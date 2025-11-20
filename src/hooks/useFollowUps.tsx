@@ -169,19 +169,37 @@ export function useGenerateFollowUpSuggestions() {
 
   return useMutation({
     mutationFn: async ({ dealId, contactId }: { dealId?: string; contactId?: string }) => {
+      console.log('[useGenerateFollowUpSuggestions] Invoking edge function with:', { dealId, contactId });
+      
       const { data, error } = await supabase.functions.invoke('generate-followup-suggestions', {
         body: { dealId, contactId }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('[useGenerateFollowUpSuggestions] Edge function error:', error);
+        throw error;
+      }
+      
+      console.log('[useGenerateFollowUpSuggestions] Success:', data);
       return data;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['followup-suggestions'] });
-      toast.success(`Generated ${data.count} follow-up suggestions`);
+      
+      if (data.count === 0) {
+        toast.info(data.message || 'No suggestions generated. Try adding some active deals or campaign contacts.');
+      } else {
+        toast.success(`Generated ${data.count} follow-up suggestion${data.count === 1 ? '' : 's'}`);
+      }
+      
+      if (data.errors && data.errors.length > 0) {
+        console.warn('[useGenerateFollowUpSuggestions] Partial errors:', data.errors);
+      }
     },
-    onError: (error) => {
-      toast.error(`Failed to generate suggestions: ${error.message}`);
+    onError: (error: any) => {
+      console.error('[useGenerateFollowUpSuggestions] Mutation error:', error);
+      const errorMsg = error?.message || error?.error || 'Unknown error';
+      toast.error(`Failed to generate suggestions: ${errorMsg}`);
     },
   });
 }
