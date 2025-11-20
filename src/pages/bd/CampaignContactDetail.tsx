@@ -510,8 +510,12 @@ export default function CampaignContactDetail() {
             <TabsList className="grid w-full grid-cols-6">
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="linkedin" className="gap-2">
-                <Linkedin className="h-4 w-4" />
-                LinkedIn
+                {socialPlatform === 'linkedin' && <Linkedin className="h-4 w-4" />}
+                {socialPlatform === 'facebook' && <Facebook className="h-4 w-4" />}
+                {socialPlatform === 'instagram' && <Instagram className="h-4 w-4" />}
+                {socialPlatform === 'linkedin' && 'LinkedIn'}
+                {socialPlatform === 'facebook' && 'Facebook'}
+                {socialPlatform === 'instagram' && 'Instagram'}
               </TabsTrigger>
               <TabsTrigger value="research">Research</TabsTrigger>
               <TabsTrigger value="company" className="gap-2">
@@ -1006,8 +1010,12 @@ export default function CampaignContactDetail() {
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <Linkedin className="h-5 w-5" />
-                    Generate LinkedIn Outreach Message
+                    {socialPlatform === 'linkedin' && <Linkedin className="h-5 w-5" />}
+                    {socialPlatform === 'facebook' && <Facebook className="h-5 w-5" />}
+                    {socialPlatform === 'instagram' && <Instagram className="h-5 w-5" />}
+                    Generate {socialPlatform === 'linkedin' && 'LinkedIn'}
+                    {socialPlatform === 'facebook' && 'Facebook'}
+                    {socialPlatform === 'instagram' && 'Instagram'} Outreach Message
                   </CardTitle>
                   <CardDescription>
                     AI-powered personalized messages using contact, company, and campaign insights
@@ -1046,7 +1054,9 @@ export default function CampaignContactDetail() {
                     ) : (
                       <>
                         <Sparkles className="mr-2 h-4 w-4" />
-                        Generate LinkedIn Messages
+                        Generate {socialPlatform === 'linkedin' && 'LinkedIn'}
+                        {socialPlatform === 'facebook' && 'Facebook'}
+                        {socialPlatform === 'instagram' && 'Instagram'} Messages
                       </>
                     )}
                   </Button>
