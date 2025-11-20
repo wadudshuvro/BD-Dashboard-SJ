@@ -410,59 +410,62 @@ export default function CampaignContactDetail() {
                 )}
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Select 
-                value={contact.status} 
-                onValueChange={handleStatusChange} 
-                disabled={updateMutation.isPending}
-              >
-                <SelectTrigger className="w-[220px]">
-                  <SelectValue>
-                    <StatusBadgeWithIcon status={contact.status as CampaignContactStatus} socialPlatform={socialPlatform} />
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="identified">
-                    <StatusBadgeWithIcon status="identified" />
-                  </SelectItem>
-                  <SelectItem value="researched">
-                    <StatusBadgeWithIcon status="researched" />
-                  </SelectItem>
-                  <SelectItem value="contacted_linkedin">
-                    <StatusBadgeWithIcon status="contacted_linkedin" socialPlatform={socialPlatform} />
-                  </SelectItem>
-                  <SelectItem value="connected">
-                    <StatusBadgeWithIcon status="connected" />
-                  </SelectItem>
-                  <SelectItem value="messaged">
-                    <StatusBadgeWithIcon status="messaged" />
-                  </SelectItem>
-                  <SelectItem value="contacted_email">
-                    <StatusBadgeWithIcon status="contacted_email" />
-                  </SelectItem>
-                  <SelectItem value="responded">
-                    <StatusBadgeWithIcon status="responded" />
-                  </SelectItem>
-                  <SelectItem value="meeting_booked">
-                    <StatusBadgeWithIcon status="meeting_booked" />
-                  </SelectItem>
-                  <SelectItem value="close_lost">
-                    <StatusBadgeWithIcon status="close_lost" />
-                  </SelectItem>
-                  <SelectItem value="won">
-                    <StatusBadgeWithIcon status="won" />
-                  </SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-2">
+                <Select 
+                  value={contact.status} 
+                  onValueChange={handleStatusChange} 
+                  disabled={updateMutation.isPending}
+                >
+                  <SelectTrigger className="w-[220px]">
+                    <SelectValue>
+                      <StatusBadgeWithIcon status={contact.status as CampaignContactStatus} socialPlatform={socialPlatform} />
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="identified">
+                      <StatusBadgeWithIcon status="identified" />
+                    </SelectItem>
+                    <SelectItem value="researched">
+                      <StatusBadgeWithIcon status="researched" />
+                    </SelectItem>
+                    <SelectItem value="contacted_linkedin">
+                      <StatusBadgeWithIcon status="contacted_linkedin" socialPlatform={socialPlatform} />
+                    </SelectItem>
+                    <SelectItem value="connected">
+                      <StatusBadgeWithIcon status="connected" />
+                    </SelectItem>
+                    <SelectItem value="messaged">
+                      <StatusBadgeWithIcon status="messaged" />
+                    </SelectItem>
+                    <SelectItem value="contacted_email">
+                      <StatusBadgeWithIcon status="contacted_email" />
+                    </SelectItem>
+                    <SelectItem value="responded">
+                      <StatusBadgeWithIcon status="responded" />
+                    </SelectItem>
+                    <SelectItem value="meeting_booked">
+                      <StatusBadgeWithIcon status="meeting_booked" />
+                    </SelectItem>
+                    <SelectItem value="close_lost">
+                      <StatusBadgeWithIcon status="close_lost" />
+                    </SelectItem>
+                    <SelectItem value="won">
+                      <StatusBadgeWithIcon status="won" />
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               
-              {/* Social Platform Dropdown - Only show when status is contacted_linkedin */}
-              {contact.status === 'contacted_linkedin' && (
+              {/* Social Platform Dropdown - Always visible with helpful label */}
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground min-w-[100px]">Social Platform:</span>
                 <Select 
                   value={socialPlatform} 
                   onValueChange={(value) => handleSocialPlatformChange(value as 'linkedin' | 'facebook' | 'instagram')}
                   disabled={updateMutation.isPending}
                 >
-                  <SelectTrigger className="w-[180px]">
+                  <SelectTrigger className="w-[220px]">
                     <SelectValue>
                       <div className="flex items-center gap-2">
                         {socialPlatform === 'linkedin' && <Linkedin className="h-4 w-4" />}
@@ -493,7 +496,7 @@ export default function CampaignContactDetail() {
                     </SelectItem>
                   </SelectContent>
                 </Select>
-              )}
+              </div>
             </div>
           </div>
         </CardHeader>
