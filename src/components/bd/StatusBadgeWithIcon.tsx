@@ -1,11 +1,12 @@
 import { Badge } from "@/components/ui/badge";
-import { User, Brain, Link2, CheckCircle, MessageSquare, Mail, Reply, Calendar, XCircle, Trophy } from "lucide-react";
+import { User, Brain, Link2, CheckCircle, MessageSquare, Mail, Reply, Calendar, XCircle, Trophy, Facebook, Instagram } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CampaignContactStatus } from "@/features/campaign-detail/types";
 
 interface StatusBadgeWithIconProps {
   status: CampaignContactStatus;
   className?: string;
+  socialPlatform?: 'linkedin' | 'facebook' | 'instagram';
 }
 
 const statusConfig: Record<CampaignContactStatus, {
@@ -65,9 +66,21 @@ const statusConfig: Record<CampaignContactStatus, {
   },
 };
 
-export function StatusBadgeWithIcon({ status, className }: StatusBadgeWithIconProps) {
+export function StatusBadgeWithIcon({ status, className, socialPlatform = 'linkedin' }: StatusBadgeWithIconProps) {
   const config = statusConfig[status];
-  const Icon = config.icon;
+  let Icon = config.icon;
+  let label = config.label;
+  
+  // Override icon and label for social media stage based on platform
+  if (status === 'contacted_linkedin') {
+    if (socialPlatform === 'facebook') {
+      Icon = Facebook;
+      label = 'Facebook Request';
+    } else if (socialPlatform === 'instagram') {
+      Icon = Instagram;
+      label = 'Instagram Request';
+    }
+  }
 
   return (
     <Badge 
@@ -79,7 +92,7 @@ export function StatusBadgeWithIcon({ status, className }: StatusBadgeWithIconPr
       )}
     >
       <Icon className="h-3.5 w-3.5" />
-      {config.label}
+      {label}
     </Badge>
   );
 }

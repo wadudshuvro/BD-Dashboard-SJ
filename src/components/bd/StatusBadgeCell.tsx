@@ -1,4 +1,4 @@
-import { CheckCircle2, Circle, Send, Users, MessageCircle, Mail, Calendar, XCircle, Trophy } from 'lucide-react';
+import { CheckCircle2, Circle, Send, Users, MessageCircle, Mail, Calendar, XCircle, Trophy, Facebook, Instagram } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import {
   Tooltip,
@@ -76,11 +76,27 @@ const STATUS_CONFIG: Record<
 
 interface StatusBadgeCellProps {
   status: CampaignContactStatus;
+  socialPlatform?: 'linkedin' | 'facebook' | 'instagram';
 }
 
-export function StatusBadgeCell({ status }: StatusBadgeCellProps) {
+export function StatusBadgeCell({ status, socialPlatform = 'linkedin' }: StatusBadgeCellProps) {
   const config = STATUS_CONFIG[status];
-  const Icon = config.icon;
+  let Icon = config.icon;
+  let label = config.label;
+  let description = config.description;
+  
+  // Override for social media stage based on platform
+  if (status === 'contacted_linkedin') {
+    if (socialPlatform === 'facebook') {
+      Icon = Facebook;
+      label = 'FB Request Sent';
+      description = 'Facebook connection/follow request sent';
+    } else if (socialPlatform === 'instagram') {
+      Icon = Instagram;
+      label = 'IG Request Sent';
+      description = 'Instagram follow request sent';
+    }
+  }
 
   return (
     <TooltipProvider>
@@ -88,11 +104,11 @@ export function StatusBadgeCell({ status }: StatusBadgeCellProps) {
         <TooltipTrigger asChild>
           <Badge variant="outline" className={config.className}>
             <Icon className="h-3 w-3 mr-1" />
-            {config.label}
+            {label}
           </Badge>
         </TooltipTrigger>
         <TooltipContent>
-          <p className="text-xs">{config.description}</p>
+          <p className="text-xs">{description}</p>
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>
