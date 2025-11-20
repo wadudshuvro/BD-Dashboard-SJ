@@ -414,6 +414,12 @@ export default function CampaignContactDetail() {
                 <SelectItem value="meeting_booked">
                   <StatusBadgeWithIcon status="meeting_booked" />
                 </SelectItem>
+                <SelectItem value="close_lost">
+                  <StatusBadgeWithIcon status="close_lost" />
+                </SelectItem>
+                <SelectItem value="won">
+                  <StatusBadgeWithIcon status="won" />
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>

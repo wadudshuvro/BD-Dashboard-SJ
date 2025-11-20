@@ -16,6 +16,8 @@ const statusFlow: { status: CampaignContactStatus; label: string }[] = [
   { status: "contacted_email", label: "EML" },
   { status: "responded", label: "RSP" },
   { status: "meeting_booked", label: "MTG" },
+  { status: "close_lost", label: "LOST" },
+  { status: "won", label: "WON" },
 ];
 
 export function StatusProgressBar({ currentStatus, className }: StatusProgressBarProps) {

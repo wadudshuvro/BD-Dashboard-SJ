@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/badge";
-import { User, Brain, Link2, CheckCircle, MessageSquare, Mail, Reply, Calendar } from "lucide-react";
+import { User, Brain, Link2, CheckCircle, MessageSquare, Mail, Reply, Calendar, XCircle, Trophy } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CampaignContactStatus } from "@/features/campaign-detail/types";
 
@@ -52,6 +52,16 @@ const statusConfig: Record<CampaignContactStatus, {
     label: "Meeting Booked",
     icon: Calendar,
     className: "bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 dark:text-emerald-400 animate-pulse",
+  },
+  close_lost: {
+    label: "Close Lost",
+    icon: XCircle,
+    className: "bg-red-500/10 text-red-600 hover:bg-red-500/20 dark:text-red-400",
+  },
+  won: {
+    label: "Won",
+    icon: Trophy,
+    className: "bg-yellow-500/10 text-yellow-600 hover:bg-yellow-500/20 dark:text-yellow-400",
   },
 };
 
