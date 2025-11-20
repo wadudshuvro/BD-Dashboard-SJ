@@ -39,6 +39,7 @@ import Qualification from "./pages/bd/pipeline/Qualification";
 import Proposal from "./pages/bd/pipeline/Proposal";
 import ProposalManagement from "./pages/bd/ProposalManagement";
 import ProposalAnalytics from "./pages/bd/ProposalAnalytics";
+import PerformanceReports from "./pages/bd/PerformanceReports";
 import Negotiation from "./pages/bd/pipeline/Negotiation";
 import Clients from "./pages/bd/pipeline/Clients";
 import BDDashboard from "./pages/bd/Dashboard";
@@ -265,6 +266,9 @@ const App = () => (
             {/* Analytics Routes */}
             <Route path="/analytics" element={<ProtectedRoute requiredMinimumRole="team_member"><AnalyticsDashboard /></ProtectedRoute>} />
             <Route path="/analytics/team" element={<ProtectedRoute requiredMinimumRole="manager"><TeamPerformance /></ProtectedRoute>} />
+            
+            {/* Performance Reports Route */}
+            <Route path="/bd/performance/reports" element={<ProtectedRoute requiredMinimumRole="team_member"><PerformanceReports /></ProtectedRoute>} />
             
             {/* Campaigns at root level */}
             <Route path="/campaigns" element={
