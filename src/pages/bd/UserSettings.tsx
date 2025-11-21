@@ -18,10 +18,50 @@ export default function UserSettings() {
     proposal_declined: true,
     proposal_expiring_soon: true,
   });
+  const [profileData, setProfileData] = useState({
+    firstName: '',
+    lastName: '',
+    title: ''
+  });
+  const [isLoadingProfile, setIsLoadingProfile] = useState(false);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
 
   useEffect(() => {
     loadNotificationPreferences();
+    loadUserProfile();
   }, [user]);
+
+  async function loadUserProfile() {
+    if (!user) return;
+    
+    setIsLoadingProfile(true);
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('first_name, last_name, title')
+        .eq('id', user.id)
+        .single();
+      
+      if (error) throw error;
+      
+      if (data) {
+        setProfileData({
+          firstName: data.first_name || '',
+          lastName: data.last_name || '',
+          title: data.title || ''
+        });
+      }
+    } catch (error) {
+      console.error('Error loading user profile:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load profile information.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoadingProfile(false);
+    }
+  }
 
   async function loadNotificationPreferences() {
     if (!user) return;
@@ -43,6 +83,54 @@ export default function UserSettings() {
       }
     } catch (error) {
       console.error('Error loading notification preferences:', error);
+    }
+  }
+
+  async function saveProfileInformation() {
+    if (!user) return;
+    
+    setIsSavingProfile(true);
+    try {
+      const { error: usersError } = await supabase
+        .from('users')
+        .update({
+          first_name: profileData.firstName,
+          last_name: profileData.lastName,
+          title: profileData.title,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', user.id);
+      
+      if (usersError) throw usersError;
+      
+      const fullName = `${profileData.firstName} ${profileData.lastName}`.trim();
+      if (fullName) {
+        const { error: profilesError } = await supabase
+          .from('profiles')
+          .update({
+            full_name: fullName,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', user.id);
+        
+        if (profilesError) {
+          console.warn('Failed to sync full_name to profiles:', profilesError);
+        }
+      }
+      
+      toast({
+        title: "Profile Updated",
+        description: "Your profile information has been saved successfully."
+      });
+    } catch (error) {
+      console.error('Error saving profile:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save profile information.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSavingProfile(false);
     }
   }
 
@@ -90,11 +178,29 @@ export default function UserSettings() {
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="firstName">First Name</Label>
-              <Input id="firstName" placeholder="First Name" />
+              <Input 
+                id="firstName" 
+                placeholder="First Name"
+                value={profileData.firstName}
+                onChange={(e) => setProfileData(prev => ({ 
+                  ...prev, 
+                  firstName: e.target.value 
+                }))}
+                disabled={isLoadingProfile}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="lastName">Last Name</Label>
-              <Input id="lastName" placeholder="Last Name" />
+              <Input 
+                id="lastName" 
+                placeholder="Last Name"
+                value={profileData.lastName}
+                onChange={(e) => setProfileData(prev => ({ 
+                  ...prev, 
+                  lastName: e.target.value 
+                }))}
+                disabled={isLoadingProfile}
+              />
             </div>
           </div>
           
@@ -105,10 +211,24 @@ export default function UserSettings() {
           
           <div className="space-y-2">
             <Label htmlFor="title">Title</Label>
-            <Input id="title" placeholder="Job Title" />
+            <Input 
+              id="title" 
+              placeholder="Job Title"
+              value={profileData.title}
+              onChange={(e) => setProfileData(prev => ({ 
+                ...prev, 
+                title: e.target.value 
+              }))}
+              disabled={isLoadingProfile}
+            />
           </div>
           
-          <Button>Save Changes</Button>
+          <Button 
+            onClick={saveProfileInformation}
+            disabled={isSavingProfile || isLoadingProfile}
+          >
+            {isSavingProfile ? 'Saving...' : 'Save Changes'}
+          </Button>
         </CardContent>
       </Card>
 
