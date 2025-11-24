@@ -69,6 +69,22 @@ function useDealCounts() {
   });
 }
 
+function useClientCount() {
+  return useQuery({
+    queryKey: ['client-count-nav'],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('clients')
+        .select('*', { count: 'exact', head: true });
+      
+      if (error) throw error;
+      
+      return count || 0;
+    },
+    refetchInterval: 30000,
+  });
+}
+
 interface LayoutProps {
   userRole?: 'super_admin' | 'manager' | 'pm' | 'user';
 }
@@ -88,6 +104,7 @@ const Layout = ({ userRole }: LayoutProps) => {
   const { user, logout } = useAuth();
   const location = useLocation();
   const { data: dealCounts } = useDealCounts();
+  const { data: clientCount } = useClientCount();
   
   // Use the actual user role if available, otherwise fall back to prop
   const currentRole = user?.role || userRole || 'user';
@@ -120,7 +137,7 @@ const Layout = ({ userRole }: LayoutProps) => {
           { name: `Estimation${dealCounts?.qualification ? ` (${dealCounts.qualification})` : ''}`, href: "/qualification", icon: ClipboardCheck, current: false },
           { name: `Discovery${dealCounts?.proposal ? ` (${dealCounts.proposal})` : ''}`, href: "/proposal", icon: FileText, current: false },
           { name: `Proposal Shared${dealCounts?.negotiation ? ` (${dealCounts.negotiation})` : ''}`, href: "/negotiation", icon: Handshake, current: false },
-          { name: "Clients", href: "/clients", icon: Building2, current: false },
+          { name: `Clients${clientCount ? ` (${clientCount})` : ''}`, href: "/clients", icon: Building2, current: false },
         ]
       },
       { name: "Campaigns", href: "/campaigns", icon: Megaphone, current: false },
