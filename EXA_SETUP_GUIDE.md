@@ -117,3 +117,4 @@ If you're still having issues:
 - [Supabase Edge Functions Secrets](https://supabase.com/docs/guides/functions/secrets)
 - [Supabase CLI Reference](https://supabase.com/docs/reference/cli/introduction)
 
+

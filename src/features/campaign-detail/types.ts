@@ -8,7 +8,9 @@ export type CampaignContactStatus =
   | "messaged"
   | "contacted_email"
   | "responded"
-  | "meeting_booked";
+  | "meeting_booked"
+  | "close_lost"
+  | "won";
 
 export interface CampaignContact {
   id: string;

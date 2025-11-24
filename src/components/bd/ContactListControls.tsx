@@ -21,6 +21,8 @@ const STATUS_OPTIONS: { value: CampaignContactStatus; label: string }[] = [
   { value: 'contacted_email', label: 'Email Sent' },
   { value: 'responded', label: 'Responded' },
   { value: 'meeting_booked', label: 'Meeting' },
+  { value: 'close_lost', label: 'Close Lost' },
+  { value: 'won', label: 'Won' },
 ];
 
 interface ContactListControlsProps {

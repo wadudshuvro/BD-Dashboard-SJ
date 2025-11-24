@@ -1,5 +1,5 @@
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, Loader2, Mail, Linkedin, Phone, Sparkles, MessageSquare, Trash2, Calendar, Users, Network, Briefcase, FileText, Award, Globe, Brain, Copy, Lightbulb, CheckSquare, BarChart3, Target, AlertTriangle, RefreshCw, Building, AlertCircle } from "lucide-react";
+import { ArrowLeft, Loader2, Mail, Linkedin, Phone, Sparkles, MessageSquare, Trash2, Calendar, Users, Network, Briefcase, FileText, Award, Globe, Brain, Copy, Lightbulb, CheckSquare, BarChart3, Target, AlertTriangle, RefreshCw, Building, AlertCircle, Facebook, Instagram } from "lucide-react";
 import { StatusBadgeWithIcon } from "@/components/bd/StatusBadgeWithIcon";
 import { StatusProgressBar } from "@/components/bd/StatusProgressBar";
 import { StatusHistoryTimeline } from "@/components/bd/StatusHistoryTimeline";
@@ -54,6 +54,9 @@ export default function CampaignContactDetail() {
   const [newComment, setNewComment] = useState("");
   const [activeTab, setActiveTab] = useState("overview");
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
+  const [socialPlatform, setSocialPlatform] = useState<'linkedin' | 'facebook' | 'instagram'>(
+    (contact?.metadata as any)?.social_platform || 'linkedin'
+  );
   
   // LinkedIn Message Generation
   const [messageType, setMessageType] = useState<'connection_request' | 'first_followup' | 'second_followup' | 'meeting_request'>('connection_request');
@@ -112,10 +115,38 @@ export default function CampaignContactDetail() {
 
   const handleStatusChange = (newStatus: string) => {
     if (!contact) return;
+    const updates: any = { status: newStatus };
+    
+    // If changing to contacted_linkedin status, include social platform in metadata
+    if (newStatus === 'contacted_linkedin') {
+      updates.metadata = {
+        ...(contact.metadata || {}),
+        social_platform: socialPlatform
+      };
+    }
+    
     updateMutation.mutate({ 
       contactId: contact.id, 
-      updates: { status: newStatus } 
+      updates 
     });
+  };
+
+  const handleSocialPlatformChange = (platform: 'linkedin' | 'facebook' | 'instagram') => {
+    if (!contact) return;
+    setSocialPlatform(platform);
+    
+    // If already on contacted_linkedin status, update the platform immediately
+    if (contact.status === 'contacted_linkedin') {
+      updateMutation.mutate({
+        contactId: contact.id,
+        updates: {
+          metadata: {
+            ...(contact.metadata || {}),
+            social_platform: platform
+          }
+        }
+      });
+    }
   };
 
   const handleRunAgent = async () => {
@@ -379,43 +410,94 @@ export default function CampaignContactDetail() {
                 )}
               </div>
             </div>
-            <Select 
-              value={contact.status} 
-              onValueChange={handleStatusChange} 
-              disabled={updateMutation.isPending}
-            >
-              <SelectTrigger className="w-[220px]">
-                <SelectValue>
-                  <StatusBadgeWithIcon status={contact.status as CampaignContactStatus} />
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="identified">
-                  <StatusBadgeWithIcon status="identified" />
-                </SelectItem>
-                <SelectItem value="researched">
-                  <StatusBadgeWithIcon status="researched" />
-                </SelectItem>
-                <SelectItem value="contacted_linkedin">
-                  <StatusBadgeWithIcon status="contacted_linkedin" />
-                </SelectItem>
-                <SelectItem value="connected">
-                  <StatusBadgeWithIcon status="connected" />
-                </SelectItem>
-                <SelectItem value="messaged">
-                  <StatusBadgeWithIcon status="messaged" />
-                </SelectItem>
-                <SelectItem value="contacted_email">
-                  <StatusBadgeWithIcon status="contacted_email" />
-                </SelectItem>
-                <SelectItem value="responded">
-                  <StatusBadgeWithIcon status="responded" />
-                </SelectItem>
-                <SelectItem value="meeting_booked">
-                  <StatusBadgeWithIcon status="meeting_booked" />
-                </SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-2">
+                <Select 
+                  value={contact.status} 
+                  onValueChange={handleStatusChange} 
+                  disabled={updateMutation.isPending}
+                >
+                  <SelectTrigger className="w-[220px]">
+                    <SelectValue>
+                      <StatusBadgeWithIcon status={contact.status as CampaignContactStatus} socialPlatform={socialPlatform} />
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="identified">
+                      <StatusBadgeWithIcon status="identified" />
+                    </SelectItem>
+                    <SelectItem value="researched">
+                      <StatusBadgeWithIcon status="researched" />
+                    </SelectItem>
+                    <SelectItem value="contacted_linkedin">
+                      <StatusBadgeWithIcon status="contacted_linkedin" socialPlatform={socialPlatform} />
+                    </SelectItem>
+                    <SelectItem value="connected">
+                      <StatusBadgeWithIcon status="connected" />
+                    </SelectItem>
+                    <SelectItem value="messaged">
+                      <StatusBadgeWithIcon status="messaged" />
+                    </SelectItem>
+                    <SelectItem value="contacted_email">
+                      <StatusBadgeWithIcon status="contacted_email" />
+                    </SelectItem>
+                    <SelectItem value="responded">
+                      <StatusBadgeWithIcon status="responded" />
+                    </SelectItem>
+                    <SelectItem value="meeting_booked">
+                      <StatusBadgeWithIcon status="meeting_booked" />
+                    </SelectItem>
+                    <SelectItem value="close_lost">
+                      <StatusBadgeWithIcon status="close_lost" />
+                    </SelectItem>
+                    <SelectItem value="won">
+                      <StatusBadgeWithIcon status="won" />
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              {/* Social Platform Dropdown - Always visible with helpful label */}
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground min-w-[100px]">Social Platform:</span>
+                <Select 
+                  value={socialPlatform} 
+                  onValueChange={(value) => handleSocialPlatformChange(value as 'linkedin' | 'facebook' | 'instagram')}
+                  disabled={updateMutation.isPending}
+                >
+                  <SelectTrigger className="w-[220px]">
+                    <SelectValue>
+                      <div className="flex items-center gap-2">
+                        {socialPlatform === 'linkedin' && <Linkedin className="h-4 w-4" />}
+                        {socialPlatform === 'facebook' && <Facebook className="h-4 w-4" />}
+                        {socialPlatform === 'instagram' && <Instagram className="h-4 w-4" />}
+                        <span className="capitalize">{socialPlatform}</span>
+                      </div>
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="linkedin">
+                      <div className="flex items-center gap-2">
+                        <Linkedin className="h-4 w-4" />
+                        <span>LinkedIn</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="facebook">
+                      <div className="flex items-center gap-2">
+                        <Facebook className="h-4 w-4" />
+                        <span>Facebook</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="instagram">
+                      <div className="flex items-center gap-2">
+                        <Instagram className="h-4 w-4" />
+                        <span>Instagram</span>
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
           </div>
         </CardHeader>
         
@@ -428,8 +510,12 @@ export default function CampaignContactDetail() {
             <TabsList className="grid w-full grid-cols-6">
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="linkedin" className="gap-2">
-                <Linkedin className="h-4 w-4" />
-                LinkedIn
+                {socialPlatform === 'linkedin' && <Linkedin className="h-4 w-4" />}
+                {socialPlatform === 'facebook' && <Facebook className="h-4 w-4" />}
+                {socialPlatform === 'instagram' && <Instagram className="h-4 w-4" />}
+                {socialPlatform === 'linkedin' && 'LinkedIn'}
+                {socialPlatform === 'facebook' && 'Facebook'}
+                {socialPlatform === 'instagram' && 'Instagram'}
               </TabsTrigger>
               <TabsTrigger value="research">Research</TabsTrigger>
               <TabsTrigger value="company" className="gap-2">
@@ -924,8 +1010,12 @@ export default function CampaignContactDetail() {
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <Linkedin className="h-5 w-5" />
-                    Generate LinkedIn Outreach Message
+                    {socialPlatform === 'linkedin' && <Linkedin className="h-5 w-5" />}
+                    {socialPlatform === 'facebook' && <Facebook className="h-5 w-5" />}
+                    {socialPlatform === 'instagram' && <Instagram className="h-5 w-5" />}
+                    Generate {socialPlatform === 'linkedin' && 'LinkedIn'}
+                    {socialPlatform === 'facebook' && 'Facebook'}
+                    {socialPlatform === 'instagram' && 'Instagram'} Outreach Message
                   </CardTitle>
                   <CardDescription>
                     AI-powered personalized messages using contact, company, and campaign insights
@@ -964,7 +1054,9 @@ export default function CampaignContactDetail() {
                     ) : (
                       <>
                         <Sparkles className="mr-2 h-4 w-4" />
-                        Generate LinkedIn Messages
+                        Generate {socialPlatform === 'linkedin' && 'LinkedIn'}
+                        {socialPlatform === 'facebook' && 'Facebook'}
+                        {socialPlatform === 'instagram' && 'Instagram'} Messages
                       </>
                     )}
                   </Button>

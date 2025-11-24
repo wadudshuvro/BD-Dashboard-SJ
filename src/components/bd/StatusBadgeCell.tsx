@@ -1,4 +1,4 @@
-import { CheckCircle2, Circle, Send, Users, MessageCircle, Mail, Calendar } from 'lucide-react';
+import { CheckCircle2, Circle, Send, Users, MessageCircle, Mail, Calendar, XCircle, Trophy, Facebook, Instagram } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import {
   Tooltip,
@@ -60,15 +60,43 @@ const STATUS_CONFIG: Record<
     icon: Calendar,
     className: 'bg-green-200 text-green-900 border-green-300',
   },
+  close_lost: {
+    label: 'Close Lost',
+    description: 'Deal did not close',
+    icon: XCircle,
+    className: 'bg-red-100 text-red-900 border-red-200',
+  },
+  won: {
+    label: 'Won',
+    description: 'Deal won successfully',
+    icon: Trophy,
+    className: 'bg-yellow-100 text-yellow-900 border-yellow-200',
+  },
 };
 
 interface StatusBadgeCellProps {
   status: CampaignContactStatus;
+  socialPlatform?: 'linkedin' | 'facebook' | 'instagram';
 }
 
-export function StatusBadgeCell({ status }: StatusBadgeCellProps) {
+export function StatusBadgeCell({ status, socialPlatform = 'linkedin' }: StatusBadgeCellProps) {
   const config = STATUS_CONFIG[status];
-  const Icon = config.icon;
+  let Icon = config.icon;
+  let label = config.label;
+  let description = config.description;
+  
+  // Override for social media stage based on platform
+  if (status === 'contacted_linkedin') {
+    if (socialPlatform === 'facebook') {
+      Icon = Facebook;
+      label = 'FB Request Sent';
+      description = 'Facebook connection/follow request sent';
+    } else if (socialPlatform === 'instagram') {
+      Icon = Instagram;
+      label = 'IG Request Sent';
+      description = 'Instagram follow request sent';
+    }
+  }
 
   return (
     <TooltipProvider>
@@ -76,11 +104,11 @@ export function StatusBadgeCell({ status }: StatusBadgeCellProps) {
         <TooltipTrigger asChild>
           <Badge variant="outline" className={config.className}>
             <Icon className="h-3 w-3 mr-1" />
-            {config.label}
+            {label}
           </Badge>
         </TooltipTrigger>
         <TooltipContent>
-          <p className="text-xs">{config.description}</p>
+          <p className="text-xs">{description}</p>
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>
