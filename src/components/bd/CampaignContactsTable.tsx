@@ -164,16 +164,16 @@ export function CampaignContactsTable({
   return (
     <>
       <div className="w-full overflow-x-auto border rounded-lg">
-        <Table className="table-fixed min-w-[1200px]">
+        <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-12 px-3 py-3">
+              <TableHead className="w-10 px-2 py-2">
                 <Checkbox
                   checked={selectedContacts.size === contacts.length && contacts.length > 0}
                   onCheckedChange={toggleSelectAll}
                 />
               </TableHead>
-              <TableHead className="w-48 px-3 py-3">
+              <TableHead className="px-3 py-2">
                 <div 
                   className="flex items-center gap-2 cursor-pointer hover:text-primary"
                   onClick={() => handleSort("contact_name")}
@@ -182,8 +182,8 @@ export function CampaignContactsTable({
                   <ArrowUpDown className={`h-4 w-4 ${sortConfig.key === "contact_name" ? 'text-primary' : 'text-muted-foreground'}`} />
                 </div>
               </TableHead>
-              <TableHead className="w-64 max-w-64 px-3 py-3">Contact Info</TableHead>
-              <TableHead className="w-56 max-w-56 px-3 py-3">
+              <TableHead className="px-3 py-2">Contact Info</TableHead>
+              <TableHead className="px-3 py-2">
                 <div 
                   className="flex items-center gap-2 cursor-pointer hover:text-primary"
                   onClick={() => handleSort("contact_company")}
@@ -192,8 +192,9 @@ export function CampaignContactsTable({
                   <ArrowUpDown className={`h-4 w-4 ${sortConfig.key === "contact_company" ? 'text-primary' : 'text-muted-foreground'}`} />
                 </div>
               </TableHead>
-              <TableHead className="w-52 max-w-52 px-3 py-3">Tags</TableHead>
-              <TableHead className="w-32 px-3 py-3">
+              <TableHead className="w-24 px-3 py-2">Actions</TableHead>
+              <TableHead className="px-3 py-2">Tags</TableHead>
+              <TableHead className="w-32 px-3 py-2">
                 <div 
                   className="flex items-center gap-2 cursor-pointer hover:text-primary"
                   onClick={() => handleSort("status")}
@@ -202,7 +203,6 @@ export function CampaignContactsTable({
                   <ArrowUpDown className={`h-4 w-4 ${sortConfig.key === "status" ? 'text-primary' : 'text-muted-foreground'}`} />
                 </div>
               </TableHead>
-              <TableHead className="w-20 px-3 py-3">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -211,7 +211,7 @@ export function CampaignContactsTable({
                 key={contact.id}
                 className="cursor-pointer hover:bg-muted/50"
               >
-                <TableCell className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
+                <TableCell className="px-2 py-2" onClick={(e) => e.stopPropagation()}>
                   <Checkbox
                     checked={selectedContacts.has(contact.id)}
                     onCheckedChange={() => toggleSelectContact(contact.id)}
@@ -219,25 +219,25 @@ export function CampaignContactsTable({
                 </TableCell>
                 
                 {/* Name with Avatar */}
-                <TableCell className="px-3 py-3">
+                <TableCell className="px-3 py-2">
                   <div className="flex items-center gap-2">
                     <Avatar className="h-8 w-8 flex-shrink-0">
                       <AvatarImage src={contact.linkedin_profile_image_url || undefined} />
-                      <AvatarFallback>
+                      <AvatarFallback className="text-xs">
                         {contact.contact_name?.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
-                    <span className="font-medium truncate">{contact.contact_name}</span>
+                    <span className="font-medium text-sm">{contact.contact_name}</span>
                   </div>
                 </TableCell>
 
                 {/* Contact Info */}
-                <TableCell className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
+                <TableCell className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
                   <div className="flex flex-col gap-1 text-sm">
                     {contact.contact_email && (
-                      <div className="flex items-center gap-1 group min-w-0">
+                      <div className="flex items-center gap-1 group">
                         <Mail className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                        <span className="text-muted-foreground truncate flex-1 min-w-0">{contact.contact_email}</span>
+                        <span className="text-muted-foreground text-xs">{contact.contact_email}</span>
                         <Button
                           variant="ghost"
                           size="sm"
@@ -251,7 +251,7 @@ export function CampaignContactsTable({
                     {contact.contact_phone && (
                       <div className="flex items-center gap-1">
                         <Phone className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                        <span className="text-muted-foreground truncate">{contact.contact_phone}</span>
+                        <span className="text-muted-foreground text-xs">{contact.contact_phone}</span>
                       </div>
                     )}
                     {contact.contact_linkedin_url && (
@@ -259,26 +259,34 @@ export function CampaignContactsTable({
                         href={contact.contact_linkedin_url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-1 text-primary hover:underline min-w-0"
+                        className="flex items-center gap-1 text-primary hover:underline text-xs"
                         onClick={(e) => e.stopPropagation()}
                       >
                         <Linkedin className="h-3 w-3 flex-shrink-0" />
-                        <span className="truncate">View Profile</span>
+                        <span>View Profile</span>
                       </a>
                     )}
                   </div>
                 </TableCell>
 
                 {/* Company & Title */}
-                <TableCell className="px-3 py-3">
-                  <div className="flex flex-col">
-                    <span className="font-medium truncate">{contact.contact_company || contact.current_employer}</span>
-                    <span className="text-sm text-muted-foreground truncate">{contact.contact_title || contact.current_position_title}</span>
+                <TableCell className="px-3 py-2">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="font-medium text-sm">{contact.contact_company || contact.current_employer || '-'}</span>
+                    <span className="text-xs text-muted-foreground">{contact.contact_title || contact.current_position_title || '-'}</span>
                   </div>
                 </TableCell>
 
+                {/* Actions - Moved here after Company & Title */}
+                <TableCell className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
+                  <QuickActionsCell 
+                    contact={contact}
+                    onAction={onQuickAction}
+                  />
+                </TableCell>
+
                 {/* Tags */}
-                <TableCell className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
+                <TableCell className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
                   <TagCell
                     contactId={contact.id}
                     campaignId={campaignId}
@@ -288,16 +296,8 @@ export function CampaignContactsTable({
                 </TableCell>
 
                 {/* Status */}
-                <TableCell className="px-3 py-3">
+                <TableCell className="px-3 py-2">
                   <StatusBadgeCell status={contact.status} />
-                </TableCell>
-
-                {/* Actions */}
-                <TableCell className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
-                  <QuickActionsCell 
-                    contact={contact}
-                    onAction={onQuickAction}
-                  />
                 </TableCell>
               </TableRow>
             ))}
