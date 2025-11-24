@@ -77,19 +77,29 @@ The SJ Business Development AI Platform now supports synchronized CRM data flows
 ### 2.1 Configuration overview
 - **Edge function:** `supabase/functions/gohighlevel-manage/index.ts`
 - **Primary endpoints:**
-  - `POST /integration` – encrypts and saves API credentials.
+  - `POST /test-connection` – validates API credentials and location ID without saving them (returns location details if successful).
+  - `POST /integration` – encrypts and saves API credentials after validation.
   - `GET /integration` – returns the active integration metadata for the authenticated user.
   - `DELETE /integration/:id` – disables an integration and purges cached contacts.
   - `POST /sync-contacts` – imports contacts, opportunities, and KPI metrics.
+  - `POST /push-client` – pushes a single client to GoHighLevel as a contact.
   - `POST /webhook` – validates incoming GoHighLevel webhook payloads (optional `GHL_WEBHOOK_SECRET`) and triggers a sync.
-- **Integration record:** stored per-user in `gohighlevel_integrations` with the encrypted API key (`api_key_encrypted`) and optional `location_id`.
+- **Integration record:** stored per-user in `gohighlevel_integrations` with the encrypted API key (`api_key_encrypted`) and required `location_id`.
 - **Contacts cache:** `gohighlevel_contacts` contains the last synced contact snapshot per integration.
 
 ### 2.2 Setup steps
-1. Obtain a GoHighLevel API key (location or agency level) and optional `locationId`.
-2. In the admin panel’s **CRM Integrations** section, enter the API key, optional location ID, and click **Connect GHL**. The key is encrypted with `INTEGRATION_SECRET_KEY` before storage.
-3. Use **Sync Contacts** to populate `gohighlevel_contacts`, normalize clients, and update KPIs.
-4. (Optional) Configure a GoHighLevel webhook to call `/gohighlevel-manage/webhook` and include the `GHL_WEBHOOK_SECRET` header if configured.
+1. Obtain a GoHighLevel API key (location or agency level) and the `locationId` for your GHL location.
+2. In the admin panel's **CRM Integrations** section, enter the API key and location ID.
+3. Click **Test Connection** to verify credentials before saving. This validates both the API key and location ID.
+4. If the test is successful, click **Add Location** to save. The API key is encrypted with `INTEGRATION_SECRET_KEY` before storage.
+5. Use **Sync Contacts** to populate `gohighlevel_contacts`, normalize clients, and update KPIs.
+6. (Optional) Configure a GoHighLevel webhook to call `/gohighlevel-manage/webhook` and include the `GHL_WEBHOOK_SECRET` header if configured.
+
+### 2.2.1 Common errors and troubleshooting
+- **"Invalid API key or insufficient permissions"**: The API key is incorrect or doesn't have the required scopes. Generate a new API key from GHL Settings → Integrations → API with full permissions.
+- **"Location ID not found"**: The location ID is incorrect. Find your location ID in the GHL URL: `.../location/YOUR_LOCATION_ID/...`
+- **"Location already connected"**: This location has already been added to your account. Remove the existing connection first if you want to update credentials.
+- **Connection timeout**: Check that your Supabase instance can reach `services.leadconnectorhq.com`. Verify network settings and firewall rules.
 
 ### 2.3 Data mapping
 | GoHighLevel source | Supabase table | Key fields |
