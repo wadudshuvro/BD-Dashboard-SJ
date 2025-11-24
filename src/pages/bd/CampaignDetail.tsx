@@ -56,6 +56,8 @@ const STAGE_BADGE_CLASSES: Record<CampaignContactStatus, string> = {
   contacted_email: 'bg-orange-100 text-orange-900',
   responded: 'bg-teal-100 text-teal-900',
   meeting_booked: 'bg-green-200 text-green-900',
+  close_lost: 'bg-red-100 text-red-900',
+  won: 'bg-emerald-200 text-emerald-950',
 };
 
 

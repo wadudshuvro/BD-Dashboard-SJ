@@ -2929,6 +2929,9 @@ export type Database = {
           is_active: boolean | null
           location_id: string | null
           location_name: string | null
+          refresh_token_encrypted: string | null
+          token_expires_at: string | null
+          token_type: string | null
           updated_at: string
           user_id: string
         }
@@ -2939,6 +2942,9 @@ export type Database = {
           is_active?: boolean | null
           location_id?: string | null
           location_name?: string | null
+          refresh_token_encrypted?: string | null
+          token_expires_at?: string | null
+          token_type?: string | null
           updated_at?: string
           user_id: string
         }
@@ -2949,6 +2955,9 @@ export type Database = {
           is_active?: boolean | null
           location_id?: string | null
           location_name?: string | null
+          refresh_token_encrypted?: string | null
+          token_expires_at?: string | null
+          token_type?: string | null
           updated_at?: string
           user_id?: string
         }

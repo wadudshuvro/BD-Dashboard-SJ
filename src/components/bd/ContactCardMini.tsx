@@ -19,14 +19,16 @@ interface ContactCardMiniProps {
 }
 
 const statusToProgress: Record<CampaignContactStatus, number> = {
-  identified: 12.5,
-  researched: 25,
-  contacted_linkedin: 37.5,
-  connected: 50,
-  messaged: 62.5,
-  contacted_email: 75,
-  responded: 87.5,
-  meeting_booked: 100,
+  identified: 10,
+  researched: 20,
+  contacted_linkedin: 30,
+  connected: 40,
+  messaged: 50,
+  contacted_email: 60,
+  responded: 70,
+  meeting_booked: 80,
+  close_lost: 90,
+  won: 100,
 };
 
 export function ContactCardMini({ contact, campaignSlug }: ContactCardMiniProps) {
