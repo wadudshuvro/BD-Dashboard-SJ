@@ -6,7 +6,6 @@ import { useLeadList } from '@/hooks/useLeads';
 import { useProposalMetrics } from '@/hooks/useProposalMetrics';
 import { TrendingUp, Users, Target, Award, FileText, Clock } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { SyncHubSpotButton } from '@/components/bd/SyncHubSpotButton';
 
 export default function BDDashboard() {
   const { deals, loading: dealsLoading } = useDeals({ enabled: true });
@@ -62,14 +61,11 @@ export default function BDDashboard() {
 
   return (
     <div className="container mx-auto py-8 space-y-6">
-      <div className="mb-6 flex justify-between items-start">
-        <div>
-          <h1 className="text-3xl font-bold">Business Development Dashboard</h1>
-          <p className="text-muted-foreground">
-            Track your BD performance and pipeline health
-          </p>
-        </div>
-        <SyncHubSpotButton />
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold">Business Development Dashboard</h1>
+        <p className="text-muted-foreground">
+          Track your BD performance and pipeline health
+        </p>
       </div>
 
       {/* KPI Cards */}
