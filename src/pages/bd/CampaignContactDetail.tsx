@@ -119,8 +119,9 @@ export default function CampaignContactDetail() {
     
     // If changing to contacted_linkedin status, include social platform in metadata
     if (newStatus === 'contacted_linkedin') {
+      const existingMetadata = (contact.metadata as Record<string, unknown>) || {};
       updates.metadata = {
-        ...(contact.metadata || {}),
+        ...existingMetadata,
         social_platform: socialPlatform
       };
     }
@@ -137,11 +138,12 @@ export default function CampaignContactDetail() {
     
     // If already on contacted_linkedin status, update the platform immediately
     if (contact.status === 'contacted_linkedin') {
+      const existingMetadata = (contact.metadata as Record<string, unknown>) || {};
       updateMutation.mutate({
         contactId: contact.id,
         updates: {
           metadata: {
-            ...(contact.metadata || {}),
+            ...existingMetadata,
             social_platform: platform
           }
         }
