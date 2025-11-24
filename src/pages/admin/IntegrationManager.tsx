@@ -166,6 +166,8 @@ const IntegrationManager = () => {
   const [ghlForm, setGhlForm] = useState({ apiKey: "", locationId: "", locationName: "" });
   const [ghlIntegrations, setGhlIntegrations] = useState<any[]>([]);
   const [isConnectingGhl, setIsConnectingGhl] = useState(false);
+  const [testingGhl, setTestingGhl] = useState(false);
+  const [ghlTestResult, setGhlTestResult] = useState<any>(null);
   const [isLogsDialogOpen, setIsLogsDialogOpen] = useState(false);
   const [selectedLogSource, setSelectedLogSource] = useState<"hubspot" | "gohighlevel" | null>(null);
   const [logEntries, setLogEntries] = useState<IntegrationLogEntry[]>([]);
@@ -413,11 +415,74 @@ const IntegrationManager = () => {
     }
   };
 
+  const handleTestGoHighLevel = async () => {
+    if (!ghlForm.apiKey.trim()) {
+      toast({
+        title: "API key required",
+        description: "Enter a GoHighLevel API key before testing.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setTestingGhl(true);
+    setGhlTestResult(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("gohighlevel-manage/test-connection", {
+        method: "POST",
+        body: {
+          apiKey: ghlForm.apiKey.trim(),
+          locationId: ghlForm.locationId.trim() || null,
+        },
+      });
+
+      if (error) throw error;
+
+      setGhlTestResult(data);
+
+      if (data?.ok) {
+        toast({
+          title: "Connection successful",
+          description: data.message || "GoHighLevel credentials are valid.",
+        });
+        // Auto-populate location name if returned and not already filled
+        if (data.locationName && !ghlForm.locationName.trim()) {
+          setGhlForm((prev) => ({ ...prev, locationName: data.locationName }));
+        }
+      } else {
+        toast({
+          title: "Connection failed",
+          description: data?.error || "Unable to connect to GoHighLevel.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("GoHighLevel test failed", error);
+      toast({
+        title: "Test failed",
+        description: error instanceof Error ? error.message : "Unable to test GoHighLevel connection.",
+        variant: "destructive",
+      });
+      setGhlTestResult({ ok: false, error: "Connection test failed" });
+    } finally {
+      setTestingGhl(false);
+    }
+  };
+
   const handleConnectGoHighLevel = async () => {
     if (!ghlForm.apiKey.trim()) {
       toast({
         title: "API key required",
         description: "Enter a GoHighLevel API key before connecting.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!ghlForm.locationId.trim()) {
+      toast({
+        title: "Location ID required",
+        description: "Enter a GoHighLevel Location ID before connecting.",
         variant: "destructive",
       });
       return;
@@ -439,6 +504,7 @@ const IntegrationManager = () => {
       }
       toast({ title: "GoHighLevel connected", description: "Credentials saved successfully." });
       setGhlForm({ apiKey: "", locationId: "", locationName: "" });
+      setGhlTestResult(null);
       await loadIntegrations();
     } catch (error) {
       console.error("GoHighLevel connection failed", error);
@@ -1452,14 +1518,21 @@ const IntegrationManager = () => {
               <h4 className="text-sm font-medium">Add New Location</h4>
               <div className="grid gap-3 md:grid-cols-3">
                 <div className="grid gap-2">
-                  <Label htmlFor="ghl-api-key">API Key</Label>
+                  <Label htmlFor="ghl-api-key">API Key *</Label>
                   <Input
                     id="ghl-api-key"
+                    type="password"
                     placeholder="Enter API key"
                     value={ghlForm.apiKey}
-                    onChange={(event) => setGhlForm((prev) => ({ ...prev, apiKey: event.target.value }))}
-                    disabled={isConnectingGhl}
+                    onChange={(event) => {
+                      setGhlForm((prev) => ({ ...prev, apiKey: event.target.value }));
+                      setGhlTestResult(null);
+                    }}
+                    disabled={isConnectingGhl || testingGhl}
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Get your API key from GHL Settings → Integrations → API
+                  </p>
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="ghl-location-id">Location ID *</Label>
@@ -1467,8 +1540,11 @@ const IntegrationManager = () => {
                     id="ghl-location-id"
                     placeholder="e.g., fZgMNJT9I9gVG0wDd1oi"
                     value={ghlForm.locationId}
-                    onChange={(event) => setGhlForm((prev) => ({ ...prev, locationId: event.target.value }))}
-                    disabled={isConnectingGhl}
+                    onChange={(event) => {
+                      setGhlForm((prev) => ({ ...prev, locationId: event.target.value }));
+                      setGhlTestResult(null);
+                    }}
+                    disabled={isConnectingGhl || testingGhl}
                   />
                   <p className="text-xs text-muted-foreground">
                     Find this in your GHL URL: .../location/<strong>YOUR_LOCATION_ID</strong>/...
@@ -1481,14 +1557,67 @@ const IntegrationManager = () => {
                     placeholder="e.g., Austin Office"
                     value={ghlForm.locationName}
                     onChange={(event) => setGhlForm((prev) => ({ ...prev, locationName: event.target.value }))}
-                    disabled={isConnectingGhl}
+                    disabled={isConnectingGhl || testingGhl}
                   />
                 </div>
               </div>
-              <Button onClick={handleConnectGoHighLevel} disabled={isConnectingGhl}>
-                {isConnectingGhl ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plug className="mr-2 h-4 w-4" />}
-                Add Location
-              </Button>
+
+              {ghlTestResult && (
+                <div
+                  className={`rounded-md border px-3 py-2 text-sm ${
+                    ghlTestResult.ok
+                      ? "border-green-500 text-green-600 dark:text-green-400"
+                      : "border-red-500 text-red-600 dark:text-red-400"
+                  }`}
+                >
+                  {ghlTestResult.ok ? (
+                    <span className="flex items-center gap-1">
+                      ✓ {ghlTestResult.message || "Connection successful"}
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" />
+                      {ghlTestResult.error || "Connection failed"}
+                    </span>
+                  )}
+                </div>
+              )}
+
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={handleTestGoHighLevel}
+                  disabled={testingGhl || isConnectingGhl || !ghlForm.apiKey.trim()}
+                >
+                  {testingGhl ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Testing...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                      Test Connection
+                    </>
+                  )}
+                </Button>
+                <Button
+                  onClick={handleConnectGoHighLevel}
+                  disabled={isConnectingGhl || testingGhl || !ghlForm.apiKey.trim() || !ghlForm.locationId.trim()}
+                >
+                  {isConnectingGhl ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Connecting...
+                    </>
+                  ) : (
+                    <>
+                      <Plug className="mr-2 h-4 w-4" />
+                      Add Location
+                    </>
+                  )}
+                </Button>
+              </div>
             </div>
 
             {/* List of existing locations */}

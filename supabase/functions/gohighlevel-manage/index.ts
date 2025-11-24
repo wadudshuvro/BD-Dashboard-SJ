@@ -311,60 +311,127 @@ async function handleGetIntegration(req: Request): Promise<Response> {
 
 async function handleCreateIntegration(req: Request): Promise<Response> {
   const headers = { ...corsHeaders, "Content-Type": "application/json" };
-  const body = await req.json();
-  const apiKey = body?.apiKey;
-  const locationId = body?.locationId ?? null;
-  const locationName = body?.locationName ?? null;
-
-  if (!apiKey) {
-    return new Response(JSON.stringify({ ok: false, error: "API key required" }), { headers, status: 400 });
-  }
-
-  if (!locationId) {
-    return new Response(JSON.stringify({ ok: false, error: "Location ID required" }), { headers, status: 400 });
-  }
-
   try {
+    const body = await req.json();
+    const apiKey = body?.apiKey;
+    const locationId = body?.locationId ?? null;
+    const locationName = body?.locationName ?? null;
+
+    if (!apiKey) {
+      return new Response(JSON.stringify({ ok: false, error: "API key required" }), { headers, status: 400 });
+    }
+
+    if (!locationId) {
+      return new Response(JSON.stringify({ ok: false, error: "Location ID required" }), { headers, status: 400 });
+    }
+
     const client = await createSupabaseClient(req);
     const userId = await requireAuth(client);
     if (!userId) {
       return new Response(JSON.stringify({ ok: false, error: "Unauthorized" }), { headers, status: 401 });
     }
 
-    const encryptedKey = await encryptSecret(apiKey);
-
-    const { data, error } = await client
-      .from("gohighlevel_integrations")
-      .insert({
-        user_id: userId,
-        api_key_encrypted: encryptedKey,
-        location_id: locationId,
-        location_name: locationName,
-        is_active: true,
-      })
-      .select("id, location_id, location_name, is_active, updated_at")
-      .single();
-
-    if (error) throw error;
-
-    const now = new Date().toISOString();
-    await client
-      .from("analytics_data")
-      .insert({
-        source: "gohighlevel",
-        metric_name: "integration_sync",
-        metric_value: 0,
-        dimensions: {
-          event: "integration_connected",
-          triggeredBy: "manual",
+    // Verify the credentials are valid before saving
+    try {
+      const testResponse = await fetch(`${GHL_API_BASE}/locations/${locationId}`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+          Version: "2021-07-28",
         },
-        recorded_at: now,
       });
 
-    return new Response(JSON.stringify({ ok: true, integration: data }), { headers, status: 201 });
+      if (!testResponse.ok) {
+        if (testResponse.status === 401 || testResponse.status === 403) {
+          return new Response(
+            JSON.stringify({ ok: false, error: "Invalid API key or insufficient permissions. Please verify your credentials." }),
+            { headers, status: 400 }
+          );
+        } else if (testResponse.status === 404) {
+          return new Response(
+            JSON.stringify({ ok: false, error: `Location ID "${locationId}" not found. Please verify the location ID is correct.` }),
+            { headers, status: 400 }
+          );
+        } else {
+          const errorText = await testResponse.text();
+          return new Response(
+            JSON.stringify({ ok: false, error: `GoHighLevel API error (${testResponse.status}): ${errorText}` }),
+            { headers, status: 400 }
+          );
+        }
+      }
+
+      const locationData = await testResponse.json();
+      const verifiedLocationName = locationName || locationData?.name || locationData?.location?.name || null;
+
+      // Check if this location is already connected
+      const { data: existing } = await client
+        .from("gohighlevel_integrations")
+        .select("id, location_name")
+        .eq("user_id", userId)
+        .eq("location_id", locationId)
+        .eq("is_active", true)
+        .maybeSingle();
+
+      if (existing) {
+        return new Response(
+          JSON.stringify({
+            ok: false,
+            error: `Location "${existing.location_name || locationId}" is already connected.`
+          }),
+          { headers, status: 400 }
+        );
+      }
+
+      const encryptedKey = await encryptSecret(apiKey);
+
+      const { data, error } = await client
+        .from("gohighlevel_integrations")
+        .insert({
+          user_id: userId,
+          api_key_encrypted: encryptedKey,
+          location_id: locationId,
+          location_name: verifiedLocationName,
+          is_active: true,
+        })
+        .select("id, location_id, location_name, is_active, updated_at")
+        .single();
+
+      if (error) throw error;
+
+      const now = new Date().toISOString();
+      await client
+        .from("analytics_data")
+        .insert({
+          source: "gohighlevel",
+          metric_name: "integration_sync",
+          metric_value: 0,
+          dimensions: {
+            event: "integration_connected",
+            triggeredBy: "manual",
+            location_id: locationId,
+          },
+          recorded_at: now,
+        });
+
+      return new Response(JSON.stringify({ ok: true, integration: data }), { headers, status: 201 });
+    } catch (fetchError) {
+      console.error("[GHL] Failed to verify credentials:", fetchError);
+      return new Response(
+        JSON.stringify({
+          ok: false,
+          error: fetchError instanceof Error ? fetchError.message : "Failed to verify GoHighLevel credentials"
+        }),
+        { headers, status: 500 }
+      );
+    }
   } catch (error) {
     console.error("[GHL] create integration", error);
-    return new Response(JSON.stringify({ ok: false, error: error instanceof Error ? error.message : "Unknown error" }), { headers, status: 500 });
+    return new Response(
+      JSON.stringify({ ok: false, error: error instanceof Error ? error.message : "Unknown error" }),
+      { headers, status: 500 }
+    );
   }
 }
 
@@ -586,6 +653,96 @@ async function handleSyncContacts(req: Request): Promise<Response> {
   }
 }
 
+async function handleTestConnection(req: Request): Promise<Response> {
+  const headers = { ...corsHeaders, "Content-Type": "application/json" };
+  try {
+    const body = await req.json();
+    const apiKey = body?.apiKey;
+    const locationId = body?.locationId ?? null;
+
+    if (!apiKey) {
+      return new Response(JSON.stringify({ ok: false, error: "API key required for testing" }), { headers, status: 400 });
+    }
+
+    // Test the API key by making a simple request
+    // If locationId is provided, verify it exists; otherwise just test the API key
+    let testEndpoint = "/locations/";
+    let testMethod = "GET";
+
+    if (locationId) {
+      // Test by getting location details
+      testEndpoint = `/locations/${locationId}`;
+    }
+
+    try {
+      const response = await fetch(`${GHL_API_BASE}${testEndpoint}`, {
+        method: testMethod,
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+          Version: "2021-07-28",
+        },
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        let errorMessage = "Connection failed";
+
+        if (response.status === 401 || response.status === 403) {
+          errorMessage = "Invalid API key or insufficient permissions";
+        } else if (response.status === 404) {
+          errorMessage = locationId
+            ? `Location ID "${locationId}" not found. Please verify the location ID is correct.`
+            : "Invalid API endpoint";
+        } else {
+          errorMessage = `GoHighLevel API error (${response.status}): ${text}`;
+        }
+
+        return new Response(
+          JSON.stringify({
+            ok: false,
+            error: errorMessage,
+            status: response.status
+          }),
+          { headers, status: 200 } // Return 200 with error details for better UX
+        );
+      }
+
+      const data = await response.json();
+      const locationName = data?.name || data?.location?.name || null;
+
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          message: locationId
+            ? `Successfully connected to location: ${locationName || locationId}`
+            : "API key is valid",
+          locationName,
+        }),
+        { headers }
+      );
+    } catch (fetchError) {
+      console.error("[GHL] Test connection fetch error:", fetchError);
+      return new Response(
+        JSON.stringify({
+          ok: false,
+          error: fetchError instanceof Error ? fetchError.message : "Failed to connect to GoHighLevel API",
+        }),
+        { headers, status: 200 }
+      );
+    }
+  } catch (error) {
+    console.error("[GHL] Test connection error:", error);
+    return new Response(
+      JSON.stringify({
+        ok: false,
+        error: error instanceof Error ? error.message : "Unable to test connection"
+      }),
+      { headers, status: 500 }
+    );
+  }
+}
+
 async function handleWebhook(req: Request): Promise<Response> {
   const headers = { ...corsHeaders, "Content-Type": "application/json" };
   const secret = Deno.env.get("GHL_WEBHOOK_SECRET");
@@ -668,6 +825,10 @@ Deno.serve(async (req) => {
 
   if (req.method === "POST" && pathname === "/push-client") {
     return handlePushClient(req);
+  }
+
+  if (req.method === "POST" && pathname === "/test-connection") {
+    return handleTestConnection(req);
   }
 
   if (req.method === "POST" && pathname === "/webhook") {
