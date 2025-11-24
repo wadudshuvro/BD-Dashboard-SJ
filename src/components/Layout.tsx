@@ -85,6 +85,23 @@ function useClientCount() {
   });
 }
 
+function useCampaignCount() {
+  return useQuery({
+    queryKey: ['campaign-count-nav'],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('bd_campaigns')
+        .select('*', { count: 'exact', head: true })
+        .neq('status', 'archived');
+      
+      if (error) throw error;
+      
+      return count || 0;
+    },
+    refetchInterval: 30000,
+  });
+}
+
 interface LayoutProps {
   userRole?: 'super_admin' | 'manager' | 'pm' | 'user';
 }
@@ -105,6 +122,7 @@ const Layout = ({ userRole }: LayoutProps) => {
   const location = useLocation();
   const { data: dealCounts } = useDealCounts();
   const { data: clientCount } = useClientCount();
+  const { data: campaignCount } = useCampaignCount();
   
   // Use the actual user role if available, otherwise fall back to prop
   const currentRole = user?.role || userRole || 'user';
@@ -140,7 +158,7 @@ const Layout = ({ userRole }: LayoutProps) => {
           { name: `Clients${clientCount ? ` (${clientCount})` : ''}`, href: "/clients", icon: Building2, current: false },
         ]
       },
-      { name: "Campaigns", href: "/campaigns", icon: Megaphone, current: false },
+      { name: `Campaigns${campaignCount ? ` (${campaignCount})` : ''}`, href: "/campaigns", icon: Megaphone, current: false },
       { name: "Sequences", href: "/sequences", icon: Zap, current: false },
       { 
         name: "Performance", 
