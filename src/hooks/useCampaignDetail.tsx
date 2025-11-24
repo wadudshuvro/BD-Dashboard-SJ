@@ -25,6 +25,8 @@ const defaultContactByStatus = (): Record<CampaignContactStatus, CampaignContact
   contacted_email: [],
   responded: [],
   meeting_booked: [],
+  close_lost: [],
+  won: [],
 });
 
 const buildIntegrationFallback = (
