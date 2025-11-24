@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { cn } from '@/lib/utils';
 import {
   Archive,
   ArrowLeft,
@@ -39,23 +40,31 @@ import type { QuickActionType } from '@/components/bd/QuickActionsCell';
 const PIPELINE_STAGES: { status: CampaignContactStatus; title: string; description: string }[] = [
   { status: 'identified', title: 'Identified', description: 'Contacts imported into the campaign' },
   { status: 'researched', title: 'Researched', description: 'Research summaries created' },
-  { status: 'contacted_linkedin', title: 'LinkedIn Request Sent', description: 'Connection requests sent' },
-  { status: 'connected', title: 'Connected', description: 'Connection accepted on LinkedIn' },
-  { status: 'messaged', title: 'Message Sent', description: 'LinkedIn message delivered' },
+  { status: 'contacted_linkedin', title: 'Request Sent', description: 'Social media request sent' },
+  { status: 'contacted_facebook', title: 'FB Request', description: 'Facebook follow request sent' },
+  { status: 'contacted_instagram', title: 'IG Request', description: 'Instagram follow request sent' },
+  { status: 'connected', title: 'Connected', description: 'Connection accepted' },
+  { status: 'messaged', title: 'Message Sent', description: 'Direct message delivered' },
   { status: 'contacted_email', title: 'Email Sent', description: 'Email outreach via GHL' },
   { status: 'responded', title: 'Responded', description: 'Prospect replied to outreach' },
   { status: 'meeting_booked', title: 'Meeting Booked', description: 'Meeting scheduled with prospect' },
+  { status: 'close_lost', title: 'Close Lost', description: 'Deal did not close' },
+  { status: 'won', title: 'Won', description: 'Deal won successfully' },
 ];
 
 const STAGE_BADGE_CLASSES: Record<CampaignContactStatus, string> = {
   identified: 'bg-slate-100 text-slate-900',
   researched: 'bg-blue-100 text-blue-900',
   contacted_linkedin: 'bg-indigo-100 text-indigo-900',
+  contacted_facebook: 'bg-blue-50 text-blue-800',
+  contacted_instagram: 'bg-pink-50 text-pink-800',
   connected: 'bg-emerald-100 text-emerald-900',
   messaged: 'bg-purple-100 text-purple-900',
   contacted_email: 'bg-orange-100 text-orange-900',
   responded: 'bg-teal-100 text-teal-900',
   meeting_booked: 'bg-green-200 text-green-900',
+  close_lost: 'bg-red-100 text-red-900',
+  won: 'bg-amber-100 text-amber-900',
 };
 
 
@@ -505,18 +514,34 @@ export default function CampaignDetail() {
               />
             )
           ) : (
-            // Pipeline View (existing)
-            <ScrollArea className="h-[520px]">
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                {PIPELINE_STAGES.map((stage) => {
-                  const stageContacts = sortedContactByStatus[stage.status] || [];
-                  return (
-                    <div key={stage.status} className="space-y-4">
-                      <div className="sticky top-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-10 pb-2">
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                              <p className="font-semibold">{stage.title}</p>
+            // Pipeline View - Horizontal scrollable Kanban board
+            <div className="relative">
+              {/* Hint for horizontal scroll */}
+              <div className="flex items-center justify-between mb-3 px-1">
+                <p className="text-xs text-muted-foreground">
+                  Scroll horizontally to view all stages →
+                </p>
+                <p className="text-xs font-medium text-muted-foreground">
+                  {totalContactsCount} total contacts
+                </p>
+              </div>
+              
+              <ScrollArea className="w-full" orientation="horizontal">
+                <div className="flex gap-3 pb-4 px-1">{/* min-w-max removed to allow proper scrolling */}
+                  {PIPELINE_STAGES.map((stage) => {
+                    const stageContacts = sortedContactByStatus[stage.status] || [];
+                    return (
+                      <div key={stage.status} className="flex-shrink-0 w-[300px]">
+                        <div className="h-full rounded-lg border bg-muted/20 p-3 space-y-3">
+                          {/* Stage Header */}
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <h3 className="font-semibold text-sm">{stage.title}</h3>
+                                <Badge variant="secondary" className={cn("text-xs font-semibold", stageBadgeClass(stage.status))}>
+                                  {stageContacts.length}
+                                </Badge>
+                              </div>
                               <Button
                                 variant="ghost"
                                 size="sm"
@@ -527,116 +552,117 @@ export default function CampaignDetail() {
                                 <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground hover:text-primary" />
                               </Button>
                             </div>
-                            <p className="text-xs text-muted-foreground">{stage.description}</p>
+                            <p className="text-xs text-muted-foreground leading-tight">{stage.description}</p>
+                            <Separator />
                           </div>
-                          <Badge variant="secondary" className={stageBadgeClass(stage.status)}>
-                            {stageContacts.length}
-                          </Badge>
-                        </div>
-                        <Separator className="mt-2" />
-                      </div>
-                      <div className="space-y-3">
-                        {stageContacts.length === 0 ? (
-                          <Card className="border-dashed bg-muted/20">
-                            <CardContent className="flex flex-col items-center justify-center py-8 px-4 text-center">
-                              {stage.status === 'identified' ? (
-                                <>
-                                  <Users className="h-10 w-10 text-muted-foreground mb-3" />
-                                  <p className="text-sm font-medium mb-1">No contacts yet</p>
-                                  <p className="text-xs text-muted-foreground mb-3">Import leads to get started</p>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => setLeadImportDialogOpen(true)}
-                                    className="gap-2"
-                                  >
-                                    <Users className="h-3 w-3" />
-                                    Add Leads
-                                  </Button>
-                                </>
-                              ) : stage.status === 'researched' && contactByStatus.identified?.length > 0 ? (
-                                <>
-                                  <Brain className="h-10 w-10 text-muted-foreground mb-3" />
-                                  <p className="text-sm font-medium mb-1">No research yet</p>
-                                  <p className="text-xs text-muted-foreground mb-3">Run research on identified contacts</p>
-                                  {canRunResearch && (
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={handleRunResearch}
-                                      disabled={isRunningResearch}
-                                      className="gap-2"
-                                    >
-                                      {isRunningResearch ? (
-                                        <Loader2 className="h-3 w-3 animate-spin" />
-                                      ) : (
-                                        <Rocket className="h-3 w-3" />
+                          
+                          {/* Scrollable cards container */}
+                          <ScrollArea className="h-[480px]">
+                            <div className="space-y-2.5 pr-2">
+                              {stageContacts.length === 0 ? (
+                                <Card className="border-dashed bg-background/50">
+                                  <CardContent className="flex flex-col items-center justify-center py-6 px-3 text-center">
+                                  {stage.status === 'identified' ? (
+                                    <>
+                                      <Users className="h-8 w-8 text-muted-foreground mb-2" />
+                                      <p className="text-xs font-medium mb-1">No contacts yet</p>
+                                      <p className="text-[10px] text-muted-foreground mb-2">Import leads to get started</p>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => setLeadImportDialogOpen(true)}
+                                        className="gap-1.5 h-7 text-xs"
+                                      >
+                                        <Users className="h-3 w-3" />
+                                        Add Leads
+                                      </Button>
+                                    </>
+                                  ) : stage.status === 'researched' && contactByStatus.identified?.length > 0 ? (
+                                    <>
+                                      <Brain className="h-8 w-8 text-muted-foreground mb-2" />
+                                      <p className="text-xs font-medium mb-1">No research yet</p>
+                                      <p className="text-[10px] text-muted-foreground mb-2">Run research on identified contacts</p>
+                                      {canRunResearch && (
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          onClick={handleRunResearch}
+                                          disabled={isRunningResearch}
+                                          className="gap-1.5 h-7 text-xs"
+                                        >
+                                          {isRunningResearch ? (
+                                            <Loader2 className="h-3 w-3 animate-spin" />
+                                          ) : (
+                                            <Rocket className="h-3 w-3" />
+                                          )}
+                                          Run R&D
+                                        </Button>
                                       )}
-                                      Run R&D
-                                    </Button>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center mb-2">
+                                        <div className="text-base text-muted-foreground">→</div>
+                                      </div>
+                                      <p className="text-xs text-muted-foreground">Move contacts here</p>
+                                    </>
                                   )}
-                                </>
+                                    </CardContent>
+                                </Card>
                               ) : (
-                                <>
-                                  <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center mb-3">
-                                    <div className="text-lg">→</div>
-                                  </div>
-                                  <p className="text-sm text-muted-foreground">Move contacts here</p>
-                                </>
+                                stageContacts.map((contact) => (
+                                  <button
+                                    key={contact.id}
+                                    onClick={() => navigate(`/campaigns/${campaign.slug}/contacts/${contact.slug}`)}
+                                    className="w-full rounded-md border bg-card p-2.5 text-left hover:bg-accent hover:shadow-md hover:border-primary/20 transition-all duration-200"
+                                  >
+                                    <div className="flex items-start gap-2.5">
+                                      <Avatar className="h-8 w-8 flex-shrink-0">
+                                        <AvatarFallback className="text-xs font-medium">
+                                          {contact.contact_name.slice(0, 2).toUpperCase()}
+                                        </AvatarFallback>
+                                      </Avatar>
+                                      <div className="flex-1 min-w-0">
+                                        <p className="font-medium text-xs leading-tight truncate mb-0.5">
+                                          {contact.contact_name}
+                                        </p>
+                                        {contact.linkedin_headline && (
+                                          <p className="text-[10px] text-muted-foreground truncate italic line-clamp-1 mb-0.5">
+                                            {contact.linkedin_headline}
+                                          </p>
+                                        )}
+                                        {contact.contact_company && (
+                                          <p className="text-[10px] text-muted-foreground truncate">
+                                            {contact.contact_title ? `${contact.contact_title} at ` : ''}{contact.contact_company}
+                                          </p>
+                                        )}
+                                        <div className="flex items-center gap-1.5 mt-1.5">
+                                          {contact.research_summary && (
+                                            <Badge variant="secondary" className="text-[9px] h-3.5 px-1 gap-0.5">
+                                              <Brain className="h-2 w-2" />
+                                            </Badge>
+                                          )}
+                                          {contact.contact_email && (
+                                            <Mail className="h-2.5 w-2.5 text-muted-foreground" />
+                                          )}
+                                          {contact.contact_linkedin_url && (
+                                            <Linkedin className="h-2.5 w-2.5 text-muted-foreground" />
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </button>
+                                ))
                               )}
-                            </CardContent>
-                          </Card>
-                        ) : (
-                          stageContacts.map((contact) => (
-                            <button
-                              key={contact.id}
-                              onClick={() => navigate(`/campaigns/${campaign.slug}/contacts/${contact.slug}`)}
-                              className="w-full rounded-lg border bg-card p-3 text-left hover:bg-accent hover:shadow-sm transition-all"
-                            >
-                              <div className="flex items-start gap-3">
-                                <Avatar className="h-9 w-9">
-                                  <AvatarFallback className="text-xs">
-                                    {contact.contact_name.slice(0, 2).toUpperCase()}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <div className="flex-1 min-w-0">
-                                  <p className="font-medium text-sm leading-tight truncate">
-                                    {contact.contact_name}
-                                  </p>
-                                  {contact.linkedin_headline && (
-                                    <p className="text-xs text-muted-foreground truncate italic line-clamp-1">
-                                      {contact.linkedin_headline}
-                                    </p>
-                                  )}
-                                  {contact.contact_company && (
-                                    <p className="text-xs text-muted-foreground truncate">
-                                      {contact.contact_title ? `${contact.contact_title} at ` : ''}{contact.contact_company}
-                                    </p>
-                                  )}
-                                  <div className="flex items-center gap-2 mt-2">
-                                    {contact.research_summary && (
-                                      <Badge variant="secondary" className="text-[10px] h-4 px-1.5 gap-0.5">
-                                        <Brain className="h-2.5 w-2.5" />
-                                      </Badge>
-                                    )}
-                                    {contact.contact_email && (
-                                      <Mail className="h-3 w-3 text-muted-foreground" />
-                                    )}
-                                    {contact.contact_linkedin_url && (
-                                      <Linkedin className="h-3 w-3 text-muted-foreground" />
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            </button>
-                          ))
-                        )}
+                            </div>
+                          </ScrollArea>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </ScrollArea>
+                    );
+                  })}
+                </div>
+              </ScrollArea>
+            </div>
           )}
         </CardContent>
       </Card>
