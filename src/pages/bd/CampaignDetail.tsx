@@ -518,16 +518,19 @@ export default function CampaignDetail() {
             <div className="relative">
               {/* Hint for horizontal scroll */}
               <div className="flex items-center justify-between mb-3 px-1">
-                <p className="text-xs text-muted-foreground">
-                  Scroll horizontally to view all stages →
+                <p className="text-xs text-muted-foreground flex items-center gap-2">
+                  <span>Scroll horizontally to view all stages</span>
+                  <span className="text-primary animate-pulse">→</span>
                 </p>
                 <p className="text-xs font-medium text-muted-foreground">
-                  {totalContactsCount} total contacts
+                  {totalContactsCount} total contacts across 12 stages
                 </p>
               </div>
               
-              <ScrollArea className="w-full" orientation="horizontal">
-                <div className="flex gap-3 pb-4 px-1">{/* min-w-max removed to allow proper scrolling */}
+              {/* Use regular overflow-x-auto for visible scrollbar with fade indicator */}
+              <div className="relative">
+                <div className="overflow-x-auto overflow-y-hidden pb-3 scrollbar-visible">
+                <div className="flex gap-3 min-w-max">{/* min-w-max ensures content extends beyond container */}
                   {PIPELINE_STAGES.map((stage) => {
                     const stageContacts = sortedContactByStatus[stage.status] || [];
                     return (
@@ -661,7 +664,11 @@ export default function CampaignDetail() {
                     );
                   })}
                 </div>
-              </ScrollArea>
+                </div>
+                
+                {/* Fade indicator on the right to show more content */}
+                <div className="absolute top-0 right-0 bottom-3 w-12 bg-gradient-to-l from-background to-transparent pointer-events-none" />
+              </div>
             </div>
           )}
         </CardContent>
