@@ -66,6 +66,31 @@ export default function Signup() {
 
       if (signUpError) throw signUpError;
 
+      // Verify profile creation (retry up to 3 times)
+      if (data.user) {
+        let profileExists = false;
+        for (let attempt = 0; attempt < 3; attempt++) {
+          await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1s between attempts
+          
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('id')
+            .eq('id', data.user.id)
+            .maybeSingle();
+          
+          if (profile) {
+            profileExists = true;
+            break;
+          }
+        }
+
+        if (!profileExists) {
+          throw new Error(
+            'Account created but profile setup incomplete. Please contact support or try signing in.'
+          );
+        }
+      }
+
       toast({
         title: "Success!",
         description: "Account created successfully. You can now sign in.",
