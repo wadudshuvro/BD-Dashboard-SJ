@@ -500,6 +500,7 @@ export default function CampaignDetail() {
                 campaignId={campaign.id}
                 campaignSlug={campaign.slug}
                 onQuickAction={handleQuickAction}
+                onNavigate={(contactSlug) => navigate(`/campaigns/${campaign.slug}/contacts/${contactSlug}`)}
               />
             ) : (
               <EmptyContactList
