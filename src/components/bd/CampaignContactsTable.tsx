@@ -30,6 +30,7 @@ interface CampaignContactsTableProps {
   campaignId: string;
   campaignSlug: string;
   onQuickAction: (action: QuickActionType, contactSlug: string) => void;
+  onNavigate?: (contactSlug: string) => void;
 }
 
 export function CampaignContactsTable({
@@ -37,6 +38,7 @@ export function CampaignContactsTable({
   campaignId,
   campaignSlug,
   onQuickAction,
+  onNavigate,
 }: CampaignContactsTableProps) {
   const [selectedContacts, setSelectedContacts] = useState<Set<string>>(new Set());
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: null, direction: "asc" });
@@ -210,6 +212,11 @@ export function CampaignContactsTable({
               <TableRow
                 key={contact.id}
                 className="cursor-pointer hover:bg-muted/50"
+                onClick={() => {
+                  if (onNavigate) {
+                    onNavigate(contact.slug);
+                  }
+                }}
               >
                 <TableCell className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
                   <Checkbox

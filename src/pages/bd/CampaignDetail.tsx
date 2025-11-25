@@ -420,9 +420,17 @@ export default function CampaignDetail() {
             <div className="space-y-2">
               <CardTitle className="text-3xl">{campaign.name}</CardTitle>
               <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="outline" className="capitalize">
-                  {campaign.campaign_type?.replace('_', ' ')}
-                </Badge>
+                {campaign.campaign_types && campaign.campaign_types.length > 0 ? (
+                  campaign.campaign_types.map((type) => (
+                    <Badge key={type} variant="outline" className="capitalize">
+                      {type.replace('_', ' ')}
+                    </Badge>
+                  ))
+                ) : (
+                  <Badge variant="outline" className="capitalize">
+                    {campaign.campaign_type?.replace('_', ' ')}
+                  </Badge>
+                )}
                 <Badge className="capitalize">{campaign.status}</Badge>
                 {campaign.ai_agent_id && (
                   <Badge variant="secondary" className="flex items-center gap-1">
@@ -500,6 +508,7 @@ export default function CampaignDetail() {
                 campaignId={campaign.id}
                 campaignSlug={campaign.slug}
                 onQuickAction={handleQuickAction}
+                onNavigate={(contactSlug) => navigate(`/campaigns/${campaign.slug}/contacts/${contactSlug}`)}
               />
             ) : (
               <EmptyContactList
