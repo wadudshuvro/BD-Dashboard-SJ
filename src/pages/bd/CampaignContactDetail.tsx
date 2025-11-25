@@ -58,6 +58,9 @@ export default function CampaignContactDetail() {
     (contact?.metadata as any)?.social_platform || 'linkedin'
   );
   
+  // Get completed stages from metadata
+  const completedStages = (contact?.metadata as any)?.completed_stages || [];
+  
   // LinkedIn Message Generation
   const [messageType, setMessageType] = useState<'connection_request' | 'first_followup' | 'second_followup' | 'meeting_request'>('connection_request');
   const [userContext, setUserContext] = useState("");
@@ -149,6 +152,37 @@ export default function CampaignContactDetail() {
         }
       });
     }
+  };
+
+  const handleStageToggle = async (stage: CampaignContactStatus) => {
+    if (!contact) return;
+    
+    const currentCompleted = (contact.metadata as any)?.completed_stages || [];
+    const isCurrentlyCompleted = currentCompleted.includes(stage);
+    
+    // Toggle the stage - add if not present, remove if present
+    const updatedCompleted = isCurrentlyCompleted
+      ? currentCompleted.filter((s: string) => s !== stage)
+      : [...currentCompleted, stage];
+    
+    // Update metadata in database
+    const existingMetadata = (contact.metadata as Record<string, unknown>) || {};
+    
+    updateMutation.mutate({
+      contactId: contact.id,
+      updates: {
+        metadata: {
+          ...existingMetadata,
+          completed_stages: updatedCompleted
+        }
+      }
+    });
+    
+    toast.success(
+      isCurrentlyCompleted 
+        ? `Stage unmarked as completed` 
+        : `Stage marked as completed`
+    );
   };
 
   const handleRunAgent = async () => {
@@ -504,7 +538,11 @@ export default function CampaignContactDetail() {
         </CardHeader>
         
         <CardContent className="pb-6">
-          <StatusProgressBar currentStatus={contact.status as CampaignContactStatus} />
+          <StatusProgressBar 
+            currentStatus={contact.status as CampaignContactStatus}
+            completedStages={completedStages}
+            onStageToggle={handleStageToggle}
+          />
         </CardContent>
         
         <CardContent>
