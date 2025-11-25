@@ -325,6 +325,33 @@ export type Database = {
         }
         Relationships: []
       }
+      auth_sync_errors: {
+        Row: {
+          created_at: string
+          error_message: string
+          error_type: string
+          id: string
+          raw_data: Json | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          error_message: string
+          error_type: string
+          id?: string
+          raw_data?: Json | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          error_message?: string
+          error_type?: string
+          id?: string
+          raw_data?: Json | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       bd_campaigns: {
         Row: {
           actual_contacts_reached: number | null
@@ -4405,6 +4432,16 @@ export type Database = {
       }
       cleanup_old_sync_logs: { Args: never; Returns: undefined }
       clear_all_sync_logs: { Args: never; Returns: undefined }
+      fix_orphaned_users: {
+        Args: never
+        Returns: {
+          error_message: string
+          fixed_user_id: string
+          profile_created: boolean
+          role_created: boolean
+          user_email: string
+        }[]
+      }
       generate_alert: {
         Args: {
           p_alert_type: string
