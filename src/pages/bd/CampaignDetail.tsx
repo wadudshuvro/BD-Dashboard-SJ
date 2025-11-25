@@ -536,11 +536,25 @@ export default function CampaignDetail() {
               <div className="relative">
                 <div className="overflow-x-auto overflow-y-hidden pb-3 scrollbar-visible">
                 <div className="flex gap-3 min-w-max">{/* min-w-max ensures content extends beyond container */}
-                  {PIPELINE_STAGES.map((stage) => {
+                  {(() => {
+                    // Reorder stages: filtered stages first, then the rest
+                    if (statusFilter.length > 0) {
+                      const filteredStages = PIPELINE_STAGES.filter(stage => statusFilter.includes(stage.status));
+                      const otherStages = PIPELINE_STAGES.filter(stage => !statusFilter.includes(stage.status));
+                      return [...filteredStages, ...otherStages];
+                    }
+                    return PIPELINE_STAGES;
+                  })().map((stage) => {
                     const stageContacts = sortedContactByStatus[stage.status] || [];
+                    const isFiltered = statusFilter.length > 0 && statusFilter.includes(stage.status);
                     return (
                       <div key={stage.status} className="flex-shrink-0 w-[300px]">
-                        <div className="h-full rounded-lg border bg-muted/20 p-3 space-y-3">
+                        <div className={cn(
+                          "h-full rounded-lg border p-3 space-y-3",
+                          isFiltered 
+                            ? "bg-primary/5 border-primary/30 ring-2 ring-primary/20" 
+                            : "bg-muted/20"
+                        )}>
                           {/* Stage Header */}
                           <div className="space-y-2">
                             <div className="flex items-center justify-between">
