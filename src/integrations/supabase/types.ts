@@ -2717,6 +2717,7 @@ export type Database = {
           description: string | null
           email: string | null
           id: string
+          priority: string | null
           reviewed_by: string | null
           status: string
           subject: string
@@ -2731,6 +2732,7 @@ export type Database = {
           description?: string | null
           email?: string | null
           id?: string
+          priority?: string | null
           reviewed_by?: string | null
           status?: string
           subject: string
@@ -2745,6 +2747,7 @@ export type Database = {
           description?: string | null
           email?: string | null
           id?: string
+          priority?: string | null
           reviewed_by?: string | null
           status?: string
           subject?: string
