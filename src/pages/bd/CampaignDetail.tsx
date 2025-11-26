@@ -36,6 +36,22 @@ import { ContactListControls } from '@/components/bd/ContactListControls';
 import { EmptyContactList } from '@/components/bd/EmptyContactList';
 import { useCampaignContactResearch } from '@/hooks/useCampaignContactResearch';
 import type { QuickActionType } from '@/components/bd/QuickActionsCell';
+import { usePagination } from '@/hooks/usePagination';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from '@/components/ui/pagination';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 const PIPELINE_STAGES: { status: CampaignContactStatus; title: string; description: string }[] = [
   { status: 'identified', title: 'Identified', description: 'Contacts imported into the campaign' },
@@ -94,14 +110,22 @@ export default function CampaignDetail() {
   });
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<CampaignContactStatus[]>([]);
-  
+
   // Pipeline sorting state
   const [pipelineSortOrder, setPipelineSortOrder] = useState<'asc' | 'desc'>('asc');
+
+  // Pagination state for list view
+  const { currentPage, pageSize, setCurrentPage, setPageSize, reset: resetPagination } = usePagination(10);
 
   // Save view mode preference
   useEffect(() => {
     localStorage.setItem('campaign-view-mode', viewMode);
   }, [viewMode]);
+
+  // Reset pagination when filters change
+  useEffect(() => {
+    resetPagination();
+  }, [searchQuery, statusFilter, resetPagination]);
 
   const linkedinStats = (campaign?.linkedin_stats as Record<string, number | undefined>) || {};
   const ghlStats = (campaign?.ghl_stats as Record<string, number | undefined>) || {};
@@ -179,7 +203,7 @@ export default function CampaignDetail() {
   // Filter and sort contacts for list view
   const filteredContacts = useMemo(() => {
     if (!contacts) return [];
-    
+
     let result = [...contacts];
 
     // Search filter
@@ -203,6 +227,17 @@ export default function CampaignDetail() {
 
     return result;
   }, [contacts, searchQuery, statusFilter]);
+
+  // Paginate contacts for list view
+  const paginatedContacts = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredContacts.slice(start, start + pageSize);
+  }, [filteredContacts, currentPage, pageSize]);
+
+  // Calculate pagination info
+  const totalPages = Math.ceil(filteredContacts.length / pageSize);
+  const startIndex = (currentPage - 1) * pageSize + 1;
+  const endIndex = Math.min(currentPage * pageSize, filteredContacts.length);
 
   // Calculate status counts for filter dropdown
   const statusCounts = useMemo(() => {
@@ -292,12 +327,47 @@ export default function CampaignDetail() {
     setPipelineSortOrder(current => current === 'asc' ? 'desc' : 'asc');
   };
 
+  // Filter contacts by search query for pipeline view
+  const filteredContactsByStatus = useMemo(() => {
+    if (!searchQuery && statusFilter.length === 0) return contactByStatus;
+
+    const filtered: Record<CampaignContactStatus, typeof contacts> = {} as Record<CampaignContactStatus, typeof contacts>;
+    const query = searchQuery.toLowerCase();
+
+    PIPELINE_STAGES.forEach((stage) => {
+      const stageContacts = contactByStatus[stage.status] || [];
+      let result = stageContacts;
+
+      // Apply search filter
+      if (searchQuery) {
+        result = result.filter(
+          (c) =>
+            c.contact_name.toLowerCase().includes(query) ||
+            c.contact_company?.toLowerCase().includes(query) ||
+            c.contact_title?.toLowerCase().includes(query) ||
+            c.linkedin_headline?.toLowerCase().includes(query) ||
+            c.current_employer?.toLowerCase().includes(query) ||
+            c.current_position_title?.toLowerCase().includes(query)
+        );
+      }
+
+      // Apply status filter (keep only if stage is in filter or no filter active)
+      if (statusFilter.length > 0 && !statusFilter.includes(stage.status)) {
+        result = [];
+      }
+
+      filtered[stage.status] = result;
+    });
+
+    return filtered;
+  }, [contactByStatus, searchQuery, statusFilter]);
+
   // Sort contacts by name for pipeline view
   const sortedContactByStatus = useMemo(() => {
     const sorted: Record<CampaignContactStatus, typeof contacts> = {} as Record<CampaignContactStatus, typeof contacts>;
-    
+
     PIPELINE_STAGES.forEach((stage) => {
-      const stageContacts = contactByStatus[stage.status] || [];
+      const stageContacts = filteredContactsByStatus[stage.status] || [];
       sorted[stage.status] = [...stageContacts].sort((a, b) => {
         const nameA = (a.contact_name || '').toLowerCase();
         const nameB = (b.contact_name || '').toLowerCase();
@@ -305,9 +375,9 @@ export default function CampaignDetail() {
         return pipelineSortOrder === 'asc' ? comparison : -comparison;
       });
     });
-    
+
     return sorted;
-  }, [contactByStatus, pipelineSortOrder]);
+  }, [filteredContactsByStatus, pipelineSortOrder]);
 
   if (isLoading) {
     return <div className="container mx-auto py-10">Loading campaign...</div>;
@@ -502,22 +572,102 @@ export default function CampaignDetail() {
         <CardContent>
           {viewMode === 'list' ? (
             // Smart List View
-            filteredContacts.length > 0 ? (
-              <CampaignContactsTable
-                contacts={filteredContacts}
-                campaignId={campaign.id}
-                campaignSlug={campaign.slug}
-                onQuickAction={handleQuickAction}
-                onNavigate={(contactSlug) => navigate(`/campaigns/${campaign.slug}/contacts/${contactSlug}`)}
-              />
-            ) : (
-              <EmptyContactList
-                hasContacts={(contacts?.length || 0) > 0}
-                hasFilters={searchQuery !== '' || statusFilter.length > 0}
-                onClearFilters={handleClearFilters}
-                onAddLeads={() => setLeadImportDialogOpen(true)}
-              />
-            )
+            <div className="space-y-4">
+              {filteredContacts.length > 0 ? (
+                <>
+                  {/* Results count */}
+                  <div className="flex items-center justify-between text-sm text-muted-foreground">
+                    <div>
+                      Showing {startIndex} to {endIndex} of {filteredContacts.length} contacts
+                      {filteredContacts.length < (contacts?.length || 0) && (
+                        <span className="ml-1">
+                          (filtered from {contacts?.length || 0} total)
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span>Show</span>
+                      <Select value={pageSize.toString()} onValueChange={(val) => setPageSize(Number(val))}>
+                        <SelectTrigger className="w-[80px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="10">10</SelectItem>
+                          <SelectItem value="25">25</SelectItem>
+                          <SelectItem value="50">50</SelectItem>
+                          <SelectItem value="100">100</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <span>per page</span>
+                    </div>
+                  </div>
+
+                  {/* Table */}
+                  <CampaignContactsTable
+                    contacts={paginatedContacts}
+                    campaignId={campaign.id}
+                    campaignSlug={campaign.slug}
+                    onQuickAction={handleQuickAction}
+                    onNavigate={(contactSlug) => navigate(`/campaigns/${campaign.slug}/contacts/${contactSlug}`)}
+                  />
+
+                  {/* Pagination */}
+                  {totalPages > 1 && (
+                    <div className="flex justify-center">
+                      <Pagination>
+                        <PaginationContent>
+                          <PaginationItem>
+                            <PaginationPrevious
+                              onClick={() => currentPage > 1 && setCurrentPage(currentPage - 1)}
+                              className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                            />
+                          </PaginationItem>
+
+                          {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                            let pageNum: number;
+                            if (totalPages <= 5) {
+                              pageNum = i + 1;
+                            } else if (currentPage <= 3) {
+                              pageNum = i + 1;
+                            } else if (currentPage >= totalPages - 2) {
+                              pageNum = totalPages - 4 + i;
+                            } else {
+                              pageNum = currentPage - 2 + i;
+                            }
+
+                            return (
+                              <PaginationItem key={pageNum}>
+                                <PaginationLink
+                                  onClick={() => setCurrentPage(pageNum)}
+                                  isActive={currentPage === pageNum}
+                                  className="cursor-pointer"
+                                >
+                                  {pageNum}
+                                </PaginationLink>
+                              </PaginationItem>
+                            );
+                          })}
+
+                          <PaginationItem>
+                            <PaginationNext
+                              onClick={() => currentPage < totalPages && setCurrentPage(currentPage + 1)}
+                              className={currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                            />
+                          </PaginationItem>
+                        </PaginationContent>
+                      </Pagination>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <EmptyContactList
+                  hasContacts={(contacts?.length || 0) > 0}
+                  hasFilters={searchQuery !== '' || statusFilter.length > 0}
+                  onClearFilters={handleClearFilters}
+                  onAddLeads={() => setLeadImportDialogOpen(true)}
+                />
+              )}
+            </div>
           ) : (
             // Pipeline View - Horizontal scrollable Kanban board
             <div className="relative">
