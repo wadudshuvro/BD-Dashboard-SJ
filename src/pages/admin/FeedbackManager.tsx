@@ -35,10 +35,12 @@ import {
   listFeedbackReports,
   postFeedbackComment,
   updateFeedbackStatus,
+  updateFeedbackPriority,
   type FeedbackDetailResponse,
   type FeedbackReport,
   type FeedbackStatus,
   type FeedbackType,
+  type FeedbackPriority,
 } from "@/features/feedback/api";
 import { cn } from "@/lib/utils";
 import { Clock, Inbox, MessageCircle, ShieldCheck, Sparkles, Bug, Archive, Download } from "lucide-react";
@@ -80,6 +82,20 @@ const STATUS_STYLES: Record<FeedbackStatus, string> = {
 
 const STATUS_OPTIONS: FeedbackStatus[] = ["open", "in_review", "resolved", "closed"];
 
+const PRIORITY_LABELS: Record<FeedbackPriority, string> = {
+  low: "Low",
+  medium: "Medium",
+  high: "High",
+};
+
+const PRIORITY_STYLES: Record<FeedbackPriority, string> = {
+  low: "bg-gray-100 text-gray-700 dark:bg-gray-900/40 dark:text-gray-100",
+  medium: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-100",
+  high: "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-100",
+};
+
+const PRIORITY_OPTIONS: (FeedbackPriority | null)[] = [null, "low", "medium", "high"];
+
 export default function FeedbackManager() {
   const [activeTab, setActiveTab] = useState<keyof typeof TABS>("bugs");
   const [selectedFeedbackId, setSelectedFeedbackId] = useState<string | null>(null);
@@ -92,6 +108,8 @@ export default function FeedbackManager() {
   // Only super_admin and admin should have full access
   // All other roles (manager, project_manager, bd_user, team_member) are view-only
   const isViewOnly = !['super_admin', 'admin'].includes(user?.role || '');
+  // Only super_admin can edit priority
+  const isSuperAdmin = user?.role === 'super_admin';
   const { enabled: feedbackEnabled } = useFeatureFlag("feedback_enabled");
 
   const tabConfig = TABS[activeTab];
@@ -187,6 +205,31 @@ export default function FeedbackManager() {
     onError: (error) => {
       toast({
         title: "Unable to update status",
+        description: error instanceof Error ? error.message : "Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const priorityMutation = useMutation({
+    mutationFn: async (priority: FeedbackPriority | null) => {
+      if (!selectedFeedbackId) throw new Error("No feedback selected");
+      const updated = await updateFeedbackPriority(selectedFeedbackId, priority);
+      return updated;
+    },
+    onSuccess: (updated) => {
+      toast({
+        title: "Priority updated",
+        description: updated.priority 
+          ? `Priority set to ${PRIORITY_LABELS[updated.priority]}.`
+          : "Priority cleared.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["feedback-list"] });
+      queryClient.invalidateQueries({ queryKey: ["feedback-detail", selectedFeedbackId] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Unable to update priority",
         description: error instanceof Error ? error.message : "Please try again.",
         variant: "destructive",
       });
@@ -315,9 +358,10 @@ export default function FeedbackManager() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="w-[45%]">Subject</TableHead>
+                        <TableHead className="w-[40%]">Subject</TableHead>
                         <TableHead>Type</TableHead>
                         <TableHead>Status</TableHead>
+                        <TableHead>Priority</TableHead>
                         <TableHead>Submitted by</TableHead>
                         <TableHead>Date</TableHead>
                       </TableRow>
@@ -325,13 +369,13 @@ export default function FeedbackManager() {
                     <TableBody>
                       {listQuery.isLoading ? (
                         <TableRow>
-                          <TableCell colSpan={5} className="py-10 text-center text-muted-foreground">
+                          <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
                             Loading feedback…
                           </TableCell>
                         </TableRow>
                       ) : listItems.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={5} className="py-10 text-center text-muted-foreground">
+                          <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
                             No feedback found for this tab.
                           </TableCell>
                         </TableRow>
@@ -357,6 +401,15 @@ export default function FeedbackManager() {
                               <Badge className={cn("text-xs", STATUS_STYLES[item.status])}>
                                 {STATUS_LABELS[item.status]}
                               </Badge>
+                            </TableCell>
+                            <TableCell>
+                              {item.priority ? (
+                                <Badge className={cn("text-xs", PRIORITY_STYLES[item.priority])}>
+                                  {PRIORITY_LABELS[item.priority]}
+                                </Badge>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">—</span>
+                              )}
                             </TableCell>
                             <TableCell>
                               <div className="flex flex-col">
@@ -549,6 +602,33 @@ export default function FeedbackManager() {
                             </SelectContent>
                           </Select>
                         </div>
+                        
+                        <div>
+                          <p className="text-sm font-semibold">
+                            Priority
+                            {!isSuperAdmin && (
+                              <span className="ml-2 text-xs font-normal text-muted-foreground">(View only)</span>
+                            )}
+                          </p>
+                          <Select
+                            value={selectedFeedback.priority ?? "none"}
+                            onValueChange={(value) => priorityMutation.mutate(value === "none" ? null : value as FeedbackPriority)}
+                            disabled={!isSuperAdmin}
+                          >
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Select priority" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">None</SelectItem>
+                              {PRIORITY_OPTIONS.filter(p => p !== null).map((priority) => (
+                                <SelectItem key={priority} value={priority!}>
+                                  {PRIORITY_LABELS[priority!]}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        
                         {!isViewOnly && (
                         <div className="flex flex-wrap gap-2">
                           <Button

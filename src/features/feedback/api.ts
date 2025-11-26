@@ -3,6 +3,7 @@ import axiosPrivate from "@/lib/axiosPrivate";
 
 export type FeedbackType = "bug" | "feature";
 export type FeedbackStatus = "open" | "in_review" | "resolved" | "closed";
+export type FeedbackPriority = "low" | "medium" | "high";
 
 export interface AttachmentInfo {
   fileName: string;
@@ -27,6 +28,7 @@ export interface FeedbackReport {
   subject: string;
   description: string | null;
   status: FeedbackStatus;
+  priority?: FeedbackPriority | null;
   email: string | null;
   attachment_url: string | null;
   created_by: string;
@@ -111,6 +113,11 @@ export async function postFeedbackComment(id: string, comment: string) {
 
 export async function updateFeedbackStatus(id: string, status: FeedbackStatus) {
   const response = await axiosPrivate.put<FeedbackReport>(`/manage-feedback/${id}/status`, { status });
+  return response.data;
+}
+
+export async function updateFeedbackPriority(id: string, priority: FeedbackPriority | null) {
+  const response = await axiosPrivate.put<FeedbackReport>(`/manage-feedback/${id}/priority`, { priority });
   return response.data;
 }
 
