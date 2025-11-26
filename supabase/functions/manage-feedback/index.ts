@@ -98,8 +98,11 @@ async function fetchProfileMap(client: any, userIds: string[]) {
 function parseRoute(req: Request) {
   const url = new URL(req.url);
   const segments = url.pathname.split("/").filter(Boolean);
+  console.log("[parseRoute] All segments:", JSON.stringify(segments));
   const functionIndex = segments.findIndex((segment) => segment === "manage-feedback");
+  console.log("[parseRoute] Function index:", functionIndex);
   const routeSegments = functionIndex >= 0 ? segments.slice(functionIndex + 1) : [];
+  console.log("[parseRoute] Route segments:", JSON.stringify(routeSegments));
   return { url, routeSegments };
 }
 
@@ -460,7 +463,7 @@ serve(async (req) => {
 
     const { url, routeSegments } = parseRoute(req);
     
-    console.log("[manage-feedback] Method:", req.method, "RouteSegments:", routeSegments);
+    console.log("[manage-feedback] Method:", req.method, "RouteSegments:", JSON.stringify(routeSegments), "Full URL:", req.url);
 
     if (req.method === "GET" && (routeSegments.length === 0 || routeSegments[0] === "list")) {
       try {
@@ -514,7 +517,7 @@ serve(async (req) => {
       return handleComment(serviceClient, id, user.id, body);
     }
 
-    if (req.method === "PUT" && routeSegments[1] === "status") {
+    if (req.method === "PUT" && routeSegments.length >= 2 && routeSegments[1] === "status") {
       try {
         await assertAtLeastAdmin(serviceClient, user.id);
       } catch (error) {
