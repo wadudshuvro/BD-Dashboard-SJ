@@ -33,7 +33,13 @@ export default function EODManagement() {
     queryFn: async () => {
       let query = supabase
         .from("eod_submissions")
-        .select("*")
+        .select(`
+          *,
+          profiles!eod_submissions_user_id_fkey (
+            full_name,
+            email
+          )
+        `)
         .order("date", { ascending: false });
 
       if (dateFilter === "today") {
@@ -88,14 +94,21 @@ export default function EODManagement() {
   const filteredSubmissions = allEODSubmissions?.filter((submission: any) => {
     if (!searchTerm) return true;
     const search = searchTerm.toLowerCase();
-    return submission.id.toLowerCase().includes(search);
+    const memberName = submission.profiles?.full_name?.toLowerCase() || '';
+    const memberEmail = submission.profiles?.email?.toLowerCase() || '';
+    return (
+      submission.id.toLowerCase().includes(search) ||
+      memberName.includes(search) ||
+      memberEmail.includes(search)
+    );
   });
 
   const exportToCSV = () => {
     if (!filteredSubmissions) return;
 
-    const headers = ["Date", "Hours Worked", "Tasks", "Submitted At"];
+    const headers = ["Member Name", "Date", "Hours Worked", "Tasks", "Submitted At"];
     const rows = filteredSubmissions.map((sub: any) => [
+      sub.profiles?.full_name || sub.profiles?.email || "Unknown",
       format(new Date(sub.date), "yyyy-MM-dd"),
       sub.hours_worked || "0",
       (sub.tasks_completed || "").replace(/\n/g, " "),
@@ -238,6 +251,7 @@ export default function EODManagement() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Member Name</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead>Hours</TableHead>
                   <TableHead>Tasks Preview</TableHead>
@@ -247,6 +261,19 @@ export default function EODManagement() {
               <TableBody>
                 {filteredSubmissions.map((submission: any) => (
                   <TableRow key={submission.id}>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2">
+                        <Users className="h-4 w-4 text-muted-foreground" />
+                        <div>
+                          <div>{submission.profiles?.full_name || "Unknown"}</div>
+                          {submission.profiles?.email && (
+                            <div className="text-xs text-muted-foreground">
+                              {submission.profiles.email}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </TableCell>
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-2">
                         <Calendar className="h-4 w-4 text-muted-foreground" />
