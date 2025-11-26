@@ -5,6 +5,9 @@ import { corsHeaders } from "../_shared/cors.ts";
 const ALLOWED_STATUSES = ["open", "in_review", "resolved", "closed"] as const;
 type FeedbackStatus = (typeof ALLOWED_STATUSES)[number];
 
+const ALLOWED_PRIORITIES = ["low", "medium", "high"] as const;
+type FeedbackPriority = (typeof ALLOWED_PRIORITIES)[number];
+
 type SupabaseClient = ReturnType<typeof createClient>;
 
 interface FeedbackReportRow {
@@ -13,6 +16,7 @@ interface FeedbackReportRow {
   subject: string;
   description: string | null;
   status: string;
+  priority: string | null;
   email: string | null;
   attachment_url: string | null;
   created_by: string;
@@ -70,10 +74,7 @@ async function fetchProfileMap(client: any, userIds: string[]) {
     return new Map<string, { name: string | null; email: string | null }>();
   }
 
-  const { data, error } = await client
-    .from("profiles")
-    .select("id, full_name, email")
-    .in("id", userIds);
+  const { data, error } = await client.from("profiles").select("id, full_name, email").in("id", userIds);
 
   if (error) {
     console.error("Failed to fetch profiles", error);
@@ -105,10 +106,7 @@ async function handleList(client: any, url: URL) {
   const includeClosed = url.searchParams.get("includeClosed") === "true";
   const search = url.searchParams.get("search");
 
-  let query = client
-    .from("feedback_reports")
-    .select("*", { count: "exact" })
-    .order("created_at", { ascending: false });
+  let query = client.from("feedback_reports").select("*", { count: "exact" }).order("created_at", { ascending: false });
 
   if (type) {
     query = query.eq("type", type);
@@ -119,7 +117,7 @@ async function handleList(client: any, url: URL) {
   }
 
   // Exclude closed unless explicitly requested OR status is already 'closed'
-  if (!includeClosed && status !== 'closed') {
+  if (!includeClosed && status !== "closed") {
     query = query.is("deleted_at", null).neq("status", "closed");
   }
 
@@ -160,11 +158,7 @@ async function handleList(client: any, url: URL) {
 }
 
 async function handleDetail(client: any, id: string) {
-  const { data: feedback, error } = await client
-    .from("feedback_reports")
-    .select("*")
-    .eq("id", id)
-    .maybeSingle();
+  const { data: feedback, error } = await client.from("feedback_reports").select("*").eq("id", id).maybeSingle();
 
   if (error) {
     console.error("Failed to load feedback", error);
@@ -200,11 +194,11 @@ async function handleDetail(client: any, id: string) {
   const commentRows = (comments ?? []) as unknown as FeedbackCommentRow[];
 
   const userIds = Array.from(
-    new Set([
-      report.created_by,
-      report.reviewed_by,
-      ...commentRows.map((comment) => comment.user_id),
-    ].filter((value): value is string => Boolean(value))),
+    new Set(
+      [report.created_by, report.reviewed_by, ...commentRows.map((comment) => comment.user_id)].filter(
+        (value): value is string => Boolean(value),
+      ),
+    ),
   );
 
   const profileMap = await fetchProfileMap(client, userIds);
@@ -212,8 +206,7 @@ async function handleDetail(client: any, id: string) {
   // Legacy single attachment support
   let attachmentSignedUrl: string | null = null;
   if (report.attachment_url) {
-    const { data: signedUrlData, error: signedUrlError } = await client
-      .storage
+    const { data: signedUrlData, error: signedUrlError } = await client.storage
       .from("feedback")
       .createSignedUrl(report.attachment_url, 60 * 60);
 
@@ -232,8 +225,7 @@ async function handleDetail(client: any, id: string) {
   const attachments = [];
   if (!attachmentsError && attachmentsData && attachmentsData.length > 0) {
     for (const att of attachmentsData) {
-      const { data: signedUrlData, error: signedUrlError } = await client
-        .storage
+      const { data: signedUrlData, error: signedUrlError } = await client.storage
         .from("feedback")
         .createSignedUrl(att.file_path, 60 * 60);
 
@@ -278,7 +270,10 @@ async function handleDetail(client: any, id: string) {
 
 async function handleComment(client: any, id: string, userId: string, body: unknown) {
   const comment =
-    typeof body === "object" && body !== null && "comment" in body && typeof (body as { comment?: unknown }).comment === "string"
+    typeof body === "object" &&
+    body !== null &&
+    "comment" in body &&
+    typeof (body as { comment?: unknown }).comment === "string"
       ? ((body as { comment: string }).comment || "").trim()
       : "";
   if (!comment) {
@@ -310,7 +305,10 @@ async function handleComment(client: any, id: string, userId: string, body: unkn
 
 async function handleStatus(client: any, id: string, userId: string, body: unknown) {
   const status =
-    typeof body === "object" && body !== null && "status" in body && typeof (body as { status?: unknown }).status === "string"
+    typeof body === "object" &&
+    body !== null &&
+    "status" in body &&
+    typeof (body as { status?: unknown }).status === "string"
       ? ((body as { status: string }).status || "").toLowerCase()
       : "";
   if (!ALLOWED_STATUSES.includes(status as FeedbackStatus)) {
@@ -335,6 +333,58 @@ async function handleStatus(client: any, id: string, userId: string, body: unkno
     });
   }
 
+  return new Response(JSON.stringify(data as unknown as FeedbackReportRow), {
+    status: 200,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+async function handlePriority(client: any, id: string, userId: string, body: unknown) {
+  const priority =
+    typeof body === "object" && body !== null && "priority" in body
+      ? (body as { priority?: unknown }).priority
+      : undefined;
+
+  console.log("[handlePriority] Received priority value:", priority, "Type:", typeof priority);
+
+  // Allow null or valid priority values
+  if (priority !== null && priority !== undefined) {
+    if (typeof priority !== "string" || !ALLOWED_PRIORITIES.includes(priority as FeedbackPriority)) {
+      console.error("[handlePriority] Invalid priority value:", priority);
+      return new Response(JSON.stringify({ message: "Invalid priority. Must be 'low', 'medium', 'high', or null" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+  }
+
+  const updateValue = priority === undefined ? null : (priority as string | null);
+  console.log("[handlePriority] Updating priority to:", updateValue);
+
+  const { data, error } = await client
+    .from("feedback_reports")
+    .update({ priority: updateValue, reviewed_by: userId })
+    .eq("id", id)
+    .select("*")
+    .single();
+
+  if (error) {
+    console.error("[handlePriority] Database error:", error);
+    return new Response(
+      JSON.stringify({
+        message: "Unable to update priority",
+        error: error.message,
+        details: error.details,
+        hint: error.hint,
+      }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
+  }
+
+  console.log("[handlePriority] Successfully updated priority");
   return new Response(JSON.stringify(data as unknown as FeedbackReportRow), {
     status: 200,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -367,30 +417,30 @@ serve(async (req) => {
   }
 
   try {
-  const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
-  const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 
-  // Extract JWT token from Authorization header
-  const authHeader = req.headers.get("Authorization") ?? "";
-  const token = authHeader.replace("Bearer ", "");
+    // Extract JWT token from Authorization header
+    const authHeader = req.headers.get("Authorization") ?? "";
+    const token = authHeader.replace("Bearer ", "");
 
-  console.log("[manage-feedback] Auth header present:", !!authHeader);
-  console.log("[manage-feedback] Auth header preview:", authHeader.substring(0, 20));
+    console.log("[manage-feedback] Auth header present:", !!authHeader);
+    console.log("[manage-feedback] Auth header preview:", authHeader.substring(0, 20));
 
-  const userClient = createClient(supabaseUrl, anonKey, {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-    },
-  });
+    const userClient = createClient(supabaseUrl, anonKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      },
+    });
 
-  const {
-    data: { user },
-    error: authError,
-  } = await userClient.auth.getUser(token);
+    const {
+      data: { user },
+      error: authError,
+    } = await userClient.auth.getUser(token);
 
-  console.log("[manage-feedback] User auth - Success:", !!user, "Error:", authError?.message);
+    console.log("[manage-feedback] User auth - Success:", !!user, "Error:", authError?.message);
 
     if (authError || !user) {
       return new Response(JSON.stringify({ message: "Unauthorized" }), {
@@ -403,9 +453,11 @@ serve(async (req) => {
       auth: { persistSession: false },
     });
 
-// Authorization handled per-route below (view: admin/super_admin; mutate: super_admin)
+    // Authorization handled per-route below (view: admin/super_admin; mutate: super_admin)
 
     const { url, routeSegments } = parseRoute(req);
+
+    console.log("[manage-feedback] Method:", req.method, "RouteSegments:", routeSegments);
 
     if (req.method === "GET" && (routeSegments.length === 0 || routeSegments[0] === "list")) {
       try {
@@ -472,6 +524,23 @@ serve(async (req) => {
       }
       const body = await req.json().catch(() => ({}));
       return handleStatus(serviceClient, id, user.id, body);
+    }
+
+    if (req.method === "PUT" && routeSegments.length >= 2 && routeSegments[1] === "priority") {
+      console.log("[manage-feedback] Matched priority route for id:", id);
+      try {
+        await assertAdmin(serviceClient, user.id);
+      } catch (error) {
+        console.log("[manage-feedback] Auth failed:", error);
+        const message = error instanceof Error ? error.message : "Forbidden";
+        const status = message === "Insufficient privileges" ? 403 : 500;
+        return new Response(JSON.stringify({ message }), {
+          status,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const body = await req.json().catch(() => ({}));
+      return handlePriority(serviceClient, id, user.id, body);
     }
 
     if (req.method === "DELETE" && routeSegments.length === 1) {
