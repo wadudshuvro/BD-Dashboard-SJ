@@ -55,6 +55,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.error('Error fetching user profile:', userError);
       }
 
+      // Auto-recovery: If profile missing, try to create it
+      if (!userProfile && authUser.id) {
+        console.warn('⚠️ Profile missing for authenticated user. Attempting auto-recovery...');
+        
+        const fullName = authUser.user_metadata?.first_name && authUser.user_metadata?.last_name
+          ? `${authUser.user_metadata.first_name} ${authUser.user_metadata.last_name}`
+          : authUser.user_metadata?.full_name || authUser.email?.split('@')[0] || 'User';
+
+        try {
+          // Attempt to create missing profile
+          const { error: insertError } = await supabase
+            .from('profiles')
+            .insert({
+              id: authUser.id,
+              email: authUser.email || '',
+              full_name: fullName,
+              avatar_url: authUser.user_metadata?.avatar_url || null
+            });
+
+          if (!insertError) {
+            console.log('✅ Profile auto-created successfully');
+            
+            // Also ensure role exists
+            await supabase
+              .from('user_roles' as any)
+              .insert({ user_id: authUser.id, role: 'team_member' })
+              .select()
+              .single();
+          } else {
+            console.error('Failed to auto-create profile:', insertError);
+          }
+        } catch (autoRecoveryError) {
+          console.error('Profile auto-recovery failed:', autoRecoveryError);
+        }
+      }
+
       // Fetch role from user_roles table (secure separate table)
       const { data: roleData, error: roleError } = await supabase
         .from('user_roles' as any)
@@ -68,7 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.error('Error fetching user role:', roleError);
       }
 
-      // Graceful fallback: construct minimal user if profile missing
+      // Graceful fallback: construct minimal user if profile still missing
       const profile = userProfile || {
         id: authUser.id,
         email: authUser.email || '',

@@ -4,6 +4,8 @@ import type { CampaignContactStatus } from "@/features/campaign-detail/types";
 
 interface StatusProgressBarProps {
   currentStatus: CampaignContactStatus;
+  completedStages?: CampaignContactStatus[];
+  onStageToggle?: (stage: CampaignContactStatus) => void;
   className?: string;
 }
 
@@ -20,35 +22,45 @@ const statusFlow: { status: CampaignContactStatus; label: string }[] = [
   { status: "won", label: "WON" },
 ];
 
-export function StatusProgressBar({ currentStatus, className }: StatusProgressBarProps) {
-  const currentIndex = statusFlow.findIndex(s => s.status === currentStatus);
-
+export function StatusProgressBar({ 
+  currentStatus, 
+  completedStages = [], 
+  onStageToggle,
+  className 
+}: StatusProgressBarProps) {
   return (
     <div className={cn("w-full", className)}>
       <div className="flex items-center justify-between">
         {statusFlow.map((step, index) => {
-          const isCompleted = index <= currentIndex;
-          const isCurrent = index === currentIndex;
+          const isCompleted = completedStages.includes(step.status);
+          const isCurrent = step.status === currentStatus;
           const isLast = index === statusFlow.length - 1;
+          const isClickable = !!onStageToggle;
 
           return (
             <div key={step.status} className="flex items-center flex-1">
               <div className="flex flex-col items-center">
-                <div
+                <button
+                  type="button"
+                  onClick={() => onStageToggle?.(step.status)}
+                  disabled={!isClickable}
                   className={cn(
                     "flex h-8 w-8 items-center justify-center rounded-full transition-all",
                     isCompleted
                       ? "bg-primary text-primary-foreground"
                       : "bg-muted text-muted-foreground",
-                    isCurrent && "ring-2 ring-primary ring-offset-2 ring-offset-background"
+                    isCurrent && "ring-2 ring-primary ring-offset-2 ring-offset-background",
+                    isClickable && "cursor-pointer hover:scale-110 hover:shadow-md active:scale-95",
+                    !isClickable && "cursor-default"
                   )}
+                  title={isClickable ? `Click to ${isCompleted ? 'unmark' : 'mark'} ${step.label} as completed` : step.label}
                 >
                   {isCompleted ? (
                     <CheckCircle className="h-4 w-4" />
                   ) : (
                     <Circle className="h-4 w-4" />
                   )}
-                </div>
+                </button>
                 <span
                   className={cn(
                     "mt-1 text-xs font-medium",
@@ -62,7 +74,7 @@ export function StatusProgressBar({ currentStatus, className }: StatusProgressBa
                 <div
                   className={cn(
                     "mx-2 h-0.5 flex-1 transition-all",
-                    isCompleted ? "bg-primary" : "bg-muted"
+                    "bg-muted"
                   )}
                 />
               )}

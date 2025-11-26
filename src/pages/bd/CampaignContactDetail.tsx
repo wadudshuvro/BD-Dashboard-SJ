@@ -58,6 +58,42 @@ export default function CampaignContactDetail() {
     (contact?.metadata as any)?.social_platform || 'linkedin'
   );
   
+  // Get completed stages from metadata with backward compatibility
+  // If completed_stages doesn't exist, initialize based on current status (linear progression)
+  const getCompletedStages = (): CampaignContactStatus[] => {
+    if (!contact) return [];
+    
+    const savedStages = (contact.metadata as any)?.completed_stages;
+    
+    // If already has completed_stages, use it
+    if (savedStages && Array.isArray(savedStages)) {
+      return savedStages;
+    }
+    
+    // Otherwise, initialize based on current status (backward compatibility)
+    // This preserves the old linear progression for existing contacts
+    const statusFlow: CampaignContactStatus[] = [
+      "identified",
+      "researched",
+      "contacted_linkedin",
+      "connected",
+      "messaged",
+      "contacted_email",
+      "responded",
+      "meeting_booked",
+      "close_lost",
+      "won",
+    ];
+    
+    const currentIndex = statusFlow.indexOf(contact.status as CampaignContactStatus);
+    if (currentIndex === -1) return [];
+    
+    // Return all stages up to and including current status
+    return statusFlow.slice(0, currentIndex + 1);
+  };
+  
+  const completedStages = getCompletedStages();
+  
   // LinkedIn Message Generation
   const [messageType, setMessageType] = useState<'connection_request' | 'first_followup' | 'second_followup' | 'meeting_request'>('connection_request');
   const [userContext, setUserContext] = useState("");
@@ -119,8 +155,9 @@ export default function CampaignContactDetail() {
     
     // If changing to contacted_linkedin status, include social platform in metadata
     if (newStatus === 'contacted_linkedin') {
+      const existingMetadata = (contact.metadata as Record<string, unknown>) || {};
       updates.metadata = {
-        ...(contact.metadata || {}),
+        ...existingMetadata,
         social_platform: socialPlatform
       };
     }
@@ -137,16 +174,49 @@ export default function CampaignContactDetail() {
     
     // If already on contacted_linkedin status, update the platform immediately
     if (contact.status === 'contacted_linkedin') {
+      const existingMetadata = (contact.metadata as Record<string, unknown>) || {};
       updateMutation.mutate({
         contactId: contact.id,
         updates: {
           metadata: {
-            ...(contact.metadata || {}),
+            ...existingMetadata,
             social_platform: platform
           }
         }
       });
     }
+  };
+
+  const handleStageToggle = async (stage: CampaignContactStatus) => {
+    if (!contact) return;
+    
+    // Get current completed stages (including auto-initialized ones)
+    const currentCompleted = completedStages;
+    const isCurrentlyCompleted = currentCompleted.includes(stage);
+    
+    // Toggle the stage - add if not present, remove if present
+    const updatedCompleted = isCurrentlyCompleted
+      ? currentCompleted.filter((s: string) => s !== stage)
+      : [...currentCompleted, stage];
+    
+    // Update metadata in database
+    const existingMetadata = (contact.metadata as Record<string, unknown>) || {};
+    
+    updateMutation.mutate({
+      contactId: contact.id,
+      updates: {
+        metadata: {
+          ...existingMetadata,
+          completed_stages: updatedCompleted
+        }
+      }
+    });
+    
+    toast.success(
+      isCurrentlyCompleted 
+        ? `Stage unmarked as completed` 
+        : `Stage marked as completed`
+    );
   };
 
   const handleRunAgent = async () => {
@@ -502,7 +572,11 @@ export default function CampaignContactDetail() {
         </CardHeader>
         
         <CardContent className="pb-6">
-          <StatusProgressBar currentStatus={contact.status as CampaignContactStatus} />
+          <StatusProgressBar 
+            currentStatus={contact.status as CampaignContactStatus}
+            completedStages={completedStages}
+            onStageToggle={handleStageToggle}
+          />
         </CardContent>
         
         <CardContent>

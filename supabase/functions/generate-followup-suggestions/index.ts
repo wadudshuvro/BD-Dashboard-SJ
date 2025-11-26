@@ -271,7 +271,7 @@ serve(async (req) => {
             allSuggestions = [...allSuggestions, ...dealSuggestions];
             console.log(`[generate-followup] Generated ${dealSuggestions.length} suggestions for deal: ${deal.title}`);
           } catch (error) {
-            const errorMsg = `Failed to generate suggestions for deal ${deal.title}: ${error.message}`;
+            const errorMsg = `Failed to generate suggestions for deal ${deal.title}: ${error instanceof Error ? error.message : String(error)}`;
             console.error(`[generate-followup] ${errorMsg}`);
             errors.push(errorMsg);
           }
@@ -293,7 +293,7 @@ serve(async (req) => {
             allSuggestions = [...allSuggestions, ...contactSuggestions];
             console.log(`[generate-followup] Generated ${contactSuggestions.length} suggestions for contact: ${contact.contact_name}`);
           } catch (error) {
-            const errorMsg = `Failed to generate suggestions for contact ${contact.contact_name}: ${error.message}`;
+            const errorMsg = `Failed to generate suggestions for contact ${contact.contact_name}: ${error instanceof Error ? error.message : String(error)}`;
             console.error(`[generate-followup] ${errorMsg}`);
             errors.push(errorMsg);
           }

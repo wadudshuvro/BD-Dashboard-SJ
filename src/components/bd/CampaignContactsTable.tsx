@@ -30,6 +30,7 @@ interface CampaignContactsTableProps {
   campaignId: string;
   campaignSlug: string;
   onQuickAction: (action: QuickActionType, contactSlug: string) => void;
+  onNavigate?: (contactSlug: string) => void;
 }
 
 export function CampaignContactsTable({
@@ -37,6 +38,7 @@ export function CampaignContactsTable({
   campaignId,
   campaignSlug,
   onQuickAction,
+  onNavigate,
 }: CampaignContactsTableProps) {
   const [selectedContacts, setSelectedContacts] = useState<Set<string>>(new Set());
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: null, direction: "asc" });
@@ -164,7 +166,7 @@ export function CampaignContactsTable({
   return (
     <>
       <div className="w-full overflow-x-auto border rounded-lg">
-        <Table className="table-fixed min-w-[1200px]">
+        <Table>
           <TableHeader>
             <TableRow>
               <TableHead className="w-12 px-3 py-3">
@@ -173,7 +175,7 @@ export function CampaignContactsTable({
                   onCheckedChange={toggleSelectAll}
                 />
               </TableHead>
-              <TableHead className="w-48 px-3 py-3">
+              <TableHead className="px-3 py-3">
                 <div 
                   className="flex items-center gap-2 cursor-pointer hover:text-primary"
                   onClick={() => handleSort("contact_name")}
@@ -182,8 +184,8 @@ export function CampaignContactsTable({
                   <ArrowUpDown className={`h-4 w-4 ${sortConfig.key === "contact_name" ? 'text-primary' : 'text-muted-foreground'}`} />
                 </div>
               </TableHead>
-              <TableHead className="w-64 max-w-64 px-3 py-3">Contact Info</TableHead>
-              <TableHead className="w-56 max-w-56 px-3 py-3">
+              <TableHead className="px-3 py-3">Contact Info</TableHead>
+              <TableHead className="px-3 py-3">
                 <div 
                   className="flex items-center gap-2 cursor-pointer hover:text-primary"
                   onClick={() => handleSort("contact_company")}
@@ -192,7 +194,8 @@ export function CampaignContactsTable({
                   <ArrowUpDown className={`h-4 w-4 ${sortConfig.key === "contact_company" ? 'text-primary' : 'text-muted-foreground'}`} />
                 </div>
               </TableHead>
-              <TableHead className="w-52 max-w-52 px-3 py-3">Tags</TableHead>
+              <TableHead className="w-24 px-3 py-3">Actions</TableHead>
+              <TableHead className="px-3 py-3">Tags</TableHead>
               <TableHead className="w-32 px-3 py-3">
                 <div 
                   className="flex items-center gap-2 cursor-pointer hover:text-primary"
@@ -202,7 +205,6 @@ export function CampaignContactsTable({
                   <ArrowUpDown className={`h-4 w-4 ${sortConfig.key === "status" ? 'text-primary' : 'text-muted-foreground'}`} />
                 </div>
               </TableHead>
-              <TableHead className="w-20 px-3 py-3">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -210,6 +212,11 @@ export function CampaignContactsTable({
               <TableRow
                 key={contact.id}
                 className="cursor-pointer hover:bg-muted/50"
+                onClick={() => {
+                  if (onNavigate) {
+                    onNavigate(contact.slug);
+                  }
+                }}
               >
                 <TableCell className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
                   <Checkbox
@@ -277,6 +284,14 @@ export function CampaignContactsTable({
                   </div>
                 </TableCell>
 
+                {/* Actions - Moved here after Company & Title */}
+                <TableCell className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
+                  <QuickActionsCell 
+                    contact={contact}
+                    onAction={onQuickAction}
+                  />
+                </TableCell>
+
                 {/* Tags */}
                 <TableCell className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
                   <TagCell
@@ -290,14 +305,6 @@ export function CampaignContactsTable({
                 {/* Status */}
                 <TableCell className="px-3 py-3">
                   <StatusBadgeCell status={contact.status} />
-                </TableCell>
-
-                {/* Actions */}
-                <TableCell className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
-                  <QuickActionsCell 
-                    contact={contact}
-                    onAction={onQuickAction}
-                  />
                 </TableCell>
               </TableRow>
             ))}

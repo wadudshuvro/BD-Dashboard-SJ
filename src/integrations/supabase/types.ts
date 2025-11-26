@@ -325,6 +325,33 @@ export type Database = {
         }
         Relationships: []
       }
+      auth_sync_errors: {
+        Row: {
+          created_at: string
+          error_message: string
+          error_type: string
+          id: string
+          raw_data: Json | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          error_message: string
+          error_type: string
+          id?: string
+          raw_data?: Json | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          error_message?: string
+          error_type?: string
+          id?: string
+          raw_data?: Json | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       bd_campaigns: {
         Row: {
           actual_contacts_reached: number | null
@@ -2690,6 +2717,7 @@ export type Database = {
           description: string | null
           email: string | null
           id: string
+          priority: string | null
           reviewed_by: string | null
           status: string
           subject: string
@@ -2704,6 +2732,7 @@ export type Database = {
           description?: string | null
           email?: string | null
           id?: string
+          priority?: string | null
           reviewed_by?: string | null
           status?: string
           subject: string
@@ -2718,6 +2747,7 @@ export type Database = {
           description?: string | null
           email?: string | null
           id?: string
+          priority?: string | null
           reviewed_by?: string | null
           status?: string
           subject?: string
@@ -2929,6 +2959,9 @@ export type Database = {
           is_active: boolean | null
           location_id: string | null
           location_name: string | null
+          refresh_token_encrypted: string | null
+          token_expires_at: string | null
+          token_type: string | null
           updated_at: string
           user_id: string
         }
@@ -2939,6 +2972,9 @@ export type Database = {
           is_active?: boolean | null
           location_id?: string | null
           location_name?: string | null
+          refresh_token_encrypted?: string | null
+          token_expires_at?: string | null
+          token_type?: string | null
           updated_at?: string
           user_id: string
         }
@@ -2949,6 +2985,9 @@ export type Database = {
           is_active?: boolean | null
           location_id?: string | null
           location_name?: string | null
+          refresh_token_encrypted?: string | null
+          token_expires_at?: string | null
+          token_type?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -4396,6 +4435,16 @@ export type Database = {
       }
       cleanup_old_sync_logs: { Args: never; Returns: undefined }
       clear_all_sync_logs: { Args: never; Returns: undefined }
+      fix_orphaned_users: {
+        Args: never
+        Returns: {
+          error_message: string
+          fixed_user_id: string
+          profile_created: boolean
+          role_created: boolean
+          user_email: string
+        }[]
+      }
       generate_alert: {
         Args: {
           p_alert_type: string
