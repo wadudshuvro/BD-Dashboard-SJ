@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Card,
@@ -43,7 +43,7 @@ import {
   type FeedbackPriority,
 } from "@/features/feedback/api";
 import { cn } from "@/lib/utils";
-import { Clock, Inbox, MessageCircle, ShieldCheck, Sparkles, Bug, Archive, Download } from "lucide-react";
+import { Clock, Inbox, MessageCircle, ShieldCheck, Sparkles, Bug, Archive, Download, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
 
 const TABS = {
   bugs: {
@@ -96,11 +96,20 @@ const PRIORITY_STYLES: Record<FeedbackPriority, string> = {
 
 const PRIORITY_OPTIONS: (FeedbackPriority | null)[] = [null, "low", "medium", "high"];
 
+const PRIORITY_WEIGHTS: Record<FeedbackPriority, number> = {
+  high: 3,
+  medium: 2,
+  low: 1,
+};
+
+type SortDirection = 'asc' | 'desc' | null;
+
 export default function FeedbackManager() {
   const [activeTab, setActiveTab] = useState<keyof typeof TABS>("bugs");
   const [selectedFeedbackId, setSelectedFeedbackId] = useState<string | null>(null);
   const [commentDraft, setCommentDraft] = useState("");
   const [statusFilter, setStatusFilter] = useState<FeedbackStatus | 'all'>('all');
+  const [prioritySortDirection, setPrioritySortDirection] = useState<SortDirection>(null);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -152,9 +161,10 @@ export default function FeedbackManager() {
     }
   }, [listQuery.data, selectedFeedbackId]);
 
-  // Effect 2: Reset status filter ONLY when switching tabs
+  // Effect 2: Reset status filter and sorting when switching tabs
   useEffect(() => {
     setStatusFilter('all');
+    setPrioritySortDirection(null);
   }, [activeTab]);
 
   const detailQuery = useQuery({
@@ -261,6 +271,34 @@ export default function FeedbackManager() {
   const listItems = listQuery.data?.items ?? [];
   const totalItems = listQuery.data?.total ?? 0;
 
+  // Sort items by priority if sorting is active
+  const sortedItems = useMemo(() => {
+    if (!prioritySortDirection) {
+      return listItems;
+    }
+
+    return [...listItems].sort((a, b) => {
+      const weightA = a.priority ? PRIORITY_WEIGHTS[a.priority] : 0;
+      const weightB = b.priority ? PRIORITY_WEIGHTS[b.priority] : 0;
+      
+      if (prioritySortDirection === 'desc') {
+        return weightB - weightA; // High to Low
+      } else {
+        return weightA - weightB; // Low to High
+      }
+    });
+  }, [listItems, prioritySortDirection]);
+
+  const handlePrioritySortToggle = () => {
+    if (prioritySortDirection === null) {
+      setPrioritySortDirection('desc'); // First click: High to Low
+    } else if (prioritySortDirection === 'desc') {
+      setPrioritySortDirection('asc'); // Second click: Low to High
+    } else {
+      setPrioritySortDirection(null); // Third click: Clear sorting
+    }
+  };
+
   const handleCommentSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!commentDraft.trim()) return;
@@ -361,7 +399,23 @@ export default function FeedbackManager() {
                         <TableHead className="w-[40%]">Subject</TableHead>
                         <TableHead>Type</TableHead>
                         <TableHead>Status</TableHead>
-                        <TableHead>Priority</TableHead>
+                        <TableHead>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 px-2 -ml-2 font-medium hover:bg-transparent"
+                            onClick={handlePrioritySortToggle}
+                          >
+                            Priority
+                            {prioritySortDirection === null ? (
+                              <ChevronsUpDown className="ml-1 h-4 w-4 text-muted-foreground" />
+                            ) : prioritySortDirection === 'desc' ? (
+                              <ChevronDown className="ml-1 h-4 w-4" />
+                            ) : (
+                              <ChevronUp className="ml-1 h-4 w-4" />
+                            )}
+                          </Button>
+                        </TableHead>
                         <TableHead>Submitted by</TableHead>
                         <TableHead>Date</TableHead>
                       </TableRow>
@@ -373,14 +427,14 @@ export default function FeedbackManager() {
                             Loading feedback…
                           </TableCell>
                         </TableRow>
-                      ) : listItems.length === 0 ? (
+                      ) : sortedItems.length === 0 ? (
                         <TableRow>
                           <TableCell colSpan={6} className="py-10 text-center text-muted-foreground">
                             No feedback found for this tab.
                           </TableCell>
                         </TableRow>
                       ) : (
-                        listItems.map((item) => (
+                        sortedItems.map((item) => (
                           <TableRow
                             key={item.id}
                             className={cn(
