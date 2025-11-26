@@ -31,7 +31,7 @@ export function useTeamSummaries(date?: Date) {
 
 export function useEODSubmissions(userId?: string, date?: Date) {
   const dateStr = date ? date.toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
-  
+
   return useQuery({
     queryKey: ['eod-submissions', userId, dateStr],
     queryFn: async () => {
@@ -43,6 +43,35 @@ export function useEODSubmissions(userId?: string, date?: Date) {
       if (userId) {
         query = query.eq('user_id', userId);
       }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+export function useMyEODHistory(userId?: string, dateRange?: { start?: string; end?: string }) {
+  return useQuery({
+    queryKey: ['eod-history', userId, dateRange],
+    queryFn: async () => {
+      let query = supabase
+        .from('eod_submissions')
+        .select('*');
+
+      if (userId) {
+        query = query.eq('user_id', userId);
+      }
+
+      if (dateRange?.start) {
+        query = query.gte('date', dateRange.start);
+      }
+
+      if (dateRange?.end) {
+        query = query.lte('date', dateRange.end);
+      }
+
+      query = query.order('date', { ascending: false });
 
       const { data, error } = await query;
       if (error) throw error;

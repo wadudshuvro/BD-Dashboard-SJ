@@ -1,13 +1,50 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { useEODSubmissions } from "@/hooks/useTeamSummaries";
+import { useMyEODHistory } from "@/hooks/useTeamSummaries";
 import { useAuth } from "@/hooks/useAuth";
-import { format } from "date-fns";
+import { format, subDays, startOfMonth } from "date-fns";
 import { Calendar, Loader2 } from "lucide-react";
+import { useState } from "react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+type DateFilter = "all" | "last7" | "last30" | "thisMonth";
 
 export default function MyEODSubmissions() {
   const { user } = useAuth();
-  const { data: submissions, isLoading } = useEODSubmissions(user?.id);
+  const [dateFilter, setDateFilter] = useState<DateFilter>("all");
+
+  // Calculate date range based on filter
+  const getDateRange = () => {
+    const today = new Date().toISOString().split('T')[0];
+
+    switch (dateFilter) {
+      case "last7":
+        return {
+          start: subDays(new Date(), 7).toISOString().split('T')[0],
+          end: today,
+        };
+      case "last30":
+        return {
+          start: subDays(new Date(), 30).toISOString().split('T')[0],
+          end: today,
+        };
+      case "thisMonth":
+        return {
+          start: startOfMonth(new Date()).toISOString().split('T')[0],
+          end: today,
+        };
+      default:
+        return undefined;
+    }
+  };
+
+  const { data: submissions, isLoading } = useMyEODHistory(user?.id, getDateRange());
 
   if (isLoading) {
     return (
@@ -19,9 +56,22 @@ export default function MyEODSubmissions() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">My EOD Submissions</h1>
-        <p className="text-muted-foreground">View your end-of-day submission history</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">My EOD Submissions</h1>
+          <p className="text-muted-foreground">View your end-of-day submission history</p>
+        </div>
+        <Select value={dateFilter} onValueChange={(value) => setDateFilter(value as DateFilter)}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Filter by date" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Time</SelectItem>
+            <SelectItem value="last7">Last 7 Days</SelectItem>
+            <SelectItem value="last30">Last 30 Days</SelectItem>
+            <SelectItem value="thisMonth">This Month</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="space-y-4">
