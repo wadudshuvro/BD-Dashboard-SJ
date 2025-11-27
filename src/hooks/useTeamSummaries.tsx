@@ -110,6 +110,38 @@ export function useSubmitEOD() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['eod-submissions'] });
       queryClient.invalidateQueries({ queryKey: ['team-summaries'] });
+      queryClient.invalidateQueries({ queryKey: ['eod-history'] });
+    },
+  });
+}
+
+export function useUpdateEOD() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, updates }: {
+      id: string;
+      updates: {
+        tasks_completed?: string;
+        tomorrow_plan?: string | null;
+        challenges?: string | null;
+        hours_worked?: number | null;
+      };
+    }) => {
+      const { data, error } = await supabase
+        .from('eod_submissions')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['eod-submissions'] });
+      queryClient.invalidateQueries({ queryKey: ['team-summaries'] });
+      queryClient.invalidateQueries({ queryKey: ['eod-history'] });
     },
   });
 }
