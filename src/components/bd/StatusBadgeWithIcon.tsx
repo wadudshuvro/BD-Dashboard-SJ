@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/badge";
-import { User, Brain, Link2, CheckCircle, MessageSquare, Mail, Reply, Calendar, XCircle, Trophy, Facebook, Instagram } from "lucide-react";
+import { User, Brain, Link2, CheckCircle, MessageSquare, Mail, Reply, Calendar, XCircle, Trophy, Facebook, Instagram, ThumbsDown, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { CampaignContactStatus } from "@/features/campaign-detail/types";
 
@@ -24,15 +24,30 @@ const statusConfig: Record<CampaignContactStatus, {
     icon: Brain,
     className: "bg-blue-100 text-blue-700 hover:bg-blue-600 hover:text-white dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-600 transition-colors",
   },
+  client_not_ideal: {
+    label: "Client Not Ideal",
+    icon: ThumbsDown,
+    className: "bg-amber-100 text-amber-700 hover:bg-amber-600 hover:text-white dark:bg-amber-900/30 dark:text-amber-300 dark:hover:bg-amber-600 transition-colors",
+  },
   contacted_linkedin: {
     label: "LinkedIn Request",
     icon: Link2,
     className: "bg-indigo-100 text-indigo-700 hover:bg-indigo-600 hover:text-white dark:bg-indigo-900/30 dark:text-indigo-300 dark:hover:bg-indigo-600 transition-colors",
   },
+  contacted_social: {
+    label: "Social Media Request",
+    icon: Facebook,
+    className: "bg-violet-100 text-violet-700 hover:bg-violet-600 hover:text-white dark:bg-violet-900/30 dark:text-violet-300 dark:hover:bg-violet-600 transition-colors",
+  },
   connected: {
     label: "Connected",
     icon: CheckCircle,
     className: "bg-green-100 text-green-700 hover:bg-green-600 hover:text-white dark:bg-green-900/30 dark:text-green-300 dark:hover:bg-green-600 transition-colors",
+  },
+  client_not_responsive: {
+    label: "Client Not Responsive",
+    icon: Clock,
+    className: "bg-rose-100 text-rose-700 hover:bg-rose-600 hover:text-white dark:bg-rose-900/30 dark:text-rose-300 dark:hover:bg-rose-600 transition-colors",
   },
   messaged: {
     label: "Messaged",
@@ -73,6 +88,16 @@ export function StatusBadgeWithIcon({ status, className, socialPlatform = 'linke
   
   // Override icon and label for social media stage based on platform
   if (status === 'contacted_linkedin') {
+    if (socialPlatform === 'facebook') {
+      Icon = Facebook;
+      label = 'Facebook Request';
+    } else if (socialPlatform === 'instagram') {
+      Icon = Instagram;
+      label = 'Instagram Request';
+    }
+  }
+
+  if (status === 'contacted_social') {
     if (socialPlatform === 'facebook') {
       Icon = Facebook;
       label = 'Facebook Request';
