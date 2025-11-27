@@ -3,8 +3,11 @@ import type { BDCampaign } from "@/hooks/useBDCampaigns";
 export type CampaignContactStatus =
   | "identified"
   | "researched"
+  | "client_not_ideal"
   | "contacted_linkedin"
+  | "contacted_social"
   | "connected"
+  | "client_not_responsive"
   | "messaged"
   | "contacted_email"
   | "responded"

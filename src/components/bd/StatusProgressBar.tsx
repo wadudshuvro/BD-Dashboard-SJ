@@ -12,8 +12,11 @@ interface StatusProgressBarProps {
 const statusFlow: { status: CampaignContactStatus; label: string }[] = [
   { status: "identified", label: "ID" },
   { status: "researched", label: "RES" },
-  { status: "contacted_linkedin", label: "Social" },
+  { status: "client_not_ideal", label: "Not Ideal" },
+  { status: "contacted_linkedin", label: "LinkedIn" },
+  { status: "contacted_social", label: "FB/IG" },
   { status: "connected", label: "CON" },
+  { status: "client_not_responsive", label: "Not Resp" },
   { status: "messaged", label: "MSG" },
   { status: "contacted_email", label: "EML" },
   { status: "responded", label: "RSP" },
@@ -53,7 +56,7 @@ export function StatusProgressBar({
                     isClickable && "cursor-pointer hover:scale-110 hover:shadow-md active:scale-95",
                     !isClickable && "cursor-default"
                   )}
-                  title={isClickable ? `Click to ${isCompleted ? 'unmark' : 'mark'} ${step.label} as completed` : step.label}
+                  title={isClickable ? `Click to ${isCompleted ? 'uncomplete' : 'complete'} ${step.label}` : step.label}
                 >
                   {isCompleted ? (
                     <CheckCircle className="h-4 w-4" />
