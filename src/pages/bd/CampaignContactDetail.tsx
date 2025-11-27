@@ -152,19 +152,19 @@ export default function CampaignContactDetail() {
   const handleStatusChange = (newStatus: string) => {
     if (!contact) return;
     const updates: any = { status: newStatus };
-    
-    // If changing to contacted_linkedin status, include social platform in metadata
-    if (newStatus === 'contacted_linkedin') {
+
+    // If changing to contacted_linkedin or contacted_social status, include social platform in metadata
+    if (newStatus === 'contacted_linkedin' || newStatus === 'contacted_social') {
       const existingMetadata = (contact.metadata as Record<string, unknown>) || {};
       updates.metadata = {
         ...existingMetadata,
         social_platform: socialPlatform
       };
     }
-    
-    updateMutation.mutate({ 
-      contactId: contact.id, 
-      updates 
+
+    updateMutation.mutate({
+      contactId: contact.id,
+      updates
     });
   };
 
@@ -499,11 +499,20 @@ export default function CampaignContactDetail() {
                     <SelectItem value="researched">
                       <StatusBadgeWithIcon status="researched" />
                     </SelectItem>
+                    <SelectItem value="client_not_ideal">
+                      <StatusBadgeWithIcon status="client_not_ideal" />
+                    </SelectItem>
                     <SelectItem value="contacted_linkedin">
                       <StatusBadgeWithIcon status="contacted_linkedin" socialPlatform={socialPlatform} />
                     </SelectItem>
+                    <SelectItem value="contacted_social">
+                      <StatusBadgeWithIcon status="contacted_social" socialPlatform={socialPlatform} />
+                    </SelectItem>
                     <SelectItem value="connected">
                       <StatusBadgeWithIcon status="connected" />
+                    </SelectItem>
+                    <SelectItem value="client_not_responsive">
+                      <StatusBadgeWithIcon status="client_not_responsive" />
                     </SelectItem>
                     <SelectItem value="messaged">
                       <StatusBadgeWithIcon status="messaged" />
