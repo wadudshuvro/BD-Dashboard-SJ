@@ -684,7 +684,7 @@ export default function CampaignDetail() {
                   <span className="text-primary animate-pulse">→</span>
                 </p>
                 <p className="text-xs font-medium text-muted-foreground">
-                  {totalContactsCount} total contacts across 12 stages
+                  {totalContactsCount} total contacts across 13 stages
                 </p>
               </div>
               
