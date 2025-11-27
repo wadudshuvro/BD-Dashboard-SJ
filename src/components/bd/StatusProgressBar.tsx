@@ -9,20 +9,20 @@ interface StatusProgressBarProps {
   className?: string;
 }
 
-const statusFlow: { status: CampaignContactStatus; label: string }[] = [
-  { status: "identified", label: "ID" },
-  { status: "researched", label: "RES" },
-  { status: "client_not_ideal", label: "Not Ideal" },
-  { status: "contacted_linkedin", label: "LinkedIn" },
-  { status: "contacted_social", label: "FB/IG" },
-  { status: "connected", label: "CON" },
-  { status: "client_not_responsive", label: "Not Resp" },
-  { status: "messaged", label: "MSG" },
-  { status: "contacted_email", label: "EML" },
-  { status: "responded", label: "RSP" },
-  { status: "meeting_booked", label: "MTG" },
-  { status: "close_lost", label: "LOST" },
-  { status: "won", label: "WON" },
+const statusFlow: { status: CampaignContactStatus; label: string; fullName: string }[] = [
+  { status: "identified", label: "ID", fullName: "Identified" },
+  { status: "researched", label: "RES", fullName: "Researched" },
+  { status: "client_not_ideal", label: "Not Ideal", fullName: "Client Not Ideal" },
+  { status: "contacted_linkedin", label: "LinkedIn", fullName: "LinkedIn Request" },
+  { status: "contacted_social", label: "FB/IG", fullName: "Facebook / Instagram Request" },
+  { status: "connected", label: "CON", fullName: "Connected" },
+  { status: "client_not_responsive", label: "Not Resp", fullName: "Client Not Responsive" },
+  { status: "messaged", label: "MSG", fullName: "Messaged" },
+  { status: "contacted_email", label: "EML", fullName: "Email Sent" },
+  { status: "responded", label: "RSP", fullName: "Responded" },
+  { status: "meeting_booked", label: "MTG", fullName: "Meeting Booked" },
+  { status: "close_lost", label: "LOST", fullName: "Close Lost" },
+  { status: "won", label: "WON", fullName: "Won" },
 ];
 
 export function StatusProgressBar({ 
@@ -56,7 +56,7 @@ export function StatusProgressBar({
                     isClickable && "cursor-pointer hover:scale-110 hover:shadow-md active:scale-95",
                     !isClickable && "cursor-default"
                   )}
-                  title={isClickable ? `Click to ${isCompleted ? 'uncomplete' : 'complete'} ${step.label}` : step.label}
+                  title={step.fullName}
                 >
                   {isCompleted ? (
                     <CheckCircle className="h-4 w-4" />

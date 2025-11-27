@@ -15,8 +15,11 @@ import type { CampaignContactStatus } from '@/features/campaign-detail/types';
 const STATUS_OPTIONS: { value: CampaignContactStatus; label: string }[] = [
   { value: 'identified', label: 'Identified' },
   { value: 'researched', label: 'Researched' },
+  { value: 'client_not_ideal', label: 'Client Not Ideal' },
   { value: 'contacted_linkedin', label: 'Request Sent' },
+  { value: 'contacted_social', label: 'Social Media Request' },
   { value: 'connected', label: 'Connected' },
+  { value: 'client_not_responsive', label: 'Client Not Responsive' },
   { value: 'messaged', label: 'Messaged' },
   { value: 'contacted_email', label: 'Email Sent' },
   { value: 'responded', label: 'Responded' },
