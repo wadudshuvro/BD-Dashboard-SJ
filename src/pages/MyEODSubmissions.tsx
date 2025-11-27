@@ -1,9 +1,10 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { useMyEODHistory } from "@/hooks/useTeamSummaries";
 import { useAuth } from "@/hooks/useAuth";
 import { format, subDays, startOfMonth } from "date-fns";
-import { Calendar, Loader2 } from "lucide-react";
+import { Calendar, Loader2, Edit } from "lucide-react";
 import { useState } from "react";
 import {
   Select,
@@ -12,12 +13,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { EODEditDialog } from "@/components/eod/EODEditDialog";
 
 type DateFilter = "all" | "last7" | "last30" | "thisMonth";
 
 export default function MyEODSubmissions() {
   const { user } = useAuth();
   const [dateFilter, setDateFilter] = useState<DateFilter>("all");
+  const [editingSubmission, setEditingSubmission] = useState<any | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   // Calculate date range based on filter
   const getDateRange = () => {
@@ -45,6 +49,17 @@ export default function MyEODSubmissions() {
   };
 
   const { data: submissions, isLoading } = useMyEODHistory(user?.id, getDateRange());
+
+  // Check if a submission is from today
+  const isToday = (date: string) => {
+    const today = new Date().toISOString().split('T')[0];
+    return date === today;
+  };
+
+  const handleEditClick = (submission: any) => {
+    setEditingSubmission(submission);
+    setIsEditDialogOpen(true);
+  };
 
   if (isLoading) {
     return (
@@ -84,11 +99,23 @@ export default function MyEODSubmissions() {
                     <Calendar className="h-5 w-5" />
                     {format(new Date(submission.date), "MMMM d, yyyy")}
                   </CardTitle>
-                  {submission.hours_worked && (
-                    <Badge variant="secondary">
-                      {submission.hours_worked} hours
-                    </Badge>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {submission.hours_worked && (
+                      <Badge variant="secondary">
+                        {submission.hours_worked} hours
+                      </Badge>
+                    )}
+                    {isToday(submission.date) && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEditClick(submission)}
+                      >
+                        <Edit className="h-4 w-4 mr-2" />
+                        Edit
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -130,6 +157,14 @@ export default function MyEODSubmissions() {
           </Card>
         )}
       </div>
+
+      {editingSubmission && (
+        <EODEditDialog
+          open={isEditDialogOpen}
+          onOpenChange={setIsEditDialogOpen}
+          submission={editingSubmission}
+        />
+      )}
     </div>
   );
 }
