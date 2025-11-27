@@ -30,6 +30,7 @@ const CampaignBaseSchema = z.object({
   niche_id: z.string().uuid(),
   brand_id: z.string().uuid().nullable().optional(),
   campaign_type: CampaignTypeSchema,
+  campaign_types: z.array(CampaignTypeSchema).optional(),
   status: CampaignStatusSchema.optional(),
   ghl_campaign_id: z.string().nullable().optional(),
   linkedin_campaign_id: z.string().nullable().optional(),
@@ -57,6 +58,7 @@ const CampaignInsertSchema = CampaignBaseSchema.pick({
   niche_id: true,
   brand_id: true,
   campaign_type: true,
+  campaign_types: true,
   status: true,
   ghl_campaign_id: true,
   linkedin_campaign_id: true,
@@ -131,6 +133,7 @@ interface HydratedCampaign {
   brand_ids?: string[];
   brands?: BrandRow[];
   campaign_type: string;
+  campaign_types?: string[];
   status: string;
   ghl_campaign_id: string | null;
   linkedin_campaign_id: string | null;
@@ -166,6 +169,7 @@ interface CampaignDatabaseRow {
   niche_id: string;
   brand_id: string | null;
   campaign_type: string;
+  campaign_types?: string[];
   status: string;
   ghl_campaign_id: string | null;
   linkedin_campaign_id: string | null;
@@ -628,11 +632,18 @@ async function handleCreate(req: Request, client: SupabaseClient, userId: string
   const { campaign: campaignInput, options } = payload;
 
   const brandIds = campaignInput.brand_ids || (campaignInput.brand_id ? [campaignInput.brand_id] : []);
-  
+
+  // Ensure campaign_types is set, with fallback to campaign_type for backwards compatibility
+  const campaignTypes = campaignInput.campaign_types && campaignInput.campaign_types.length > 0
+    ? campaignInput.campaign_types
+    : [campaignInput.campaign_type];
+
   const now = new Date().toISOString();
   const insertPayload = {
     ...campaignInput,
     brand_id: brandIds[0] || null,
+    campaign_type: campaignTypes[0], // Store first type in legacy field for backwards compatibility
+    campaign_types: campaignTypes, // Store all types in array field
     status: campaignInput.status ?? "planning",
     created_by: campaignInput.created_by ?? userId,
     owned_by: campaignInput.owned_by ?? userId,
@@ -743,6 +754,15 @@ async function handleUpdate(
       updates.brand_id = null;
     }
     delete updates.brand_ids;
+  }
+
+  // Ensure campaign_types and campaign_type are in sync
+  if (updates.campaign_types && updates.campaign_types.length > 0) {
+    // If campaign_types is provided, update campaign_type to first value for backwards compatibility
+    updates.campaign_type = updates.campaign_types[0];
+  } else if (updates.campaign_type && !updates.campaign_types) {
+    // If only campaign_type is provided, ensure campaign_types is updated too
+    updates.campaign_types = [updates.campaign_type];
   }
 
   const previousStatus = existing.status as string | null;
