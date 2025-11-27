@@ -56,8 +56,11 @@ import {
 const PIPELINE_STAGES: { status: CampaignContactStatus; title: string; description: string }[] = [
   { status: 'identified', title: 'Identified', description: 'Contacts imported into the campaign' },
   { status: 'researched', title: 'Researched', description: 'Research summaries created' },
+  { status: 'client_not_ideal', title: 'Client Not Ideal', description: 'Contact determined not to be a good fit' },
   { status: 'contacted_linkedin', title: 'Request Sent', description: 'Social media request sent' },
+  { status: 'contacted_social', title: 'Social Media Request', description: 'Facebook/Instagram request sent' },
   { status: 'connected', title: 'Connected', description: 'Connection accepted' },
+  { status: 'client_not_responsive', title: 'Client Not Responsive', description: 'Contact not responding to outreach' },
   { status: 'messaged', title: 'Message Sent', description: 'Direct message delivered' },
   { status: 'contacted_email', title: 'Email Sent', description: 'Email outreach via GHL' },
   { status: 'responded', title: 'Responded', description: 'Prospect replied to outreach' },
@@ -69,8 +72,11 @@ const PIPELINE_STAGES: { status: CampaignContactStatus; title: string; descripti
 const STAGE_BADGE_CLASSES: Record<CampaignContactStatus, string> = {
   identified: 'bg-slate-100 text-slate-900',
   researched: 'bg-blue-100 text-blue-900',
+  client_not_ideal: 'bg-amber-100 text-amber-900',
   contacted_linkedin: 'bg-indigo-100 text-indigo-900',
+  contacted_social: 'bg-violet-100 text-violet-900',
   connected: 'bg-emerald-100 text-emerald-900',
+  client_not_responsive: 'bg-rose-100 text-rose-900',
   messaged: 'bg-purple-100 text-purple-900',
   contacted_email: 'bg-orange-100 text-orange-900',
   responded: 'bg-teal-100 text-teal-900',
