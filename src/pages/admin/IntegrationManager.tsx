@@ -158,6 +158,14 @@ const IntegrationManager = () => {
       is_enabled: false,
       icon: "📝",
     },
+    {
+      id: "zerobounce",
+      name: "Zerobounce",
+      description: "Email validation service to verify contact emails (Super Admin only)",
+      category: "Validation",
+      is_enabled: false,
+      icon: "✉️",
+    },
   ]);
   const [crmIntegrations, setCrmIntegrations] = useState<CrmIntegrationEntry[]>([]);
   const [isCrmLoading, setIsCrmLoading] = useState(false);
@@ -195,6 +203,11 @@ const IntegrationManager = () => {
   const [testingPandadoc, setTestingPandadoc] = useState(false);
   const [pandadocTestResult, setPandadocTestResult] = useState<any>(null);
   const [isConnectingPandadoc, setIsConnectingPandadoc] = useState(false);
+  const [zerobounceApiKey, setZerobounceApiKey] = useState("");
+  const [testingZerobounce, setTestingZerobounce] = useState(false);
+  const [zerobounceTestResult, setZerobounceTestResult] = useState<any>(null);
+  const [isConnectingZerobounce, setIsConnectingZerobounce] = useState(false);
+  const [zerobounceConfigured, setZerobounceConfigured] = useState(false);
 
   const hubspotIntegration = crmIntegrations.find((integration) => integration.type === "hubspot");
 
@@ -351,6 +364,21 @@ const IntegrationManager = () => {
       }
     } catch (error) {
       console.error("Failed to load PandaDoc config", error);
+    }
+
+    // Check Zerobounce integration
+    try {
+      const { data: zerobounceCheck } = await supabase.functions.invoke("zerobounce-manage", {
+        method: "GET",
+      });
+      const zerobounceConfigured = Boolean(zerobounceCheck?.ok && zerobounceCheck?.configured);
+      setZerobounceConfigured(zerobounceConfigured);
+      const zerobounceIndex = nextGlobal.findIndex((integration) => integration.id === "zerobounce");
+      if (zerobounceIndex !== -1) {
+        nextGlobal[zerobounceIndex] = { ...nextGlobal[zerobounceIndex], is_enabled: zerobounceConfigured };
+      }
+    } catch (error) {
+      console.error("Failed to load Zerobounce config", error);
     }
 
     setGlobalIntegrations(nextGlobal);
@@ -1006,6 +1034,131 @@ const IntegrationManager = () => {
     }
   };
 
+  const handleTestZeroBounce = async () => {
+    if (!zerobounceApiKey.trim()) {
+      toast({
+        title: "API key required",
+        description: "Enter your Zerobounce API key before testing.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setTestingZerobounce(true);
+    setZerobounceTestResult(null);
+
+    try {
+      const { data, error } = await supabase.functions.invoke("zerobounce-manage", {
+        body: {
+          action: "test",
+          apiKey: zerobounceApiKey.trim(),
+        },
+      });
+
+      if (error) throw error;
+
+      setZerobounceTestResult(data);
+
+      if (data?.ok) {
+        toast({
+          title: "Connection successful",
+          description: `Zerobounce API is working. Credits remaining: ${data.credits || 'N/A'}`,
+        });
+      } else {
+        toast({
+          title: "Connection failed",
+          description: data?.error || "Unable to connect to Zerobounce.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Zerobounce test failed", error);
+      toast({
+        title: "Test failed",
+        description: error instanceof Error ? error.message : "Unable to test Zerobounce connection.",
+        variant: "destructive",
+      });
+      setZerobounceTestResult({ ok: false, error: "Connection test failed" });
+    } finally {
+      setTestingZerobounce(false);
+    }
+  };
+
+  const handleConnectZeroBounce = async () => {
+    if (!zerobounceApiKey.trim()) {
+      toast({
+        title: "API key required",
+        description: "Enter your Zerobounce API key before connecting.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsConnectingZerobounce(true);
+    setZerobounceTestResult(null);
+
+    try {
+      const { data, error } = await supabase.functions.invoke("zerobounce-manage", {
+        body: {
+          action: "save",
+          apiKey: zerobounceApiKey.trim(),
+        },
+      });
+
+      if (error) throw error;
+      if (!data?.ok) throw new Error(data?.error || "Failed to save Zerobounce API key");
+
+      toast({
+        title: "Zerobounce Connected",
+        description: `API key saved successfully. Credits remaining: ${data.credits || 'N/A'}`,
+      });
+
+      setZerobounceApiKey("");
+      await loadIntegrations();
+    } catch (error) {
+      console.error("Zerobounce connection failed", error);
+      toast({
+        title: "Connection Failed",
+        description: error instanceof Error ? error.message : "Unable to save Zerobounce API key.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsConnectingZerobounce(false);
+    }
+  };
+
+  const handleDisconnectZeroBounce = async () => {
+    if (!confirm("Disconnect Zerobounce? This will remove your API key and disable email validation.")) {
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase.functions.invoke("zerobounce-manage", {
+        body: {
+          action: "delete",
+        },
+      });
+
+      if (error) throw error;
+      if (!data?.ok) throw new Error(data?.error || "Failed to disconnect Zerobounce");
+
+      toast({
+        title: "Zerobounce Disconnected",
+        description: "API key has been removed.",
+      });
+
+      setZerobounceTestResult(null);
+      await loadIntegrations();
+    } catch (error) {
+      console.error("Zerobounce disconnect failed", error);
+      toast({
+        title: "Disconnect Failed",
+        description: error instanceof Error ? error.message : "Unable to disconnect Zerobounce.",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="space-y-8">
       <PageInstructions
@@ -1404,6 +1557,139 @@ const IntegrationManager = () => {
                         >
                           View Documentation →
                         </Link>
+                      </div>
+                    )}
+                  </>
+                )}
+                {integration.id === "zerobounce" && (
+                  <>
+                    {!integration.is_enabled ? (
+                      <div className="space-y-3">
+                        <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
+                          <h4 className="text-sm font-medium">Configure Zerobounce</h4>
+                          <div className="space-y-2">
+                            <Label htmlFor="zerobounce-api-key">Zerobounce API Key</Label>
+                            <Input
+                              id="zerobounce-api-key"
+                              type="password"
+                              placeholder="Enter your Zerobounce API key"
+                              value={zerobounceApiKey}
+                              onChange={(e) => setZerobounceApiKey(e.target.value)}
+                              disabled={isConnectingZerobounce}
+                            />
+                            <p className="text-xs text-muted-foreground">
+                              Get your API key from Zerobounce Dashboard → API
+                            </p>
+                          </div>
+                          {zerobounceTestResult && (
+                            <div className="text-sm">
+                              {zerobounceTestResult.ok && (
+                                <p className="text-green-600 dark:text-green-400">
+                                  ✓ Connection successful - Credits remaining: {zerobounceTestResult.credits || 'N/A'}
+                                </p>
+                              )}
+                              {!zerobounceTestResult.ok && (
+                                <p className="text-destructive flex items-center gap-1">
+                                  <AlertCircle className="h-3 w-3" />
+                                  {zerobounceTestResult.error}
+                                </p>
+                              )}
+                            </div>
+                          )}
+                          <div className="flex gap-2">
+                            <Button
+                              onClick={handleTestZeroBounce}
+                              disabled={testingZerobounce || !zerobounceApiKey.trim()}
+                              variant="outline"
+                              className="flex-1"
+                            >
+                              {testingZerobounce ? (
+                                <>
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  Testing...
+                                </>
+                              ) : (
+                                <>
+                                  <RefreshCw className="mr-2 h-4 w-4" />
+                                  Test
+                                </>
+                              )}
+                            </Button>
+                            <Button
+                              onClick={handleConnectZeroBounce}
+                              disabled={isConnectingZerobounce || !zerobounceApiKey.trim()}
+                              className="flex-1"
+                            >
+                              {isConnectingZerobounce ? (
+                                <>
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  Connecting...
+                                </>
+                              ) : (
+                                <>
+                                  <Plug className="mr-2 h-4 w-4" />
+                                  Save & Connect
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            Note: Only Super Admins can configure Zerobounce integration
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
+                          <span className="h-2 w-2 rounded-full bg-green-500"></span>
+                          Zerobounce Connected
+                        </div>
+                        {zerobounceTestResult && (
+                          <div className="text-sm">
+                            {zerobounceTestResult.ok && (
+                              <p className="text-green-600 dark:text-green-400">
+                                ✓ Connection successful - Credits: {zerobounceTestResult.credits || 'N/A'}
+                              </p>
+                            )}
+                            {!zerobounceTestResult.ok && (
+                              <p className="text-destructive flex items-center gap-1">
+                                <AlertCircle className="h-3 w-3" />
+                                {zerobounceTestResult.error}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                        <p className="text-xs text-muted-foreground">
+                          Email validation is active. All new contacts will be validated automatically.
+                        </p>
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={handleTestZeroBounce}
+                            disabled={testingZerobounce}
+                            variant="outline"
+                            size="sm"
+                          >
+                            {testingZerobounce ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Checking...
+                              </>
+                            ) : (
+                              <>
+                                <RefreshCw className="mr-2 h-4 w-4" />
+                                Check Credits
+                              </>
+                            )}
+                          </Button>
+                          <Button
+                            onClick={handleDisconnectZeroBounce}
+                            variant="destructive"
+                            size="sm"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Disconnect
+                          </Button>
+                        </div>
                       </div>
                     )}
                   </>

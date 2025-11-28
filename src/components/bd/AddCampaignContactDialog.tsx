@@ -11,9 +11,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, User, Building, Mail, Phone, Linkedin, Globe } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Loader2, User, Building, Mail, Phone, Linkedin, Globe, CheckCircle2, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAddCampaignContact } from "@/hooks/useAddCampaignContact";
+import { useValidateEmails, useZeroBounceConfig } from "@/hooks/useZeroBounce";
 
 interface AddCampaignContactDialogProps {
   open: boolean;
@@ -30,6 +32,8 @@ export function AddCampaignContactDialog({
 }: AddCampaignContactDialogProps) {
   const { toast } = useToast();
   const { mutateAsync: addContact, isPending } = useAddCampaignContact();
+  const { data: zbConfig } = useZeroBounceConfig();
+  const { mutateAsync: validateEmails, isPending: isValidating } = useValidateEmails();
 
   // Form state
   const [formData, setFormData] = useState({
@@ -44,6 +48,12 @@ export function AddCampaignContactDialog({
     company_size: "",
     personalization_notes: "",
   });
+
+  const [validationResult, setValidationResult] = useState<{
+    status: string;
+    message: string;
+    isValid: boolean;
+  } | null>(null);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -62,6 +72,7 @@ export function AddCampaignContactDialog({
       company_size: "",
       personalization_notes: "",
     });
+    setValidationResult(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -86,12 +97,67 @@ export function AddCampaignContactDialog({
       return;
     }
 
+    const email = formData.contact_email.trim();
+    let emailValidationStatus = "not_validated";
+    let emailValidationError = null;
+
+    // Validate email with Zerobounce if configured and email is provided
+    if (email && zbConfig?.configured) {
+      try {
+        const validationResponse = await validateEmails({ emails: email });
+
+        if (validationResponse.ok && validationResponse.results && validationResponse.results.length > 0) {
+          const result = validationResponse.results[0];
+          const status = result.status.toLowerCase();
+
+          emailValidationStatus = status;
+
+          // Check if email is valid
+          if (status === 'valid') {
+            setValidationResult({
+              status: 'valid',
+              message: 'Email validated successfully',
+              isValid: true,
+            });
+          } else if (status === 'invalid' || status === 'spamtrap' || status === 'abuse' || status === 'do_not_mail') {
+            setValidationResult({
+              status: status,
+              message: `Email validation failed: ${status}. This contact will not be added.`,
+              isValid: false,
+            });
+            toast({
+              title: "Invalid Email",
+              description: `The email address is ${status}. Please verify the email address.`,
+              variant: "destructive",
+            });
+            return; // Stop the submission
+          } else {
+            // For catch-all, unknown - allow but warn
+            setValidationResult({
+              status: status,
+              message: `Email validation returned: ${status}. Contact will be added but may need verification.`,
+              isValid: true,
+            });
+          }
+        }
+      } catch (error) {
+        console.error("Email validation error:", error);
+        emailValidationError = error instanceof Error ? error.message : "Validation failed";
+        // Continue with adding contact even if validation fails
+        toast({
+          title: "Validation Warning",
+          description: "Email validation service unavailable. Contact will be added without validation.",
+          variant: "default",
+        });
+      }
+    }
+
     try {
       await addContact({
         campaignId,
         contactData: {
           contact_name: formData.contact_name.trim(),
-          contact_email: formData.contact_email.trim() || null,
+          contact_email: email || null,
           contact_phone: formData.contact_phone.trim() || null,
           contact_linkedin_url: formData.contact_linkedin_url.trim() || null,
           contact_company: formData.contact_company.trim() || null,
@@ -104,6 +170,8 @@ export function AddCampaignContactDialog({
             added_via: "manual",
             added_at: new Date().toISOString(),
             personalization_notes: formData.personalization_notes.trim() || null,
+            email_validation_status: emailValidationStatus,
+            email_validation_error: emailValidationError,
           },
         },
       });
@@ -205,6 +273,27 @@ export function AddCampaignContactDialog({
                   onChange={(e) => handleInputChange("contact_linkedin_url", e.target.value)}
                 />
               </div>
+
+              {/* Email Validation Result */}
+              {validationResult && (
+                <Alert variant={validationResult.isValid ? "default" : "destructive"}>
+                  {validationResult.isValid ? (
+                    <CheckCircle2 className="h-4 w-4" />
+                  ) : (
+                    <AlertCircle className="h-4 w-4" />
+                  )}
+                  <AlertDescription>
+                    {validationResult.message}
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {/* Zerobounce Status Indicator */}
+              {zbConfig?.configured && formData.contact_email && (
+                <p className="text-xs text-muted-foreground">
+                  Email will be validated with Zerobounce before adding
+                </p>
+              )}
             </div>
           </div>
 
@@ -290,11 +379,16 @@ export function AddCampaignContactDialog({
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={handleCancel} disabled={isPending}>
+            <Button type="button" variant="outline" onClick={handleCancel} disabled={isPending || isValidating}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isPending}>
-              {isPending ? (
+            <Button type="submit" disabled={isPending || isValidating}>
+              {isValidating ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Validating Email...
+                </>
+              ) : isPending ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Adding Contact...
