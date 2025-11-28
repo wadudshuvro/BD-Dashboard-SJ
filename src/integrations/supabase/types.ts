@@ -4403,6 +4403,137 @@ export type Database = {
         }
         Relationships: []
       }
+      zerobounce_config: {
+        Row: {
+          api_key: string
+          created_at: string
+          created_by: string | null
+          credits_remaining: number | null
+          id: string
+          is_active: boolean
+          last_tested_at: string | null
+          test_response: Json | null
+          test_status: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          api_key: string
+          created_at?: string
+          created_by?: string | null
+          credits_remaining?: number | null
+          id?: string
+          is_active?: boolean
+          last_tested_at?: string | null
+          test_response?: Json | null
+          test_status?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          api_key?: string
+          created_at?: string
+          created_by?: string | null
+          credits_remaining?: number | null
+          id?: string
+          is_active?: boolean
+          last_tested_at?: string | null
+          test_response?: Json | null
+          test_status?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      zerobounce_validations: {
+        Row: {
+          account: string | null
+          campaign_contact_id: string | null
+          city: string | null
+          country: string | null
+          created_at: string
+          created_by: string | null
+          did_you_mean: string | null
+          domain: string | null
+          domain_age_days: string | null
+          email: string
+          firstname: string | null
+          free_email: boolean | null
+          gender: string | null
+          id: string
+          lastname: string | null
+          mx_found: string | null
+          mx_record: string | null
+          processed_at: string | null
+          region: string | null
+          smtp_provider: string | null
+          sub_status: string | null
+          validation_metadata: Json | null
+          validation_status: string
+          zipcode: string | null
+        }
+        Insert: {
+          account?: string | null
+          campaign_contact_id?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          created_by?: string | null
+          did_you_mean?: string | null
+          domain?: string | null
+          domain_age_days?: string | null
+          email: string
+          firstname?: string | null
+          free_email?: boolean | null
+          gender?: string | null
+          id?: string
+          lastname?: string | null
+          mx_found?: string | null
+          mx_record?: string | null
+          processed_at?: string | null
+          region?: string | null
+          smtp_provider?: string | null
+          sub_status?: string | null
+          validation_metadata?: Json | null
+          validation_status: string
+          zipcode?: string | null
+        }
+        Update: {
+          account?: string | null
+          campaign_contact_id?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          created_by?: string | null
+          did_you_mean?: string | null
+          domain?: string | null
+          domain_age_days?: string | null
+          email?: string
+          firstname?: string | null
+          free_email?: boolean | null
+          gender?: string | null
+          id?: string
+          lastname?: string | null
+          mx_found?: string | null
+          mx_record?: string | null
+          processed_at?: string | null
+          region?: string | null
+          smtp_provider?: string | null
+          sub_status?: string | null
+          validation_metadata?: Json | null
+          validation_status?: string
+          zipcode?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "zerobounce_validations_campaign_contact_id_fkey"
+            columns: ["campaign_contact_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
