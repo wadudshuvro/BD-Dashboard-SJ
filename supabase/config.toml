@@ -73,3 +73,6 @@ verify_jwt = false
 
 [functions.cleanup-sync-logs.cron]
 schedule = "0 0 * * *"
+
+[functions.zerobounce-manage]
+verify_jwt = true
