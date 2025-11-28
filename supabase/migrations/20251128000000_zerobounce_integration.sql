@@ -9,10 +9,10 @@ CREATE TABLE IF NOT EXISTS public.zerobounce_config (
   test_status TEXT CHECK (test_status IN ('success', 'failed', 'pending')),
   test_response JSONB,
   credits_remaining INTEGER,
-  created_by UUID REFERENCES public.users(id) ON DELETE SET NULL,
+  created_by UUID REFERENCES auth.users(id) ON DELETE CASCADE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_by UUID REFERENCES public.users(id) ON DELETE SET NULL
+  updated_by UUID REFERENCES auth.users(id) ON DELETE CASCADE
 );
 
 -- Only one active configuration at a time
@@ -67,7 +67,7 @@ CREATE TABLE IF NOT EXISTS public.zerobounce_validations (
   error_message TEXT,
   validation_metadata JSONB DEFAULT '{}'::jsonb,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  created_by UUID REFERENCES public.users(id) ON DELETE SET NULL
+  created_by UUID REFERENCES auth.users(id) ON DELETE CASCADE
 );
 
 CREATE INDEX IF NOT EXISTS idx_zerobounce_validations_email ON public.zerobounce_validations(email);
