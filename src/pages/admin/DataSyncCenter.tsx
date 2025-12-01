@@ -63,8 +63,9 @@ interface SyncConfig {
 }
 
 interface EmailRecipient {
+  id: string;
   email: string;
-  id?: string;
+  full_name?: string;
 }
 
 interface DealCounts {
@@ -103,7 +104,8 @@ const DataSyncCenter = () => {
   const [lastFullSync, setLastFullSync] = useState<any>(null);
   const [showSyncDetails, setShowSyncDetails] = useState(false);
   const [emailRecipients, setEmailRecipients] = useState<EmailRecipient[]>([]);
-  const [newRecipient, setNewRecipient] = useState('');
+  const [availableUsers, setAvailableUsers] = useState<EmailRecipient[]>([]);
+  const [selectedUser, setSelectedUser] = useState('');
   const [recipientLoading, setRecipientLoading] = useState(false);
   const [recipientSaving, setRecipientSaving] = useState(false);
   
@@ -329,6 +331,40 @@ const DataSyncCenter = () => {
     }
   };
 
+  const fetchAvailableUsers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, email, full_name')
+        .order('full_name', { ascending: true });
+
+      if (error) throw error;
+
+      if (data) {
+        const usersWithRoles = await Promise.all(
+          (data as any[]).map(async (user) => {
+            const { data: roleData } = await supabase
+              .from('user_roles')
+              .select('role')
+              .eq('user_id', user.id)
+              .in('role', ['super_admin', 'admin']);
+
+            if (roleData && roleData.length > 0) {
+              return { id: user.id, email: user.email, full_name: user.full_name };
+            }
+            return null;
+          })
+        );
+
+        const admins = usersWithRoles.filter((u) => u !== null) as EmailRecipient[];
+        setAvailableUsers(admins);
+      }
+    } catch (error) {
+      console.error('Failed to fetch available users', error);
+      toast({ title: 'Error', description: 'Could not load available users.', variant: 'destructive' });
+    }
+  };
+
   const fetchEmailRecipients = async () => {
     setRecipientLoading(true);
     try {
@@ -345,6 +381,8 @@ const DataSyncCenter = () => {
       } else {
         setEmailRecipients([]);
       }
+
+      await fetchAvailableUsers();
     } catch (error) {
       console.error('Failed to fetch email recipients', error);
       toast({ title: 'Error', description: 'Could not load email recipients.', variant: 'destructive' });
@@ -356,10 +394,10 @@ const DataSyncCenter = () => {
   const saveEmailRecipients = async (recipients: EmailRecipient[]) => {
     setRecipientSaving(true);
     try {
-      const { error } = await supabase.rpc('update_control_tower_alert_config', {
-        p_alert_type: 'sync_failure',
-        p_notification_recipients: recipients as any,
-      });
+      const { error } = await supabase
+        .from('control_tower_alert_config')
+        .update({ notification_recipients: recipients, updated_at: new Date().toISOString() })
+        .eq('alert_type', 'sync_failure');
 
       if (error) throw error;
       setEmailRecipients(recipients);
@@ -373,30 +411,30 @@ const DataSyncCenter = () => {
   };
 
   const addEmailRecipient = async () => {
-    if (!newRecipient.trim()) {
-      toast({ title: 'Error', description: 'Please enter an email address.', variant: 'destructive' });
+    if (!selectedUser) {
+      toast({ title: 'Error', description: 'Please select a user.', variant: 'destructive' });
       return;
     }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(newRecipient)) {
-      toast({ title: 'Error', description: 'Please enter a valid email address.', variant: 'destructive' });
+    const user = availableUsers.find((u) => u.id === selectedUser);
+    if (!user) {
+      toast({ title: 'Error', description: 'Selected user not found.', variant: 'destructive' });
       return;
     }
 
-    const existingEmail = emailRecipients.find(r => r.email.toLowerCase() === newRecipient.toLowerCase());
-    if (existingEmail) {
-      toast({ title: 'Error', description: 'This email is already in the recipients list.', variant: 'destructive' });
+    const existingUser = emailRecipients.find((r) => r.id === user.id);
+    if (existingUser) {
+      toast({ title: 'Error', description: 'This user is already in the recipients list.', variant: 'destructive' });
       return;
     }
 
-    const updatedRecipients = [...emailRecipients, { email: newRecipient.trim() }];
+    const updatedRecipients = [...emailRecipients, user];
     await saveEmailRecipients(updatedRecipients);
-    setNewRecipient('');
+    setSelectedUser('');
   };
 
-  const deleteEmailRecipient = async (index: number) => {
-    const updatedRecipients = emailRecipients.filter((_, i) => i !== index);
+  const deleteEmailRecipient = async (userId: string) => {
+    const updatedRecipients = emailRecipients.filter((r) => r.id !== userId);
     await saveEmailRecipients(updatedRecipients);
   };
 
@@ -1331,7 +1369,7 @@ const DataSyncCenter = () => {
                 <Users className="h-5 w-5" />
                 Email Recipients for Sync Failures
               </CardTitle>
-              <CardDescription>Manage who receives notifications when sync failures occur</CardDescription>
+              <CardDescription>Select admin and superadmin users to receive notifications when sync failures occur</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {recipientLoading ? (
@@ -1341,50 +1379,61 @@ const DataSyncCenter = () => {
               ) : (
                 <>
                   <div className="space-y-2">
-                    <Label htmlFor="new-recipient">Add Email Recipient</Label>
+                    <Label htmlFor="select-recipient">Select Admin/Superadmin User</Label>
                     <div className="flex gap-2">
-                      <input
-                        id="new-recipient"
-                        type="email"
-                        placeholder="Enter email address"
-                        value={newRecipient}
-                        onChange={(e) => setNewRecipient(e.target.value)}
-                        onKeyPress={(e) => {
-                          if (e.key === 'Enter') {
-                            addEmailRecipient();
-                          }
-                        }}
-                        className="flex-1 px-3 py-2 border border-input rounded-md bg-background text-sm"
-                      />
+                      <Select value={selectedUser} onValueChange={setSelectedUser}>
+                        <SelectTrigger className="flex-1">
+                          <SelectValue placeholder="Choose a user to add..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableUsers
+                            .filter((user) => !emailRecipients.find((r) => r.id === user.id))
+                            .map((user) => (
+                              <SelectItem key={user.id} value={user.id}>
+                                {user.full_name || 'Unknown'} ({user.email})
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
                       <Button
                         onClick={addEmailRecipient}
-                        disabled={recipientSaving || !newRecipient.trim()}
+                        disabled={recipientSaving || !selectedUser}
                         size="sm"
                       >
                         {recipientSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                         Add
                       </Button>
                     </div>
+                    {availableUsers.length === 0 && (
+                      <p className="text-sm text-muted-foreground">
+                        No admin or superadmin users found in the system.
+                      </p>
+                    )}
                   </div>
 
                   <div className="space-y-2">
                     <Label>Current Recipients ({emailRecipients.length})</Label>
                     {emailRecipients.length === 0 ? (
                       <div className="p-3 rounded-md bg-muted/50 text-sm text-muted-foreground">
-                        No email recipients configured. Add recipients above to receive sync failure notifications.
+                        No email recipients configured. Select a user above to add them to the notification list.
                       </div>
                     ) : (
                       <div className="space-y-2">
-                        {emailRecipients.map((recipient, index) => (
+                        {emailRecipients.map((recipient) => (
                           <div
-                            key={index}
+                            key={recipient.id}
                             className="flex items-center justify-between p-3 rounded-md border bg-card"
                           >
-                            <span className="text-sm font-medium">{recipient.email}</span>
+                            <div className="flex flex-col gap-1">
+                              <span className="text-sm font-medium">
+                                {recipient.full_name || 'Unknown'}
+                              </span>
+                              <span className="text-xs text-muted-foreground">{recipient.email}</span>
+                            </div>
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => deleteEmailRecipient(index)}
+                              onClick={() => deleteEmailRecipient(recipient.id)}
                               disabled={recipientSaving}
                               className="text-destructive hover:text-destructive"
                             >
