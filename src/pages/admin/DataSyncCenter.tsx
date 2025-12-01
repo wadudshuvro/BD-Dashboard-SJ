@@ -62,6 +62,11 @@ interface SyncConfig {
   email_on_failure?: boolean;
 }
 
+interface EmailRecipient {
+  email: string;
+  id?: string;
+}
+
 interface DealCounts {
   prospecting: number;
   qualification: number;
@@ -97,6 +102,10 @@ const DataSyncCenter = () => {
   const [entityCounts, setEntityCounts] = useState({ employees: 0, pods: 0, clients: 0, deals: 0 });
   const [lastFullSync, setLastFullSync] = useState<any>(null);
   const [showSyncDetails, setShowSyncDetails] = useState(false);
+  const [emailRecipients, setEmailRecipients] = useState<EmailRecipient[]>([]);
+  const [newRecipient, setNewRecipient] = useState('');
+  const [recipientLoading, setRecipientLoading] = useState(false);
+  const [recipientSaving, setRecipientSaving] = useState(false);
   
   const { mutate: triggerFullSync, isPending: isFullSyncing } = useSyncControlTowerFull();
   const { syncDeals, isSyncing: isSyncingDeals } = useSyncControlTowerDeals();
@@ -121,6 +130,7 @@ const DataSyncCenter = () => {
     fetchConfig();
     fetchSyncHealth();
     fetchEntityCounts();
+    fetchEmailRecipients();
   }, []);
 
   // Auto-refresh timer
@@ -317,6 +327,77 @@ const DataSyncCenter = () => {
     } finally {
       setConfigSaving(false);
     }
+  };
+
+  const fetchEmailRecipients = async () => {
+    setRecipientLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('control_tower_alert_config')
+        .select('notification_recipients')
+        .eq('alert_type', 'sync_failure')
+        .single();
+
+      if (error && error.code !== 'PGRST116') throw error;
+
+      if (data?.notification_recipients && Array.isArray(data.notification_recipients)) {
+        setEmailRecipients(data.notification_recipients as EmailRecipient[]);
+      } else {
+        setEmailRecipients([]);
+      }
+    } catch (error) {
+      console.error('Failed to fetch email recipients', error);
+      toast({ title: 'Error', description: 'Could not load email recipients.', variant: 'destructive' });
+    } finally {
+      setRecipientLoading(false);
+    }
+  };
+
+  const saveEmailRecipients = async (recipients: EmailRecipient[]) => {
+    setRecipientSaving(true);
+    try {
+      const { error } = await supabase.rpc('update_control_tower_alert_config', {
+        p_alert_type: 'sync_failure',
+        p_notification_recipients: recipients as any,
+      });
+
+      if (error) throw error;
+      setEmailRecipients(recipients);
+      toast({ title: 'Recipients saved', description: 'Email recipients updated successfully.' });
+    } catch (error) {
+      console.error('Failed to save email recipients', error);
+      toast({ title: 'Error', description: 'Could not save email recipients.', variant: 'destructive' });
+    } finally {
+      setRecipientSaving(false);
+    }
+  };
+
+  const addEmailRecipient = async () => {
+    if (!newRecipient.trim()) {
+      toast({ title: 'Error', description: 'Please enter an email address.', variant: 'destructive' });
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(newRecipient)) {
+      toast({ title: 'Error', description: 'Please enter a valid email address.', variant: 'destructive' });
+      return;
+    }
+
+    const existingEmail = emailRecipients.find(r => r.email.toLowerCase() === newRecipient.toLowerCase());
+    if (existingEmail) {
+      toast({ title: 'Error', description: 'This email is already in the recipients list.', variant: 'destructive' });
+      return;
+    }
+
+    const updatedRecipients = [...emailRecipients, { email: newRecipient.trim() }];
+    await saveEmailRecipients(updatedRecipients);
+    setNewRecipient('');
+  };
+
+  const deleteEmailRecipient = async (index: number) => {
+    const updatedRecipients = emailRecipients.filter((_, i) => i !== index);
+    await saveEmailRecipients(updatedRecipients);
   };
 
   const triggerPullSync = async (fullSync: boolean = false) => {
@@ -1241,6 +1322,87 @@ const DataSyncCenter = () => {
                   <span className="text-sm text-muted-foreground">20 minutes (auto-cleanup)</span>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Email Recipients for Sync Failures
+              </CardTitle>
+              <CardDescription>Manage who receives notifications when sync failures occur</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {recipientLoading ? (
+                <div className="flex items-center justify-center py-6">
+                  <Loader2 className="h-6 w-6 animate-spin" />
+                </div>
+              ) : (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="new-recipient">Add Email Recipient</Label>
+                    <div className="flex gap-2">
+                      <input
+                        id="new-recipient"
+                        type="email"
+                        placeholder="Enter email address"
+                        value={newRecipient}
+                        onChange={(e) => setNewRecipient(e.target.value)}
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter') {
+                            addEmailRecipient();
+                          }
+                        }}
+                        className="flex-1 px-3 py-2 border border-input rounded-md bg-background text-sm"
+                      />
+                      <Button
+                        onClick={addEmailRecipient}
+                        disabled={recipientSaving || !newRecipient.trim()}
+                        size="sm"
+                      >
+                        {recipientSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        Add
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Current Recipients ({emailRecipients.length})</Label>
+                    {emailRecipients.length === 0 ? (
+                      <div className="p-3 rounded-md bg-muted/50 text-sm text-muted-foreground">
+                        No email recipients configured. Add recipients above to receive sync failure notifications.
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {emailRecipients.map((recipient, index) => (
+                          <div
+                            key={index}
+                            className="flex items-center justify-between p-3 rounded-md border bg-card"
+                          >
+                            <span className="text-sm font-medium">{recipient.email}</span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => deleteEmailRecipient(index)}
+                              disabled={recipientSaving}
+                              className="text-destructive hover:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="bg-blue-50 dark:bg-blue-950/20 p-3 rounded-md">
+                    <p className="text-sm text-blue-900 dark:text-blue-200">
+                      <strong>Note:</strong> These recipients will receive email notifications when sync failures are detected (3 or more failed syncs in 24 hours).
+                    </p>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
