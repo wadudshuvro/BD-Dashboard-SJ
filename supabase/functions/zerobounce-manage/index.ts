@@ -23,10 +23,12 @@ async function requireAuth(client: any): Promise<string | null> {
 }
 
 async function isSuperAdmin(client: any, userId: string): Promise<boolean> {
-  const { data, error } = await client.rpc('has_role', {
-    _user_id: userId,
-    _role: 'super_admin'
-  });
+  const { data, error } = await client
+    .from('user_roles')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('role', 'super_admin')
+    .maybeSingle();
 
   if (error) {
     console.error('[zerobounce-manage] Error checking super admin:', error);

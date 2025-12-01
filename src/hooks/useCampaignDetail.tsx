@@ -19,8 +19,11 @@ import type { BDCampaign } from './useBDCampaigns';
 const defaultContactByStatus = (): Record<CampaignContactStatus, CampaignContact[]> => ({
   identified: [],
   researched: [],
+  client_not_ideal: [],
   contacted_linkedin: [],
+  contacted_social: [],
   connected: [],
+  client_not_responsive: [],
   messaged: [],
   contacted_email: [],
   responded: [],
