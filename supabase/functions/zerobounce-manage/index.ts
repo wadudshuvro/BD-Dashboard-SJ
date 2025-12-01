@@ -24,8 +24,8 @@ async function requireAuth(client: any): Promise<string | null> {
 
 async function isSuperAdmin(client: any, userId: string): Promise<boolean> {
   const { data, error } = await client.rpc('has_role', {
-    user_id: userId,
-    role_name: 'super_admin'
+    _user_id: userId,
+    _role: 'super_admin'
   });
 
   if (error) {
