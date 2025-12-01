@@ -377,7 +377,12 @@ const DataSyncCenter = () => {
       if (error && error.code !== 'PGRST116') throw error;
 
       if (data?.notification_recipients && Array.isArray(data.notification_recipients)) {
-        setEmailRecipients(data.notification_recipients as EmailRecipient[]);
+        const recipients = (data.notification_recipients as any[]).map((r: any) => ({
+          id: r.id || '',
+          email: r.email || '',
+          full_name: r.full_name || undefined
+        }));
+        setEmailRecipients(recipients);
       } else {
         setEmailRecipients([]);
       }
@@ -394,9 +399,10 @@ const DataSyncCenter = () => {
   const saveEmailRecipients = async (recipients: EmailRecipient[]) => {
     setRecipientSaving(true);
     try {
+      const recipientsJson = recipients.map(r => ({ id: r.id, email: r.email, full_name: r.full_name }));
       const { error } = await supabase
         .from('control_tower_alert_config')
-        .update({ notification_recipients: recipients, updated_at: new Date().toISOString() })
+        .update({ notification_recipients: recipientsJson as any, updated_at: new Date().toISOString() })
         .eq('alert_type', 'sync_failure');
 
       if (error) throw error;

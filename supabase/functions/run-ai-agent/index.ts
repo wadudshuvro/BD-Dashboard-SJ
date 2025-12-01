@@ -567,12 +567,48 @@ ${currentQuestion || userContext || 'Summarize the key points from these documen
     }
   }, null, 2);
 
+  // Helper function to replace nested placeholders
+  function replacePlaceholders(template: string, context: Record<string, any>): string {
+    return template.replace(/\{\{([^}]+)\}\}/g, (match, path) => {
+      const keys = path.trim().split('.');
+      let value: any = context;
+      
+      for (const key of keys) {
+        if (value && typeof value === 'object' && key in value) {
+          value = value[key];
+        } else {
+          return match; // Keep placeholder if path not found
+        }
+      }
+      
+      // Handle array values
+      if (Array.isArray(value)) {
+        return value.join(', ');
+      }
+      
+      // Handle null/undefined
+      if (value === null || value === undefined) {
+        return 'Not available';
+      }
+      
+      return String(value);
+    });
+  }
+
   let userPrompt: string;
   
+  // Check if this is LinkedIn message generation
+  if (agent.category === 'linkedin_outreach' || (agent as any).slug === 'linkedin-message-generator') {
+    if (agent.prompt_template) {
+      // Replace all LinkedIn placeholders with actual values
+      userPrompt = replacePlaceholders(agent.prompt_template, executionContext);
+    } else {
+      userPrompt = 'Generate personalized LinkedIn messages based on the provided context.';
+    }
+  }
   // Check if this is a BD contact analysis
-  const contactData = (executionContext.filters as any)?.contact_data;
-  
-  if (contactData && agent.category === 'research') {
+  else if ((executionContext.filters as any)?.contact_data && agent.category === 'research') {
+    const contactData = (executionContext.filters as any)?.contact_data;
     // Build comprehensive BD analysis prompt
     userPrompt = `# LEAD INTELLIGENCE ANALYSIS
 
@@ -654,7 +690,7 @@ ${responseTemplate}
 - If research_summary is missing, note that running "Run Research" first would enhance analysis
 - Include structured_output with lead_quality_score (A+ to F), engagement_readiness (hot/warm/cold), decision_maker_level, best_approach, key_talking_points, recommended_next_step, and recommended_timing
 `;
-  } else if (agent.prompt_template) {
+  } else if (agent.prompt_template && agent.category !== 'linkedin_outreach' && (agent as any).slug !== 'linkedin-message-generator') {
     userPrompt = agent.prompt_template
       .replace(/\{\{deal_title\}\}/g, executionContext.deal_title as string || "N/A")
       .replace(/\{\{deal_stage\}\}/g, executionContext.deal_stage as string || "N/A")
