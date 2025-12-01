@@ -21,8 +21,11 @@ interface ContactCardMiniProps {
 const statusToProgress: Record<CampaignContactStatus, number> = {
   identified: 10,
   researched: 20,
+  client_not_ideal: 15,
   contacted_linkedin: 30,
+  contacted_social: 30,
   connected: 40,
+  client_not_responsive: 45,
   messaged: 50,
   contacted_email: 60,
   responded: 70,

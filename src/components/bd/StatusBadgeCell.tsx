@@ -24,9 +24,21 @@ const STATUS_CONFIG: Record<
     icon: CheckCircle2,
     className: 'bg-blue-100 text-blue-900 border-blue-200',
   },
+  client_not_ideal: {
+    label: 'Not Ideal',
+    description: 'Client does not fit ideal customer profile',
+    icon: XCircle,
+    className: 'bg-gray-100 text-gray-900 border-gray-200',
+  },
   contacted_linkedin: {
     label: 'Request Sent',
     description: 'LinkedIn connection request sent',
+    icon: Send,
+    className: 'bg-indigo-100 text-indigo-900 border-indigo-200',
+  },
+  contacted_social: {
+    label: 'Social Outreach',
+    description: 'Contact made via social media',
     icon: Send,
     className: 'bg-indigo-100 text-indigo-900 border-indigo-200',
   },
@@ -35,6 +47,12 @@ const STATUS_CONFIG: Record<
     description: 'Connection accepted on LinkedIn',
     icon: Users,
     className: 'bg-emerald-100 text-emerald-900 border-emerald-200',
+  },
+  client_not_responsive: {
+    label: 'Not Responsive',
+    description: 'Client has not responded to outreach',
+    icon: XCircle,
+    className: 'bg-amber-100 text-amber-900 border-amber-200',
   },
   messaged: {
     label: 'Messaged',
