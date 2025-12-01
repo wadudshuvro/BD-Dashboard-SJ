@@ -258,29 +258,38 @@ Deno.serve(async (req) => {
             const data = await response.json();
             console.log('[zerobounce-manage] Validation result for', email, ':', data.status);
 
+            // Handle data type conversions for database compatibility
+            const domainAgeDays = data.domain_age_days ? 
+              (typeof data.domain_age_days === 'string' ? parseInt(data.domain_age_days, 10) : data.domain_age_days) : 
+              null;
+            
+            const mxFound = data.mx_found !== undefined ? 
+              (typeof data.mx_found === 'string' ? data.mx_found.toLowerCase() === 'true' : Boolean(data.mx_found)) : 
+              null;
+
             // Store validation result
             const { error: insertError } = await client
               .from('zerobounce_validations')
               .insert({
                 email: email,
-                validation_status: data.status.toLowerCase(),
-                sub_status: data.sub_status,
-                account: data.account,
-                domain: data.domain,
-                did_you_mean: data.did_you_mean,
-                domain_age_days: data.domain_age_days,
-                free_email: data.free_email,
-                mx_found: data.mx_found,
-                mx_record: data.mx_record,
-                smtp_provider: data.smtp_provider,
-                firstname: data.firstname,
-                lastname: data.lastname,
-                gender: data.gender,
-                country: data.country,
-                region: data.region,
-                city: data.city,
-                zipcode: data.zipcode,
-                processed_at: data.processed_at,
+                validation_status: data.status ? data.status.toLowerCase() : 'unknown',
+                sub_status: data.sub_status || null,
+                account: data.account || null,
+                domain: data.domain || null,
+                did_you_mean: data.did_you_mean || null,
+                domain_age_days: domainAgeDays,
+                free_email: Boolean(data.free_email),
+                mx_found: mxFound,
+                mx_record: data.mx_record || null,
+                smtp_provider: data.smtp_provider || null,
+                firstname: data.firstname || null,
+                lastname: data.lastname || null,
+                gender: data.gender || null,
+                country: data.country || null,
+                region: data.region || null,
+                city: data.city || null,
+                zipcode: data.zipcode || null,
+                processed_at: data.processed_at || new Date().toISOString(),
                 validation_metadata: data,
                 created_by: userId
               });

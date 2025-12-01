@@ -8,16 +8,16 @@ verify_jwt = false
 
 [functions.pandadoc-check-expiring]
 verify_jwt = false
-timeout = 300
+# timeout = 300  # Commented out - not supported in this CLI version
 
-[functions.pandadoc-sync-status.cron]
-schedule = "*/15 * * * *"
+# [functions.pandadoc-sync-status.cron]  # Commented out - not supported in this CLI version
+# schedule = "*/15 * * * *"
 
 [functions.monitor-control-tower-health]
 verify_jwt = false
 
-[functions.monitor-control-tower-health.cron]
-schedule = "*/15 * * * *"
+# [functions.monitor-control-tower-health.cron]  # Commented out - not supported in this CLI version
+# schedule = "*/15 * * * *"
 
 [functions.collabai-manage]
 verify_jwt = true
@@ -33,25 +33,25 @@ verify_jwt = true
 
 [functions.sync-control-tower-full]
 verify_jwt = true
-timeout = 600
+# timeout = 600  # Commented out - not supported in this CLI version
 
 [functions.sync-control-tower-employees]
 verify_jwt = false
-timeout = 300
+# timeout = 300  # Commented out - not supported in this CLI version
 
-[functions.sync-control-tower-employees.cron]
-schedule = "0 2 * * *"
+# [functions.sync-control-tower-employees.cron]  # Commented out - not supported in this CLI version
+# schedule = "0 2 * * *"
 
 [functions.sync-control-tower-pods]
 verify_jwt = false
-timeout = 300
+# timeout = 300  # Commented out - not supported in this CLI version
 
-[functions.sync-control-tower-pods.cron]
-schedule = "0 3 * * *"
+# [functions.sync-control-tower-pods.cron]  # Commented out - not supported in this CLI version
+# schedule = "0 3 * * *"
 
 [functions.sync-control-tower-deals]
 verify_jwt = true
-timeout = 300
+# timeout = 300  # Commented out - not supported in this CLI version
 
 [functions.apply-checklist-template]
 verify_jwt = true
@@ -71,8 +71,8 @@ verify_jwt = false
 [functions.cleanup-sync-logs]
 verify_jwt = false
 
-[functions.cleanup-sync-logs.cron]
-schedule = "0 0 * * *"
+# [functions.cleanup-sync-logs.cron]  # Commented out - not supported in this CLI version
+# schedule = "0 0 * * *"
 
 [functions.zerobounce-manage]
 verify_jwt = true
