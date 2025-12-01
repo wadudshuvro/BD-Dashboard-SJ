@@ -462,6 +462,34 @@ async function resolvePreferredIntegration(client: SupabaseClient): Promise<Inte
   return null;
 }
 
+// Helper function to replace nested placeholders across prompts and outputs
+function replacePlaceholders(template: string, context: Record<string, any>): string {
+  return template.replace(/\{\{([^}]+)\}\}/g, (match, path) => {
+    const keys = path.trim().split('.');
+    let value: any = context;
+    
+    for (const key of keys) {
+      if (value && typeof value === 'object' && key in value) {
+        value = value[key];
+      } else {
+        return match; // Keep placeholder if path not found
+      }
+    }
+    
+    // Handle array values
+    if (Array.isArray(value)) {
+      return value.join(', ');
+    }
+    
+    // Handle null/undefined
+    if (value === null || value === undefined) {
+      return 'Not available';
+    }
+    
+    return String(value);
+  });
+}
+
 function assemblePrompt(
   agent: DatabaseAgent,
   businessContext: Record<string, unknown>,
@@ -567,33 +595,8 @@ ${currentQuestion || userContext || 'Summarize the key points from these documen
     }
   }, null, 2);
 
-  // Helper function to replace nested placeholders
-  function replacePlaceholders(template: string, context: Record<string, any>): string {
-    return template.replace(/\{\{([^}]+)\}\}/g, (match, path) => {
-      const keys = path.trim().split('.');
-      let value: any = context;
-      
-      for (const key of keys) {
-        if (value && typeof value === 'object' && key in value) {
-          value = value[key];
-        } else {
-          return match; // Keep placeholder if path not found
-        }
-      }
-      
-      // Handle array values
-      if (Array.isArray(value)) {
-        return value.join(', ');
-      }
-      
-      // Handle null/undefined
-      if (value === null || value === undefined) {
-        return 'Not available';
-      }
-      
-      return String(value);
-    });
-  }
+  // Placeholder replacement handled by global helper
+
 
   let userPrompt: string;
   
@@ -1278,6 +1281,19 @@ serve(async (req) => {
           const toolCall = toolCallResult.choices?.[0]?.message?.tool_calls?.[0];
           if (toolCall && toolCall.function.name === "generate_linkedin_messages") {
             const linkedInData = JSON.parse(toolCall.function.arguments);
+            
+            // Replace placeholders in message variants with actual execution context values
+            if (linkedInData.message_variants && Array.isArray(linkedInData.message_variants)) {
+              linkedInData.message_variants = linkedInData.message_variants.map((variant: any) => {
+                const originalMessage = variant.message ?? "";
+                const filledMessage = replacePlaceholders(originalMessage, executionContext as any);
+                return {
+                  ...variant,
+                  message: filledMessage,
+                  character_count: filledMessage.length,
+                };
+              });
+            }
             
             // Return the structured LinkedIn message output
             parsedResponse = {
