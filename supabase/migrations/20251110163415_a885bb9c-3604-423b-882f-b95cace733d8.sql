@@ -210,33 +210,6 @@ BEGIN
 END;
 $$;
 
--- Create update_control_tower_alert_config function
-CREATE OR REPLACE FUNCTION public.update_control_tower_alert_config(
-  p_alert_type TEXT,
-  p_notification_recipients JSONB DEFAULT NULL,
-  p_enabled BOOLEAN DEFAULT NULL,
-  p_severity_threshold TEXT DEFAULT NULL,
-  p_threshold_value NUMERIC DEFAULT NULL,
-  p_notification_channels JSONB DEFAULT NULL
-)
-RETURNS void
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path TO 'public'
-AS $$
-BEGIN
-  UPDATE control_tower_alert_config
-  SET
-    notification_recipients = COALESCE(p_notification_recipients, notification_recipients),
-    enabled = COALESCE(p_enabled, enabled),
-    severity_threshold = COALESCE(p_severity_threshold, severity_threshold),
-    threshold_value = COALESCE(p_threshold_value, threshold_value),
-    notification_channels = COALESCE(p_notification_channels, notification_channels),
-    updated_at = now()
-  WHERE alert_type = p_alert_type;
-END;
-$$;
-
 -- Enable RLS on new tables
 ALTER TABLE public.control_tower_health_snapshots ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.control_tower_alerts ENABLE ROW LEVEL SECURITY;
