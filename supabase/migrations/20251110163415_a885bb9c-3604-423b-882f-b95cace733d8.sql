@@ -199,7 +199,7 @@ AS $$
 BEGIN
   -- Auto-resolve alerts older than configured hours when conditions normalized
   UPDATE control_tower_alerts a
-  SET 
+  SET
     status = 'resolved',
     resolved_at = now(),
     resolution_notes = 'Auto-resolved: conditions normalized'
@@ -207,6 +207,33 @@ BEGIN
   WHERE a.alert_type = c.alert_type
     AND a.status = 'active'
     AND a.triggered_at < now() - (c.auto_resolve_after_hours || ' hours')::INTERVAL;
+END;
+$$;
+
+-- Create update_control_tower_alert_config function
+CREATE OR REPLACE FUNCTION public.update_control_tower_alert_config(
+  p_alert_type TEXT,
+  p_notification_recipients JSONB DEFAULT NULL,
+  p_enabled BOOLEAN DEFAULT NULL,
+  p_severity_threshold TEXT DEFAULT NULL,
+  p_threshold_value NUMERIC DEFAULT NULL,
+  p_notification_channels JSONB DEFAULT NULL
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+BEGIN
+  UPDATE control_tower_alert_config
+  SET
+    notification_recipients = COALESCE(p_notification_recipients, notification_recipients),
+    enabled = COALESCE(p_enabled, enabled),
+    severity_threshold = COALESCE(p_severity_threshold, severity_threshold),
+    threshold_value = COALESCE(p_threshold_value, threshold_value),
+    notification_channels = COALESCE(p_notification_channels, notification_channels),
+    updated_at = now()
+  WHERE alert_type = p_alert_type;
 END;
 $$;
 
