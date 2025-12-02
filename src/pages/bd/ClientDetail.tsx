@@ -13,6 +13,7 @@ import {
   FileText,
   ExternalLink,
   Loader2,
+  Pencil,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -27,8 +28,10 @@ import { useClientBySlug } from '@/hooks/useClientBySlug';
 import { useDeals } from '@/hooks/useDeals';
 import { useDealFiles } from '@/hooks/useDealFiles';
 import { usePushClientToGHL } from '@/hooks/usePushClientToGHL';
+import { useClients } from '@/hooks/useClients';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
+import { EditClientDialog, ClientFormValues } from '@/components/bd/EditClientDialog';
 
 interface AgentRunResponse {
   structured_output?: unknown;
@@ -157,12 +160,15 @@ export default function ClientDetail() {
   const clientId = client?.id;
   const { deals, loading: dealsLoading } = useDeals({ clientId, enabled: Boolean(clientId) });
   const { files, loading: filesLoading } = useDealFiles({ clientId, enabled: Boolean(clientId) });
+  const { updateClient } = useClients();
 
   const [isRunning, setIsRunning] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [agentOutput, setAgentOutput] = useState<AgentOutput | null>(null);
   const [isApplying, setIsApplying] = useState(false);
-  
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+
   const { mutate: pushToGHL, isPending: isPushingToGHL } = usePushClientToGHL();
 
   const error = fetchError ? 'Unable to load client details' : null;
@@ -357,6 +363,33 @@ export default function ClientDetail() {
     }
   };
 
+  const handleUpdateClient = async (values: ClientFormValues) => {
+    if (!client?.id) return;
+
+    setIsUpdating(true);
+    try {
+      await updateClient(client.id, values);
+
+      setIsEditDialogOpen(false);
+
+      if (slug) {
+        await queryClient.invalidateQueries({ queryKey: ['client-by-slug', slug] });
+      }
+      if (client.slug && client.slug !== slug) {
+        await queryClient.invalidateQueries({ queryKey: ['client-by-slug', client.slug] });
+      }
+    } catch (error) {
+      console.error('Error updating client:', error);
+      toast({
+        title: 'Unable to update client',
+        description: error instanceof Error ? error.message : 'Unexpected error',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
   if (!isLoadingClient && !client && !error) {
     return (
       <div className="container mx-auto space-y-6 py-8">
@@ -435,12 +468,27 @@ export default function ClientDetail() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <EditClientDialog
+        open={isEditDialogOpen}
+        onOpenChange={setIsEditDialogOpen}
+        client={client}
+        onSubmit={handleUpdateClient}
+        isSubmitting={isUpdating}
+      />
       <div className="container mx-auto space-y-6 py-8">
         <div className="flex items-center justify-between">
           <Button variant="ghost" className="gap-2" onClick={() => navigate(-1)}>
             <ArrowLeft className="h-4 w-4" /> Back to clients
           </Button>
           <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setIsEditDialogOpen(true)}
+              disabled={!client?.id || isLoadingClient}
+            >
+              <Pencil className="mr-2 h-4 w-4" />
+              Edit Client
+            </Button>
             <Button
               variant="outline"
               onClick={() => navigate(`/clients/${slug}/intelligence`)}

@@ -16,12 +16,17 @@ export interface Client {
   city?: string;
   state?: string;
   country?: string;
+  postal_code?: string;
   industry?: string;
   status: 'active' | 'inactive' | 'prospect' | 'archived';
   satisfaction_score?: number;
   total_revenue?: number;
   assigned_manager?: string;
   notes?: string;
+  revenue?: number;
+  employee_count?: number;
+  linkedin_url?: string;
+  logo_url?: string;
   hubspot_id?: string;
   hubspot_sync_status?: string;
   hubspot_last_sync?: string;
@@ -45,12 +50,18 @@ export interface CreateClientData {
   contact_person?: string;
   address?: string;
   city?: string;
+  state?: string;
   country?: string;
+  postal_code?: string;
   industry?: string;
   status?: 'active' | 'inactive' | 'prospect' | 'archived';
   satisfaction_score?: number;
   assigned_manager?: string;
   notes?: string;
+  revenue?: number;
+  employee_count?: number;
+  linkedin_url?: string;
+  logo_url?: string;
 }
 
 export interface UpdateClientData extends Partial<CreateClientData> {}
