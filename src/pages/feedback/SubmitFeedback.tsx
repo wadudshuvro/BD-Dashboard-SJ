@@ -182,7 +182,13 @@ export default function SubmitFeedback() {
         console.log(`Successfully uploaded ${uploadedAttachments.length} file(s)`);
       }
 
-      console.log("Submitting feedback:", { type: selectedType, subject: subject.trim(), userId: user.id });
+      console.log("Submitting feedback:", { 
+        type: selectedType, 
+        subject: subject.trim(), 
+        userId: user.id,
+        attachmentsCount: uploadedAttachments.length,
+        attachments: uploadedAttachments,
+      });
       
       await submitFeedback({
         id: feedbackId,
@@ -191,6 +197,8 @@ export default function SubmitFeedback() {
         description: description.trim() || undefined,
         attachments: uploadedAttachments.length > 0 ? uploadedAttachments : undefined,
       });
+      
+      console.log("Feedback submitted successfully with ID:", feedbackId);
 
       toast({
         title: "Feedback submitted",

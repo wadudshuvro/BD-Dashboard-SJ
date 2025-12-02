@@ -329,6 +329,62 @@ export default function CampaignContactDetail() {
     navigator.clipboard.writeText(text);
     toast.success("Copied to clipboard");
   };
+
+  // Replace {{contact_data.xxx}} placeholders with actual contact values
+  const replacePlaceholders = (message: string): string => {
+    if (!contact || !message) return message;
+    
+    // Use fallbacks for fields that might be in different columns
+    const currentEmployer = contact.current_employer || contact.contact_company || '';
+    const currentTitle = contact.current_position_title || contact.contact_title || '';
+    const industryFocus = contact.industry_focus || contact.company_industry || '';
+    const skills = Array.isArray(contact.linkedin_skills) 
+      ? contact.linkedin_skills.join(', ') 
+      : (contact.linkedin_skills || '');
+    const previousEmployers = Array.isArray(contact.previous_employers) 
+      ? contact.previous_employers.join(', ') 
+      : (contact.previous_employers || '');
+    const researchSummary = typeof contact.research_summary === 'object' 
+      ? JSON.stringify(contact.research_summary) 
+      : (contact.research_summary || '');
+    
+    const placeholderMap: Record<string, string> = {
+      'contact_data.contact_name': contact.contact_name || '',
+      'contact_data.current_employer': currentEmployer,
+      'contact_data.current_position_title': currentTitle,
+      'contact_data.industry_focus': industryFocus,
+      'contact_data.linkedin_headline': contact.linkedin_headline || '',
+      'contact_data.linkedin_location': contact.linkedin_location || '',
+      'contact_data.years_in_current_role': contact.years_in_current_role?.toString() || '',
+      'contact_data.total_years_experience': contact.total_years_experience?.toString() || '',
+      'contact_data.linkedin_skills': skills,
+      'contact_data.linkedin_about': contact.linkedin_about || '',
+      'contact_data.education_summary': contact.education_summary || '',
+      'contact_data.previous_employers': previousEmployers,
+      'contact_data.research_summary': researchSummary,
+      'contact_data.contact_company': contact.contact_company || currentEmployer,
+      'contact_data.company_website': contact.company_website || '',
+      'contact_data.company_industry': contact.company_industry || industryFocus,
+      'contact_data.company_size': contact.company_size || '',
+      'contact_data.company_headquarters': contact.company_headquarters || '',
+      'contact_data.company_description': contact.company_description || '',
+      'contact_data.contact_title': currentTitle,
+    };
+    
+    let result = message;
+    for (const [placeholder, value] of Object.entries(placeholderMap)) {
+      const regex = new RegExp(`\\{\\{${placeholder}\\}\\}`, 'g');
+      result = result.replace(regex, value);
+    }
+    
+    // Clean up any remaining empty placeholder artifacts like "at ." or "in as"
+    result = result.replace(/\s+at\s*\.\s*/g, '. ');
+    result = result.replace(/\s+in\s+as\s+/g, ' ');
+    result = result.replace(/\s+at\s+\./g, '.');
+    result = result.replace(/\s{2,}/g, ' ');
+    
+    return result.trim();
+  };
   
   if (contactLoading || campaignLoading) {
     return (
@@ -1164,12 +1220,12 @@ export default function CampaignContactDetail() {
                               <CardContent className="pt-4 space-y-3">
                                 <div className="relative">
                                   <p className="text-sm whitespace-pre-wrap p-3 bg-muted rounded-md">
-                                    {variant.message}
+                                    {replacePlaceholders(variant.message)}
                                   </p>
                                   <Button
                                     size="sm"
                                     variant="ghost"
-                                    onClick={() => copyToClipboard(variant.message)}
+                                    onClick={() => copyToClipboard(replacePlaceholders(variant.message))}
                                     className="absolute top-2 right-2"
                                   >
                                     <Copy className="h-4 w-4" />
@@ -1285,12 +1341,12 @@ export default function CampaignContactDetail() {
                                 <TabsContent key={variant.variant_name} value={variant.variant_name}>
                                   <div className="relative">
                                     <p className="text-xs whitespace-pre-wrap p-2 bg-muted rounded-md">
-                                      {variant.message}
+                                      {replacePlaceholders(variant.message)}
                                     </p>
                                     <Button
                                       size="sm"
                                       variant="ghost"
-                                      onClick={() => copyToClipboard(variant.message)}
+                                      onClick={() => copyToClipboard(replacePlaceholders(variant.message))}
                                       className="absolute top-1 right-1 h-6 w-6 p-0"
                                     >
                                       <Copy className="h-3 w-3" />

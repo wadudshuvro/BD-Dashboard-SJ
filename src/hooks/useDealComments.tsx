@@ -117,3 +117,42 @@ export const useDeleteComment = (dealId: string) => {
     },
   });
 };
+
+export interface UpdateCommentPayload {
+  commentId: string;
+  comment: string;
+}
+
+export const useUpdateComment = (dealId: string) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ commentId, comment }: UpdateCommentPayload) => {
+      // RLS policy ensures users can only update their own comments
+      const { data, error } = await supabase
+        .from("deal_comments")
+        .update({ comment })
+        .eq("id", commentId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["deal-comments", dealId] });
+      toast({
+        title: "Comment updated",
+        description: "Your comment has been updated successfully.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to update comment. Please try again.",
+        variant: "destructive",
+      });
+      console.error("Error updating comment:", error);
+    },
+  });
+};

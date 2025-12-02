@@ -171,7 +171,15 @@ export default function FeedbackManager() {
     queryKey: ["feedback-detail", selectedFeedbackId],
     queryFn: async () => {
       if (!selectedFeedbackId) return null as unknown as FeedbackDetailResponse;
-      return getFeedbackDetail(selectedFeedbackId);
+      const result = await getFeedbackDetail(selectedFeedbackId);
+      console.log("[FeedbackManager] Detail response:", {
+        feedbackId: selectedFeedbackId,
+        hasAttachments: !!result.attachments,
+        attachmentsCount: result.attachments?.length ?? 0,
+        hasLegacyAttachment: !!result.attachment_signed_url,
+        attachments: result.attachments,
+      });
+      return result;
     },
     enabled: feedbackEnabled && !!selectedFeedbackId,
   });

@@ -29,6 +29,9 @@ import {
   FolderOpen,
   Loader2,
   Plus,
+  Pencil,
+  Check,
+  X,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -53,7 +56,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { useDealComments, useAddComment, useDeleteComment, AddCommentPayload } from '@/hooks/useDealComments';
+import { useDealComments, useAddComment, useDeleteComment, useUpdateComment, AddCommentPayload } from '@/hooks/useDealComments';
 import { useDealChecklist, useAddChecklistItem, useToggleChecklistItem, useDeleteChecklistItem } from '@/hooks/useDealChecklist';
 import { useDealSystemInfo } from '@/hooks/useDealSystemInfo';
 import { useDealFiles } from '@/hooks/useDealFiles';
@@ -591,6 +594,8 @@ export default function DealDetail() {
   const [error, setError] = useState<string | null>(null);
   const [newComment, setNewComment] = useState('');
   const [newChecklistItem, setNewChecklistItem] = useState('');
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editingCommentText, setEditingCommentText] = useState('');
   const autoApplyAttemptedRef = useRef(false);
   
   // Google Drive state
@@ -613,6 +618,7 @@ export default function DealDetail() {
   });
   const addCommentMutation = useAddComment(dealId);
   const deleteCommentMutation = useDeleteComment(dealId);
+  const updateCommentMutation = useUpdateComment(dealId);
   const addChecklistMutation = useAddChecklistItem(dealId);
   const toggleChecklistMutation = useToggleChecklistItem(dealId);
   const deleteChecklistMutation = useDeleteChecklistItem(dealId);
@@ -834,6 +840,31 @@ export default function DealDetail() {
   const handleDeleteComment = (commentId: string) => {
     if (window.confirm('Are you sure you want to delete this comment?')) {
       deleteCommentMutation.mutate(commentId);
+    }
+  };
+
+  const handleStartEditComment = (commentId: string, currentText: string) => {
+    setEditingCommentId(commentId);
+    setEditingCommentText(currentText);
+  };
+
+  const handleCancelEditComment = () => {
+    setEditingCommentId(null);
+    setEditingCommentText('');
+  };
+
+  const handleSaveEditComment = async () => {
+    if (!editingCommentId || !editingCommentText.trim()) return;
+    
+    try {
+      await updateCommentMutation.mutateAsync({
+        commentId: editingCommentId,
+        comment: editingCommentText.trim(),
+      });
+      setEditingCommentId(null);
+      setEditingCommentText('');
+    } catch (error) {
+      console.error('Failed to update comment:', error);
     }
   };
 
@@ -2122,7 +2153,7 @@ export default function DealDetail() {
         {/* Activities Tab */}
         <TabsContent value="activities" className="space-y-6 mt-6">
             <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="flex items-center gap-2">
                 <MessageSquare className="h-5 w-5" />
                 Comments & Activity
@@ -2130,6 +2161,29 @@ export default function DealDetail() {
                   <Badge variant="secondary">{comments.length}</Badge>
                 )}
               </CardTitle>
+              {comments && comments.length > 0 && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const formattedComments = comments.map(comment => {
+                          const name = `${comment.user.first_name || ''} ${comment.user.last_name || ''}`.trim() || comment.user.email;
+                          const time = format(new Date(comment.created_at), 'hh:mm a');
+                          const ago = formatDistanceToNow(new Date(comment.created_at), { addSuffix: true });
+                          return `${name}\n${time} ${ago}\n${comment.comment}`;
+                        }).join('\n\n');
+                        navigator.clipboard.writeText(formattedComments);
+                        toast({ title: 'Copied!', description: 'All comments copied to clipboard' });
+                      }}
+                    >
+                      <Copy className="h-4 w-4 mr-1" /> Copy All
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Copy all comments with formatting</TooltipContent>
+                </Tooltip>
+              )}
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-3 max-h-96 overflow-y-auto">
@@ -2140,7 +2194,7 @@ export default function DealDetail() {
                   </div>
                 ) : comments && comments.length > 0 ? (
                   comments.map((comment) => (
-                    <div key={comment.id} className="bg-muted/50 p-4 rounded-lg space-y-2">
+                    <div key={comment.id} className="bg-muted/50 p-4 rounded-lg space-y-2" style={{ display: 'block' }}>
                       <div className="flex items-start justify-between">
                         <div className="flex items-center gap-2">
                           <Avatar className="h-8 w-8">
@@ -2149,30 +2203,84 @@ export default function DealDetail() {
                             </AvatarFallback>
                           </Avatar>
                           <div>
-                            <p className="text-sm font-medium">
+                            <div className="text-sm font-medium" style={{ display: 'block' }}>
                               {comment.user.first_name} {comment.user.last_name}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
-                            </p>
+                            </div>
+                            <div className="text-xs text-muted-foreground" style={{ display: 'block' }}>
+                              {format(new Date(comment.created_at), 'hh:mm a')} {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
+                              {comment.updated_at && comment.updated_at !== comment.created_at && (
+                                <span className="ml-1 italic">(edited)</span>
+                              )}
+                            </div>
                           </div>
                         </div>
-                        {user?.id === comment.user_id && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDeleteComment(comment.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                        {user?.id === comment.user_id && editingCommentId !== comment.id && (
+                          <div className="flex gap-1">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleStartEditComment(comment.id, comment.comment)}
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Edit comment</TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleDeleteComment(comment.id)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Delete comment</TooltipContent>
+                            </Tooltip>
+                          </div>
                         )}
                       </div>
-                      <p className="text-sm break-words">
-                        {highlightMentions(comment.comment, comment.mentioned_user_emails)}
-                      </p>
+                      
+                      {/* Edit mode */}
+                      {editingCommentId === comment.id ? (
+                        <div className="space-y-2">
+                          <Textarea
+                            value={editingCommentText}
+                            onChange={(e) => setEditingCommentText(e.target.value)}
+                            className="min-h-[80px]"
+                            autoFocus
+                          />
+                          <div className="flex gap-2 justify-end">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={handleCancelEditComment}
+                            >
+                              <X className="h-4 w-4 mr-1" /> Cancel
+                            </Button>
+                            <Button
+                              size="sm"
+                              onClick={handleSaveEditComment}
+                              disabled={!editingCommentText.trim() || updateCommentMutation.isPending}
+                            >
+                              <Check className="h-4 w-4 mr-1" /> Save
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-sm break-words whitespace-pre-wrap" style={{ display: 'block' }}>
+                          {highlightMentions(comment.comment, comment.mentioned_user_emails)}
+                        </div>
+                      )}
+                      
                       {comment.synced_to_control_tower && (
                         <Badge variant="outline" className="text-xs">Synced to Control Tower</Badge>
                       )}
+                      {/* Hidden separator for copy formatting */}
+                      <span style={{ display: 'block', height: 0, overflow: 'hidden' }}>{'\n'}</span>
                     </div>
                   ))
                 ) : (
