@@ -795,6 +795,7 @@ async function handlePushClient(req: Request): Promise<Response> {
       await fetchGHL(`/contacts/${ghlContactId}`, decryptedKey, "PUT", contactData, client, integration);
       action = "updated";
     } else {
+      // Check for duplicate by email first
       if (clientData.email) {
         const searchResult = await fetchGHL(`/contacts/search`, decryptedKey, "POST", {
           locationId: integration.location_id,
@@ -805,16 +806,36 @@ async function handlePushClient(req: Request): Promise<Response> {
           ghlContactId = searchResult.contacts[0].id;
           await fetchGHL(`/contacts/${ghlContactId}`, decryptedKey, "PUT", contactData, client, integration);
           action = "linked";
+
+          if (searchResult?.contacts?.length > 1) {
+            console.warn(`[GHL] Found ${searchResult.contacts.length} contacts with email ${clientData.email}. Using first match: ${ghlContactId}`);
+          }
         }
       }
 
+      // If not found by email, check by phone
+      if (!ghlContactId && clientData.phone) {
+        const phoneSearchResult = await fetchGHL(`/contacts/search`, decryptedKey, "POST", {
+          locationId: integration.location_id,
+          phone: clientData.phone,
+        }, client, integration);
+
+        if (phoneSearchResult?.contacts?.length > 0) {
+          ghlContactId = phoneSearchResult.contacts[0].id;
+          await fetchGHL(`/contacts/${ghlContactId}`, decryptedKey, "PUT", contactData, client, integration);
+          action = "linked";
+
+          if (phoneSearchResult?.contacts?.length > 1) {
+            console.warn(`[GHL] Found ${phoneSearchResult.contacts.length} contacts with phone ${clientData.phone}. Using first match: ${ghlContactId}`);
+          }
+        }
+      }
+
+      // If still not found, create new contact
       if (!ghlContactId) {
         const createResult = await fetchGHL(`/contacts/`, decryptedKey, "POST", contactData, client, integration);
         ghlContactId = createResult?.contact?.id || createResult?.id;
         action = "created";
-      } else if (searchResult?.contacts?.length > 1) {
-        // Multiple contacts found with same email - log warning
-        console.warn(`[GHL] Found ${searchResult.contacts.length} contacts with email ${clientData.email}. Using first match: ${ghlContactId}`);
       }
     }
 
@@ -855,7 +876,7 @@ async function handlePushClient(req: Request): Promise<Response> {
         ok: true,
         action,
         ghlContactId,
-        message: `Client ${action} in GoHighLevel CRM`,
+        message: `Client ${action} in Leadslift CRM`,
       }),
       { headers }
     );

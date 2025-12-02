@@ -34,7 +34,7 @@ export const usePushClientToGHL = () => {
     onSuccess: (data) => {
       toast({
         title: "Success",
-        description: data.message || "Client synced to GoHighLevel CRM",
+        description: data.message || "Client synced to Leadslift CRM",
       });
       queryClient.invalidateQueries({ queryKey: ["client-by-slug"] });
       queryClient.invalidateQueries({ queryKey: ["clients"] });
@@ -42,7 +42,7 @@ export const usePushClientToGHL = () => {
     onError: (error: Error) => {
       toast({
         title: "Error",
-        description: error.message || "Failed to push client to GoHighLevel",
+        description: error.message || "Failed to add client to Leadslift",
         variant: "destructive",
       });
     },
