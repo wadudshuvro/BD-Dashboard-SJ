@@ -785,10 +785,10 @@ async function handlePushClient(req: Request): Promise<Response> {
       country: clientData.country || undefined,
       postalCode: clientData.postal_code || undefined,
       source: "LeadsLift CRM",
-      customFields: [
-        { key: "crm_id", value: clientData.id },
-        { key: "industry", value: clientData.industry || "" },
-      ],
+      customField: {
+        crm_id: clientData.id,
+        industry: clientData.industry || "",
+      },
     };
 
     if (ghlContactId) {
@@ -947,11 +947,11 @@ async function handlePushLead(req: Request): Promise<Response> {
       companyName: leadData.company_name || undefined,
       website: leadData.website || undefined,
       source: "LeadsLift CRM - Lead",
-      customFields: [
-        { key: "crm_lead_id", value: leadData.id },
-        { key: "industry", value: leadData.industry || "" },
-        { key: "lead_status", value: leadData.status || "" },
-      ],
+      customField: {
+        crm_lead_id: leadData.id,
+        industry: leadData.industry || "",
+        lead_status: leadData.status || "",
+      },
     };
 
     // Check for duplicate by email first
