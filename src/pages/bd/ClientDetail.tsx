@@ -459,19 +459,19 @@ export default function ClientDetail() {
                     {isPushingToGHL ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Pushing...
+                        Adding...
                       </>
                     ) : client?.gohighlevel_contact_id ? (
-                      'Update in GHL'
+                      'Update in Leadslift'
                     ) : (
-                      'Push to GHL'
+                      'Add to Leadslift'
                     )}
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
                   {client?.gohighlevel_contact_id
-                    ? 'Update this client in GoHighLevel CRM'
-                    : 'Push this client to GoHighLevel CRM'}
+                    ? 'Update this client in Leadslift/GoHighLevel CRM'
+                    : 'Add this client to Leadslift/GoHighLevel CRM'}
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
