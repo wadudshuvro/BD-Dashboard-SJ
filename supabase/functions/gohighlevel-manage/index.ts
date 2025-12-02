@@ -811,53 +811,17 @@ async function handlePushClient(req: Request): Promise<Response> {
       await fetchGHL(`/contacts/${ghlContactId}`, decryptedKey, "PUT", contactData, client, integration);
       action = "updated";
     } else {
-      // Check for duplicate by email first
-      if (clientData.email) {
-        const searchResult = await fetchGHL(`/contacts/search`, decryptedKey, "POST", {
-          locationId: integration.location_id,
-          query: clientData.email,
-          limit: 10,
-        }, client, integration);
-
-        if (searchResult?.contacts?.length > 0) {
-          // Find exact email match from results
-          const exactMatch = searchResult.contacts.find((c: any) => 
-            c.email?.toLowerCase() === clientData.email?.toLowerCase()
-          );
-          if (exactMatch) {
-            ghlContactId = exactMatch.id;
-            await fetchGHL(`/contacts/${ghlContactId}`, decryptedKey, "PUT", contactData, client, integration);
-            action = "linked";
-          }
-        }
-      }
-
-      // If not found by email, check by phone
-      if (!ghlContactId && clientData.phone) {
-        const phoneSearchResult = await fetchGHL(`/contacts/search`, decryptedKey, "POST", {
-          locationId: integration.location_id,
-          query: clientData.phone,
-          limit: 10,
-        }, client, integration);
-
-        if (phoneSearchResult?.contacts?.length > 0) {
-          // Find exact phone match from results
-          const exactMatch = phoneSearchResult.contacts.find((c: any) => 
-            c.phone === clientData.phone
-          );
-          if (exactMatch) {
-            ghlContactId = exactMatch.id;
-            await fetchGHL(`/contacts/${ghlContactId}`, decryptedKey, "PUT", contactData, client, integration);
-            action = "linked";
-          }
-        }
-      }
-
-      // If still not found, create new contact
-      if (!ghlContactId) {
-        const createResult = await fetchGHL(`/contacts/`, decryptedKey, "POST", contactData, client, integration);
-        ghlContactId = createResult?.contact?.id || createResult?.id;
+      // Use upsert endpoint - handles duplicate detection automatically
+      console.log("[GHL] Using upsert endpoint for client:", clientData.name);
+      const upsertResult = await fetchGHL(`/contacts/upsert`, decryptedKey, "POST", contactData, client, integration);
+      
+      ghlContactId = upsertResult?.contact?.id || upsertResult?.id;
+      
+      // Determine action based on response
+      if (upsertResult?.new === true) {
         action = "created";
+      } else {
+        action = "linked"; // Contact already existed, was updated
       }
     }
 
@@ -976,47 +940,17 @@ async function handlePushLead(req: Request): Promise<Response> {
       },
     };
 
-    // Check for duplicate by email first
-    if (leadData.email) {
-      const searchResult = await fetchGHL(`/contacts/search`, decryptedKey, "POST", {
-        locationId: integration.location_id,
-        email: leadData.email,
-      }, client, integration);
-
-      if (searchResult?.contacts?.length > 0) {
-        ghlContactId = searchResult.contacts[0].id;
-        await fetchGHL(`/contacts/${ghlContactId}`, decryptedKey, "PUT", contactData, client, integration);
-        action = "linked";
-
-        if (searchResult?.contacts?.length > 1) {
-          console.warn(`[GHL] Found ${searchResult.contacts.length} contacts with email ${leadData.email}. Using first match: ${ghlContactId}`);
-        }
-      }
-    }
-
-    // If not found by email, check by phone
-    if (!ghlContactId && leadData.phone) {
-      const phoneSearchResult = await fetchGHL(`/contacts/search`, decryptedKey, "POST", {
-        locationId: integration.location_id,
-        phone: leadData.phone,
-      }, client, integration);
-
-      if (phoneSearchResult?.contacts?.length > 0) {
-        ghlContactId = phoneSearchResult.contacts[0].id;
-        await fetchGHL(`/contacts/${ghlContactId}`, decryptedKey, "PUT", contactData, client, integration);
-        action = "linked";
-
-        if (phoneSearchResult?.contacts?.length > 1) {
-          console.warn(`[GHL] Found ${phoneSearchResult.contacts.length} contacts with phone ${leadData.phone}. Using first match: ${ghlContactId}`);
-        }
-      }
-    }
-
-    // If still not found, create new contact
-    if (!ghlContactId) {
-      const createResult = await fetchGHL(`/contacts/`, decryptedKey, "POST", contactData, client, integration);
-      ghlContactId = createResult?.contact?.id || createResult?.id;
+    // Use upsert endpoint - handles duplicate detection automatically
+    console.log("[GHL] Using upsert endpoint for lead:", leadData.contact_name);
+    const upsertResult = await fetchGHL(`/contacts/upsert`, decryptedKey, "POST", contactData, client, integration);
+    
+    ghlContactId = upsertResult?.contact?.id || upsertResult?.id;
+    
+    // Determine action based on response
+    if (upsertResult?.new === true) {
       action = "created";
+    } else {
+      action = "linked"; // Contact already existed, was updated
     }
 
     if (!ghlContactId) {
