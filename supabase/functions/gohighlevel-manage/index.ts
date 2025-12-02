@@ -801,10 +801,7 @@ async function handlePushClient(req: Request): Promise<Response> {
       country: clientData.country || undefined,
       postalCode: clientData.postal_code || undefined,
       source: "LeadsLift CRM",
-      customField: {
-        crm_id: clientData.id,
-        industry: clientData.industry || "",
-      },
+      tags: ["leadsift-crm", clientData.industry || ""].filter(Boolean),
     };
 
     if (ghlContactId) {
@@ -933,11 +930,7 @@ async function handlePushLead(req: Request): Promise<Response> {
       companyName: leadData.company_name || undefined,
       website: leadData.website || undefined,
       source: "LeadsLift CRM - Lead",
-      customField: {
-        crm_lead_id: leadData.id,
-        industry: leadData.industry || "",
-        lead_status: leadData.status || "",
-      },
+      tags: ["leadsift-crm", "lead", leadData.industry || ""].filter(Boolean),
     };
 
     // Use upsert endpoint - handles duplicate detection automatically
