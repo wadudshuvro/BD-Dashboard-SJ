@@ -344,9 +344,9 @@ export default function CampaignContactDetail() {
     const previousEmployers = Array.isArray(contact.previous_employers) 
       ? contact.previous_employers.join(', ') 
       : (contact.previous_employers || '');
-    const researchSummary = typeof contact.research_summary === 'object' 
+    const researchSummary: string = typeof contact.research_summary === 'object' 
       ? JSON.stringify(contact.research_summary) 
-      : (contact.research_summary || '');
+      : String(contact.research_summary || '');
     
     const placeholderMap: Record<string, string> = {
       'contact_data.contact_name': contact.contact_name || '',
