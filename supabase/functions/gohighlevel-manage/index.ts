@@ -21,6 +21,23 @@ type TriggerSource = "manual" | "webhook";
 const GHL_API_BASE = "https://services.leadconnectorhq.com";
 const GHL_OAUTH_BASE = "https://marketplace.gohighlevel.com";
 
+// Environment variable validation
+function validateEnvironment(): { valid: boolean; missing: string[] } {
+  const required = ["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "INTEGRATION_SECRET_KEY"];
+  const missing = required.filter(key => !Deno.env.get(key));
+
+  // OAuth credentials are optional but recommended for token refresh
+  const oauthMissing: string[] = [];
+  if (!Deno.env.get("GOHIGHLEVEL_CLIENT_ID")) oauthMissing.push("GOHIGHLEVEL_CLIENT_ID");
+  if (!Deno.env.get("GOHIGHLEVEL_CLIENT_SECRET")) oauthMissing.push("GOHIGHLEVEL_CLIENT_SECRET");
+
+  if (oauthMissing.length > 0) {
+    console.warn("[GHL] OAuth credentials not configured. Token refresh will not work:", oauthMissing);
+  }
+
+  return { valid: missing.length === 0, missing };
+}
+
 async function refreshOAuthToken(
   client: SupabaseClient,
   integration: GHLIntegrationRow
@@ -197,52 +214,63 @@ async function fetchGHL(
   method: string = "GET",
   body?: any,
   client?: SupabaseClient,
-  integration?: GHLIntegrationRow
+  integration?: GHLIntegrationRow,
+  retryCount: number = 0
 ) {
   const url = `${GHL_API_BASE}${endpoint}`;
-  const response = await fetch(url, {
-    method,
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-      Version: "2021-07-28",
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  const maxRetries = 3;
 
-  // If we get a 401 and have OAuth refresh capability, try refreshing the token
-  if (response.status === 401 && client && integration && integration.refresh_token_encrypted) {
-    console.log("[GHL] Received 401, attempting OAuth token refresh");
-    const newToken = await refreshOAuthToken(client, integration);
-    
-    if (newToken) {
-      // Retry the request with the new token
-      console.log("[GHL] Retrying request with refreshed token");
-      const retryResponse = await fetch(url, {
-        method,
-        headers: {
-          Authorization: `Bearer ${newToken}`,
-          "Content-Type": "application/json",
-          Version: "2021-07-28",
-        },
-        body: body ? JSON.stringify(body) : undefined,
-      });
+  try {
+    const response = await fetch(url, {
+      method,
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        Version: "2021-07-28",
+      },
+      body: body ? JSON.stringify(body) : undefined,
+    });
 
-      if (!retryResponse.ok) {
-        const text = await retryResponse.text();
-        throw new Error(`GoHighLevel API error (${retryResponse.status}): ${text}`);
-      }
-
-      return retryResponse.json();
+    // Handle rate limiting with exponential backoff
+    if (response.status === 429 && retryCount < maxRetries) {
+      const retryAfter = response.headers.get("Retry-After");
+      const waitTime = retryAfter ? parseInt(retryAfter) * 1000 : Math.pow(2, retryCount) * 1000;
+      console.log(`[GHL] Rate limited on ${method} ${endpoint}, retrying after ${waitTime}ms`);
+      await new Promise(resolve => setTimeout(resolve, waitTime));
+      return fetchGHL(endpoint, apiKey, method, body, client, integration, retryCount + 1);
     }
-  }
 
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`GoHighLevel API error (${response.status}): ${text}`);
-  }
+    // If we get a 401 and have OAuth refresh capability, try refreshing the token
+    if (response.status === 401 && client && integration && integration.refresh_token_encrypted && retryCount === 0) {
+      console.log(`[GHL] Received 401 on ${method} ${endpoint}, attempting OAuth token refresh`);
+      const newToken = await refreshOAuthToken(client, integration);
 
-  return response.json();
+      if (newToken) {
+        // Retry the request with the new token
+        console.log(`[GHL] Retrying ${method} ${endpoint} with refreshed token`);
+        return fetchGHL(endpoint, newToken, method, body, client, integration, retryCount + 1);
+      }
+    }
+
+    if (!response.ok) {
+      const text = await response.text();
+      const errorMessage = `GoHighLevel API error on ${method} ${endpoint} (${response.status}): ${text}`;
+      console.error(`[GHL] ${errorMessage}`);
+      throw new Error(errorMessage);
+    }
+
+    return response.json();
+  } catch (error) {
+    // Handle network errors with retry
+    if (retryCount < maxRetries && error instanceof Error &&
+        (error.message.includes("fetch") || error.message.includes("network"))) {
+      const waitTime = Math.pow(2, retryCount) * 1000;
+      console.log(`[GHL] Network error on ${method} ${endpoint}, retrying after ${waitTime}ms`);
+      await new Promise(resolve => setTimeout(resolve, waitTime));
+      return fetchGHL(endpoint, apiKey, method, body, client, integration, retryCount + 1);
+    }
+    throw error;
+  }
 }
 
 async function syncGoHighLevel({
@@ -256,9 +284,20 @@ async function syncGoHighLevel({
   apiKey: string;
   triggeredBy: TriggerSource;
 }) {
+  const startTime = Date.now();
+  const syncMetadata: Record<string, any> = {
+    integration_id: integration.id,
+    location_id: integration.location_id,
+    location_name: integration.location_name,
+    triggeredBy,
+    started_at: new Date().toISOString(),
+  };
+
   if (!integration.location_id) {
     throw new Error("Location ID is required for syncing GoHighLevel data");
   }
+
+  try {
 
   const contactsPayload = await fetchGHL(
     `/contacts/search`,
@@ -403,11 +442,14 @@ async function syncGoHighLevel({
   }, 0);
 
   const now = new Date().toISOString();
+  const duration = Date.now() - startTime;
+
   await client
     .from("gohighlevel_integrations")
     .update({ updated_at: now })
     .eq("id", integration.id);
 
+  // Log successful sync
   await client
     .from("analytics_data")
     .insert([
@@ -416,20 +458,56 @@ async function syncGoHighLevel({
         metric_name: "integration_sync",
         metric_value: contactsToInsert.length,
         dimensions: {
+          ...syncMetadata,
+          status: "success",
           contacts: contactsToInsert.length,
           deals: dealRows.length,
           pipelineValue,
-          triggeredBy,
+          duration_ms: duration,
+          completed_at: now,
         },
         recorded_at: now,
       },
     ]);
+
+  console.log(`[GHL] Sync completed successfully in ${duration}ms: ${contactsToInsert.length} contacts, ${dealRows.length} deals`);
 
   return {
     contactsSynced: contactsToInsert.length,
     dealsSynced: dealRows.length,
     pipelineValue,
   };
+  } catch (error) {
+    // Log failed sync
+    const errorMessage = error instanceof Error ? error.message : "Unknown sync error";
+    const duration = Date.now() - startTime;
+
+    console.error(`[GHL] Sync failed after ${duration}ms:`, errorMessage);
+
+    try {
+      await client
+        .from("analytics_data")
+        .insert([
+          {
+            source: "gohighlevel",
+            metric_name: "integration_sync_error",
+            metric_value: 0,
+            dimensions: {
+              ...syncMetadata,
+              status: "error",
+              error: errorMessage,
+              duration_ms: duration,
+              completed_at: new Date().toISOString(),
+            },
+            recorded_at: new Date().toISOString(),
+          },
+        ]);
+    } catch (logError) {
+      console.error("[GHL] Failed to log sync error:", logError);
+    }
+
+    throw error;
+  }
 }
 
 async function handleGetIntegration(req: Request): Promise<Response> {
@@ -464,6 +542,8 @@ async function handleCreateIntegration(req: Request): Promise<Response> {
     const apiKey = body?.apiKey;
     const locationId = body?.locationId ?? null;
     const locationName = body?.locationName ?? null;
+    const refreshToken = body?.refreshToken ?? null; // Optional: for OAuth flow
+    const expiresIn = body?.expiresIn ?? null; // Optional: token expiration in seconds
 
     if (!apiKey) {
       return new Response(JSON.stringify({ ok: false, error: "API key required" }), { headers, status: 400 });
@@ -549,9 +629,21 @@ async function handleCreateIntegration(req: Request): Promise<Response> {
         token_type: tokenType,
       };
 
-      // Note: For OAuth tokens, refresh_token should be provided separately
-      // This is a simplified implementation. Full OAuth flow would exchange
-      // authorization code for both access_token and refresh_token
+      // Handle OAuth tokens with refresh capability
+      if (refreshToken) {
+        const encryptedRefreshToken = await encryptSecret(refreshToken);
+        insertData.refresh_token_encrypted = encryptedRefreshToken;
+
+        // Calculate expiration time
+        if (expiresIn) {
+          const expiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
+          insertData.token_expires_at = expiresAt;
+          console.log(`[GHL] OAuth token will expire at ${expiresAt}`);
+        }
+      } else if (isJWT) {
+        // JWT detected but no refresh token provided - warn user
+        console.warn(`[GHL] OAuth token detected but no refresh token provided. Token refresh will not work when it expires.`);
+      }
       
       const { data, error } = await client
         .from("gohighlevel_integrations")
@@ -720,7 +812,20 @@ async function handlePushClient(req: Request): Promise<Response> {
         const createResult = await fetchGHL(`/contacts/`, decryptedKey, "POST", contactData, client, integration);
         ghlContactId = createResult?.contact?.id || createResult?.id;
         action = "created";
+      } else if (searchResult?.contacts?.length > 1) {
+        // Multiple contacts found with same email - log warning
+        console.warn(`[GHL] Found ${searchResult.contacts.length} contacts with email ${clientData.email}. Using first match: ${ghlContactId}`);
       }
+    }
+
+    if (!ghlContactId) {
+      return new Response(
+        JSON.stringify({
+          ok: false,
+          error: "Failed to create or find contact in GoHighLevel",
+        }),
+        { headers, status: 500 }
+      );
     }
 
     const { error: updateError } = await client
@@ -906,11 +1011,20 @@ async function handleTestConnection(req: Request): Promise<Response> {
 
 async function handleWebhook(req: Request): Promise<Response> {
   const headers = { ...corsHeaders, "Content-Type": "application/json" };
+
+  // Webhook security validation
   const secret = Deno.env.get("GHL_WEBHOOK_SECRET");
-  if (secret) {
+  if (!secret) {
+    console.warn("[GHL] GHL_WEBHOOK_SECRET not configured. Webhook endpoint is publicly accessible!");
+    // Still allow webhook to proceed but log warning
+  } else {
     const provided = req.headers.get("x-webhook-secret") || req.headers.get("x-ghl-secret");
     if (provided !== secret) {
-      return new Response(JSON.stringify({ ok: false, error: "Unauthorized" }), { headers, status: 401 });
+      console.error("[GHL] Webhook authentication failed. Invalid secret provided.");
+      return new Response(
+        JSON.stringify({ ok: false, error: "Unauthorized - invalid webhook secret" }),
+        { headers, status: 401 }
+      );
     }
   }
 
@@ -953,6 +1067,22 @@ async function handleWebhook(req: Request): Promise<Response> {
 }
 
 Deno.serve(async (req) => {
+  // Validate environment on first request
+  const envCheck = validateEnvironment();
+  if (!envCheck.valid) {
+    console.error("[GHL] Missing required environment variables:", envCheck.missing);
+    return new Response(
+      JSON.stringify({
+        ok: false,
+        error: `Server configuration error: Missing required environment variables: ${envCheck.missing.join(", ")}`,
+      }),
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 500,
+      }
+    );
+  }
+
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }

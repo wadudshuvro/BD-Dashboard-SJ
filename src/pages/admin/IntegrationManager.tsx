@@ -1801,7 +1801,16 @@ const IntegrationManager = () => {
           <CardContent className="space-y-6">
             {/* Add new location form */}
             <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
-              <h4 className="text-sm font-medium">Add New Location</h4>
+              <div className="flex items-start justify-between">
+                <h4 className="text-sm font-medium">Add New Location</h4>
+                <Badge variant="outline" className="text-xs">
+                  Supports API Keys & OAuth
+                </Badge>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Enter your GoHighLevel API key (private key or OAuth token) and location ID to connect.
+                OAuth tokens will be automatically refreshed if refresh token is provided.
+              </p>
               <div className="grid gap-3 md:grid-cols-3">
                 <div className="grid gap-2">
                   <Label htmlFor="ghl-api-key">API Key *</Label>
@@ -1857,9 +1866,14 @@ const IntegrationManager = () => {
                   }`}
                 >
                   {ghlTestResult.ok ? (
-                    <span className="flex items-center gap-1">
-                      ✓ {ghlTestResult.message || "Connection successful"}
-                    </span>
+                    <div className="space-y-1">
+                      <span className="flex items-center gap-1">
+                        ✓ {ghlTestResult.message || "Connection successful"}
+                      </span>
+                      {ghlTestResult.locationName && (
+                        <p className="text-xs">Location: {ghlTestResult.locationName}</p>
+                      )}
+                    </div>
                   ) : (
                     <span className="flex items-center gap-1">
                       <AlertCircle className="h-3 w-3" />
@@ -1914,7 +1928,7 @@ const IntegrationManager = () => {
                   {ghlIntegrations.map((integration: any) => (
                     <div key={integration.id} className="rounded-lg border p-4 space-y-2">
                       <div className="flex items-start justify-between">
-                        <div>
+                        <div className="flex-1">
                           <div className="flex items-center gap-2">
                             <h5 className="font-medium">
                               {integration.location_name || "Unnamed Location"}
@@ -1924,8 +1938,13 @@ const IntegrationManager = () => {
                             </Badge>
                           </div>
                           {integration.location_id && (
-                            <p className="text-xs text-muted-foreground mt-1">ID: {integration.location_id}</p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              <span className="font-mono">{integration.location_id}</span>
+                            </p>
                           )}
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Last updated: {formatDateTime(integration.updated_at)}
+                          </p>
                         </div>
                         <div className="flex gap-2">
                           <Button
