@@ -28,7 +28,7 @@ import { useClientBySlug } from '@/hooks/useClientBySlug';
 import { useDeals } from '@/hooks/useDeals';
 import { useDealFiles } from '@/hooks/useDealFiles';
 import { usePushClientToGHL } from '@/hooks/usePushClientToGHL';
-import { useClients } from '@/hooks/useClients';
+import { useClients, Client } from '@/hooks/useClients';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
 import { EditClientDialog, ClientFormValues } from '@/components/bd/EditClientDialog';
@@ -471,7 +471,7 @@ export default function ClientDetail() {
       <EditClientDialog
         open={isEditDialogOpen}
         onOpenChange={setIsEditDialogOpen}
-        client={client}
+        client={client as Client | null}
         onSubmit={handleUpdateClient}
         isSubmitting={isUpdating}
       />

@@ -815,16 +815,19 @@ async function handlePushClient(req: Request): Promise<Response> {
       if (clientData.email) {
         const searchResult = await fetchGHL(`/contacts/search`, decryptedKey, "POST", {
           locationId: integration.location_id,
-          email: clientData.email,
+          query: clientData.email,
+          limit: 10,
         }, client, integration);
 
         if (searchResult?.contacts?.length > 0) {
-          ghlContactId = searchResult.contacts[0].id;
-          await fetchGHL(`/contacts/${ghlContactId}`, decryptedKey, "PUT", contactData, client, integration);
-          action = "linked";
-
-          if (searchResult?.contacts?.length > 1) {
-            console.warn(`[GHL] Found ${searchResult.contacts.length} contacts with email ${clientData.email}. Using first match: ${ghlContactId}`);
+          // Find exact email match from results
+          const exactMatch = searchResult.contacts.find((c: any) => 
+            c.email?.toLowerCase() === clientData.email?.toLowerCase()
+          );
+          if (exactMatch) {
+            ghlContactId = exactMatch.id;
+            await fetchGHL(`/contacts/${ghlContactId}`, decryptedKey, "PUT", contactData, client, integration);
+            action = "linked";
           }
         }
       }
@@ -833,16 +836,19 @@ async function handlePushClient(req: Request): Promise<Response> {
       if (!ghlContactId && clientData.phone) {
         const phoneSearchResult = await fetchGHL(`/contacts/search`, decryptedKey, "POST", {
           locationId: integration.location_id,
-          phone: clientData.phone,
+          query: clientData.phone,
+          limit: 10,
         }, client, integration);
 
         if (phoneSearchResult?.contacts?.length > 0) {
-          ghlContactId = phoneSearchResult.contacts[0].id;
-          await fetchGHL(`/contacts/${ghlContactId}`, decryptedKey, "PUT", contactData, client, integration);
-          action = "linked";
-
-          if (phoneSearchResult?.contacts?.length > 1) {
-            console.warn(`[GHL] Found ${phoneSearchResult.contacts.length} contacts with phone ${clientData.phone}. Using first match: ${ghlContactId}`);
+          // Find exact phone match from results
+          const exactMatch = phoneSearchResult.contacts.find((c: any) => 
+            c.phone === clientData.phone
+          );
+          if (exactMatch) {
+            ghlContactId = exactMatch.id;
+            await fetchGHL(`/contacts/${ghlContactId}`, decryptedKey, "PUT", contactData, client, integration);
+            action = "linked";
           }
         }
       }
