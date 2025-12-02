@@ -9,7 +9,6 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ExternalLink, Filter } from 'lucide-react';
-import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import {
   Pagination,
@@ -39,6 +38,8 @@ interface PipelineDataTableProps<T> {
   isLoading?: boolean;
   emptyMessage?: string;
   searchable?: boolean;
+  searchQuery?: string;
+  onSearchChange?: (query: string) => void;
   onRowClick?: (row: T) => void;
   externalLinkFn?: (row: T) => string | undefined;
   totalCount?: number;
@@ -54,6 +55,8 @@ export function PipelineDataTable<T extends Record<string, any>>({
   isLoading,
   emptyMessage = 'No data available',
   searchable = true,
+  searchQuery = '',
+  onSearchChange,
   onRowClick,
   externalLinkFn,
   totalCount,
@@ -62,19 +65,12 @@ export function PipelineDataTable<T extends Record<string, any>>({
   onPageChange,
   onPageSizeChange,
 }: PipelineDataTableProps<T>) {
-  const [searchQuery, setSearchQuery] = useState('');
-  
   const totalPages = totalCount ? Math.ceil(totalCount / pageSize) : 1;
   const startIndex = (currentPage - 1) * pageSize + 1;
   const endIndex = Math.min(currentPage * pageSize, totalCount || data.length);
 
-  const filteredData = searchable
-    ? data.filter((row) =>
-        Object.values(row).some((value) =>
-          String(value).toLowerCase().includes(searchQuery.toLowerCase())
-        )
-      )
-    : data;
+  // Use data directly - filtering is now done server-side
+  const filteredData = data;
 
   if (isLoading) {
     return (
@@ -93,7 +89,7 @@ export function PipelineDataTable<T extends Record<string, any>>({
             <Input
               placeholder="Search..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => onSearchChange?.(e.target.value)}
               className="max-w-sm"
             />
           </div>

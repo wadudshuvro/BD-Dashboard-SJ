@@ -13,11 +13,18 @@ export default function Clients() {
   const navigate = useNavigate();
   const [isClientSyncing, setIsClientSyncing] = useState(false);
   const [syncProgress, setSyncProgress] = useState<{ current: number; total: number } | null>(null);
-  
+  const [searchQuery, setSearchQuery] = useState('');
+
   const { clients, loading: isLoading, totalCount } = useClients({
     page: pagination.currentPage,
-    limit: pagination.pageSize
+    limit: pagination.pageSize,
+    search: searchQuery || undefined
   });
+
+  const handleSearchChange = (query: string) => {
+    setSearchQuery(query);
+    pagination.reset(); // Reset to page 1 when search changes
+  };
 
   const columns = [
     { key: 'name' as const, label: 'Client Name' },
@@ -76,6 +83,8 @@ export default function Clients() {
         isLoading={isLoading}
         emptyMessage="No clients found"
         searchable
+        searchQuery={searchQuery}
+        onSearchChange={handleSearchChange}
         onRowClick={(row) => navigate(`/clients/${row.slug}`)}
         totalCount={totalCount}
         currentPage={pagination.currentPage}
