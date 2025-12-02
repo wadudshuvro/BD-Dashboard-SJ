@@ -766,7 +766,23 @@ async function handlePushClient(req: Request): Promise<Response> {
     }
 
     if (!clientData.email && !clientData.phone) {
-      return new Response(JSON.stringify({ ok: false, error: "Client must have either email or phone" }), { headers, status: 400 });
+      const clientName = clientData.name || clientData.company || "This client";
+      const missingFields: string[] = [];
+      if (!clientData.email) missingFields.push("email");
+      if (!clientData.phone) missingFields.push("phone");
+      
+      const errorMessage = `Cannot sync '${clientName}' to Leadslift CRM. ${
+        missingFields.length === 2 
+          ? "This client is missing both email and phone number" 
+          : `This client is missing ${missingFields[0]}`
+      }. Please add at least one contact method to the client record before syncing.`;
+      
+      return new Response(JSON.stringify({ 
+        ok: false, 
+        error: errorMessage,
+        clientName,
+        missingFields 
+      }), { headers, status: 400 });
     }
 
     let ghlContactId = clientData.gohighlevel_contact_id;
