@@ -6,9 +6,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useLeadBySlug } from "@/hooks/useLeadBySlug";
 import { useExaIntegration } from "@/hooks/useExaIntegration";
 import { useUserPermissions } from "@/hooks/useUserPermissions";
+import { usePushLeadToGHL } from "@/hooks/usePushLeadToGHL";
 
 const formatDateTime = (value?: string | null) => {
   if (!value) return "—";
@@ -31,6 +33,7 @@ export default function LeadDetail() {
   const leadId = lead?.id;
   const { enrichLead, isEnriching } = useExaIntegration();
   const { hasPermission } = useUserPermissions();
+  const { mutate: pushToGHL, isPending: isPushingToGHL } = usePushLeadToGHL();
 
   const canEnrich = useMemo(
     () =>
@@ -86,11 +89,40 @@ export default function LeadDetail() {
 
   return (
     <div className="container mx-auto py-8 space-y-6">
-      <Button variant="ghost" asChild className="gap-2 w-fit">
-        <Link to="/prospecting">
-          <ArrowLeft className="h-4 w-4" /> Back to prospecting
-        </Link>
-      </Button>
+      <div className="flex items-center justify-between">
+        <Button variant="ghost" asChild className="gap-2 w-fit">
+          <Link to="/prospecting">
+            <ArrowLeft className="h-4 w-4" /> Back to prospecting
+          </Link>
+        </Button>
+        <div className="flex items-center gap-2">
+          {leadId && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    onClick={() => pushToGHL({ leadId })}
+                    disabled={isPushingToGHL || !leadId}
+                  >
+                    {isPushingToGHL ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Adding...
+                      </>
+                    ) : (
+                      'Add to Leadslift'
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  Add this lead to Leadslift/GoHighLevel CRM
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+        </div>
+      </div>
 
       <Card>
         <CardHeader className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">

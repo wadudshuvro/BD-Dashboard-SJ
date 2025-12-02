@@ -892,6 +892,153 @@ async function handlePushClient(req: Request): Promise<Response> {
   }
 }
 
+async function handlePushLead(req: Request): Promise<Response> {
+  const headers = { ...corsHeaders, "Content-Type": "application/json" };
+  try {
+    const client = await createSupabaseClient(req);
+    const userId = await requireAuth(client);
+    if (!userId) {
+      return new Response(JSON.stringify({ ok: false, error: "Unauthorized" }), { headers, status: 401 });
+    }
+
+    const { leadId } = await req.json();
+    if (!leadId) {
+      return new Response(JSON.stringify({ ok: false, error: "Lead ID is required" }), { headers, status: 400 });
+    }
+
+    const { data: integration, error: integrationError } = await client
+      .from("gohighlevel_integrations")
+      .select("*")
+      .eq("user_id", userId)
+      .eq("is_active", true)
+      .maybeSingle();
+
+    if (integrationError || !integration) {
+      return new Response(JSON.stringify({ ok: false, error: "No active GoHighLevel integration found" }), { headers, status: 404 });
+    }
+
+    const decryptedKey = await getValidAccessToken(client, integration);
+    if (!decryptedKey) {
+      return new Response(JSON.stringify({ ok: false, error: "Failed to get valid access token" }), { headers, status: 500 });
+    }
+
+    const { data: leadData, error: leadError } = await client
+      .from("leads")
+      .select("*")
+      .eq("id", leadId)
+      .single();
+
+    if (leadError || !leadData) {
+      return new Response(JSON.stringify({ ok: false, error: "Lead not found" }), { headers, status: 404 });
+    }
+
+    if (!leadData.email && !leadData.phone) {
+      return new Response(JSON.stringify({ ok: false, error: "Lead must have either email or phone" }), { headers, status: 400 });
+    }
+
+    let ghlContactId = null;
+    let action = "created";
+
+    const contactData = {
+      locationId: integration.location_id,
+      email: leadData.email || undefined,
+      phone: leadData.phone || undefined,
+      name: leadData.contact_name || undefined,
+      companyName: leadData.company_name || undefined,
+      website: leadData.website || undefined,
+      source: "LeadsLift CRM - Lead",
+      customFields: [
+        { key: "crm_lead_id", value: leadData.id },
+        { key: "industry", value: leadData.industry || "" },
+        { key: "lead_status", value: leadData.status || "" },
+      ],
+    };
+
+    // Check for duplicate by email first
+    if (leadData.email) {
+      const searchResult = await fetchGHL(`/contacts/search`, decryptedKey, "POST", {
+        locationId: integration.location_id,
+        email: leadData.email,
+      }, client, integration);
+
+      if (searchResult?.contacts?.length > 0) {
+        ghlContactId = searchResult.contacts[0].id;
+        await fetchGHL(`/contacts/${ghlContactId}`, decryptedKey, "PUT", contactData, client, integration);
+        action = "linked";
+
+        if (searchResult?.contacts?.length > 1) {
+          console.warn(`[GHL] Found ${searchResult.contacts.length} contacts with email ${leadData.email}. Using first match: ${ghlContactId}`);
+        }
+      }
+    }
+
+    // If not found by email, check by phone
+    if (!ghlContactId && leadData.phone) {
+      const phoneSearchResult = await fetchGHL(`/contacts/search`, decryptedKey, "POST", {
+        locationId: integration.location_id,
+        phone: leadData.phone,
+      }, client, integration);
+
+      if (phoneSearchResult?.contacts?.length > 0) {
+        ghlContactId = phoneSearchResult.contacts[0].id;
+        await fetchGHL(`/contacts/${ghlContactId}`, decryptedKey, "PUT", contactData, client, integration);
+        action = "linked";
+
+        if (phoneSearchResult?.contacts?.length > 1) {
+          console.warn(`[GHL] Found ${phoneSearchResult.contacts.length} contacts with phone ${leadData.phone}. Using first match: ${ghlContactId}`);
+        }
+      }
+    }
+
+    // If still not found, create new contact
+    if (!ghlContactId) {
+      const createResult = await fetchGHL(`/contacts/`, decryptedKey, "POST", contactData, client, integration);
+      ghlContactId = createResult?.contact?.id || createResult?.id;
+      action = "created";
+    }
+
+    if (!ghlContactId) {
+      return new Response(
+        JSON.stringify({
+          ok: false,
+          error: "Failed to create or find contact in GoHighLevel",
+        }),
+        { headers, status: 500 }
+      );
+    }
+
+    // Log the sync
+    await client.from("control_tower_sync_log").insert({
+      sync_type: "push",
+      entity_type: "lead",
+      entity_id: leadId,
+      control_tower_id: ghlContactId,
+      status: "success",
+      synced_by: userId,
+      payload: { action, ghl_contact_id: ghlContactId },
+    });
+
+    return new Response(
+      JSON.stringify({
+        ok: true,
+        action,
+        ghlContactId,
+        message: `Lead ${action} in Leadslift CRM`,
+      }),
+      { headers }
+    );
+  } catch (error) {
+    console.error("[GHL] Push lead error:", error);
+    return new Response(
+      JSON.stringify({
+        ok: false,
+        error: error instanceof Error ? error.message : "Failed to push lead to GoHighLevel",
+      }),
+      { headers, status: 500 }
+    );
+  }
+}
+
 async function handleSyncContacts(req: Request): Promise<Response> {
   const headers = { ...corsHeaders, "Content-Type": "application/json" };
   try {
@@ -1137,6 +1284,10 @@ Deno.serve(async (req) => {
 
   if (req.method === "POST" && pathname === "/push-client") {
     return handlePushClient(req);
+  }
+
+  if (req.method === "POST" && pathname === "/push-lead") {
+    return handlePushLead(req);
   }
 
   if (req.method === "POST" && pathname === "/test-connection") {

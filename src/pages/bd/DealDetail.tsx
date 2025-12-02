@@ -45,7 +45,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Progress } from '@/components/ui/progress';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -63,6 +63,7 @@ import { useDealFiles } from '@/hooks/useDealFiles';
 import { useSyncControlTowerDeals } from '@/hooks/useSyncControlTowerDeals';
 import { useRunBDAgent } from '@/hooks/useRunBDAgent';
 import { useDealBySlug } from '@/hooks/useDealBySlug';
+import { usePushClientToGHL } from '@/hooks/usePushClientToGHL';
 import { DealControlTowerSync } from '@/components/bd/DealControlTowerSync';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -629,6 +630,9 @@ export default function DealDetail() {
   // Fetch PM and Owner contact info from both users and employees tables
   const { data: ownerContactInfo } = usePMContactInfo(deal?.owner_id, deal?.control_tower_owner_id);
   const { data: pmContactInfo } = usePMContactInfo(deal?.pm_assigned_id, deal?.pm_control_tower_id);
+
+  // Push client to GHL/Leadslift
+  const { mutate: pushToGHL, isPending: isPushingToGHL } = usePushClientToGHL();
 
   // Handle tab changes and update URL
   const handleTabChange = (newTab: string) => {
@@ -1225,6 +1229,33 @@ export default function DealDetail() {
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back
         </Button>
+        <div className="flex items-center gap-2">
+          {deal.client_id && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    onClick={() => pushToGHL({ clientId: deal.client_id! })}
+                    disabled={isPushingToGHL || !deal.client_id}
+                  >
+                    {isPushingToGHL ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Adding...
+                      </>
+                    ) : (
+                      'Add to Leadslift'
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  Add this deal's client to Leadslift/GoHighLevel CRM
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+        </div>
       </div>
 
       <div className="space-y-6">
