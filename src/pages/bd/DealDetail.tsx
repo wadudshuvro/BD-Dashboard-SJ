@@ -1317,15 +1317,19 @@ export default function DealDetail() {
                     {isPushingToGHL ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Adding...
+                        {client?.gohighlevel_contact_id ? 'Updating...' : 'Creating...'}
                       </>
+                    ) : client?.gohighlevel_contact_id ? (
+                      'Update in Leadslift'
                     ) : (
-                      'Add to Leadslift'
+                      'Add Contact & Create Deal on Leadslift'
                     )}
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  Add this deal's client to Leadslift/GoHighLevel CRM
+                  {client?.gohighlevel_contact_id
+                    ? 'Update this client contact in Leadslift/GoHighLevel CRM'
+                    : 'Add this client as a contact and create an opportunity in Leadslift CRM'}
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>

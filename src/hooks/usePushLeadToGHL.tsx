@@ -10,6 +10,8 @@ interface PushLeadToGHLResponse {
   ok: boolean;
   action?: "created" | "updated" | "linked";
   ghlContactId?: string;
+  opportunityId?: string;
+  opportunityCreated?: boolean;
   message?: string;
   error?: string;
 }
@@ -40,9 +42,10 @@ export const usePushLeadToGHL = () => {
       queryClient.invalidateQueries({ queryKey: ["leads"] });
     },
     onError: (error: Error) => {
+      const errorMessage = error.message || "Failed to sync lead to Leadslift CRM";
       toast({
-        title: "Error",
-        description: error.message || "Failed to add lead to Leadslift",
+        title: "Unable to sync lead",
+        description: errorMessage,
         variant: "destructive",
       });
     },
