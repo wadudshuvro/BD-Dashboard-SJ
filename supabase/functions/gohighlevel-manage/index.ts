@@ -1018,51 +1018,56 @@ async function handlePushClient(req: Request): Promise<Response> {
     });
 
     // Create opportunity in GHL Developer pipeline at Lead Acquired stage
+    // Only create opportunities for new contacts (action === "created"), not updates
     let opportunityId: string | null = null;
     let opportunityCreated = false;
 
-    try {
-      if (!integration.location_id) {
-        console.warn("[GHL] Cannot create opportunity: location_id is missing");
-      } else {
-        const pipelineStageInfo = await findPipelineAndStage(
-          decryptedKey,
-          integration.location_id,
-          "GHL Developer",
-          "Lead Acquired",
-          client,
-          integration
-        );
-
-        if (pipelineStageInfo) {
-          const opportunityTitle = clientData.company
-            ? `${clientData.company} - Client Opportunity`
-            : contactName
-              ? `${contactName} - Client Opportunity`
-              : "Client Opportunity";
-
-          opportunityId = await createOpportunity(
+    if (action === "created") {
+      try {
+        if (!integration.location_id) {
+          console.warn("[GHL] Cannot create opportunity: location_id is missing");
+        } else {
+          const pipelineStageInfo = await findPipelineAndStage(
             decryptedKey,
-            ghlContactId,
-            pipelineStageInfo.pipelineId,
-            pipelineStageInfo.stageId,
-            opportunityTitle,
-            contactName,
+            integration.location_id,
+            "GHL Developer",
+            "Lead Acquired",
             client,
             integration
           );
 
-          if (opportunityId) {
-            opportunityCreated = true;
-            console.log(`[GHL] Successfully created opportunity ${opportunityId} for client ${clientId}`);
+          if (pipelineStageInfo) {
+            const opportunityTitle = clientData.company
+              ? `${clientData.company} - Client Opportunity`
+              : contactName
+                ? `${contactName} - Client Opportunity`
+                : "Client Opportunity";
+
+            opportunityId = await createOpportunity(
+              decryptedKey,
+              ghlContactId,
+              pipelineStageInfo.pipelineId,
+              pipelineStageInfo.stageId,
+              opportunityTitle,
+              contactName,
+              client,
+              integration
+            );
+
+            if (opportunityId) {
+              opportunityCreated = true;
+              console.log(`[GHL] Successfully created opportunity ${opportunityId} for client ${clientId}`);
+            }
+          } else {
+            console.warn("[GHL] Could not find 'GHL Developer' pipeline or 'Lead Acquired' stage");
           }
-        } else {
-          console.warn("[GHL] Could not find 'GHL Developer' pipeline or 'Lead Acquired' stage");
         }
+      } catch (opportunityError) {
+        // Don't fail the entire operation if opportunity creation fails
+        console.error("[GHL] Failed to create opportunity (non-fatal):", opportunityError);
       }
-    } catch (opportunityError) {
-      // Don't fail the entire operation if opportunity creation fails
-      console.error("[GHL] Failed to create opportunity (non-fatal):", opportunityError);
+    } else {
+      console.log(`[GHL] Skipping opportunity creation for client ${clientId} (action: ${action})`);
     }
 
     const successMessage = opportunityCreated
@@ -1243,51 +1248,56 @@ async function handlePushLead(req: Request): Promise<Response> {
     });
 
     // Create opportunity in GHL Developer pipeline at Lead Acquired stage
+    // Only create opportunities for new contacts (action === "created"), not updates
     let opportunityId: string | null = null;
     let opportunityCreated = false;
 
-    try {
-      if (!integration.location_id) {
-        console.warn("[GHL] Cannot create opportunity: location_id is missing");
-      } else {
-        const pipelineStageInfo = await findPipelineAndStage(
-          decryptedKey,
-          integration.location_id,
-          "GHL Developer",
-          "Lead Acquired",
-          client,
-          integration
-        );
-
-        if (pipelineStageInfo) {
-          const opportunityTitle = leadData.company_name
-            ? `${leadData.company_name} - Lead Opportunity`
-            : contactName
-              ? `${contactName} - Lead Opportunity`
-              : "Lead Opportunity";
-
-          opportunityId = await createOpportunity(
+    if (action === "created") {
+      try {
+        if (!integration.location_id) {
+          console.warn("[GHL] Cannot create opportunity: location_id is missing");
+        } else {
+          const pipelineStageInfo = await findPipelineAndStage(
             decryptedKey,
-            ghlContactId,
-            pipelineStageInfo.pipelineId,
-            pipelineStageInfo.stageId,
-            opportunityTitle,
-            contactName,
+            integration.location_id,
+            "GHL Developer",
+            "Lead Acquired",
             client,
             integration
           );
 
-          if (opportunityId) {
-            opportunityCreated = true;
-            console.log(`[GHL] Successfully created opportunity ${opportunityId} for lead ${leadId}`);
+          if (pipelineStageInfo) {
+            const opportunityTitle = leadData.company_name
+              ? `${leadData.company_name} - Lead Opportunity`
+              : contactName
+                ? `${contactName} - Lead Opportunity`
+                : "Lead Opportunity";
+
+            opportunityId = await createOpportunity(
+              decryptedKey,
+              ghlContactId,
+              pipelineStageInfo.pipelineId,
+              pipelineStageInfo.stageId,
+              opportunityTitle,
+              contactName,
+              client,
+              integration
+            );
+
+            if (opportunityId) {
+              opportunityCreated = true;
+              console.log(`[GHL] Successfully created opportunity ${opportunityId} for lead ${leadId}`);
+            }
+          } else {
+            console.warn("[GHL] Could not find 'GHL Developer' pipeline or 'Lead Acquired' stage");
           }
-        } else {
-          console.warn("[GHL] Could not find 'GHL Developer' pipeline or 'Lead Acquired' stage");
         }
+      } catch (opportunityError) {
+        // Don't fail the entire operation if opportunity creation fails
+        console.error("[GHL] Failed to create opportunity (non-fatal):", opportunityError);
       }
-    } catch (opportunityError) {
-      // Don't fail the entire operation if opportunity creation fails
-      console.error("[GHL] Failed to create opportunity (non-fatal):", opportunityError);
+    } else {
+      console.log(`[GHL] Skipping opportunity creation for lead ${leadId} (action: ${action})`);
     }
 
     const successMessage = opportunityCreated

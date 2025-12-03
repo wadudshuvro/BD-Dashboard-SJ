@@ -108,19 +108,19 @@ export default function LeadDetail() {
                     {isPushingToGHL ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        {lead?.gohighlevel_contact_id ? 'Updating...' : 'Adding...'}
+                        {lead?.gohighlevel_contact_id ? 'Updating...' : 'Creating...'}
                       </>
                     ) : lead?.gohighlevel_contact_id ? (
                       'Update in Leadslift'
                     ) : (
-                      'Add to Leadslift'
+                      'Add Contact & Create Deal on Leadslift'
                     )}
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
                   {lead?.gohighlevel_contact_id
-                    ? 'Update this lead in Leadslift/GoHighLevel CRM'
-                    : 'Add this lead to Leadslift/GoHighLevel CRM'}
+                    ? 'Update this lead contact in Leadslift/GoHighLevel CRM'
+                    : 'Add this lead as a contact and create an opportunity in Leadslift CRM'}
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
