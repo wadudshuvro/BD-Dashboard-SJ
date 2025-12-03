@@ -234,3 +234,4 @@ WHERE slug = 'linkedin-message-generator';
 **Next Step:** Run the database migration in Supabase Dashboard (see above) and test! 🎉
 
 
+

@@ -1454,6 +1454,7 @@ export default function DealDetail() {
                       toast({ title: 'Potential amount updated' });
                     } catch (error) {
                       toast({ title: 'Failed to update potential amount', variant: 'destructive' });
+                    }
                   }
                 }}
               />
@@ -1641,7 +1642,7 @@ export default function DealDetail() {
                     <Input
                       type="date"
                       className="h-8 text-sm"
-                      value={deal.expected_closing_date || deal.close_date || ''}
+                      defaultValue={deal.expected_closing_date || deal.close_date || ''}
                       onChange={async (e) => {
                         try {
                           await supabase

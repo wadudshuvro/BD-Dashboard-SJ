@@ -32,3 +32,4 @@ INSERT INTO checklist_templates (name, stage, items, is_active) VALUES
 -- Also create stage-specific templates if needed (optional - can be managed via admin panel)
 -- These can be customized later through the Checklist Template Manager
 
+
