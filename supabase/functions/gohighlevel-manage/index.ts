@@ -957,16 +957,15 @@ async function handlePushLead(req: Request): Promise<Response> {
       return new Response(JSON.stringify({ ok: false, error: "Lead must have either email or phone" }), { headers, status: 400 });
     }
 
-    let ghlContactId = null;
+    let ghlContactId = leadData.gohighlevel_contact_id;
     let action = "created";
 
     // Parse contact name into first and last name
     const contactName = leadData.contact_name || "";
     const { firstName, lastName } = splitName(contactName);
 
-    // Build contact data - do NOT include locationId to avoid 403 errors
-    // The upsert endpoint will use the location associated with the API token
-    // and can update existing contacts without permission issues
+    // Build contact data - locationId is required for creating new contacts
+    // but must NOT be included when updating existing contacts
     const contactData: any = {
       email: leadData.email || undefined,
       phone: leadData.phone || undefined,
@@ -979,18 +978,35 @@ async function handlePushLead(req: Request): Promise<Response> {
       tags: ["leadsift-crm", "lead", leadData.industry || ""].filter(Boolean),
     };
 
-    // Use upsert endpoint - handles duplicate detection automatically
-    // Do not include locationId to prevent 403 errors when updating existing contacts
-    console.log("[GHL] Using upsert endpoint for lead:", leadData.contact_name);
-    const upsertResult = await fetchGHL(`/contacts/upsert`, decryptedKey, "POST", contactData, client, integration);
-    
-    ghlContactId = upsertResult?.contact?.id || upsertResult?.id;
-    
-    // Determine action based on response
-    if (upsertResult?.new === true) {
-      action = "created";
+    // If we have an existing GHL contact ID, include it in the upsert to ensure we update the correct contact
+    // Do NOT include locationId when updating - GHL API rejects it
+    if (ghlContactId) {
+      contactData.id = ghlContactId;
+      console.log("[GHL] Using upsert endpoint to update existing lead:", leadData.contact_name, "with contact ID:", ghlContactId);
     } else {
-      action = "linked"; // Contact already existed, was updated
+      // Only include locationId when creating new contacts
+      contactData.locationId = integration.location_id;
+      console.log("[GHL] Using upsert endpoint to create new lead:", leadData.contact_name);
+    }
+
+    // Always use upsert endpoint - it handles both create and update operations
+    const upsertResult = await fetchGHL(`/contacts/upsert`, decryptedKey, "POST", contactData, client, integration);
+
+    const returnedContactId = upsertResult?.contact?.id || upsertResult?.id;
+
+    // If we had an existing contact ID, this is an update
+    if (ghlContactId) {
+      action = "updated";
+      // Use the returned ID if available, otherwise keep the existing one
+      ghlContactId = returnedContactId || ghlContactId;
+    } else {
+      // Determine action based on response
+      ghlContactId = returnedContactId;
+      if (upsertResult?.new === true) {
+        action = "created";
+      } else {
+        action = "linked"; // Contact already existed, was updated
+      }
     }
 
     if (!ghlContactId) {
@@ -1001,6 +1017,19 @@ async function handlePushLead(req: Request): Promise<Response> {
         }),
         { headers, status: 500 }
       );
+    }
+
+    // Update the lead record with sync information
+    const { error: updateError } = await client
+      .from("leads")
+      .update({
+        gohighlevel_contact_id: ghlContactId,
+        gohighlevel_last_synced_at: new Date().toISOString(),
+      })
+      .eq("id", leadId);
+
+    if (updateError) {
+      console.error("[GHL] Failed to update lead sync status:", updateError);
     }
 
     // Log the sync
