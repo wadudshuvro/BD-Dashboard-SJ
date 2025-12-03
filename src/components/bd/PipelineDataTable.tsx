@@ -8,7 +8,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ExternalLink, Filter } from 'lucide-react';
+import { ExternalLink, Filter, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import {
   Pagination,
@@ -88,13 +88,25 @@ export function PipelineDataTable<T extends Record<string, any>>({
         {searchable && (
           <div className="flex items-center gap-2 flex-1">
             <Filter className="h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search (min 3 chars or press Enter)..."
-              value={searchQuery}
-              onChange={(e) => onSearchChange?.(e.target.value)}
-              onKeyDown={onSearchKeyDown}
-              className="max-w-sm"
-            />
+            <div className="relative max-w-sm flex-1">
+              <Input
+                placeholder="Search (min 3 chars or press Enter)..."
+                value={searchQuery}
+                onChange={(e) => onSearchChange?.(e.target.value)}
+                onKeyDown={onSearchKeyDown}
+                className="pr-8"
+              />
+              {searchQuery && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onSearchChange?.('')}
+                  className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                >
+                  <X className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                </Button>
+              )}
+            </div>
           </div>
         )}
         {onPageSizeChange && (
