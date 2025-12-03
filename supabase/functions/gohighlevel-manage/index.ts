@@ -272,9 +272,24 @@ async function fetchGHL(
 
     if (!response.ok) {
       const text = await response.text();
+      let userFriendlyMessage = "";
+
+      // Provide user-friendly error messages based on status code
+      if (response.status === 401 || response.status === 403) {
+        userFriendlyMessage = "Authentication failed with Leadslift CRM. Please check your API credentials in the integration settings.";
+      } else if (response.status === 404) {
+        userFriendlyMessage = "The requested resource was not found in Leadslift CRM. The location or contact may have been deleted.";
+      } else if (response.status === 429) {
+        userFriendlyMessage = "Rate limit exceeded for Leadslift CRM API. Please try again in a few moments.";
+      } else if (response.status >= 500) {
+        userFriendlyMessage = "Leadslift CRM is experiencing technical difficulties. Please try again later.";
+      } else {
+        userFriendlyMessage = `Unable to sync with Leadslift CRM (Error ${response.status}). Please try again or contact support if the issue persists.`;
+      }
+
       const errorMessage = `GoHighLevel API error on ${method} ${endpoint} (${response.status}): ${text}`;
       console.error(`[GHL] ${errorMessage}`);
-      throw new Error(errorMessage);
+      throw new Error(userFriendlyMessage);
     }
 
     return response.json();
@@ -783,23 +798,27 @@ async function handlePushClient(req: Request): Promise<Response> {
       return new Response(JSON.stringify({ ok: false, error: "Client not found" }), { headers, status: 404 });
     }
 
-    if (!clientData.email && !clientData.phone) {
+    // Validate that at least one contact method exists (treat empty strings as missing)
+    const hasEmail = clientData.email && String(clientData.email).trim() !== "";
+    const hasPhone = clientData.phone && String(clientData.phone).trim() !== "";
+
+    if (!hasEmail && !hasPhone) {
       const clientName = clientData.name || clientData.company || "This client";
       const missingFields: string[] = [];
-      if (!clientData.email) missingFields.push("email");
-      if (!clientData.phone) missingFields.push("phone");
-      
+      if (!hasEmail) missingFields.push("email");
+      if (!hasPhone) missingFields.push("phone");
+
       const errorMessage = `Cannot sync '${clientName}' to Leadslift CRM. ${
-        missingFields.length === 2 
-          ? "This client is missing both email and phone number" 
+        missingFields.length === 2
+          ? "This client is missing both email and phone number"
           : `This client is missing ${missingFields[0]}`
       }. Please add at least one contact method to the client record before syncing.`;
-      
-      return new Response(JSON.stringify({ 
-        ok: false, 
+
+      return new Response(JSON.stringify({
+        ok: false,
         error: errorMessage,
         clientName,
-        missingFields 
+        missingFields
       }), { headers, status: 400 });
     }
 
@@ -953,8 +972,28 @@ async function handlePushLead(req: Request): Promise<Response> {
       return new Response(JSON.stringify({ ok: false, error: "Lead not found" }), { headers, status: 404 });
     }
 
-    if (!leadData.email && !leadData.phone) {
-      return new Response(JSON.stringify({ ok: false, error: "Lead must have either email or phone" }), { headers, status: 400 });
+    // Validate that at least one contact method exists (treat empty strings as missing)
+    const hasEmail = leadData.email && String(leadData.email).trim() !== "";
+    const hasPhone = leadData.phone && String(leadData.phone).trim() !== "";
+
+    if (!hasEmail && !hasPhone) {
+      const leadName = leadData.contact_name || leadData.company_name || "This lead";
+      const missingFields: string[] = [];
+      if (!hasEmail) missingFields.push("email");
+      if (!hasPhone) missingFields.push("phone");
+
+      const errorMessage = `Cannot sync '${leadName}' to Leadslift CRM. ${
+        missingFields.length === 2
+          ? "This lead is missing both email and phone number"
+          : `This lead is missing ${missingFields[0]}`
+      }. Please add at least one contact method to the lead record before syncing.`;
+
+      return new Response(JSON.stringify({
+        ok: false,
+        error: errorMessage,
+        leadName,
+        missingFields
+      }), { headers, status: 400 });
     }
 
     let ghlContactId = leadData.gohighlevel_contact_id;

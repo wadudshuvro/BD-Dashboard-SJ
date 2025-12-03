@@ -507,7 +507,7 @@ export default function ClientDetail() {
                     {isPushingToGHL ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Adding...
+                        {client?.gohighlevel_contact_id ? 'Updating...' : 'Adding...'}
                       </>
                     ) : client?.gohighlevel_contact_id ? (
                       'Update in Leadslift'

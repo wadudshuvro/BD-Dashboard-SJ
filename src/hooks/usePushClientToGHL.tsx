@@ -40,9 +40,10 @@ export const usePushClientToGHL = () => {
       queryClient.invalidateQueries({ queryKey: ["clients"] });
     },
     onError: (error: Error) => {
+      const errorMessage = error.message || "Failed to sync client to Leadslift CRM";
       toast({
-        title: "Error",
-        description: error.message || "Failed to add client to Leadslift",
+        title: "Unable to sync client",
+        description: errorMessage,
         variant: "destructive",
       });
     },

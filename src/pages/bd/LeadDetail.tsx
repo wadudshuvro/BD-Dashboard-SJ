@@ -108,15 +108,19 @@ export default function LeadDetail() {
                     {isPushingToGHL ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Adding...
+                        {lead?.gohighlevel_contact_id ? 'Updating...' : 'Adding...'}
                       </>
+                    ) : lead?.gohighlevel_contact_id ? (
+                      'Update in Leadslift'
                     ) : (
                       'Add to Leadslift'
                     )}
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  Add this lead to Leadslift/GoHighLevel CRM
+                  {lead?.gohighlevel_contact_id
+                    ? 'Update this lead in Leadslift/GoHighLevel CRM'
+                    : 'Add this lead to Leadslift/GoHighLevel CRM'}
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -171,6 +175,24 @@ export default function LeadDetail() {
                 </div>
               </dl>
             </div>
+            {lead.gohighlevel_contact_id && (
+              <div>
+                <h3 className="text-sm font-medium text-muted-foreground uppercase">Leadslift CRM Sync</h3>
+                <Separator className="my-2" />
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                      Synced
+                    </Badge>
+                  </div>
+                  {lead.gohighlevel_last_synced_at && (
+                    <p className="text-sm text-muted-foreground">
+                      Last synced: {formatDateTime(lead.gohighlevel_last_synced_at)}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
           <div>
             <h3 className="text-sm font-medium text-muted-foreground uppercase">Enrichment metadata</h3>
