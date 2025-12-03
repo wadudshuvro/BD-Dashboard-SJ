@@ -186,6 +186,24 @@ function parseDate(value: unknown): string | null {
   return null;
 }
 
+function splitName(fullName: string | null | undefined): { firstName: string; lastName: string } {
+  if (!fullName || typeof fullName !== "string") {
+    return { firstName: "", lastName: "" };
+  }
+
+  const nameParts = fullName.trim().split(/\s+/);
+  if (nameParts.length === 0) {
+    return { firstName: "", lastName: "" };
+  } else if (nameParts.length === 1) {
+    return { firstName: nameParts[0], lastName: "" };
+  } else {
+    // First part is firstName, rest is lastName
+    const firstName = nameParts[0];
+    const lastName = nameParts.slice(1).join(" ");
+    return { firstName, lastName };
+  }
+}
+
 async function resolvePrimaryBrand(client: SupabaseClient, userId: string | null): Promise<string | null> {
   if (userId) {
     const { data } = await client
@@ -788,12 +806,18 @@ async function handlePushClient(req: Request): Promise<Response> {
     let ghlContactId = clientData.gohighlevel_contact_id;
     let action = "created";
 
+    // Parse contact name into first and last name
+    const contactName = clientData.name || clientData.contact_person || "";
+    const { firstName, lastName } = splitName(contactName);
+
     // Build contact data - locationId is required for creating new contacts
     // but must NOT be included when updating existing contacts
     const contactData: any = {
       email: clientData.email || undefined,
       phone: clientData.phone || undefined,
-      name: clientData.name || clientData.contact_person || undefined,
+      firstName: firstName || undefined,
+      lastName: lastName || undefined,
+      name: contactName || undefined,
       companyName: clientData.company || undefined,
       website: clientData.website || undefined,
       address1: clientData.address || undefined,
@@ -936,12 +960,18 @@ async function handlePushLead(req: Request): Promise<Response> {
     let ghlContactId = null;
     let action = "created";
 
+    // Parse contact name into first and last name
+    const contactName = leadData.contact_name || "";
+    const { firstName, lastName } = splitName(contactName);
+
     // Build contact data - locationId is required for creating new contacts
     const contactData: any = {
       locationId: integration.location_id,
       email: leadData.email || undefined,
       phone: leadData.phone || undefined,
-      name: leadData.contact_name || undefined,
+      firstName: firstName || undefined,
+      lastName: lastName || undefined,
+      name: contactName || undefined,
       companyName: leadData.company_name || undefined,
       website: leadData.website || undefined,
       source: "LeadsLift CRM - Lead",
