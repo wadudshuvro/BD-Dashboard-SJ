@@ -788,8 +788,9 @@ async function handlePushClient(req: Request): Promise<Response> {
     let ghlContactId = clientData.gohighlevel_contact_id;
     let action = "created";
 
+    // Build contact data - locationId is required for creating new contacts
+    // but must NOT be included when updating existing contacts
     const contactData: any = {
-      locationId: integration.location_id,
       email: clientData.email || undefined,
       phone: clientData.phone || undefined,
       name: clientData.name || clientData.contact_person || undefined,
@@ -805,10 +806,13 @@ async function handlePushClient(req: Request): Promise<Response> {
     };
 
     // If we have an existing GHL contact ID, include it in the upsert to ensure we update the correct contact
+    // Do NOT include locationId when updating - GHL API rejects it
     if (ghlContactId) {
       contactData.id = ghlContactId;
       console.log("[GHL] Using upsert endpoint to update existing client:", clientData.name, "with contact ID:", ghlContactId);
     } else {
+      // Only include locationId when creating new contacts
+      contactData.locationId = integration.location_id;
       console.log("[GHL] Using upsert endpoint to create new client:", clientData.name);
     }
 
@@ -932,7 +936,8 @@ async function handlePushLead(req: Request): Promise<Response> {
     let ghlContactId = null;
     let action = "created";
 
-    const contactData = {
+    // Build contact data - locationId is required for creating new contacts
+    const contactData: any = {
       locationId: integration.location_id,
       email: leadData.email || undefined,
       phone: leadData.phone || undefined,
