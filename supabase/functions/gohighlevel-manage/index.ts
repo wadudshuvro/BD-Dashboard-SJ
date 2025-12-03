@@ -306,6 +306,112 @@ async function fetchGHL(
   }
 }
 
+async function findPipelineAndStage(
+  apiKey: string,
+  locationId: string,
+  pipelineName: string,
+  stageName: string,
+  client?: SupabaseClient,
+  integration?: GHLIntegrationRow
+): Promise<{ pipelineId: string; stageId: string } | null> {
+  try {
+    console.log(`[GHL] Searching for pipeline "${pipelineName}" and stage "${stageName}"`);
+
+    // Fetch all pipelines for the location
+    const pipelinesData = await fetchGHL(
+      `/opportunities/pipelines?locationId=${locationId}`,
+      apiKey,
+      "GET",
+      undefined,
+      client,
+      integration
+    );
+
+    const pipelines = Array.isArray(pipelinesData?.pipelines)
+      ? pipelinesData.pipelines
+      : (Array.isArray(pipelinesData) ? pipelinesData : []);
+
+    // Find the target pipeline (case-insensitive)
+    const targetPipeline = pipelines.find((p: any) =>
+      p.name?.toLowerCase() === pipelineName.toLowerCase()
+    );
+
+    if (!targetPipeline) {
+      console.error(`[GHL] Pipeline "${pipelineName}" not found. Available pipelines:`,
+        pipelines.map((p: any) => p.name).join(", "));
+      return null;
+    }
+
+    // Find the target stage within the pipeline (case-insensitive)
+    const stages = Array.isArray(targetPipeline.stages) ? targetPipeline.stages : [];
+    const targetStage = stages.find((s: any) =>
+      s.name?.toLowerCase() === stageName.toLowerCase()
+    );
+
+    if (!targetStage) {
+      console.error(`[GHL] Stage "${stageName}" not found in pipeline "${pipelineName}". Available stages:`,
+        stages.map((s: any) => s.name).join(", "));
+      return null;
+    }
+
+    console.log(`[GHL] Found pipeline "${targetPipeline.name}" (${targetPipeline.id}) and stage "${targetStage.name}" (${targetStage.id})`);
+
+    return {
+      pipelineId: targetPipeline.id,
+      stageId: targetStage.id,
+    };
+  } catch (error) {
+    console.error("[GHL] Error finding pipeline and stage:", error);
+    return null;
+  }
+}
+
+async function createOpportunity(
+  apiKey: string,
+  contactId: string,
+  pipelineId: string,
+  stageId: string,
+  title: string,
+  contactName?: string,
+  client?: SupabaseClient,
+  integration?: GHLIntegrationRow
+): Promise<string | null> {
+  try {
+    console.log(`[GHL] Creating opportunity "${title}" for contact ${contactId}`);
+
+    const opportunityData = {
+      pipelineId,
+      pipelineStageId: stageId,
+      contactId,
+      name: title,
+      status: "open",
+      source: "LeadsLift CRM",
+    };
+
+    const result = await fetchGHL(
+      "/opportunities/",
+      apiKey,
+      "POST",
+      opportunityData,
+      client,
+      integration
+    );
+
+    const opportunityId = result?.opportunity?.id || result?.id;
+
+    if (opportunityId) {
+      console.log(`[GHL] Successfully created opportunity ${opportunityId}`);
+      return opportunityId;
+    } else {
+      console.error("[GHL] No opportunity ID returned from API");
+      return null;
+    }
+  } catch (error) {
+    console.error("[GHL] Error creating opportunity:", error);
+    return null;
+  }
+}
+
 async function syncGoHighLevel({
   client,
   integration,
@@ -911,12 +1017,66 @@ async function handlePushClient(req: Request): Promise<Response> {
       payload: { action, ghl_contact_id: ghlContactId },
     });
 
+    // Create opportunity in GHL Developer pipeline at Lead Acquired stage
+    let opportunityId: string | null = null;
+    let opportunityCreated = false;
+
+    try {
+      if (!integration.location_id) {
+        console.warn("[GHL] Cannot create opportunity: location_id is missing");
+      } else {
+        const pipelineStageInfo = await findPipelineAndStage(
+          decryptedKey,
+          integration.location_id,
+          "GHL Developer",
+          "Lead Acquired",
+          client,
+          integration
+        );
+
+        if (pipelineStageInfo) {
+          const opportunityTitle = clientData.company
+            ? `${clientData.company} - Client Opportunity`
+            : contactName
+              ? `${contactName} - Client Opportunity`
+              : "Client Opportunity";
+
+          opportunityId = await createOpportunity(
+            decryptedKey,
+            ghlContactId,
+            pipelineStageInfo.pipelineId,
+            pipelineStageInfo.stageId,
+            opportunityTitle,
+            contactName,
+            client,
+            integration
+          );
+
+          if (opportunityId) {
+            opportunityCreated = true;
+            console.log(`[GHL] Successfully created opportunity ${opportunityId} for client ${clientId}`);
+          }
+        } else {
+          console.warn("[GHL] Could not find 'GHL Developer' pipeline or 'Lead Acquired' stage");
+        }
+      }
+    } catch (opportunityError) {
+      // Don't fail the entire operation if opportunity creation fails
+      console.error("[GHL] Failed to create opportunity (non-fatal):", opportunityError);
+    }
+
+    const successMessage = opportunityCreated
+      ? `Client ${action} in Leadslift CRM and opportunity created`
+      : `Client ${action} in Leadslift CRM`;
+
     return new Response(
       JSON.stringify({
         ok: true,
         action,
         ghlContactId,
-        message: `Client ${action} in Leadslift CRM`,
+        opportunityId,
+        opportunityCreated,
+        message: successMessage,
       }),
       { headers }
     );
@@ -1082,12 +1242,66 @@ async function handlePushLead(req: Request): Promise<Response> {
       payload: { action, ghl_contact_id: ghlContactId },
     });
 
+    // Create opportunity in GHL Developer pipeline at Lead Acquired stage
+    let opportunityId: string | null = null;
+    let opportunityCreated = false;
+
+    try {
+      if (!integration.location_id) {
+        console.warn("[GHL] Cannot create opportunity: location_id is missing");
+      } else {
+        const pipelineStageInfo = await findPipelineAndStage(
+          decryptedKey,
+          integration.location_id,
+          "GHL Developer",
+          "Lead Acquired",
+          client,
+          integration
+        );
+
+        if (pipelineStageInfo) {
+          const opportunityTitle = leadData.company_name
+            ? `${leadData.company_name} - Lead Opportunity`
+            : contactName
+              ? `${contactName} - Lead Opportunity`
+              : "Lead Opportunity";
+
+          opportunityId = await createOpportunity(
+            decryptedKey,
+            ghlContactId,
+            pipelineStageInfo.pipelineId,
+            pipelineStageInfo.stageId,
+            opportunityTitle,
+            contactName,
+            client,
+            integration
+          );
+
+          if (opportunityId) {
+            opportunityCreated = true;
+            console.log(`[GHL] Successfully created opportunity ${opportunityId} for lead ${leadId}`);
+          }
+        } else {
+          console.warn("[GHL] Could not find 'GHL Developer' pipeline or 'Lead Acquired' stage");
+        }
+      }
+    } catch (opportunityError) {
+      // Don't fail the entire operation if opportunity creation fails
+      console.error("[GHL] Failed to create opportunity (non-fatal):", opportunityError);
+    }
+
+    const successMessage = opportunityCreated
+      ? `Lead ${action} in Leadslift CRM and opportunity created`
+      : `Lead ${action} in Leadslift CRM`;
+
     return new Response(
       JSON.stringify({
         ok: true,
         action,
         ghlContactId,
-        message: `Lead ${action} in Leadslift CRM`,
+        opportunityId,
+        opportunityCreated,
+        message: successMessage,
       }),
       { headers }
     );

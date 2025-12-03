@@ -10,6 +10,8 @@ interface PushClientToGHLResponse {
   ok: boolean;
   action?: "created" | "updated" | "linked";
   ghlContactId?: string;
+  opportunityId?: string;
+  opportunityCreated?: boolean;
   message?: string;
   error?: string;
 }
