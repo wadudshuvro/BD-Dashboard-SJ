@@ -555,6 +555,7 @@ const pipelineStages = [
   { id: 'proposal', label: STAGE_LABELS.proposal, color: 'bg-yellow-500' },
   { id: 'negotiation', label: STAGE_LABELS.negotiation, color: 'bg-orange-500' },
   { id: 'closed_won', label: STAGE_LABELS.closed_won, color: 'bg-green-500' },
+  { id: 'closed_lost', label: STAGE_LABELS.closed_lost, color: 'bg-red-500' },
 ];
 
 const DealStageProgress = ({ currentStage }: DealStageProgressProps) => {
@@ -1420,16 +1421,20 @@ export default function DealDetail() {
                 id="amount"
                 type="number"
                 className="h-10 text-2xl font-bold text-right"
-                value={deal.amount || ''}
-                onChange={async (e) => {
-                  try {
-                    await supabase
-                      .from('deals')
-                      .update({ amount: parseFloat(e.target.value) || null })
-                      .eq('id', deal.id);
-                    queryClient.invalidateQueries({ queryKey: ['deal', slug] });
-                  } catch (error) {
-                    toast({ title: 'Failed to update amount', variant: 'destructive' });
+                defaultValue={deal.amount || ''}
+                onBlur={async (e) => {
+                  const newValue = parseFloat(e.target.value) || null;
+                  if (newValue !== deal.amount) {
+                    try {
+                      await supabase
+                        .from('deals')
+                        .update({ amount: newValue })
+                        .eq('id', deal.id);
+                      queryClient.invalidateQueries({ queryKey: ['deal', slug] });
+                      toast({ title: 'Deal amount updated' });
+                    } catch (error) {
+                      toast({ title: 'Failed to update amount', variant: 'destructive' });
+                    }
                   }
                 }}
               />
@@ -1440,16 +1445,20 @@ export default function DealDetail() {
                 id="potential_amount"
                 type="number"
                 className="h-8 text-sm text-right"
-                value={deal.potential_amount || ''}
-                onChange={async (e) => {
-                  try {
-                    await supabase
-                      .from('deals')
-                      .update({ potential_amount: parseFloat(e.target.value) || null })
-                      .eq('id', deal.id);
-                    queryClient.invalidateQueries({ queryKey: ['deal', slug] });
-                  } catch (error) {
-                    toast({ title: 'Failed to update potential amount', variant: 'destructive' });
+                defaultValue={deal.potential_amount || ''}
+                onBlur={async (e) => {
+                  const newValue = parseFloat(e.target.value) || null;
+                  if (newValue !== deal.potential_amount) {
+                    try {
+                      await supabase
+                        .from('deals')
+                        .update({ potential_amount: newValue })
+                        .eq('id', deal.id);
+                      queryClient.invalidateQueries({ queryKey: ['deal', slug] });
+                      toast({ title: 'Potential amount updated' });
+                    } catch (error) {
+                      toast({ title: 'Failed to update potential amount', variant: 'destructive' });
+                    }
                   }
                 }}
               />
@@ -1463,7 +1472,7 @@ export default function DealDetail() {
                 max="100"
                 step="1"
                 className="h-8 text-sm text-right"
-                value={deal.probability ?? ''}
+                defaultValue={deal.probability ?? ''}
                 onBlur={async (e) => {
                   const newValue = e.target.value ? parseFloat(e.target.value) : null;
                   if (newValue !== null && (newValue < 0 || newValue > 100)) {
@@ -1637,7 +1646,7 @@ export default function DealDetail() {
                     <Input
                       type="date"
                       className="h-8 text-sm"
-                      value={deal.expected_closing_date || deal.close_date || ''}
+                      defaultValue={deal.expected_closing_date || deal.close_date || ''}
                       onChange={async (e) => {
                         try {
                           await supabase

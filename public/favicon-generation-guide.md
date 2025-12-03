@@ -63,3 +63,4 @@ magick bd-logo.svg -resize 512x512 android-chrome-512x512.png
 The SVG favicon is already set up and will work in all modern browsers. No additional action needed unless you want to support older browsers.
 
 
+

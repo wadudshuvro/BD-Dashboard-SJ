@@ -70,3 +70,4 @@ Return your response using the generate_linkedin_messages function with all requ
 WHERE slug = 'linkedin-message-generator';
 
 
+
