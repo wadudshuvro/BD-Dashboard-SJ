@@ -765,24 +765,29 @@ export default function DealDetail() {
         if (pmData) setPm(pmData as UserProfile);
       }
 
-      // Fetch all users for PM assignment dropdown
-      const { data: usersData } = await supabase
-        .from('users')
-        .select('id, first_name, last_name, email')
-        .eq('status', 'active')
-        .order('first_name');
+      // Fetch all users for PM assignment dropdown (from both users and employees tables)
+      const [usersResult, employeesResult] = await Promise.all([
+        supabase
+          .from('users')
+          .select('id, first_name, last_name, email')
+          .eq('status', 'active')
+          .order('first_name'),
+        supabase
+          .from('employees')
+          .select('id, full_name, email')
+          .eq('is_active', true)
+          .order('full_name')
+      ]);
       
-      // Also fetch employees from Control Tower sync
-      const { data: employeesData } = await supabase
-        .from('employees')
-        .select('id, full_name, email')
-        .order('full_name');
-      
-      // Combine users and employees, avoiding duplicates by email
-      const userEmails = new Set((usersData || []).map(u => u.email?.toLowerCase()));
-      const employeesAsUsers = (employeesData || [])
-        .filter(e => e.email && !userEmails.has(e.email.toLowerCase()))
-        .map(e => {
+      // Combine users and employees, converting employees to UserProfile format
+      const combinedUsers: UserProfile[] = [
+        ...(usersResult.data || []).map(u => ({
+          id: u.id,
+          first_name: u.first_name,
+          last_name: u.last_name,
+          email: u.email
+        })),
+        ...(employeesResult.data || []).map(e => {
           const nameParts = (e.full_name || '').split(' ');
           return {
             id: e.id,
@@ -790,12 +795,12 @@ export default function DealDetail() {
             last_name: nameParts.slice(1).join(' ') || '',
             email: e.email
           };
-        });
+        })
+      ];
       
-      const combinedUsers = [...(usersData || []), ...employeesAsUsers];
+      // Sort combined list by first_name
       combinedUsers.sort((a, b) => (a.first_name || '').localeCompare(b.first_name || ''));
-      
-      if (combinedUsers.length > 0) setAllUsers(combinedUsers as UserProfile[]);
+      setAllUsers(combinedUsers);
     }
 
     loadRelatedData();

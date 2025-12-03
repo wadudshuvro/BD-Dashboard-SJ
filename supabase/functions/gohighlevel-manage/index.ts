@@ -186,6 +186,24 @@ function parseDate(value: unknown): string | null {
   return null;
 }
 
+function splitName(fullName: string | null | undefined): { firstName: string; lastName: string } {
+  if (!fullName || typeof fullName !== "string") {
+    return { firstName: "", lastName: "" };
+  }
+
+  const nameParts = fullName.trim().split(/\s+/);
+  if (nameParts.length === 0) {
+    return { firstName: "", lastName: "" };
+  } else if (nameParts.length === 1) {
+    return { firstName: nameParts[0], lastName: "" };
+  } else {
+    // First part is firstName, rest is lastName
+    const firstName = nameParts[0];
+    const lastName = nameParts.slice(1).join(" ");
+    return { firstName, lastName };
+  }
+}
+
 async function resolvePrimaryBrand(client: SupabaseClient, userId: string | null): Promise<string | null> {
   if (userId) {
     const { data } = await client
@@ -788,11 +806,18 @@ async function handlePushClient(req: Request): Promise<Response> {
     let ghlContactId = clientData.gohighlevel_contact_id;
     let action = "created";
 
-    const contactData = {
-      locationId: integration.location_id,
+    // Parse contact name into first and last name
+    const contactName = clientData.name || clientData.contact_person || "";
+    const { firstName, lastName } = splitName(contactName);
+
+    // Build contact data - locationId is required for creating new contacts
+    // but must NOT be included when updating existing contacts
+    const contactData: any = {
       email: clientData.email || undefined,
       phone: clientData.phone || undefined,
-      name: clientData.name || clientData.contact_person || undefined,
+      firstName: firstName || undefined,
+      lastName: lastName || undefined,
+      name: contactName || undefined,
       companyName: clientData.company || undefined,
       website: clientData.website || undefined,
       address1: clientData.address || undefined,
@@ -804,17 +829,30 @@ async function handlePushClient(req: Request): Promise<Response> {
       tags: ["leadsift-crm", clientData.industry || ""].filter(Boolean),
     };
 
+    // If we have an existing GHL contact ID, include it in the upsert to ensure we update the correct contact
+    // Do NOT include locationId when updating - GHL API rejects it
     if (ghlContactId) {
-      await fetchGHL(`/contacts/${ghlContactId}`, decryptedKey, "PUT", contactData, client, integration);
-      action = "updated";
+      contactData.id = ghlContactId;
+      console.log("[GHL] Using upsert endpoint to update existing client:", clientData.name, "with contact ID:", ghlContactId);
     } else {
-      // Use upsert endpoint - handles duplicate detection automatically
-      console.log("[GHL] Using upsert endpoint for client:", clientData.name);
-      const upsertResult = await fetchGHL(`/contacts/upsert`, decryptedKey, "POST", contactData, client, integration);
-      
-      ghlContactId = upsertResult?.contact?.id || upsertResult?.id;
-      
+      // Only include locationId when creating new contacts
+      contactData.locationId = integration.location_id;
+      console.log("[GHL] Using upsert endpoint to create new client:", clientData.name);
+    }
+
+    // Always use upsert endpoint - it handles both create and update operations
+    const upsertResult = await fetchGHL(`/contacts/upsert`, decryptedKey, "POST", contactData, client, integration);
+
+    const returnedContactId = upsertResult?.contact?.id || upsertResult?.id;
+
+    // If we had an existing contact ID, this is an update
+    if (ghlContactId) {
+      action = "updated";
+      // Use the returned ID if available, otherwise keep the existing one
+      ghlContactId = returnedContactId || ghlContactId;
+    } else {
       // Determine action based on response
+      ghlContactId = returnedContactId;
       if (upsertResult?.new === true) {
         action = "created";
       } else {
@@ -922,11 +960,19 @@ async function handlePushLead(req: Request): Promise<Response> {
     let ghlContactId = null;
     let action = "created";
 
-    const contactData = {
-      locationId: integration.location_id,
+    // Parse contact name into first and last name
+    const contactName = leadData.contact_name || "";
+    const { firstName, lastName } = splitName(contactName);
+
+    // Build contact data - do NOT include locationId to avoid 403 errors
+    // The upsert endpoint will use the location associated with the API token
+    // and can update existing contacts without permission issues
+    const contactData: any = {
       email: leadData.email || undefined,
       phone: leadData.phone || undefined,
-      name: leadData.contact_name || undefined,
+      firstName: firstName || undefined,
+      lastName: lastName || undefined,
+      name: contactName || undefined,
       companyName: leadData.company_name || undefined,
       website: leadData.website || undefined,
       source: "LeadsLift CRM - Lead",
@@ -934,6 +980,7 @@ async function handlePushLead(req: Request): Promise<Response> {
     };
 
     // Use upsert endpoint - handles duplicate detection automatically
+    // Do not include locationId to prevent 403 errors when updating existing contacts
     console.log("[GHL] Using upsert endpoint for lead:", leadData.contact_name);
     const upsertResult = await fetchGHL(`/contacts/upsert`, decryptedKey, "POST", contactData, client, integration);
     
