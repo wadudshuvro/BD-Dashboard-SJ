@@ -788,7 +788,7 @@ async function handlePushClient(req: Request): Promise<Response> {
     let ghlContactId = clientData.gohighlevel_contact_id;
     let action = "created";
 
-    const contactData = {
+    const contactData: any = {
       locationId: integration.location_id,
       email: clientData.email || undefined,
       phone: clientData.phone || undefined,
@@ -804,17 +804,27 @@ async function handlePushClient(req: Request): Promise<Response> {
       tags: ["leadsift-crm", clientData.industry || ""].filter(Boolean),
     };
 
+    // If we have an existing GHL contact ID, include it in the upsert to ensure we update the correct contact
     if (ghlContactId) {
-      await fetchGHL(`/contacts/${ghlContactId}`, decryptedKey, "PUT", contactData, client, integration);
-      action = "updated";
+      contactData.id = ghlContactId;
+      console.log("[GHL] Using upsert endpoint to update existing client:", clientData.name, "with contact ID:", ghlContactId);
     } else {
-      // Use upsert endpoint - handles duplicate detection automatically
-      console.log("[GHL] Using upsert endpoint for client:", clientData.name);
-      const upsertResult = await fetchGHL(`/contacts/upsert`, decryptedKey, "POST", contactData, client, integration);
-      
-      ghlContactId = upsertResult?.contact?.id || upsertResult?.id;
-      
+      console.log("[GHL] Using upsert endpoint to create new client:", clientData.name);
+    }
+
+    // Always use upsert endpoint - it handles both create and update operations
+    const upsertResult = await fetchGHL(`/contacts/upsert`, decryptedKey, "POST", contactData, client, integration);
+
+    const returnedContactId = upsertResult?.contact?.id || upsertResult?.id;
+
+    // If we had an existing contact ID, this is an update
+    if (ghlContactId) {
+      action = "updated";
+      // Use the returned ID if available, otherwise keep the existing one
+      ghlContactId = returnedContactId || ghlContactId;
+    } else {
       // Determine action based on response
+      ghlContactId = returnedContactId;
       if (upsertResult?.new === true) {
         action = "created";
       } else {
