@@ -555,6 +555,7 @@ const pipelineStages = [
   { id: 'proposal', label: STAGE_LABELS.proposal, color: 'bg-yellow-500' },
   { id: 'negotiation', label: STAGE_LABELS.negotiation, color: 'bg-orange-500' },
   { id: 'closed_won', label: STAGE_LABELS.closed_won, color: 'bg-green-500' },
+  { id: 'closed_lost', label: STAGE_LABELS.closed_lost, color: 'bg-red-500' },
 ];
 
 const DealStageProgress = ({ currentStage }: DealStageProgressProps) => {
@@ -770,7 +771,31 @@ export default function DealDetail() {
         .select('id, first_name, last_name, email')
         .eq('status', 'active')
         .order('first_name');
-      if (usersData) setAllUsers(usersData as UserProfile[]);
+      
+      // Also fetch employees from Control Tower sync
+      const { data: employeesData } = await supabase
+        .from('employees')
+        .select('id, full_name, email')
+        .order('full_name');
+      
+      // Combine users and employees, avoiding duplicates by email
+      const userEmails = new Set((usersData || []).map(u => u.email?.toLowerCase()));
+      const employeesAsUsers = (employeesData || [])
+        .filter(e => e.email && !userEmails.has(e.email.toLowerCase()))
+        .map(e => {
+          const nameParts = (e.full_name || '').split(' ');
+          return {
+            id: e.id,
+            first_name: nameParts[0] || '',
+            last_name: nameParts.slice(1).join(' ') || '',
+            email: e.email
+          };
+        });
+      
+      const combinedUsers = [...(usersData || []), ...employeesAsUsers];
+      combinedUsers.sort((a, b) => (a.first_name || '').localeCompare(b.first_name || ''));
+      
+      if (combinedUsers.length > 0) setAllUsers(combinedUsers as UserProfile[]);
     }
 
     loadRelatedData();
