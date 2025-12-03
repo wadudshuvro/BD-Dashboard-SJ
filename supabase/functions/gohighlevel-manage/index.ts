@@ -964,9 +964,10 @@ async function handlePushLead(req: Request): Promise<Response> {
     const contactName = leadData.contact_name || "";
     const { firstName, lastName } = splitName(contactName);
 
-    // Build contact data - locationId is required for creating new contacts
+    // Build contact data - do NOT include locationId to avoid 403 errors
+    // The upsert endpoint will use the location associated with the API token
+    // and can update existing contacts without permission issues
     const contactData: any = {
-      locationId: integration.location_id,
       email: leadData.email || undefined,
       phone: leadData.phone || undefined,
       firstName: firstName || undefined,
@@ -979,6 +980,7 @@ async function handlePushLead(req: Request): Promise<Response> {
     };
 
     // Use upsert endpoint - handles duplicate detection automatically
+    // Do not include locationId to prevent 403 errors when updating existing contacts
     console.log("[GHL] Using upsert endpoint for lead:", leadData.contact_name);
     const upsertResult = await fetchGHL(`/contacts/upsert`, decryptedKey, "POST", contactData, client, integration);
     
