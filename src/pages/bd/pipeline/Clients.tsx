@@ -14,6 +14,7 @@ export default function Clients() {
   const [isClientSyncing, setIsClientSyncing] = useState(false);
   const [syncProgress, setSyncProgress] = useState<{ current: number; total: number } | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchInput, setSearchInput] = useState('');
 
   const { clients, loading: isLoading, totalCount } = useClients({
     page: pagination.currentPage,
@@ -22,8 +23,23 @@ export default function Clients() {
   });
 
   const handleSearchChange = (query: string) => {
-    setSearchQuery(query);
-    pagination.reset(); // Reset to page 1 when search changes
+    setSearchInput(query);
+
+    // Only trigger search if:
+    // 1. Query is empty (to clear search)
+    // 2. Query has 3 or more characters
+    if (query === '' || query.length >= 3) {
+      setSearchQuery(query);
+      pagination.reset(); // Reset to page 1 when search changes
+    }
+  };
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Trigger search on Enter key
+    if (e.key === 'Enter' && searchInput.length > 0) {
+      setSearchQuery(searchInput);
+      pagination.reset();
+    }
   };
 
   const columns = [
@@ -83,8 +99,9 @@ export default function Clients() {
         isLoading={isLoading}
         emptyMessage="No clients found"
         searchable
-        searchQuery={searchQuery}
+        searchQuery={searchInput}
         onSearchChange={handleSearchChange}
+        onSearchKeyDown={handleSearchKeyDown}
         onRowClick={(row) => navigate(`/clients/${row.slug}`)}
         totalCount={totalCount}
         currentPage={pagination.currentPage}

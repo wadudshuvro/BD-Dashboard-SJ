@@ -40,6 +40,7 @@ interface PipelineDataTableProps<T> {
   searchable?: boolean;
   searchQuery?: string;
   onSearchChange?: (query: string) => void;
+  onSearchKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   onRowClick?: (row: T) => void;
   externalLinkFn?: (row: T) => string | undefined;
   totalCount?: number;
@@ -57,6 +58,7 @@ export function PipelineDataTable<T extends Record<string, any>>({
   searchable = true,
   searchQuery = '',
   onSearchChange,
+  onSearchKeyDown,
   onRowClick,
   externalLinkFn,
   totalCount,
@@ -87,9 +89,10 @@ export function PipelineDataTable<T extends Record<string, any>>({
           <div className="flex items-center gap-2 flex-1">
             <Filter className="h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search..."
+              placeholder="Search (min 3 chars or press Enter)..."
               value={searchQuery}
               onChange={(e) => onSearchChange?.(e.target.value)}
+              onKeyDown={onSearchKeyDown}
               className="max-w-sm"
             />
           </div>
