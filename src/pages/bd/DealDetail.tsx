@@ -174,6 +174,7 @@ interface Deal {
   estimate_task_link?: string | null;
   internal_estimate_doc_link?: string | null;
   pandadoc_proposal_url?: string | null;
+  client_call_recording_link?: string | null;
   
   // Collaboration URLs
   collaborative_ai?: string | null;
@@ -1318,15 +1319,19 @@ export default function DealDetail() {
                     {isPushingToGHL ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Adding...
+                        {client?.gohighlevel_contact_id ? 'Updating...' : 'Creating...'}
                       </>
+                    ) : client?.gohighlevel_contact_id ? (
+                      'Update in Leadslift'
                     ) : (
-                      'Add to Leadslift'
+                      'Add Contact & Create Deal on Leadslift'
                     )}
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  Add this deal's client to Leadslift/GoHighLevel CRM
+                  {client?.gohighlevel_contact_id
+                    ? 'Update this client contact in Leadslift/GoHighLevel CRM'
+                    : 'Add this client as a contact and create an opportunity in Leadslift CRM'}
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -2235,6 +2240,29 @@ export default function DealDetail() {
                           queryClient.invalidateQueries({ queryKey: ['deal', slug] });
                         } catch (error) {
                           toast({ title: 'Failed to update estimate task link', variant: 'destructive' });
+                        }
+                      }
+                    }}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="client_call_recording_link" className="text-xs">Client Call Recording Link</Label>
+                  <Input
+                    id="client_call_recording_link"
+                    className="h-8 text-sm"
+                    placeholder="https://..."
+                    defaultValue={deal.client_call_recording_link || ''}
+                    onBlur={async (e) => {
+                      if (e.target.value !== (deal.client_call_recording_link || '')) {
+                        try {
+                          await supabase
+                            .from('deals')
+                            .update({ client_call_recording_link: e.target.value })
+                            .eq('id', deal.id);
+                          toast({ title: 'Client call recording link updated' });
+                          queryClient.invalidateQueries({ queryKey: ['deal', slug] });
+                        } catch (error) {
+                          toast({ title: 'Failed to update client call recording link', variant: 'destructive' });
                         }
                       }
                     }}

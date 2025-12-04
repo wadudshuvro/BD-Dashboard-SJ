@@ -272,9 +272,24 @@ async function fetchGHL(
 
     if (!response.ok) {
       const text = await response.text();
+      let userFriendlyMessage = "";
+
+      // Provide user-friendly error messages based on status code
+      if (response.status === 401 || response.status === 403) {
+        userFriendlyMessage = "Authentication failed with Leadslift CRM. Please check your API credentials in the integration settings.";
+      } else if (response.status === 404) {
+        userFriendlyMessage = "The requested resource was not found in Leadslift CRM. The location or contact may have been deleted.";
+      } else if (response.status === 429) {
+        userFriendlyMessage = "Rate limit exceeded for Leadslift CRM API. Please try again in a few moments.";
+      } else if (response.status >= 500) {
+        userFriendlyMessage = "Leadslift CRM is experiencing technical difficulties. Please try again later.";
+      } else {
+        userFriendlyMessage = `Unable to sync with Leadslift CRM (Error ${response.status}). Please try again or contact support if the issue persists.`;
+      }
+
       const errorMessage = `GoHighLevel API error on ${method} ${endpoint} (${response.status}): ${text}`;
       console.error(`[GHL] ${errorMessage}`);
-      throw new Error(errorMessage);
+      throw new Error(userFriendlyMessage);
     }
 
     return response.json();
@@ -288,6 +303,112 @@ async function fetchGHL(
       return fetchGHL(endpoint, apiKey, method, body, client, integration, retryCount + 1);
     }
     throw error;
+  }
+}
+
+async function findPipelineAndStage(
+  apiKey: string,
+  locationId: string,
+  pipelineName: string,
+  stageName: string,
+  client?: SupabaseClient,
+  integration?: GHLIntegrationRow
+): Promise<{ pipelineId: string; stageId: string } | null> {
+  try {
+    console.log(`[GHL] Searching for pipeline "${pipelineName}" and stage "${stageName}"`);
+
+    // Fetch all pipelines for the location
+    const pipelinesData = await fetchGHL(
+      `/opportunities/pipelines?locationId=${locationId}`,
+      apiKey,
+      "GET",
+      undefined,
+      client,
+      integration
+    );
+
+    const pipelines = Array.isArray(pipelinesData?.pipelines)
+      ? pipelinesData.pipelines
+      : (Array.isArray(pipelinesData) ? pipelinesData : []);
+
+    // Find the target pipeline (case-insensitive)
+    const targetPipeline = pipelines.find((p: any) =>
+      p.name?.toLowerCase() === pipelineName.toLowerCase()
+    );
+
+    if (!targetPipeline) {
+      console.error(`[GHL] Pipeline "${pipelineName}" not found. Available pipelines:`,
+        pipelines.map((p: any) => p.name).join(", "));
+      return null;
+    }
+
+    // Find the target stage within the pipeline (case-insensitive)
+    const stages = Array.isArray(targetPipeline.stages) ? targetPipeline.stages : [];
+    const targetStage = stages.find((s: any) =>
+      s.name?.toLowerCase() === stageName.toLowerCase()
+    );
+
+    if (!targetStage) {
+      console.error(`[GHL] Stage "${stageName}" not found in pipeline "${pipelineName}". Available stages:`,
+        stages.map((s: any) => s.name).join(", "));
+      return null;
+    }
+
+    console.log(`[GHL] Found pipeline "${targetPipeline.name}" (${targetPipeline.id}) and stage "${targetStage.name}" (${targetStage.id})`);
+
+    return {
+      pipelineId: targetPipeline.id,
+      stageId: targetStage.id,
+    };
+  } catch (error) {
+    console.error("[GHL] Error finding pipeline and stage:", error);
+    return null;
+  }
+}
+
+async function createOpportunity(
+  apiKey: string,
+  contactId: string,
+  pipelineId: string,
+  stageId: string,
+  title: string,
+  contactName?: string,
+  client?: SupabaseClient,
+  integration?: GHLIntegrationRow
+): Promise<string | null> {
+  try {
+    console.log(`[GHL] Creating opportunity "${title}" for contact ${contactId}`);
+
+    const opportunityData = {
+      pipelineId,
+      pipelineStageId: stageId,
+      contactId,
+      name: title,
+      status: "open",
+      source: "LeadsLift CRM",
+    };
+
+    const result = await fetchGHL(
+      "/opportunities/",
+      apiKey,
+      "POST",
+      opportunityData,
+      client,
+      integration
+    );
+
+    const opportunityId = result?.opportunity?.id || result?.id;
+
+    if (opportunityId) {
+      console.log(`[GHL] Successfully created opportunity ${opportunityId}`);
+      return opportunityId;
+    } else {
+      console.error("[GHL] No opportunity ID returned from API");
+      return null;
+    }
+  } catch (error) {
+    console.error("[GHL] Error creating opportunity:", error);
+    return null;
   }
 }
 
@@ -783,23 +904,27 @@ async function handlePushClient(req: Request): Promise<Response> {
       return new Response(JSON.stringify({ ok: false, error: "Client not found" }), { headers, status: 404 });
     }
 
-    if (!clientData.email && !clientData.phone) {
+    // Validate that at least one contact method exists (treat empty strings as missing)
+    const hasEmail = clientData.email && String(clientData.email).trim() !== "";
+    const hasPhone = clientData.phone && String(clientData.phone).trim() !== "";
+
+    if (!hasEmail && !hasPhone) {
       const clientName = clientData.name || clientData.company || "This client";
       const missingFields: string[] = [];
-      if (!clientData.email) missingFields.push("email");
-      if (!clientData.phone) missingFields.push("phone");
-      
+      if (!hasEmail) missingFields.push("email");
+      if (!hasPhone) missingFields.push("phone");
+
       const errorMessage = `Cannot sync '${clientName}' to Leadslift CRM. ${
-        missingFields.length === 2 
-          ? "This client is missing both email and phone number" 
+        missingFields.length === 2
+          ? "This client is missing both email and phone number"
           : `This client is missing ${missingFields[0]}`
       }. Please add at least one contact method to the client record before syncing.`;
-      
-      return new Response(JSON.stringify({ 
-        ok: false, 
+
+      return new Response(JSON.stringify({
+        ok: false,
         error: errorMessage,
         clientName,
-        missingFields 
+        missingFields
       }), { headers, status: 400 });
     }
 
@@ -892,12 +1017,71 @@ async function handlePushClient(req: Request): Promise<Response> {
       payload: { action, ghl_contact_id: ghlContactId },
     });
 
+    // Create opportunity in GHL Developer pipeline at Lead Acquired stage
+    // Only create opportunities for new contacts (action === "created"), not updates
+    let opportunityId: string | null = null;
+    let opportunityCreated = false;
+
+    if (action === "created") {
+      try {
+        if (!integration.location_id) {
+          console.warn("[GHL] Cannot create opportunity: location_id is missing");
+        } else {
+          const pipelineStageInfo = await findPipelineAndStage(
+            decryptedKey,
+            integration.location_id,
+            "GHL Developer",
+            "Lead Acquired",
+            client,
+            integration
+          );
+
+          if (pipelineStageInfo) {
+            const opportunityTitle = clientData.company
+              ? `${clientData.company} - Client Opportunity`
+              : contactName
+                ? `${contactName} - Client Opportunity`
+                : "Client Opportunity";
+
+            opportunityId = await createOpportunity(
+              decryptedKey,
+              ghlContactId,
+              pipelineStageInfo.pipelineId,
+              pipelineStageInfo.stageId,
+              opportunityTitle,
+              contactName,
+              client,
+              integration
+            );
+
+            if (opportunityId) {
+              opportunityCreated = true;
+              console.log(`[GHL] Successfully created opportunity ${opportunityId} for client ${clientId}`);
+            }
+          } else {
+            console.warn("[GHL] Could not find 'GHL Developer' pipeline or 'Lead Acquired' stage");
+          }
+        }
+      } catch (opportunityError) {
+        // Don't fail the entire operation if opportunity creation fails
+        console.error("[GHL] Failed to create opportunity (non-fatal):", opportunityError);
+      }
+    } else {
+      console.log(`[GHL] Skipping opportunity creation for client ${clientId} (action: ${action})`);
+    }
+
+    const successMessage = opportunityCreated
+      ? `Client ${action} in Leadslift CRM and opportunity created`
+      : `Client ${action} in Leadslift CRM`;
+
     return new Response(
       JSON.stringify({
         ok: true,
         action,
         ghlContactId,
-        message: `Client ${action} in Leadslift CRM`,
+        opportunityId,
+        opportunityCreated,
+        message: successMessage,
       }),
       { headers }
     );
@@ -953,20 +1137,39 @@ async function handlePushLead(req: Request): Promise<Response> {
       return new Response(JSON.stringify({ ok: false, error: "Lead not found" }), { headers, status: 404 });
     }
 
-    if (!leadData.email && !leadData.phone) {
-      return new Response(JSON.stringify({ ok: false, error: "Lead must have either email or phone" }), { headers, status: 400 });
+    // Validate that at least one contact method exists (treat empty strings as missing)
+    const hasEmail = leadData.email && String(leadData.email).trim() !== "";
+    const hasPhone = leadData.phone && String(leadData.phone).trim() !== "";
+
+    if (!hasEmail && !hasPhone) {
+      const leadName = leadData.contact_name || leadData.company_name || "This lead";
+      const missingFields: string[] = [];
+      if (!hasEmail) missingFields.push("email");
+      if (!hasPhone) missingFields.push("phone");
+
+      const errorMessage = `Cannot sync '${leadName}' to Leadslift CRM. ${
+        missingFields.length === 2
+          ? "This lead is missing both email and phone number"
+          : `This lead is missing ${missingFields[0]}`
+      }. Please add at least one contact method to the lead record before syncing.`;
+
+      return new Response(JSON.stringify({
+        ok: false,
+        error: errorMessage,
+        leadName,
+        missingFields
+      }), { headers, status: 400 });
     }
 
-    let ghlContactId = null;
+    let ghlContactId = leadData.gohighlevel_contact_id;
     let action = "created";
 
     // Parse contact name into first and last name
     const contactName = leadData.contact_name || "";
     const { firstName, lastName } = splitName(contactName);
 
-    // Build contact data - do NOT include locationId to avoid 403 errors
-    // The upsert endpoint will use the location associated with the API token
-    // and can update existing contacts without permission issues
+    // Build contact data - locationId is required for creating new contacts
+    // but must NOT be included when updating existing contacts
     const contactData: any = {
       email: leadData.email || undefined,
       phone: leadData.phone || undefined,
@@ -979,18 +1182,35 @@ async function handlePushLead(req: Request): Promise<Response> {
       tags: ["leadsift-crm", "lead", leadData.industry || ""].filter(Boolean),
     };
 
-    // Use upsert endpoint - handles duplicate detection automatically
-    // Do not include locationId to prevent 403 errors when updating existing contacts
-    console.log("[GHL] Using upsert endpoint for lead:", leadData.contact_name);
-    const upsertResult = await fetchGHL(`/contacts/upsert`, decryptedKey, "POST", contactData, client, integration);
-    
-    ghlContactId = upsertResult?.contact?.id || upsertResult?.id;
-    
-    // Determine action based on response
-    if (upsertResult?.new === true) {
-      action = "created";
+    // If we have an existing GHL contact ID, include it in the upsert to ensure we update the correct contact
+    // Do NOT include locationId when updating - GHL API rejects it
+    if (ghlContactId) {
+      contactData.id = ghlContactId;
+      console.log("[GHL] Using upsert endpoint to update existing lead:", leadData.contact_name, "with contact ID:", ghlContactId);
     } else {
-      action = "linked"; // Contact already existed, was updated
+      // Only include locationId when creating new contacts
+      contactData.locationId = integration.location_id;
+      console.log("[GHL] Using upsert endpoint to create new lead:", leadData.contact_name);
+    }
+
+    // Always use upsert endpoint - it handles both create and update operations
+    const upsertResult = await fetchGHL(`/contacts/upsert`, decryptedKey, "POST", contactData, client, integration);
+
+    const returnedContactId = upsertResult?.contact?.id || upsertResult?.id;
+
+    // If we had an existing contact ID, this is an update
+    if (ghlContactId) {
+      action = "updated";
+      // Use the returned ID if available, otherwise keep the existing one
+      ghlContactId = returnedContactId || ghlContactId;
+    } else {
+      // Determine action based on response
+      ghlContactId = returnedContactId;
+      if (upsertResult?.new === true) {
+        action = "created";
+      } else {
+        action = "linked"; // Contact already existed, was updated
+      }
     }
 
     if (!ghlContactId) {
@@ -1001,6 +1221,19 @@ async function handlePushLead(req: Request): Promise<Response> {
         }),
         { headers, status: 500 }
       );
+    }
+
+    // Update the lead record with sync information
+    const { error: updateError } = await client
+      .from("leads")
+      .update({
+        gohighlevel_contact_id: ghlContactId,
+        gohighlevel_last_synced_at: new Date().toISOString(),
+      })
+      .eq("id", leadId);
+
+    if (updateError) {
+      console.error("[GHL] Failed to update lead sync status:", updateError);
     }
 
     // Log the sync
@@ -1014,12 +1247,71 @@ async function handlePushLead(req: Request): Promise<Response> {
       payload: { action, ghl_contact_id: ghlContactId },
     });
 
+    // Create opportunity in GHL Developer pipeline at Lead Acquired stage
+    // Only create opportunities for new contacts (action === "created"), not updates
+    let opportunityId: string | null = null;
+    let opportunityCreated = false;
+
+    if (action === "created") {
+      try {
+        if (!integration.location_id) {
+          console.warn("[GHL] Cannot create opportunity: location_id is missing");
+        } else {
+          const pipelineStageInfo = await findPipelineAndStage(
+            decryptedKey,
+            integration.location_id,
+            "GHL Developer",
+            "Lead Acquired",
+            client,
+            integration
+          );
+
+          if (pipelineStageInfo) {
+            const opportunityTitle = leadData.company_name
+              ? `${leadData.company_name} - Lead Opportunity`
+              : contactName
+                ? `${contactName} - Lead Opportunity`
+                : "Lead Opportunity";
+
+            opportunityId = await createOpportunity(
+              decryptedKey,
+              ghlContactId,
+              pipelineStageInfo.pipelineId,
+              pipelineStageInfo.stageId,
+              opportunityTitle,
+              contactName,
+              client,
+              integration
+            );
+
+            if (opportunityId) {
+              opportunityCreated = true;
+              console.log(`[GHL] Successfully created opportunity ${opportunityId} for lead ${leadId}`);
+            }
+          } else {
+            console.warn("[GHL] Could not find 'GHL Developer' pipeline or 'Lead Acquired' stage");
+          }
+        }
+      } catch (opportunityError) {
+        // Don't fail the entire operation if opportunity creation fails
+        console.error("[GHL] Failed to create opportunity (non-fatal):", opportunityError);
+      }
+    } else {
+      console.log(`[GHL] Skipping opportunity creation for lead ${leadId} (action: ${action})`);
+    }
+
+    const successMessage = opportunityCreated
+      ? `Lead ${action} in Leadslift CRM and opportunity created`
+      : `Lead ${action} in Leadslift CRM`;
+
     return new Response(
       JSON.stringify({
         ok: true,
         action,
         ghlContactId,
-        message: `Lead ${action} in Leadslift CRM`,
+        opportunityId,
+        opportunityCreated,
+        message: successMessage,
       }),
       { headers }
     );
