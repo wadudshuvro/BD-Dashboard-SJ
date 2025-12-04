@@ -135,16 +135,40 @@ const TYPE_OF_WORK_OPTIONS = [
   { value: 'white_label_service', label: 'White Label Service' },
 ];
 
-// Lead Source options
+// Lead Source options (alphabetically sorted)
 const LEAD_SOURCE_OPTIONS = [
-  { value: 'website', label: 'Website' },
-  { value: 'referral', label: 'Referral' },
-  { value: 'cold_outreach', label: 'Cold Outreach' },
-  { value: 'linkedin', label: 'LinkedIn' },
-  { value: 'upwork', label: 'Upwork' },
-  { value: 'partner', label: 'Partner' },
+  { value: 'aws_iq', label: 'AWS IQ' },
+  { value: 'clutch', label: 'Clutch' },
+  { value: 'cold_email_campaign', label: 'Cold Email Campaign' },
+  { value: 'collab_ai_form_sub', label: 'Collab AI Form Sub' },
+  { value: 'crafted_email', label: 'Crafted.email' },
+  { value: 'email_geeks_slack', label: 'Email Geeks (Slack)' },
+  { value: 'existing_client', label: 'Existing Client' },
+  { value: 'facebook', label: 'Facebook' },
+  { value: 'form_submission', label: 'Form Submission' },
+  { value: 'freelancer', label: 'Freelancer' },
+  { value: 'ghl_directory', label: 'GHL Directory' },
   { value: 'ghl_form_sub', label: 'GHL Form Sub' },
-  { value: 'other', label: 'Other' },
+  { value: 'google_ads', label: 'Google Ads' },
+  { value: 'hubstaff_talent', label: 'Hubstaff Talent' },
+  { value: 'inbound', label: 'Inbound' },
+  { value: 'internal_sji', label: 'Internal SJI' },
+  { value: 'linkedin', label: 'LinkedIn' },
+  { value: 'marketing_agency', label: 'Marketing Agency' },
+  { value: 'outbound_campaign', label: 'Outbound Campaign' },
+  { value: 'plate_presence', label: 'Plate Presence' },
+  { value: 'plate_presence_form', label: 'Plate Presence Form' },
+  { value: 'reddit', label: 'Reddit' },
+  { value: 'referral', label: 'Referral' },
+  { value: 'shahed_personal_network', label: 'Shahed Personal Network' },
+  { value: 'shopify_campaign', label: 'Shopify Campaign' },
+  { value: 'skool_community', label: 'Skool Community' },
+  { value: 'slack_community_channel', label: 'Slack Community Channel' },
+  { value: 'tutor_db', label: 'Tutor DB' },
+  { value: 'twitter', label: 'Twitter' },
+  { value: 'upwork_existing_client', label: 'Upwork (Existing Client)' },
+  { value: 'upwork_new_client', label: 'Upwork (New Client)' },
+  { value: 'vishwanathan_personal_network', label: 'Vishwanathan Personal Network' },
 ];
 
 interface DealExternalLinks {
