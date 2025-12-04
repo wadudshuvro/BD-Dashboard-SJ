@@ -2362,6 +2362,7 @@ export type Database = {
           category: string | null
           client_agent_folder: string | null
           client_agent_url: string | null
+          client_call_recording_link: string | null
           client_estimate_doc_url: string | null
           client_id: string | null
           close_date: string | null
@@ -2416,6 +2417,7 @@ export type Database = {
           category?: string | null
           client_agent_folder?: string | null
           client_agent_url?: string | null
+          client_call_recording_link?: string | null
           client_estimate_doc_url?: string | null
           client_id?: string | null
           close_date?: string | null
@@ -2470,6 +2472,7 @@ export type Database = {
           category?: string | null
           client_agent_folder?: string | null
           client_agent_url?: string | null
+          client_call_recording_link?: string | null
           client_estimate_doc_url?: string | null
           client_id?: string | null
           close_date?: string | null
