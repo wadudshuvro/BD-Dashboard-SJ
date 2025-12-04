@@ -108,9 +108,9 @@ export default function LeadDetail() {
                     {isPushingToGHL ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        {lead?.gohighlevel_contact_id ? 'Updating...' : 'Creating...'}
+                        {(lead as any)?.gohighlevel_contact_id ? 'Updating...' : 'Creating...'}
                       </>
-                    ) : lead?.gohighlevel_contact_id ? (
+                    ) : (lead as any)?.gohighlevel_contact_id ? (
                       'Update in Leadslift'
                     ) : (
                       'Add Contact & Create Deal on Leadslift'
@@ -118,7 +118,7 @@ export default function LeadDetail() {
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  {lead?.gohighlevel_contact_id
+                  {(lead as any)?.gohighlevel_contact_id
                     ? 'Update this lead contact in Leadslift/GoHighLevel CRM'
                     : 'Add this lead as a contact and create an opportunity in Leadslift CRM'}
                 </TooltipContent>
@@ -175,7 +175,7 @@ export default function LeadDetail() {
                 </div>
               </dl>
             </div>
-            {lead.gohighlevel_contact_id && (
+            {(lead as any).gohighlevel_contact_id && (
               <div>
                 <h3 className="text-sm font-medium text-muted-foreground uppercase">Leadslift CRM Sync</h3>
                 <Separator className="my-2" />
@@ -185,9 +185,9 @@ export default function LeadDetail() {
                       Synced
                     </Badge>
                   </div>
-                  {lead.gohighlevel_last_synced_at && (
+                  {(lead as any).gohighlevel_last_synced_at && (
                     <p className="text-sm text-muted-foreground">
-                      Last synced: {formatDateTime(lead.gohighlevel_last_synced_at)}
+                      Last synced: {formatDateTime((lead as any).gohighlevel_last_synced_at)}
                     </p>
                   )}
                 </div>

@@ -1067,7 +1067,7 @@ export default function DealDetail() {
       await syncSingleDeal();
       // Refresh all deal data after sync
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['deal', slug] }),
+        queryClient.invalidateQueries({ queryKey: ['deal', dealId] }),
         queryClient.invalidateQueries({ queryKey: ['deal-checklist', dealId] }),
         queryClient.invalidateQueries({ queryKey: ['deal-comments', dealId] }),
         queryClient.invalidateQueries({ queryKey: ['deal-files', dealId] })
@@ -1318,9 +1318,9 @@ export default function DealDetail() {
                     {isPushingToGHL ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        {client?.gohighlevel_contact_id ? 'Updating...' : 'Creating...'}
+                        {(client as any)?.gohighlevel_contact_id ? 'Updating...' : 'Creating...'}
                       </>
-                    ) : client?.gohighlevel_contact_id ? (
+                    ) : (client as any)?.gohighlevel_contact_id ? (
                       'Update in Leadslift'
                     ) : (
                       'Add Contact & Create Deal on Leadslift'
@@ -1328,7 +1328,7 @@ export default function DealDetail() {
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  {client?.gohighlevel_contact_id
+                  {(client as any)?.gohighlevel_contact_id
                     ? 'Update this client contact in Leadslift/GoHighLevel CRM'
                     : 'Add this client as a contact and create an opportunity in Leadslift CRM'}
                 </TooltipContent>
@@ -1356,7 +1356,7 @@ export default function DealDetail() {
                       .update({ status: value })
                       .eq('id', deal.id);
                     toast({ title: 'Status updated successfully' });
-                    queryClient.invalidateQueries({ queryKey: ['deal', slug] });
+                    queryClient.invalidateQueries({ queryKey: ['deal', dealId] });
                   } catch (error) {
                     toast({ title: 'Failed to update status', variant: 'destructive' });
                   }
@@ -1386,7 +1386,7 @@ export default function DealDetail() {
                     .from('deals')
                     .update({ title: e.target.value })
                     .eq('id', deal.id);
-                  queryClient.invalidateQueries({ queryKey: ['deal', slug] });
+                  queryClient.invalidateQueries({ queryKey: ['deal', dealId] });
                 } catch (error) {
                   toast({ title: 'Failed to update title', variant: 'destructive' });
                 }
@@ -1430,7 +1430,7 @@ export default function DealDetail() {
                         .from('deals')
                         .update({ amount: newValue })
                         .eq('id', deal.id);
-                      queryClient.invalidateQueries({ queryKey: ['deal', slug] });
+                      queryClient.invalidateQueries({ queryKey: ['deal', dealId] });
                       toast({ title: 'Deal amount updated' });
                     } catch (error) {
                       toast({ title: 'Failed to update amount', variant: 'destructive' });
@@ -1454,7 +1454,7 @@ export default function DealDetail() {
                         .from('deals')
                         .update({ potential_amount: newValue })
                         .eq('id', deal.id);
-                      queryClient.invalidateQueries({ queryKey: ['deal', slug] });
+                      queryClient.invalidateQueries({ queryKey: ['deal', dealId] });
                       toast({ title: 'Potential amount updated' });
                     } catch (error) {
                       toast({ title: 'Failed to update potential amount', variant: 'destructive' });
@@ -1594,7 +1594,7 @@ export default function DealDetail() {
                             .update({ stage: value })
                             .eq('id', deal.id);
                           toast({ title: 'Stage updated successfully' });
-                          queryClient.invalidateQueries({ queryKey: ['deal', slug] });
+                          queryClient.invalidateQueries({ queryKey: ['deal', dealId] });
                         } catch (error) {
                           toast({ title: 'Failed to update stage', variant: 'destructive' });
                         }
@@ -1623,7 +1623,7 @@ export default function DealDetail() {
                             .update({ status: value })
                             .eq('id', deal.id);
                           toast({ title: 'Status updated successfully' });
-                          queryClient.invalidateQueries({ queryKey: ['deal', slug] });
+                          queryClient.invalidateQueries({ queryKey: ['deal', dealId] });
                         } catch (error) {
                           toast({ title: 'Failed to update status', variant: 'destructive' });
                         }
@@ -1654,7 +1654,7 @@ export default function DealDetail() {
                             .update({ expected_closing_date: e.target.value })
                             .eq('id', deal.id);
                           toast({ title: 'Expected close date updated' });
-                          queryClient.invalidateQueries({ queryKey: ['deal', slug] });
+                          queryClient.invalidateQueries({ queryKey: ['deal', dealId] });
                         } catch (error) {
                           toast({ title: 'Failed to update date', variant: 'destructive' });
                         }
@@ -1672,7 +1672,7 @@ export default function DealDetail() {
                             .update({ lead_source: value })
                             .eq('id', deal.id);
                           toast({ title: 'Lead source updated' });
-                          queryClient.invalidateQueries({ queryKey: ['deal', slug] });
+                          queryClient.invalidateQueries({ queryKey: ['deal', dealId] });
                         } catch (error) {
                           toast({ title: 'Failed to update lead source', variant: 'destructive' });
                         }
@@ -1701,7 +1701,7 @@ export default function DealDetail() {
                             .update({ dealtype: value })
                             .eq('id', deal.id);
                           toast({ title: 'Deal type updated' });
-                          queryClient.invalidateQueries({ queryKey: ['deal', slug] });
+                          queryClient.invalidateQueries({ queryKey: ['deal', dealId] });
                         } catch (error) {
                           toast({ title: 'Failed to update deal type', variant: 'destructive' });
                         }
@@ -1727,7 +1727,7 @@ export default function DealDetail() {
                             .update({ category: value })
                             .eq('id', deal.id);
                           toast({ title: 'Category updated' });
-                          queryClient.invalidateQueries({ queryKey: ['deal', slug] });
+                          queryClient.invalidateQueries({ queryKey: ['deal', dealId] });
                         } catch (error) {
                           toast({ title: 'Failed to update category', variant: 'destructive' });
                         }
@@ -1756,7 +1756,7 @@ export default function DealDetail() {
                             .update({ pipeline: value })
                             .eq('id', deal.id);
                           toast({ title: 'Pipeline updated' });
-                          queryClient.invalidateQueries({ queryKey: ['deal', slug] });
+                          queryClient.invalidateQueries({ queryKey: ['deal', dealId] });
                         } catch (error) {
                           toast({ title: 'Failed to update pipeline', variant: 'destructive' });
                         }
@@ -1785,7 +1785,7 @@ export default function DealDetail() {
                             .update({ type_of_work: value })
                             .eq('id', deal.id);
                           toast({ title: 'Type of work updated' });
-                          queryClient.invalidateQueries({ queryKey: ['deal', slug] });
+                          queryClient.invalidateQueries({ queryKey: ['deal', dealId] });
                         } catch (error) {
                           toast({ title: 'Failed to update type of work', variant: 'destructive' });
                         }
@@ -1814,7 +1814,7 @@ export default function DealDetail() {
                             .update({ pod_id: value === 'unassigned' ? null : value })
                             .eq('id', deal.id);
                           toast({ title: 'POD updated' });
-                          queryClient.invalidateQueries({ queryKey: ['deal', slug] });
+                          queryClient.invalidateQueries({ queryKey: ['deal', dealId] });
                         } catch (error) {
                           toast({ title: 'Failed to update POD', variant: 'destructive' });
                         }
@@ -1929,8 +1929,11 @@ export default function DealDetail() {
                                 .from('deals')
                                 .update({ owner_id: value === 'unassigned' ? null : value })
                                 .eq('id', deal.id);
+                              // Immediate local state update
+                              const selectedUser = value === 'unassigned' ? null : allUsers.find(u => u.id === value) || null;
+                              setOwner(selectedUser);
                               toast({ title: 'Deal owner updated' });
-                              queryClient.invalidateQueries({ queryKey: ['deal', slug] });
+                              queryClient.invalidateQueries({ queryKey: ['deal', dealId] });
                             } catch (error) {
                               toast({ title: 'Failed to update deal owner', variant: 'destructive' });
                             }
@@ -1963,8 +1966,11 @@ export default function DealDetail() {
                                 .from('deals')
                                 .update({ owner_id: value === 'unassigned' ? null : value })
                                 .eq('id', deal.id);
+                              // Immediate local state update
+                              const selectedUser = value === 'unassigned' ? null : allUsers.find(u => u.id === value) || null;
+                              setOwner(selectedUser);
                               toast({ title: 'Deal owner updated' });
-                              queryClient.invalidateQueries({ queryKey: ['deal', slug] });
+                              queryClient.invalidateQueries({ queryKey: ['deal', dealId] });
                             } catch (error) {
                               toast({ title: 'Failed to update deal owner', variant: 'destructive' });
                             }
@@ -1996,8 +2002,11 @@ export default function DealDetail() {
                                 .from('deals')
                                 .update({ owner_id: value === 'unassigned' ? null : value })
                                 .eq('id', deal.id);
+                              // Immediate local state update
+                              const selectedUser = value === 'unassigned' ? null : allUsers.find(u => u.id === value) || null;
+                              setOwner(selectedUser);
                               toast({ title: 'Deal owner updated' });
-                              queryClient.invalidateQueries({ queryKey: ['deal', slug] });
+                              queryClient.invalidateQueries({ queryKey: ['deal', dealId] });
                             } catch (error) {
                               toast({ title: 'Failed to update deal owner', variant: 'destructive' });
                             }
@@ -2167,7 +2176,7 @@ export default function DealDetail() {
                             .update({ internal_estimate_doc_url: e.target.value })
                             .eq('id', deal.id);
                           toast({ title: 'Internal estimate doc URL updated' });
-                          queryClient.invalidateQueries({ queryKey: ['deal', slug] });
+                          queryClient.invalidateQueries({ queryKey: ['deal', dealId] });
                         } catch (error) {
                           toast({ title: 'Failed to update internal estimate doc URL', variant: 'destructive' });
                         }
@@ -2190,7 +2199,7 @@ export default function DealDetail() {
                             .update({ client_estimate_doc_url: e.target.value })
                             .eq('id', deal.id);
                           toast({ title: 'Client estimate doc URL updated' });
-                          queryClient.invalidateQueries({ queryKey: ['deal', slug] });
+                          queryClient.invalidateQueries({ queryKey: ['deal', dealId] });
                         } catch (error) {
                           toast({ title: 'Failed to update client estimate doc URL', variant: 'destructive' });
                         }
@@ -2213,7 +2222,7 @@ export default function DealDetail() {
                             .update({ pandadoc_proposal_url: e.target.value })
                             .eq('id', deal.id);
                           toast({ title: 'PandaDoc URL updated' });
-                          queryClient.invalidateQueries({ queryKey: ['deal', slug] });
+                          queryClient.invalidateQueries({ queryKey: ['deal', dealId] });
                         } catch (error) {
                           toast({ title: 'Failed to update PandaDoc URL', variant: 'destructive' });
                         }
@@ -2236,7 +2245,7 @@ export default function DealDetail() {
                             .update({ estimate_task_link: e.target.value })
                             .eq('id', deal.id);
                           toast({ title: 'Estimate task link updated' });
-                          queryClient.invalidateQueries({ queryKey: ['deal', slug] });
+                          queryClient.invalidateQueries({ queryKey: ['deal', dealId] });
                         } catch (error) {
                           toast({ title: 'Failed to update estimate task link', variant: 'destructive' });
                         }
@@ -2271,7 +2280,7 @@ export default function DealDetail() {
                             .update({ collaborative_ai: e.target.value })
                             .eq('id', deal.id);
                           toast({ title: 'CollabAI reference updated' });
-                          queryClient.invalidateQueries({ queryKey: ['deal', slug] });
+                          queryClient.invalidateQueries({ queryKey: ['deal', dealId] });
                         } catch (error) {
                           toast({ title: 'Failed to update CollabAI reference', variant: 'destructive' });
                         }
@@ -2294,7 +2303,7 @@ export default function DealDetail() {
                             .update({ collaborative_ai_link: e.target.value })
                             .eq('id', deal.id);
                           toast({ title: 'CollabAI link updated' });
-                          queryClient.invalidateQueries({ queryKey: ['deal', slug] });
+                          queryClient.invalidateQueries({ queryKey: ['deal', dealId] });
                         } catch (error) {
                           toast({ title: 'Failed to update CollabAI link', variant: 'destructive' });
                         }
@@ -2317,7 +2326,7 @@ export default function DealDetail() {
                             .update({ workboard_ai_link: e.target.value })
                             .eq('id', deal.id);
                           toast({ title: 'Workboard AI link updated' });
-                          queryClient.invalidateQueries({ queryKey: ['deal', slug] });
+                          queryClient.invalidateQueries({ queryKey: ['deal', dealId] });
                         } catch (error) {
                           toast({ title: 'Failed to update Workboard AI link', variant: 'destructive' });
                         }
@@ -2340,7 +2349,7 @@ export default function DealDetail() {
                             .update({ client_agent_url: e.target.value })
                             .eq('id', deal.id);
                           toast({ title: 'Client agent URL updated' });
-                          queryClient.invalidateQueries({ queryKey: ['deal', slug] });
+                          queryClient.invalidateQueries({ queryKey: ['deal', dealId] });
                         } catch (error) {
                           toast({ title: 'Failed to update client agent URL', variant: 'destructive' });
                         }
@@ -2363,7 +2372,7 @@ export default function DealDetail() {
                             .update({ client_agent_folder: e.target.value })
                             .eq('id', deal.id);
                           toast({ title: 'Client agent folder updated' });
-                          queryClient.invalidateQueries({ queryKey: ['deal', slug] });
+                          queryClient.invalidateQueries({ queryKey: ['deal', dealId] });
                         } catch (error) {
                           toast({ title: 'Failed to update client agent folder', variant: 'destructive' });
                         }
@@ -2398,7 +2407,7 @@ export default function DealDetail() {
                             .update({ hubspot_crm_deal_url: e.target.value })
                             .eq('id', deal.id);
                           toast({ title: 'HubSpot URL updated' });
-                          queryClient.invalidateQueries({ queryKey: ['deal', slug] });
+                          queryClient.invalidateQueries({ queryKey: ['deal', dealId] });
                         } catch (error) {
                           toast({ title: 'Failed to update HubSpot URL', variant: 'destructive' });
                         }
@@ -2421,7 +2430,7 @@ export default function DealDetail() {
                             .update({ leadslift_crm_deal_url: e.target.value })
                             .eq('id', deal.id);
                           toast({ title: 'LeadsLift URL updated' });
-                          queryClient.invalidateQueries({ queryKey: ['deal', slug] });
+                          queryClient.invalidateQueries({ queryKey: ['deal', dealId] });
                         } catch (error) {
                           toast({ title: 'Failed to update LeadsLift URL', variant: 'destructive' });
                         }
