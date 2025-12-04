@@ -1925,16 +1925,18 @@ export default function DealDetail() {
                           value={owner?.id || 'unassigned'}
                           onValueChange={async (value) => {
                             try {
-                              await supabase
+                              const { error } = await supabase
                                 .from('deals')
                                 .update({ owner_id: value === 'unassigned' ? null : value })
                                 .eq('id', deal.id);
+                              if (error) throw error;
                               // Immediate local state update
                               const selectedUser = value === 'unassigned' ? null : allUsers.find(u => u.id === value) || null;
                               setOwner(selectedUser);
                               toast({ title: 'Deal owner updated' });
                               queryClient.invalidateQueries({ queryKey: ['deal', dealId] });
                             } catch (error) {
+                              console.error('Failed to update deal owner:', error);
                               toast({ title: 'Failed to update deal owner', variant: 'destructive' });
                             }
                           }}
@@ -1962,16 +1964,18 @@ export default function DealDetail() {
                           value={owner?.id || 'unassigned'}
                           onValueChange={async (value) => {
                             try {
-                              await supabase
+                              const { error } = await supabase
                                 .from('deals')
                                 .update({ owner_id: value === 'unassigned' ? null : value })
                                 .eq('id', deal.id);
+                              if (error) throw error;
                               // Immediate local state update
                               const selectedUser = value === 'unassigned' ? null : allUsers.find(u => u.id === value) || null;
                               setOwner(selectedUser);
                               toast({ title: 'Deal owner updated' });
                               queryClient.invalidateQueries({ queryKey: ['deal', dealId] });
                             } catch (error) {
+                              console.error('Failed to update deal owner:', error);
                               toast({ title: 'Failed to update deal owner', variant: 'destructive' });
                             }
                           }}
@@ -1998,16 +2002,18 @@ export default function DealDetail() {
                           value="unassigned"
                           onValueChange={async (value) => {
                             try {
-                              await supabase
+                              const { error } = await supabase
                                 .from('deals')
                                 .update({ owner_id: value === 'unassigned' ? null : value })
                                 .eq('id', deal.id);
+                              if (error) throw error;
                               // Immediate local state update
                               const selectedUser = value === 'unassigned' ? null : allUsers.find(u => u.id === value) || null;
                               setOwner(selectedUser);
                               toast({ title: 'Deal owner updated' });
                               queryClient.invalidateQueries({ queryKey: ['deal', dealId] });
                             } catch (error) {
+                              console.error('Failed to update deal owner:', error);
                               toast({ title: 'Failed to update deal owner', variant: 'destructive' });
                             }
                           }}
