@@ -97,14 +97,42 @@ const CATEGORY_OPTIONS = [
   { value: 'other', label: 'Other' },
 ];
 
-// Type of Work options
+// Type of Work options (alphabetically sorted)
 const TYPE_OF_WORK_OPTIONS = [
-  { value: 'web_development', label: 'Web Development' },
-  { value: 'marketing_automation', label: 'Marketing Automation' },
-  { value: 'ai_enablement', label: 'AI Enablement' },
-  { value: 'consulting', label: 'Consulting' },
+  { value: 'accounting_backoffice', label: 'Accounting & Backoffice' },
+  { value: 'add_new_features', label: 'Add New Features to Existing Site' },
+  { value: 'bug_fixes', label: 'Bug Fixes' },
+  { value: 'build_custom_website', label: 'Build Custom Website' },
+  { value: 'build_ecommerce', label: 'Build New eCommerce Website' },
+  { value: 'cold_calling', label: 'Cold Calling' },
+  { value: 'consultant', label: 'Consultant' },
   { value: 'crm_setup', label: 'CRM Setup' },
-  { value: 'other', label: 'Other' },
+  { value: 'custom_ai_solution', label: 'Custom AI Solution' },
+  { value: 'data_entry', label: 'Data Entry' },
+  { value: 'design_wireframe', label: 'Design + Wireframe' },
+  { value: 'digital_marketing', label: 'Digital Marketing' },
+  { value: 'email_design_newsletter', label: 'Email Design [Newsletter]' },
+  { value: 'email_development', label: 'Email Development' },
+  { value: 'internal_marketing', label: 'Internal Marketing Works' },
+  { value: 'it_support', label: 'IT Support' },
+  { value: 'landing_page', label: 'Landing Page' },
+  { value: 'lead_generation', label: 'Lead Generation' },
+  { value: 'new_business_campaign', label: 'New Business Idea / Campaign' },
+  { value: 'new_mobile_app', label: 'New Mobile App' },
+  { value: 'new_website', label: 'New Website' },
+  { value: 'partnership_opportunity', label: 'Partnership Opportunity' },
+  { value: 'probono', label: 'ProBono' },
+  { value: 'qa_automation', label: 'QA Automation' },
+  { value: 'qa_manual', label: 'QA Manual' },
+  { value: 'redo_website', label: 'Redo Website' },
+  { value: 'resource', label: 'Resource' },
+  { value: 'server_support', label: 'Server Support' },
+  { value: 'social_media_marketing', label: 'Social Media Marketing' },
+  { value: 'software_development', label: 'Software Development' },
+  { value: 'speed_optimization', label: 'Speed Optimization' },
+  { value: 'update_mobile_app', label: 'Update Existing Mobile App' },
+  { value: 'update_website', label: 'Update Existing Website' },
+  { value: 'white_label_service', label: 'White Label Service' },
 ];
 
 // Lead Source options
