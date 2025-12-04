@@ -225,6 +225,7 @@ interface Deal {
   internal_estimate_doc_url?: string | null;
   client_estimate_doc_url?: string | null;
   estimate_task_link?: string | null;
+  client_call_recording_link?: string | null;
   internal_estimate_doc_link?: string | null;
   pandadoc_proposal_url?: string | null;
   
@@ -2341,6 +2342,29 @@ export default function DealDetail() {
                           queryClient.invalidateQueries({ queryKey: ['deal', dealId] });
                         } catch (error) {
                           toast({ title: 'Failed to update estimate task link', variant: 'destructive' });
+                        }
+                      }
+                    }}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="client_call_recording_link" className="text-xs">Client Call Recording Link</Label>
+                  <Input
+                    id="client_call_recording_link"
+                    className="h-8 text-sm"
+                    placeholder="https://..."
+                    defaultValue={deal.client_call_recording_link || ''}
+                    onBlur={async (e) => {
+                      if (e.target.value !== (deal.client_call_recording_link || '')) {
+                        try {
+                          await supabase
+                            .from('deals')
+                            .update({ client_call_recording_link: e.target.value })
+                            .eq('id', deal.id);
+                          toast({ title: 'Client call recording link updated' });
+                          queryClient.invalidateQueries({ queryKey: ['deal', dealId] });
+                        } catch (error) {
+                          toast({ title: 'Failed to update client call recording link', variant: 'destructive' });
                         }
                       }
                     }}
