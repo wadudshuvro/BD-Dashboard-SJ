@@ -39,6 +39,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
+import { MentionInput, TeamMember, extractMentionedEmails, highlightMentionsInText } from '@/components/comments/MentionInput';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -642,7 +643,13 @@ const DealStageProgress = ({ currentStage }: DealStageProgressProps) => {
   );
 };
 
-const highlightMentions = (text: string, mentionedEmails?: string[] | null) => {
+const highlightMentions = (text: string, mentionedEmails?: string[] | null, teamMembers?: TeamMember[]) => {
+  // If we have teamMembers, use the enhanced highlighting that supports @Name format
+  if (teamMembers && teamMembers.length > 0) {
+    return highlightMentionsInText(text, teamMembers);
+  }
+  
+  // Fallback to email-based highlighting
   if (!mentionedEmails || mentionedEmails.length === 0) {
     return <>{text}</>;
   }
@@ -657,7 +664,7 @@ const highlightMentions = (text: string, mentionedEmails?: string[] | null) => {
           const value = part.slice(1).toLowerCase();
           if (mentionSet.has(value)) {
             return (
-              <span key={`${part}-${index}`} className="font-medium text-primary">
+              <span key={`${part}-${index}`} className="font-semibold text-primary">
                 {part}
               </span>
             );
@@ -970,38 +977,26 @@ export default function DealDetail() {
     }
   };
 
+  // Convert allUsers to TeamMember format for MentionInput
+  const teamMembers: TeamMember[] = useMemo(() => {
+    return allUsers.map(u => ({
+      id: u.id,
+      name: `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.email,
+      email: u.email
+    }));
+  }, [allUsers]);
+
   const handleAddComment = async () => {
     if (!newComment.trim()) return;
 
-    const mentionPattern = /@([\w.+-@]+)/g;
-    const mentions = [...newComment.matchAll(mentionPattern)].map((match) => match[1]);
-    const uniqueMentions = Array.from(new Set(mentions));
-
-    let mentionedUsersPayload: AddCommentPayload['mentioned_users'] = [];
-    let mentionedEmailsPayload: AddCommentPayload['mentioned_user_emails'] = [];
-
-    if (uniqueMentions.length > 0) {
-      const { data: mentionUsers, error: mentionError } = await supabase
-        .from('users')
-        .select('id, email')
-        .in('email', uniqueMentions);
-
-      if (mentionError) {
-        console.error('Failed to resolve mentions:', mentionError);
-      } else if (mentionUsers) {
-        mentionedUsersPayload = mentionUsers.map((user) => user.id);
-        mentionedEmailsPayload = mentionUsers.map((user) => user.email);
-      }
-    } else {
-      mentionedUsersPayload = [];
-      mentionedEmailsPayload = [];
-    }
+    // Use the new extractMentionedEmails helper
+    const { mentionedUsers, mentionedEmails } = extractMentionedEmails(newComment, teamMembers);
 
     try {
       await addCommentMutation.mutateAsync({
         comment: newComment,
-        mentioned_users: mentionedUsersPayload,
-        mentioned_user_emails: mentionedEmailsPayload,
+        mentioned_users: mentionedUsers,
+        mentioned_user_emails: mentionedEmails,
       });
       setNewComment('');
     } catch (err) {
@@ -2644,10 +2639,11 @@ export default function DealDetail() {
                       {/* Edit mode */}
                       {editingCommentId === comment.id ? (
                         <div className="space-y-2">
-                          <Textarea
+                          <MentionInput
                             value={editingCommentText}
-                            onChange={(e) => setEditingCommentText(e.target.value)}
+                            onChange={setEditingCommentText}
                             className="min-h-[80px]"
+                            teamMembers={teamMembers}
                             autoFocus
                           />
                           <div className="flex gap-2 justify-end">
@@ -2669,7 +2665,7 @@ export default function DealDetail() {
                         </div>
                       ) : (
                         <div className="text-sm break-words whitespace-pre-wrap" style={{ display: 'block' }}>
-                          {highlightMentions(comment.comment, comment.mentioned_user_emails)}
+                          {highlightMentions(comment.comment, comment.mentioned_user_emails, teamMembers)}
                         </div>
                       )}
                       
@@ -2685,17 +2681,18 @@ export default function DealDetail() {
                 )}
               </div>
               <div className="flex gap-2">
-                <Textarea
-                  placeholder="Add a comment..."
+                <MentionInput
+                  placeholder="Add a comment... Type @ to mention someone"
                   value={newComment}
-                  onChange={(e) => setNewComment(e.target.value)}
+                  onChange={setNewComment}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
+                    if (e.key === 'Enter' && !e.shiftKey && !newComment.includes('@')) {
                       e.preventDefault();
                       handleAddComment();
                     }
                   }}
                   className="min-h-[60px]"
+                  teamMembers={teamMembers}
                 />
                 <Button
                   onClick={handleAddComment}
