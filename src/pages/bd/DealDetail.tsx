@@ -805,22 +805,42 @@ export default function DealDetail() {
         }
       }
 
-      // Fetch all users for owner/PM assignment dropdown
-      // Only users from the users table can be assigned due to FK constraint on auth.users
-      const { data: usersData } = await supabase
-        .from('users')
-        .select('id, first_name, last_name, email')
-        .eq('status', 'active')
-        .order('first_name');
+      // Fetch all users for PM assignment dropdown (from both users and employees tables)
+      const [usersResult, employeesResult] = await Promise.all([
+        supabase
+          .from('users')
+          .select('id, first_name, last_name, email')
+          .eq('status', 'active')
+          .order('first_name'),
+        supabase
+          .from('employees')
+          .select('id, full_name, email')
+          .eq('is_active', true)
+          .order('full_name')
+      ]);
       
-      if (usersData) {
-        setAllUsers(usersData.map(u => ({
+      // Combine users and employees, converting employees to UserProfile format
+      const combinedUsers: UserProfile[] = [
+        ...(usersResult.data || []).map(u => ({
           id: u.id,
           first_name: u.first_name,
           last_name: u.last_name,
           email: u.email
-        })));
-      }
+        })),
+        ...(employeesResult.data || []).map(e => {
+          const nameParts = (e.full_name || '').split(' ');
+          return {
+            id: e.id,
+            first_name: nameParts[0] || '',
+            last_name: nameParts.slice(1).join(' ') || '',
+            email: e.email
+          };
+        })
+      ];
+      
+      // Sort combined list by first_name
+      combinedUsers.sort((a, b) => (a.first_name || '').localeCompare(b.first_name || ''));
+      setAllUsers(combinedUsers);
     }
 
     loadRelatedData();
