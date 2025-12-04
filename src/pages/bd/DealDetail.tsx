@@ -745,24 +745,64 @@ export default function DealDetail() {
         if (clientData) setClient(clientData as Client);
       }
 
-      // Fetch owner
+      // Fetch owner (check both users and employees tables)
       if (dealData.owner_id) {
         const { data: ownerData } = await supabase
           .from('users')
           .select('id, first_name, last_name, email')
           .eq('id', dealData.owner_id)
           .maybeSingle();
-        if (ownerData) setOwner(ownerData as UserProfile);
+        
+        if (ownerData) {
+          setOwner(ownerData as UserProfile);
+        } else {
+          // Try employees table if not found in users
+          const { data: employeeData } = await supabase
+            .from('employees')
+            .select('id, full_name, email')
+            .eq('id', dealData.owner_id)
+            .maybeSingle();
+          
+          if (employeeData) {
+            const nameParts = (employeeData.full_name || '').split(' ');
+            setOwner({
+              id: employeeData.id,
+              first_name: nameParts[0] || '',
+              last_name: nameParts.slice(1).join(' ') || '',
+              email: employeeData.email
+            } as UserProfile);
+          }
+        }
       }
 
-      // Fetch PM
+      // Fetch PM (check both users and employees tables)
       if (dealData.pm_assigned_id) {
         const { data: pmData } = await supabase
           .from('users')
           .select('id, first_name, last_name, email')
           .eq('id', dealData.pm_assigned_id)
           .maybeSingle();
-        if (pmData) setPm(pmData as UserProfile);
+        
+        if (pmData) {
+          setPm(pmData as UserProfile);
+        } else {
+          // Try employees table if not found in users
+          const { data: employeeData } = await supabase
+            .from('employees')
+            .select('id, full_name, email')
+            .eq('id', dealData.pm_assigned_id)
+            .maybeSingle();
+          
+          if (employeeData) {
+            const nameParts = (employeeData.full_name || '').split(' ');
+            setPm({
+              id: employeeData.id,
+              first_name: nameParts[0] || '',
+              last_name: nameParts.slice(1).join(' ') || '',
+              email: employeeData.email
+            } as UserProfile);
+          }
+        }
       }
 
       // Fetch all users for PM assignment dropdown (from both users and employees tables)
