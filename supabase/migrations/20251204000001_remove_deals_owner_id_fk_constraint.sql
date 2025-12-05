@@ -31,3 +31,4 @@ COMMENT ON COLUMN deals.owner_id IS 'UUID of the deal owner - can be from users 
 
 
 
+

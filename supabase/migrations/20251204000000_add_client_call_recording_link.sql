@@ -7,3 +7,4 @@ COMMENT ON COLUMN deals.client_call_recording_link IS 'URL link to the client ca
 
 
 
+

@@ -38,3 +38,4 @@ INSERT INTO checklist_templates (name, stage, items, is_active) VALUES
 
 
 
+
