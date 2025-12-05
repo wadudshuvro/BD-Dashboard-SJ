@@ -1,5 +1,5 @@
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, Loader2, Mail, Linkedin, Phone, Sparkles, MessageSquare, Trash2, Calendar, Users, Network, Briefcase, FileText, Award, Globe, Brain, Copy, Lightbulb, CheckSquare, BarChart3, Target, AlertTriangle, RefreshCw, Building, AlertCircle, Facebook, Instagram } from "lucide-react";
+import { ArrowLeft, Loader2, Mail, Linkedin, Phone, Sparkles, MessageSquare, Trash2, Calendar, Users, Network, Briefcase, FileText, Award, Globe, Brain, Copy, Lightbulb, CheckSquare, BarChart3, Target, AlertTriangle, RefreshCw, Building, AlertCircle, Facebook, Instagram, Pencil, Check, X } from "lucide-react";
 import { StatusBadgeWithIcon } from "@/components/bd/StatusBadgeWithIcon";
 import { StatusProgressBar } from "@/components/bd/StatusProgressBar";
 import { StatusHistoryTimeline } from "@/components/bd/StatusHistoryTimeline";
@@ -12,6 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -57,6 +58,14 @@ export default function CampaignContactDetail() {
   const [socialPlatform, setSocialPlatform] = useState<'linkedin' | 'facebook' | 'instagram'>(
     (contact?.metadata as any)?.social_platform || 'linkedin'
   );
+  
+  // Inline editing states
+  const [editingField, setEditingField] = useState<string | null>(null);
+  const [editedName, setEditedName] = useState("");
+  const [editedTitle, setEditedTitle] = useState("");
+  const [editedCompany, setEditedCompany] = useState("");
+  const [editedEmail, setEditedEmail] = useState("");
+  const [editedPhone, setEditedPhone] = useState("");
   
   // Get completed stages from metadata with backward compatibility
   // If completed_stages doesn't exist, initialize based on current status (linear progression)
@@ -217,6 +226,67 @@ export default function CampaignContactDetail() {
         ? `Stage unmarked as completed` 
         : `Stage marked as completed`
     );
+  };
+
+  // Inline editing handlers
+  const startEditing = (field: string, currentValue: string) => {
+    setEditingField(field);
+    switch (field) {
+      case 'name':
+        setEditedName(currentValue || '');
+        break;
+      case 'title':
+        setEditedTitle(currentValue || '');
+        break;
+      case 'company':
+        setEditedCompany(currentValue || '');
+        break;
+      case 'email':
+        setEditedEmail(currentValue || '');
+        break;
+      case 'phone':
+        setEditedPhone(currentValue || '');
+        break;
+    }
+  };
+
+  const cancelEditing = () => {
+    setEditingField(null);
+  };
+
+  const saveFieldEdit = async (field: string) => {
+    if (!contact) return;
+    
+    let updates: Record<string, string> = {};
+    
+    switch (field) {
+      case 'name':
+        if (editedName.trim() === '') {
+          toast.error("Name cannot be empty");
+          return;
+        }
+        updates = { contact_name: editedName.trim() };
+        break;
+      case 'title':
+        updates = { current_position_title: editedTitle.trim() };
+        break;
+      case 'company':
+        updates = { current_employer: editedCompany.trim() };
+        break;
+      case 'email':
+        updates = { contact_email: editedEmail.trim() };
+        break;
+      case 'phone':
+        updates = { contact_phone: editedPhone.trim() };
+        break;
+    }
+    
+    updateMutation.mutate({
+      contactId: contact.id,
+      updates
+    });
+    
+    setEditingField(null);
   };
 
   const handleRunAgent = async () => {
@@ -503,31 +573,161 @@ export default function CampaignContactDetail() {
       <Card>
         <CardHeader>
           <div className="flex justify-between items-start">
-            <div className="space-y-2">
-              <CardTitle className="text-2xl">{contact.contact_name}</CardTitle>
-              <div className="flex flex-col gap-1.5">
-                {(contact.current_position_title || contact.contact_title) && (
-                  <p className="text-sm text-muted-foreground font-medium">
-                    {contact.current_position_title || contact.contact_title}
-                  </p>
-                )}
-                {(contact.current_employer || contact.contact_company) && (
-                  <div className="flex items-center gap-2">
-                    <Briefcase className="h-3.5 w-3.5 text-muted-foreground" />
-                    {contact.company_id ? (
-                      <Link 
-                        to={`/companies/${contact.company_id}`}
-                        className="text-sm text-primary hover:underline"
-                      >
-                        {contact.current_employer || contact.contact_company}
-                      </Link>
-                    ) : (
-                      <span className="text-sm text-muted-foreground">
-                        {contact.current_employer || contact.contact_company}
-                      </span>
-                    )}
+            <div className="space-y-2 flex-1">
+              {/* Editable Name */}
+              <div className="flex items-center gap-2 group">
+                {editingField === 'name' ? (
+                  <div className="flex items-center gap-2 flex-1">
+                    <Input
+                      value={editedName}
+                      onChange={(e) => setEditedName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') saveFieldEdit('name');
+                        if (e.key === 'Escape') cancelEditing();
+                      }}
+                      className="text-2xl font-bold"
+                      autoFocus
+                    />
+                    <Button size="icon" variant="ghost" onClick={() => saveFieldEdit('name')}>
+                      <Check className="h-4 w-4 text-green-600" />
+                    </Button>
+                    <Button size="icon" variant="ghost" onClick={cancelEditing}>
+                      <X className="h-4 w-4 text-red-600" />
+                    </Button>
                   </div>
+                ) : (
+                  <>
+                    <CardTitle className="text-2xl">{contact.contact_name}</CardTitle>
+                    <Button 
+                      size="icon" 
+                      variant="ghost" 
+                      className="opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => startEditing('name', contact.contact_name)}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  </>
                 )}
+              </div>
+              
+              <div className="flex flex-col gap-1.5">
+                {/* Editable Title */}
+                <div className="flex items-center gap-2 group">
+                  {editingField === 'title' ? (
+                    <div className="flex items-center gap-2 flex-1">
+                      <Input
+                        value={editedTitle}
+                        onChange={(e) => setEditedTitle(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') saveFieldEdit('title');
+                          if (e.key === 'Escape') cancelEditing();
+                        }}
+                        className="text-sm"
+                        placeholder="Position title"
+                        autoFocus
+                      />
+                      <Button size="icon" variant="ghost" onClick={() => saveFieldEdit('title')}>
+                        <Check className="h-4 w-4 text-green-600" />
+                      </Button>
+                      <Button size="icon" variant="ghost" onClick={cancelEditing}>
+                        <X className="h-4 w-4 text-red-600" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <>
+                      {(contact.current_position_title || contact.contact_title) ? (
+                        <>
+                          <p className="text-sm text-muted-foreground font-medium">
+                            {contact.current_position_title || contact.contact_title}
+                          </p>
+                          <Button 
+                            size="icon" 
+                            variant="ghost" 
+                            className="opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6"
+                            onClick={() => startEditing('title', contact.current_position_title || contact.contact_title || '')}
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </Button>
+                        </>
+                      ) : (
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          className="text-xs text-muted-foreground hover:text-foreground"
+                          onClick={() => startEditing('title', '')}
+                        >
+                          <Pencil className="h-3 w-3 mr-1" />
+                          Add position title
+                        </Button>
+                      )}
+                    </>
+                  )}
+                </div>
+                
+                {/* Editable Company */}
+                <div className="flex items-center gap-2 group">
+                  {editingField === 'company' ? (
+                    <div className="flex items-center gap-2 flex-1">
+                      <Briefcase className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                      <Input
+                        value={editedCompany}
+                        onChange={(e) => setEditedCompany(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') saveFieldEdit('company');
+                          if (e.key === 'Escape') cancelEditing();
+                        }}
+                        className="text-sm"
+                        placeholder="Company name"
+                        autoFocus
+                      />
+                      <Button size="icon" variant="ghost" onClick={() => saveFieldEdit('company')}>
+                        <Check className="h-4 w-4 text-green-600" />
+                      </Button>
+                      <Button size="icon" variant="ghost" onClick={cancelEditing}>
+                        <X className="h-4 w-4 text-red-600" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <>
+                      {(contact.current_employer || contact.contact_company) ? (
+                        <>
+                          <Briefcase className="h-3.5 w-3.5 text-muted-foreground" />
+                          {contact.company_id ? (
+                            <Link 
+                              to={`/companies/${contact.company_id}`}
+                              className="text-sm text-primary hover:underline"
+                            >
+                              {contact.current_employer || contact.contact_company}
+                            </Link>
+                          ) : (
+                            <span className="text-sm text-muted-foreground">
+                              {contact.current_employer || contact.contact_company}
+                            </span>
+                          )}
+                          <Button 
+                            size="icon" 
+                            variant="ghost" 
+                            className="opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6"
+                            onClick={() => startEditing('company', contact.current_employer || contact.contact_company || '')}
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </Button>
+                        </>
+                      ) : (
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          className="text-xs text-muted-foreground hover:text-foreground"
+                          onClick={() => startEditing('company', '')}
+                        >
+                          <Pencil className="h-3 w-3 mr-1" />
+                          Add company
+                        </Button>
+                      )}
+                    </>
+                  )}
+                </div>
+                
                 {contact.years_in_current_role && (
                   <Badge variant="secondary" className="w-fit text-xs">
                     <Calendar className="h-3 w-3 mr-1" />
@@ -680,6 +880,141 @@ export default function CampaignContactDetail() {
             </TabsList>
 
             <TabsContent value="overview" className="space-y-6 mt-6">
+              {/* Contact Information Card */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Contact Information</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {/* Email */}
+                  <div className="flex items-center gap-2 group">
+                    {editingField === 'email' ? (
+                      <div className="flex items-center gap-2 flex-1">
+                        <Mail className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                        <Input
+                          value={editedEmail}
+                          onChange={(e) => setEditedEmail(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') saveFieldEdit('email');
+                            if (e.key === 'Escape') cancelEditing();
+                          }}
+                          className="text-sm"
+                          placeholder="Email address"
+                          type="email"
+                          autoFocus
+                        />
+                        <Button size="icon" variant="ghost" onClick={() => saveFieldEdit('email')}>
+                          <Check className="h-4 w-4 text-green-600" />
+                        </Button>
+                        <Button size="icon" variant="ghost" onClick={cancelEditing}>
+                          <X className="h-4 w-4 text-red-600" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <>
+                        <Mail className="h-4 w-4 text-muted-foreground" />
+                        {contact.contact_email ? (
+                          <>
+                            <a href={`mailto:${contact.contact_email}`} className="text-sm text-primary hover:underline">
+                              {contact.contact_email}
+                            </a>
+                            <Button 
+                              size="icon" 
+                              variant="ghost" 
+                              className="opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 ml-auto"
+                              onClick={() => startEditing('email', contact.contact_email || '')}
+                            >
+                              <Pencil className="h-3 w-3" />
+                            </Button>
+                          </>
+                        ) : (
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            className="text-xs text-muted-foreground hover:text-foreground"
+                            onClick={() => startEditing('email', '')}
+                          >
+                            <Pencil className="h-3 w-3 mr-1" />
+                            Add email
+                          </Button>
+                        )}
+                      </>
+                    )}
+                  </div>
+
+                  {/* Phone */}
+                  <div className="flex items-center gap-2 group">
+                    {editingField === 'phone' ? (
+                      <div className="flex items-center gap-2 flex-1">
+                        <Phone className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                        <Input
+                          value={editedPhone}
+                          onChange={(e) => setEditedPhone(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') saveFieldEdit('phone');
+                            if (e.key === 'Escape') cancelEditing();
+                          }}
+                          className="text-sm"
+                          placeholder="Phone number"
+                          type="tel"
+                          autoFocus
+                        />
+                        <Button size="icon" variant="ghost" onClick={() => saveFieldEdit('phone')}>
+                          <Check className="h-4 w-4 text-green-600" />
+                        </Button>
+                        <Button size="icon" variant="ghost" onClick={cancelEditing}>
+                          <X className="h-4 w-4 text-red-600" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <>
+                        <Phone className="h-4 w-4 text-muted-foreground" />
+                        {contact.contact_phone ? (
+                          <>
+                            <a href={`tel:${contact.contact_phone}`} className="text-sm text-primary hover:underline">
+                              {contact.contact_phone}
+                            </a>
+                            <Button 
+                              size="icon" 
+                              variant="ghost" 
+                              className="opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 ml-auto"
+                              onClick={() => startEditing('phone', contact.contact_phone || '')}
+                            >
+                              <Pencil className="h-3 w-3" />
+                            </Button>
+                          </>
+                        ) : (
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            className="text-xs text-muted-foreground hover:text-foreground"
+                            onClick={() => startEditing('phone', '')}
+                          >
+                            <Pencil className="h-3 w-3 mr-1" />
+                            Add phone
+                          </Button>
+                        )}
+                      </>
+                    )}
+                  </div>
+
+                  {/* LinkedIn URL */}
+                  {contact.contact_linkedin_url && (
+                    <div className="flex items-center gap-2">
+                      <Linkedin className="h-4 w-4 text-muted-foreground" />
+                      <a 
+                        href={getValidUrl(contact.contact_linkedin_url)} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-sm text-primary hover:underline"
+                      >
+                        LinkedIn Profile
+                      </a>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
               {/* Key Stats Row */}
               {(contact.linkedin_follower_count || contact.linkedin_connection_count || contact.total_years_experience) && (
                 <div className="grid gap-4 md:grid-cols-3">
