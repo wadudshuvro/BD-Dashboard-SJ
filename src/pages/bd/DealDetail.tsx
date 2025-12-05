@@ -228,6 +228,7 @@ interface Deal {
   client_call_recording_link?: string | null;
   internal_estimate_doc_link?: string | null;
   pandadoc_proposal_url?: string | null;
+  client_call_recording_link?: string | null;
   
   // Collaboration URLs
   collaborative_ai?: string | null;
@@ -696,6 +697,7 @@ export default function DealDetail() {
   const [owner, setOwner] = useState<UserProfile | null>(null);
   const [pm, setPm] = useState<UserProfile | null>(null);
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
+  const [validOwners, setValidOwners] = useState<UserProfile[]>([]); // Users from users table only (for owner_id FK constraint)
   const [error, setError] = useState<string | null>(null);
   const [newComment, setNewComment] = useState('');
   const [newChecklistItem, setNewChecklistItem] = useState('');
@@ -879,24 +881,46 @@ export default function DealDetail() {
           .order('full_name')
       ]);
       
-      // Combine users and employees, converting employees to UserProfile format
-      const combinedUsers: UserProfile[] = [
-        ...(usersResult.data || []).map(u => ({
+      // Users from users table - valid for Deal Owner (has FK constraint to auth.users)
+      const usersOnly: UserProfile[] = (usersResult.data || []).map(u => ({
+        id: u.id,
+        first_name: u.first_name,
+        last_name: u.last_name,
+        email: u.email
+      }));
+      usersOnly.sort((a, b) => (a.first_name || '').localeCompare(b.first_name || ''));
+      setValidOwners(usersOnly);
+      
+      // Combine users and employees for PM assignment (no FK constraint)
+      // Use a Map to deduplicate by email, preferring users table entries
+      const userMap = new Map<string, UserProfile>();
+      
+      // Add users first (they take priority)
+      (usersResult.data || []).forEach(u => {
+        const email = (u.email || '').toLowerCase();
+        userMap.set(email, {
           id: u.id,
           first_name: u.first_name,
           last_name: u.last_name,
           email: u.email
-        })),
-        ...(employeesResult.data || []).map(e => {
+        });
+      });
+      
+      // Add employees only if not already in the map
+      (employeesResult.data || []).forEach(e => {
+        const email = (e.email || '').toLowerCase();
+        if (!userMap.has(email)) {
           const nameParts = (e.full_name || '').split(' ');
-          return {
+          userMap.set(email, {
             id: e.id,
             first_name: nameParts[0] || '',
             last_name: nameParts.slice(1).join(' ') || '',
             email: e.email
-          };
-        })
-      ];
+          });
+        }
+      });
+      
+      const combinedUsers: UserProfile[] = Array.from(userMap.values());
       
       // Sort combined list by first_name
       combinedUsers.sort((a, b) => (a.first_name || '').localeCompare(b.first_name || ''));
@@ -2013,19 +2037,34 @@ export default function DealDetail() {
                           value={owner?.id || 'unassigned'}
                           onValueChange={async (value) => {
                             try {
-                              const { error } = await supabase
+                              // Immediately update local state for instant UI feedback
+                              if (value === 'unassigned') {
+                                setOwner(null);
+                              } else {
+                                const selectedUser = allUsers.find(u => u.id === value);
+                                if (selectedUser) {
+                                  setOwner(selectedUser);
+                                }
+                              }
+                              
+                              const { error: updateError } = await supabase
                                 .from('deals')
                                 .update({ owner_id: value === 'unassigned' ? null : value })
                                 .eq('id', deal.id);
-                              if (error) throw error;
-                              // Immediate local state update
-                              const selectedUser = value === 'unassigned' ? null : allUsers.find(u => u.id === value) || null;
-                              setOwner(selectedUser);
+                              
+                              if (updateError) throw updateError;
+                              
                               toast({ title: 'Deal owner updated' });
                               queryClient.invalidateQueries({ queryKey: ['deal', dealId] });
                             } catch (error) {
                               console.error('Failed to update deal owner:', error);
-                              toast({ title: 'Failed to update deal owner', variant: 'destructive' });
+                              // Revert on error by refetching
+                              queryClient.invalidateQueries({ queryKey: ['deal', dealId] });
+                              toast({ 
+                                title: 'Failed to update deal owner', 
+                                description: error instanceof Error ? error.message : 'Database update failed',
+                                variant: 'destructive' 
+                              });
                             }
                           }}
                         >
@@ -2052,19 +2091,34 @@ export default function DealDetail() {
                           value={owner?.id || 'unassigned'}
                           onValueChange={async (value) => {
                             try {
-                              const { error } = await supabase
+                              // Immediately update local state for instant UI feedback
+                              if (value === 'unassigned') {
+                                setOwner(null);
+                              } else {
+                                const selectedUser = allUsers.find(u => u.id === value);
+                                if (selectedUser) {
+                                  setOwner(selectedUser);
+                                }
+                              }
+                              
+                              const { error: updateError } = await supabase
                                 .from('deals')
                                 .update({ owner_id: value === 'unassigned' ? null : value })
                                 .eq('id', deal.id);
-                              if (error) throw error;
-                              // Immediate local state update
-                              const selectedUser = value === 'unassigned' ? null : allUsers.find(u => u.id === value) || null;
-                              setOwner(selectedUser);
+                              
+                              if (updateError) throw updateError;
+                              
                               toast({ title: 'Deal owner updated' });
                               queryClient.invalidateQueries({ queryKey: ['deal', dealId] });
                             } catch (error) {
                               console.error('Failed to update deal owner:', error);
-                              toast({ title: 'Failed to update deal owner', variant: 'destructive' });
+                              // Revert on error by refetching
+                              queryClient.invalidateQueries({ queryKey: ['deal', dealId] });
+                              toast({ 
+                                title: 'Failed to update deal owner', 
+                                description: error instanceof Error ? error.message : 'Database update failed',
+                                variant: 'destructive' 
+                              });
                             }
                           }}
                         >
@@ -2090,19 +2144,32 @@ export default function DealDetail() {
                           value="unassigned"
                           onValueChange={async (value) => {
                             try {
-                              const { error } = await supabase
+                              // Immediately update local state for instant UI feedback
+                              if (value !== 'unassigned') {
+                                const selectedUser = allUsers.find(u => u.id === value);
+                                if (selectedUser) {
+                                  setOwner(selectedUser);
+                                }
+                              }
+                              
+                              const { error: updateError } = await supabase
                                 .from('deals')
                                 .update({ owner_id: value === 'unassigned' ? null : value })
                                 .eq('id', deal.id);
-                              if (error) throw error;
-                              // Immediate local state update
-                              const selectedUser = value === 'unassigned' ? null : allUsers.find(u => u.id === value) || null;
-                              setOwner(selectedUser);
+                              
+                              if (updateError) throw updateError;
+                              
                               toast({ title: 'Deal owner updated' });
                               queryClient.invalidateQueries({ queryKey: ['deal', dealId] });
                             } catch (error) {
                               console.error('Failed to update deal owner:', error);
-                              toast({ title: 'Failed to update deal owner', variant: 'destructive' });
+                              // Revert on error by refetching
+                              queryClient.invalidateQueries({ queryKey: ['deal', dealId] });
+                              toast({ 
+                                title: 'Failed to update deal owner', 
+                                description: error instanceof Error ? error.message : 'Database update failed',
+                                variant: 'destructive' 
+                              });
                             }
                           }}
                         >

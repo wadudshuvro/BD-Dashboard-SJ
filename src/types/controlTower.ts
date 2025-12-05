@@ -96,6 +96,7 @@ export interface ControlTowerDealEnhanced extends ControlTowerDeal {
   client_estimate_doc_url?: string;
   estimate_task_link?: string;
   internal_estimate_doc_link?: string;
+  client_call_recording_link?: string;
   
   // Proposal and collaboration URLs
   pandadoc_proposal_url?: string;
