@@ -4537,6 +4537,224 @@ export type Database = {
           },
         ]
       }
+      signing_documents: {
+        Row: {
+          id: string
+          title: string
+          document_type: string
+          status: string
+          dropbox_sign_signature_request_id: string | null
+          template_id: string | null
+          deal_id: string | null
+          client_id: string | null
+          created_by: string
+          sent_at: string | null
+          completed_at: string | null
+          voided_at: string | null
+          expires_at: string | null
+          pdf_url: string | null
+          certificate_url: string | null
+          metadata: Json | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          title: string
+          document_type: string
+          status?: string
+          dropbox_sign_signature_request_id?: string | null
+          template_id?: string | null
+          deal_id?: string | null
+          client_id?: string | null
+          created_by: string
+          sent_at?: string | null
+          completed_at?: string | null
+          voided_at?: string | null
+          expires_at?: string | null
+          pdf_url?: string | null
+          certificate_url?: string | null
+          metadata?: Json | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          title?: string
+          document_type?: string
+          status?: string
+          dropbox_sign_signature_request_id?: string | null
+          template_id?: string | null
+          deal_id?: string | null
+          client_id?: string | null
+          created_by?: string
+          sent_at?: string | null
+          completed_at?: string | null
+          voided_at?: string | null
+          expires_at?: string | null
+          pdf_url?: string | null
+          certificate_url?: string | null
+          metadata?: Json | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "signing_documents_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "signing_documents_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "signing_documents_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      signing_document_recipients: {
+        Row: {
+          id: string
+          document_id: string
+          email: string
+          first_name: string | null
+          last_name: string | null
+          role: string
+          signing_order: number
+          status: string
+          signed_at: string | null
+          viewed_at: string | null
+          dropbox_sign_signer_id: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          document_id: string
+          email: string
+          first_name?: string | null
+          last_name?: string | null
+          role?: string
+          signing_order?: number
+          status?: string
+          signed_at?: string | null
+          viewed_at?: string | null
+          dropbox_sign_signer_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          document_id?: string
+          email?: string
+          first_name?: string | null
+          last_name?: string | null
+          role?: string
+          signing_order?: number
+          status?: string
+          signed_at?: string | null
+          viewed_at?: string | null
+          dropbox_sign_signer_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "signing_document_recipients_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "signing_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      signing_document_activity_log: {
+        Row: {
+          id: string
+          document_id: string
+          action: string
+          actor_email: string | null
+          actor_user_id: string | null
+          metadata: Json | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          document_id: string
+          action: string
+          actor_email?: string | null
+          actor_user_id?: string | null
+          metadata?: Json | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          document_id?: string
+          action?: string
+          actor_email?: string | null
+          actor_user_id?: string | null
+          metadata?: Json | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "signing_document_activity_log_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "signing_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      signing_document_watchers: {
+        Row: {
+          id: string
+          document_id: string
+          user_id: string
+          role: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          document_id: string
+          user_id: string
+          role?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          document_id?: string
+          user_id?: string
+          role?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "signing_document_watchers_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "signing_documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "signing_document_watchers_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

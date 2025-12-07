@@ -76,3 +76,6 @@ verify_jwt = false
 
 [functions.zerobounce-manage]
 verify_jwt = true
+
+[functions.signing-documents-manage]
+verify_jwt = true

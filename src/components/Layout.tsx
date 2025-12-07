@@ -6,8 +6,8 @@ import {
   LayoutDashboard,
   CheckSquare,
   BarChart3,
-  Settings, 
-  Users, 
+  Settings,
+  Users,
   Menu,
   X,
   Bot,
@@ -32,6 +32,7 @@ import {
   ClipboardCheck,
   Handshake,
   MessageSquare,
+  PenTool,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useState } from "react";
@@ -160,6 +161,7 @@ const Layout = ({ userRole }: LayoutProps) => {
       },
       { name: `Campaigns${campaignCount ? ` (${campaignCount})` : ''}`, href: "/campaigns", icon: Megaphone, current: false },
       { name: "Sequences", href: "/sequences", icon: Zap, current: false },
+      { name: "Signing Documents", href: "/signing-documents", icon: PenTool, current: false },
       { 
         name: "Performance", 
         href: "/bd/performance/personal", 

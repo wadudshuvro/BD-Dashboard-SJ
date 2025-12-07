@@ -58,6 +58,8 @@ import AnalyticsDashboard from "./pages/analytics/Dashboard";
 import TeamPerformance from "./pages/analytics/TeamPerformance";
 import CampaignROI from "./pages/bd/CampaignROI";
 import TestEmailPage from "./pages/TestEmailPage";
+import SigningDocuments from "./pages/bd/SigningDocuments";
+import SigningDocumentDetail from "./pages/bd/SigningDocumentDetail";
 
 const queryClient = new QueryClient();
 
@@ -307,6 +309,26 @@ const App = () => (
             }>
               <Route index element={<ProposalManagement />} />
               <Route path="analytics" element={<ProposalAnalytics />} />
+            </Route>
+
+            {/* Signing Documents */}
+            <Route path="/signing-documents" element={
+              <ProtectedRoute requiredMinimumRole="team_member">
+                <Layout />
+              </ProtectedRoute>
+            }>
+              <Route index element={<SigningDocuments />} />
+              <Route path=":id" element={<SigningDocumentDetail />} />
+            </Route>
+
+            {/* Also support /bd/signing-documents path */}
+            <Route path="/bd/signing-documents" element={
+              <ProtectedRoute requiredMinimumRole="team_member">
+                <Layout />
+              </ProtectedRoute>
+            }>
+              <Route index element={<SigningDocuments />} />
+              <Route path=":id" element={<SigningDocumentDetail />} />
             </Route>
 
             {/* Companies */}
