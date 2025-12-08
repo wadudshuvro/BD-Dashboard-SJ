@@ -565,14 +565,27 @@ export const useRemoveWatcher = () => {
 // STATS HOOK (for dashboard)
 // ============================================================================
 
+// Type for signing document stats query (until types regenerate)
+interface SigningDocumentRow {
+  id: string;
+  status: string;
+  document_type: string;
+  created_at: string;
+  sent_at: string | null;
+  completed_at: string | null;
+}
+
 export const useSigningDocumentStats = () => {
   return useQuery({
     queryKey: ["signing-document-stats"],
     queryFn: async () => {
       // Fetch documents directly from Supabase for stats
       const { data: documents, error } = await supabase
-        .from("signing_documents")
-        .select("id, status, document_type, created_at, sent_at, completed_at");
+        .from("signing_documents" as any)
+        .select("id, status, document_type, created_at, sent_at, completed_at") as { 
+          data: SigningDocumentRow[] | null; 
+          error: any 
+        };
 
       if (error) throw error;
 
