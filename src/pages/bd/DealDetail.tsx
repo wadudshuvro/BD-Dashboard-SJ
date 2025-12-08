@@ -77,6 +77,8 @@ import { usePMContactInfo } from '@/hooks/usePMContactInfo';
 import { usePods } from '@/hooks/usePods';
 import { ProposalList } from '@/components/proposals/ProposalList';
 import { ProposalDialog } from '@/components/proposals/ProposalDialog';
+import { RichTextEditor, FileAttachments } from '@/components/rich-text';
+
 
 // Common pipeline options
 const PIPELINE_OPTIONS = [
@@ -713,6 +715,10 @@ export default function DealDetail() {
   
   // Proposal state
   const [createProposalOpen, setCreateProposalOpen] = useState(false);
+  
+  // Rich text editor state for deal details
+  const [dealDetailsContent, setDealDetailsContent] = useState('');
+
 
   // Permission check for AI Lead Evaluation
   const canViewAiLeadEvaluation = Boolean(user && ['super_admin', 'manager', 'bd_user'].includes(user.role));
@@ -724,6 +730,22 @@ export default function DealDetail() {
     dealId: deal?.id,
     enabled: !!deal?.id
   });
+  
+  // Attachments query for deal details
+  const { data: dealAttachments, refetch: refetchAttachments } = useQuery({
+    queryKey: ['deal-attachments', deal?.id],
+    enabled: !!deal?.id,
+    queryFn: async () => {
+      const { data, error } = await (supabase
+        .from('deal_detail_attachments' as any)
+        .select('*')
+        .eq('deal_id', deal?.id)
+        .order('created_at', { ascending: false }) as any);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+  
   const addCommentMutation = useAddComment(dealId);
   const deleteCommentMutation = useDeleteComment(dealId);
   const updateCommentMutation = useUpdateComment(dealId);
@@ -797,6 +819,8 @@ export default function DealDetail() {
       if (!dealData) return;
 
       setDeal(dealData as Deal);
+      setDealDetailsContent(dealData.deal_details || '');
+
 
       // Fetch client
       if (dealData.client_id) {
@@ -1948,20 +1972,18 @@ export default function DealDetail() {
                   </div>
                 </div>
                 
-                {/* Deal Details - Resizable Text Area */}
+                {/* Deal Details - Rich Text Editor */}
                 <div className="col-span-2 mt-4">
                   <p className="text-xs text-muted-foreground mb-1">Deal Details</p>
-                  <textarea
-                    className="w-full min-h-[100px] p-3 text-sm border border-input rounded-md bg-background resize-y whitespace-pre-wrap focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                    placeholder="Enter deal details here... (paste any text, formatting will be preserved)"
-                    defaultValue={deal.deal_details || ''}
-                    onBlur={async (e) => {
-                      const newValue = e.target.value;
-                      if (newValue !== (deal.deal_details || '')) {
+                  <RichTextEditor
+                    content={dealDetailsContent}
+                    onChange={setDealDetailsContent}
+                    onBlur={async () => {
+                      if (dealDetailsContent !== (deal.deal_details || '')) {
                         try {
                           await supabase
                             .from('deals')
-                            .update({ deal_details: newValue || null })
+                            .update({ deal_details: dealDetailsContent || null })
                             .eq('id', deal.id);
                           toast({ title: 'Deal details saved' });
                           queryClient.invalidateQueries({ queryKey: ['deal', dealId] });
@@ -1970,7 +1992,20 @@ export default function DealDetail() {
                         }
                       }
                     }}
+                    placeholder="Enter deal details here... Use @ to mention team members"
+                    teamMembers={teamMembers}
+                    className="min-h-[150px]"
                   />
+                  
+                  {/* File Attachments */}
+                  <div className="mt-4">
+                    <FileAttachments
+                      dealId={deal.id}
+                      attachments={dealAttachments || []}
+                      onAttachmentsChange={() => refetchAttachments()}
+                      maxFileSize={5 * 1024 * 1024}
+                    />
+                  </div>
                 </div>
               </CardContent>
             </Card>
