@@ -2374,6 +2374,7 @@ export type Database = {
           control_tower_owner_id: string | null
           control_tower_status: string | null
           created_at: string
+          deal_details: string | null
           dealtype: string | null
           estimate_task_link: string | null
           estimate_url: string | null
@@ -2430,6 +2431,7 @@ export type Database = {
           control_tower_owner_id?: string | null
           control_tower_status?: string | null
           created_at?: string
+          deal_details?: string | null
           dealtype?: string | null
           estimate_task_link?: string | null
           estimate_url?: string | null
@@ -2486,6 +2488,7 @@ export type Database = {
           control_tower_owner_id?: string | null
           control_tower_status?: string | null
           created_at?: string
+          deal_details?: string | null
           dealtype?: string | null
           estimate_task_link?: string | null
           estimate_url?: string | null

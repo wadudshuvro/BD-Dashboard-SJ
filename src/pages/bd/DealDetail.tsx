@@ -219,6 +219,7 @@ interface Deal {
   pipeline?: string | null;
   type_of_work?: string | null;
   pod_id?: string | null;
+  deal_details?: string | null;
   
   // Document URLs
   estimate_url?: string | null;
@@ -1945,6 +1946,31 @@ export default function DealDetail() {
                       </SelectContent>
                     </Select>
                   </div>
+                </div>
+                
+                {/* Deal Details - Resizable Text Area */}
+                <div className="col-span-2 mt-4">
+                  <p className="text-xs text-muted-foreground mb-1">Deal Details</p>
+                  <textarea
+                    className="w-full min-h-[100px] p-3 text-sm border border-input rounded-md bg-background resize-y whitespace-pre-wrap focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                    placeholder="Enter deal details here... (paste any text, formatting will be preserved)"
+                    defaultValue={deal.deal_details || ''}
+                    onBlur={async (e) => {
+                      const newValue = e.target.value;
+                      if (newValue !== (deal.deal_details || '')) {
+                        try {
+                          await supabase
+                            .from('deals')
+                            .update({ deal_details: newValue || null })
+                            .eq('id', deal.id);
+                          toast({ title: 'Deal details saved' });
+                          queryClient.invalidateQueries({ queryKey: ['deal', dealId] });
+                        } catch (error) {
+                          toast({ title: 'Failed to save deal details', variant: 'destructive' });
+                        }
+                      }
+                    }}
+                  />
                 </div>
               </CardContent>
             </Card>
