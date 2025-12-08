@@ -45,6 +45,7 @@ interface ValidationResult {
     streetAddress?: string;
     city?: string;
     state?: string;
+    zipCode?: string;
     country?: string;
     rowNumber: number;
   }>;
@@ -73,6 +74,7 @@ const OPTIONAL_FIELDS = [
   { key: 'streetAddress', label: 'Street Address' },
   { key: 'city', label: 'City' },
   { key: 'state', label: 'State' },
+  { key: 'zipCode', label: 'Zip Code' },
   { key: 'country', label: 'Country' },
 ];
 
@@ -203,6 +205,7 @@ export function CampaignGoogleSheetImportDialog({
           phone: ['phone', 'phone number', 'mobile', 'contact number', 'telephone'],
           companyIndustry: ['industry', 'company industry', 'sector', 'business sector'],
           companySize: ['company size', 'size', 'employee count', 'employees', 'number of employees'],
+          zipCode: ['zip code', 'zipcode', 'zip', 'postal code', 'postal', 'post code', 'postcode'],
         };
         
         [...REQUIRED_FIELDS, ...OPTIONAL_FIELDS].forEach(field => {
@@ -251,6 +254,7 @@ export function CampaignGoogleSheetImportDialog({
         phone: ['phone', 'phone number', 'mobile', 'contact number', 'telephone'],
         companyIndustry: ['industry', 'company industry', 'sector', 'business sector'],
         companySize: ['company size', 'size', 'employee count', 'employees', 'number of employees'],
+        zipCode: ['zip code', 'zipcode', 'zip', 'postal code', 'postal', 'post code', 'postcode'],
       };
       
       [...REQUIRED_FIELDS, ...OPTIONAL_FIELDS].forEach(field => {
