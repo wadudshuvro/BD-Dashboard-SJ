@@ -3965,6 +3965,84 @@ export type Database = {
           },
         ]
       }
+      signing_documents: {
+        Row: {
+          client_id: string | null
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          deal_id: string | null
+          declined_at: string | null
+          document_type: string
+          expired_at: string | null
+          file_url: string | null
+          id: string
+          sent_at: string | null
+          signed_file_url: string | null
+          signer_email: string | null
+          signer_name: string | null
+          status: string
+          title: string
+          updated_at: string
+          viewed_at: string | null
+        }
+        Insert: {
+          client_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          deal_id?: string | null
+          declined_at?: string | null
+          document_type?: string
+          expired_at?: string | null
+          file_url?: string | null
+          id?: string
+          sent_at?: string | null
+          signed_file_url?: string | null
+          signer_email?: string | null
+          signer_name?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+          viewed_at?: string | null
+        }
+        Update: {
+          client_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          deal_id?: string | null
+          declined_at?: string | null
+          document_type?: string
+          expired_at?: string | null
+          file_url?: string | null
+          id?: string
+          sent_at?: string | null
+          signed_file_url?: string | null
+          signer_email?: string | null
+          signer_name?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+          viewed_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "signing_documents_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "signing_documents_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       target_niches: {
         Row: {
           business_type: string | null
