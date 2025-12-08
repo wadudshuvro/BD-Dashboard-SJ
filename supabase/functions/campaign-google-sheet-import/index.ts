@@ -39,6 +39,7 @@ interface ImportAction {
     streetAddress?: string;
     city?: string;
     state?: string;
+    zipCode?: string;
     country?: string;
   }>;
   tags: string[];
@@ -62,6 +63,7 @@ interface UpdateAction {
     streetAddress?: string;
     city?: string;
     state?: string;
+    zipCode?: string;
     country?: string;
   }>;
   tags: string[];
@@ -302,6 +304,7 @@ async function handleImport(body: ImportAction, supabase: any, userId: string): 
         streetAddress: contact.streetAddress || null,
         city: contact.city || null,
         state: contact.state || null,
+        zipCode: contact.zipCode || null,
         country: contact.country || null,
       };
       
@@ -390,6 +393,7 @@ async function handleUpdate(body: UpdateAction, supabase: any, userId: string): 
         streetAddress: contact.streetAddress || null,
         city: contact.city || null,
         state: contact.state || null,
+        zipCode: contact.zipCode || null,
         country: contact.country || null,
       };
       const hasAddress = Object.values(addressData).some(v => v !== null);
