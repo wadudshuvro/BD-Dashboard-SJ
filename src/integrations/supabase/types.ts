@@ -2391,6 +2391,7 @@ export type Database = {
           last_synced_at: string | null
           lead_source: string | null
           leadslift_crm_deal_url: string | null
+          linkedin_profile_url: string | null
           notes: string | null
           owner_id: string | null
           pandadoc_proposal_url: string | null
@@ -2446,6 +2447,7 @@ export type Database = {
           last_synced_at?: string | null
           lead_source?: string | null
           leadslift_crm_deal_url?: string | null
+          linkedin_profile_url?: string | null
           notes?: string | null
           owner_id?: string | null
           pandadoc_proposal_url?: string | null
@@ -2501,6 +2503,7 @@ export type Database = {
           last_synced_at?: string | null
           lead_source?: string | null
           leadslift_crm_deal_url?: string | null
+          linkedin_profile_url?: string | null
           notes?: string | null
           owner_id?: string | null
           pandadoc_proposal_url?: string | null

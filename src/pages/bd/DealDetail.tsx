@@ -226,9 +226,9 @@ interface Deal {
   client_estimate_doc_url?: string | null;
   estimate_task_link?: string | null;
   client_call_recording_link?: string | null;
+  linkedin_profile_url?: string | null;
   internal_estimate_doc_link?: string | null;
   pandadoc_proposal_url?: string | null;
-  client_call_recording_link?: string | null;
   
   // Collaboration URLs
   collaborative_ai?: string | null;
@@ -2432,6 +2432,29 @@ export default function DealDetail() {
                           queryClient.invalidateQueries({ queryKey: ['deal', dealId] });
                         } catch (error) {
                           toast({ title: 'Failed to update client call recording link', variant: 'destructive' });
+                        }
+                      }
+                    }}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="linkedin_profile_url" className="text-xs">LinkedIn Profile</Label>
+                  <Input
+                    id="linkedin_profile_url"
+                    className="h-8 text-sm"
+                    placeholder="https://linkedin.com/in/..."
+                    defaultValue={deal.linkedin_profile_url || ''}
+                    onBlur={async (e) => {
+                      if (e.target.value !== (deal.linkedin_profile_url || '')) {
+                        try {
+                          await supabase
+                            .from('deals')
+                            .update({ linkedin_profile_url: e.target.value })
+                            .eq('id', deal.id);
+                          toast({ title: 'LinkedIn profile updated' });
+                          queryClient.invalidateQueries({ queryKey: ['deal', dealId] });
+                        } catch (error) {
+                          toast({ title: 'Failed to update LinkedIn profile', variant: 'destructive' });
                         }
                       }
                     }}
