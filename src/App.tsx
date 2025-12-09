@@ -53,6 +53,7 @@ import DealFiles from "./pages/bd/DealFiles";
 import ClientDetail from "./pages/bd/ClientDetail";
 import ChecklistTemplateManager from "./pages/admin/ChecklistTemplateManager";
 import DataSyncCenter from "./pages/admin/DataSyncCenter";
+import SQLQueryExecutor from "./pages/admin/SQLQueryExecutor";
 import LeadDetail from "./pages/bd/LeadDetail";
 import AnalyticsDashboard from "./pages/analytics/Dashboard";
 import TeamPerformance from "./pages/analytics/TeamPerformance";
@@ -136,6 +137,7 @@ const App = () => (
               <Route path="strategy/products" element={<ProductManagement />} />
               <Route path="strategy/niches" element={<NicheManagement />} />
               <Route path="strategy/checklist-templates" element={<ChecklistTemplateManager />} />
+              <Route path="sql-executor" element={<SQLQueryExecutor />} />
             </Route>
 
             {/* Feedback Module */}
