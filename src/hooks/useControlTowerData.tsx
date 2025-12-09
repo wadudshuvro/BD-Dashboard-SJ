@@ -10,50 +10,200 @@ import type {
   ControlTowerSummary
 } from '@/types/controlTower';
 
-// Hook for fetching leads
+// Hook for fetching leads with full contact and company details
 export const useControlTowerLeads = () => {
   const { data: config } = useControlTowerConfig();
-  
+
   return useQuery({
     queryKey: ['control-tower-leads'],
     queryFn: async (): Promise<ControlTowerLead[]> => {
       if (!config?.url || !config?.anon_key) {
         throw new Error('Control Tower not configured');
       }
-      
+
       const client = createControlTowerClient(config.url, config.anon_key);
+
+      // Fetch leads with expanded fields and try to join with clients if relationship exists
       const { data, error } = await client
         .from('Lead')
-        .select('*')
+        .select(`
+          *,
+          client:clients!client_id (
+            id,
+            name,
+            company,
+            email,
+            contact_email,
+            phone,
+            contact_phone,
+            contact_person,
+            website,
+            domain,
+            industry,
+            address,
+            city,
+            state,
+            country
+          )
+        `)
         .order('created_at', { ascending: false });
-      
-      if (error) throw error;
-      return data || [];
+
+      if (error) {
+        // If join fails (no client_id column), fallback to basic select
+        console.warn('[Control Tower] Lead-client join failed, fetching leads only:', error.message);
+        const { data: basicData, error: basicError } = await client
+          .from('Lead')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (basicError) throw basicError;
+
+        // Transform basic data to include all expected fields
+        return (basicData || []).map((lead: any) => ({
+          ...lead,
+          // Map additional contact fields from lead record itself
+          contact_first_name: lead.first_name || lead.contact_first_name || null,
+          contact_last_name: lead.last_name || lead.contact_last_name || null,
+          contact_email: lead.email || lead.contact_email || null,
+          contact_phone: lead.phone || lead.contact_phone || null,
+          contact_title: lead.title || lead.job_title || lead.contact_title || null,
+          company_name: lead.company || lead.company_name || lead.organization || null,
+          company_website: lead.website || lead.company_website || lead.domain || null,
+          company_industry: lead.industry || lead.company_industry || null,
+          company_address: lead.address || lead.company_address || null,
+          linkedin_url: lead.linkedin_url || lead.linkedin || null,
+        }));
+      }
+
+      // Transform data to flatten client details
+      return (data || []).map((lead: any) => ({
+        ...lead,
+        // Contact details - from lead or joined client
+        contact_first_name: lead.first_name || lead.contact_first_name || null,
+        contact_last_name: lead.last_name || lead.contact_last_name || null,
+        contact_email: lead.email || lead.contact_email || lead.client?.contact_email || lead.client?.email || null,
+        contact_phone: lead.phone || lead.contact_phone || lead.client?.contact_phone || lead.client?.phone || null,
+        contact_title: lead.title || lead.job_title || lead.contact_title || null,
+        contact_person: lead.contact_person || lead.client?.contact_person || null,
+        // Company details - from lead or joined client
+        company_name: lead.company || lead.company_name || lead.client?.company || lead.client?.name || null,
+        company_website: lead.website || lead.company_website || lead.client?.website || lead.client?.domain || null,
+        company_industry: lead.industry || lead.company_industry || lead.client?.industry || null,
+        company_address: lead.address || lead.company_address || lead.client?.address || null,
+        company_city: lead.city || lead.client?.city || null,
+        company_state: lead.state || lead.client?.state || null,
+        company_country: lead.country || lead.client?.country || null,
+        linkedin_url: lead.linkedin_url || lead.linkedin || null,
+        // Client reference
+        client_id: lead.client_id || lead.client?.id || null,
+      }));
     },
     staleTime: 5 * 60 * 1000,
     enabled: !!config?.url && !!config?.anon_key && config?.is_active,
   });
 };
 
-// Hook for fetching warm leads (HubSpot synced)
+// Hook for fetching warm leads (HubSpot synced) with full contact and company details
 export const useControlTowerWarmLeads = () => {
   const { data: config } = useControlTowerConfig();
-  
+
   return useQuery({
     queryKey: ['control-tower-warm-leads'],
     queryFn: async (): Promise<ControlTowerWarmLead[]> => {
       if (!config?.url || !config?.anon_key) {
         throw new Error('Control Tower not configured');
       }
-      
+
       const client = createControlTowerClient(config.url, config.anon_key);
+
+      // Fetch HubSpot leads with expanded fields
       const { data, error } = await client
         .from('HubSpot_Leads')
-        .select('*')
+        .select(`
+          *,
+          client:clients!client_id (
+            id,
+            name,
+            company,
+            email,
+            contact_email,
+            phone,
+            contact_phone,
+            contact_person,
+            website,
+            domain,
+            industry,
+            address,
+            city,
+            state,
+            country
+          )
+        `)
         .order('created_at', { ascending: false });
-      
-      if (error) throw error;
-      return data || [];
+
+      if (error) {
+        // If join fails, fallback to basic select
+        console.warn('[Control Tower] HubSpot lead-client join failed, fetching leads only:', error.message);
+        const { data: basicData, error: basicError } = await client
+          .from('HubSpot_Leads')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (basicError) throw basicError;
+
+        // Transform HubSpot leads to include all expected fields
+        return (basicData || []).map((lead: any) => ({
+          ...lead,
+          // Contact details from HubSpot lead fields
+          contact_first_name: lead.firstname || lead.first_name || lead.contact_first_name || null,
+          contact_last_name: lead.lastname || lead.last_name || lead.contact_last_name || null,
+          contact_email: lead.email || lead.contact_email || lead.hs_email || null,
+          contact_phone: lead.phone || lead.contact_phone || lead.hs_phone || lead.mobilephone || null,
+          contact_title: lead.jobtitle || lead.job_title || lead.title || null,
+          // Company details from HubSpot lead fields
+          company_name: lead.company || lead.company_name || lead.associatedcompanyid_name || null,
+          company_website: lead.website || lead.company_website || lead.domain || null,
+          company_industry: lead.industry || lead.company_industry || null,
+          company_address: lead.address || lead.company_address || lead.street_address || null,
+          company_city: lead.city || null,
+          company_state: lead.state || null,
+          company_country: lead.country || null,
+          // HubSpot specific fields
+          hubspot_contact_id: lead.hs_object_id || lead.hubspot_contact_id || lead.vid || null,
+          hubspot_owner_id: lead.hubspot_owner_id || lead.hs_owner_id || null,
+          linkedin_url: lead.linkedin || lead.linkedinbio || lead.hs_linkedinbio || null,
+          lead_status: lead.hs_lead_status || lead.lead_status || lead.lifecyclestage || null,
+          lead_score: lead.lead_score || lead.hs_lead_score || lead.hubspotscore || null,
+        }));
+      }
+
+      // Transform data to flatten client details
+      return (data || []).map((lead: any) => ({
+        ...lead,
+        // Contact details - from HubSpot lead or joined client
+        contact_first_name: lead.firstname || lead.first_name || lead.contact_first_name || null,
+        contact_last_name: lead.lastname || lead.last_name || lead.contact_last_name || null,
+        contact_email: lead.email || lead.contact_email || lead.hs_email || lead.client?.contact_email || lead.client?.email || null,
+        contact_phone: lead.phone || lead.contact_phone || lead.hs_phone || lead.mobilephone || lead.client?.contact_phone || lead.client?.phone || null,
+        contact_title: lead.jobtitle || lead.job_title || lead.title || null,
+        contact_person: lead.contact_person || lead.client?.contact_person || null,
+        // Company details - from HubSpot lead or joined client
+        company_name: lead.company || lead.company_name || lead.client?.company || lead.client?.name || null,
+        company_website: lead.website || lead.company_website || lead.domain || lead.client?.website || lead.client?.domain || null,
+        company_industry: lead.industry || lead.company_industry || lead.client?.industry || null,
+        company_address: lead.address || lead.company_address || lead.street_address || lead.client?.address || null,
+        company_city: lead.city || lead.client?.city || null,
+        company_state: lead.state || lead.client?.state || null,
+        company_country: lead.country || lead.client?.country || null,
+        // HubSpot specific fields
+        hubspot_contact_id: lead.hs_object_id || lead.hubspot_contact_id || lead.vid || null,
+        hubspot_owner_id: lead.hubspot_owner_id || lead.hs_owner_id || null,
+        linkedin_url: lead.linkedin || lead.linkedinbio || lead.hs_linkedinbio || null,
+        lead_status: lead.hs_lead_status || lead.lead_status || lead.lifecyclestage || null,
+        lead_score: lead.lead_score || lead.hs_lead_score || lead.hubspotscore || null,
+        // Client reference
+        client_id: lead.client_id || lead.client?.id || null,
+      }));
     },
     staleTime: 5 * 60 * 1000,
     enabled: !!config?.url && !!config?.anon_key && config?.is_active,

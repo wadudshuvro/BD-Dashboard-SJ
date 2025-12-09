@@ -11,6 +11,40 @@ export interface ControlTowerLead {
   created_at: string;
   updated_at: string;
   notes?: string;
+
+  // Extended contact details
+  contact_first_name?: string;
+  contact_last_name?: string;
+  contact_email?: string;
+  contact_phone?: string;
+  contact_title?: string;
+  contact_person?: string;
+
+  // Extended company details
+  company_name?: string;
+  company_website?: string;
+  company_industry?: string;
+  company_address?: string;
+  company_city?: string;
+  company_state?: string;
+  company_country?: string;
+
+  // Social links
+  linkedin_url?: string;
+
+  // Client reference (if associated with a client)
+  client_id?: string;
+  client?: {
+    id: string;
+    name?: string;
+    company?: string;
+    email?: string;
+    phone?: string;
+    contact_person?: string;
+    website?: string;
+    industry?: string;
+    address?: string;
+  };
 }
 
 export interface ControlTowerWarmLead {
@@ -27,6 +61,44 @@ export interface ControlTowerWarmLead {
   owner_name?: string;
   created_at: string;
   updated_at: string;
+
+  // Extended contact details
+  contact_first_name?: string;
+  contact_last_name?: string;
+  contact_email?: string;
+  contact_phone?: string;
+  contact_title?: string;
+  contact_person?: string;
+
+  // Extended company details
+  company_name?: string;
+  company_website?: string;
+  company_industry?: string;
+  company_address?: string;
+  company_city?: string;
+  company_state?: string;
+  company_country?: string;
+
+  // HubSpot specific fields
+  hubspot_contact_id?: string;
+  hubspot_owner_id?: string;
+  linkedin_url?: string;
+  lead_status?: string;
+  lead_score?: number;
+
+  // Client reference (if associated with a client)
+  client_id?: string;
+  client?: {
+    id: string;
+    name?: string;
+    company?: string;
+    email?: string;
+    phone?: string;
+    contact_person?: string;
+    website?: string;
+    industry?: string;
+    address?: string;
+  };
 }
 
 export interface ControlTowerDeal {
