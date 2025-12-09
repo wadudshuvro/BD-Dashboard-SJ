@@ -276,25 +276,73 @@ async function buildClientCache(supabase: any): Promise<Map<string, string>> {
   return cache;
 }
 
-// Extract client data from a deal
+// Extract client data from a deal (with joined client data from Control Tower)
 function extractClientData(ctDeal: any): any {
-  const clientCompany = ctDeal.clientCompanyName || ctDeal.company_name || ctDeal.client_company;
-  const clientId = ctDeal.client_id || ctDeal.clientId;
-  
+  // Get the joined client data from Control Tower (if available)
+  const joinedClient = ctDeal.client || null;
+
+  // Extract client ID - prefer joined client, fallback to deal fields
+  const clientId = joinedClient?.id || ctDeal.client_id || ctDeal.clientId;
+
+  // Extract company name - prefer joined client data
+  const clientCompany = joinedClient?.company ||
+                        joinedClient?.name ||
+                        ctDeal.clientCompanyName ||
+                        ctDeal.company_name ||
+                        ctDeal.client_company;
+
   if (!clientCompany && !clientId) {
     return null;
   }
-  
+
+  // Build contact person from joined client data or deal fields
+  const contactPerson = joinedClient?.contact_person ||
+                        joinedClient?.contact_name ||
+                        joinedClient?.primary_contact ||
+                        (joinedClient?.first_name || joinedClient?.last_name
+                          ? `${joinedClient?.first_name || ''} ${joinedClient?.last_name || ''}`.trim()
+                          : null) ||
+                        ctDeal.clientContactName ||
+                        `${ctDeal.clientFirstName || ''} ${ctDeal.clientLastName || ''}`.trim() ||
+                        null;
+
+  // Build address object from joined client data
+  const address = joinedClient?.address ? {
+    street: joinedClient.address,
+    city: joinedClient.city || null,
+    state: joinedClient.state || null,
+    country: joinedClient.country || null,
+    postal_code: joinedClient.postal_code || null,
+  } : null;
+
   return {
     control_tower_id: clientId || null,
     name: clientCompany || 'Unknown Client',
     company: clientCompany || 'Unknown Client',
-    email: ctDeal.clientEmail || ctDeal.client_email || null,
-    phone: ctDeal.clientPhone || ctDeal.client_phone || null,
-    contact_person: ctDeal.clientContactName || 
-                   `${ctDeal.clientFirstName || ''} ${ctDeal.clientLastName || ''}`.trim() || null,
-    website: ctDeal.clientWebsite || ctDeal.client_website || null,
-    status: 'active',
+    // Prioritize joined client data for contact info
+    email: joinedClient?.contact_email ||
+           joinedClient?.email ||
+           ctDeal.clientEmail ||
+           ctDeal.client_email ||
+           null,
+    phone: joinedClient?.contact_phone ||
+           joinedClient?.phone ||
+           ctDeal.clientPhone ||
+           ctDeal.client_phone ||
+           null,
+    contact_person: contactPerson,
+    website: joinedClient?.website ||
+             joinedClient?.domain ||
+             ctDeal.clientWebsite ||
+             ctDeal.client_website ||
+             null,
+    industry: joinedClient?.industry || null,
+    address: address?.street || null,
+    city: address?.city || null,
+    state: address?.state || null,
+    country: address?.country || null,
+    postal_code: address?.postal_code || null,
+    status: joinedClient?.status || 'active',
   };
 }
 
@@ -383,7 +431,33 @@ async function performSync(
           : ' (active only)';
     console.log(`[Sync] Fetching deals from Control Tower${syncModeLabel}...`);
     
-    let ctDealsQuery = ctClient.from('Deal').select('*');
+    // Join with clients table to get full contact details
+    let ctDealsQuery = ctClient.from('Deal').select(`
+      *,
+      client:clients!client_id (
+        id,
+        name,
+        email,
+        contact_email,
+        phone,
+        contact_phone,
+        contact_person,
+        contact_name,
+        primary_contact,
+        first_name,
+        last_name,
+        website,
+        domain,
+        address,
+        city,
+        state,
+        country,
+        postal_code,
+        industry,
+        company,
+        status
+      )
+    `);
     
     // Apply filters based on sync mode
     if (singleDealId) {
