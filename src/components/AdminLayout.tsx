@@ -29,7 +29,8 @@ import {
   Package,
   ListChecks,
   Network,
-  FileSignature
+  FileSignature,
+  Database
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useMemo, useState } from "react";
@@ -64,6 +65,7 @@ const AdminLayout = () => {
         items: [
           { name: "System Settings", href: "/adminpanel/settings", icon: Settings, roles: ['super_admin'] },
           { name: "EOD Management", href: "/adminpanel/eod-management", icon: Calendar, roles: ['super_admin'] },
+          { name: "SQL Query Executor", href: "/adminpanel/sql-executor", icon: Database, roles: ['super_admin'] },
           { name: "Documentation", href: "/adminpanel/documentation", icon: FileText, roles: ['super_admin', 'admin'] },
         ],
       },
