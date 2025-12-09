@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { formatDistanceToNow, format } from "date-fns";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,6 +9,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   MoreVertical,
   Send,
@@ -37,6 +48,8 @@ interface SigningDocumentCardProps {
 }
 
 export const SigningDocumentCard = ({ document, onViewClick }: SigningDocumentCardProps) => {
+  const [voidDialogOpen, setVoidDialogOpen] = useState(false);
+
   const sendDocument = useSendSigningDocument();
   const resendDocument = useResendSigningDocument();
   const voidDocument = useVoidSigningDocument();
@@ -61,9 +74,8 @@ export const SigningDocumentCard = ({ document, onViewClick }: SigningDocumentCa
   };
 
   const handleVoid = () => {
-    if (confirm("Are you sure you want to void this document? This action cannot be undone.")) {
-      voidDocument.mutate({ documentId: document.id });
-    }
+    voidDocument.mutate({ documentId: document.id });
+    setVoidDialogOpen(false);
   };
 
   const handleDownload = (type: "pdf" | "certificate") => {
@@ -141,7 +153,7 @@ export const SigningDocumentCard = ({ document, onViewClick }: SigningDocumentCa
               {canVoid && (
                 <>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleVoid} className="text-destructive">
+                  <DropdownMenuItem onClick={() => setVoidDialogOpen(true)} className="text-destructive">
                     <Ban className="h-4 w-4 mr-2" />
                     Void Document
                   </DropdownMenuItem>
@@ -199,7 +211,7 @@ export const SigningDocumentCard = ({ document, onViewClick }: SigningDocumentCa
                   className="flex items-center gap-1 text-xs bg-muted rounded px-2 py-1"
                 >
                   <span className="truncate max-w-[120px]">
-                    {recipient.first_name} {recipient.last_name?.[0]}.
+                    {recipient.first_name}{recipient.last_name ? ` ${recipient.last_name[0]}.` : ''}
                   </span>
                   <RecipientStatusBadge status={recipient.status} size="sm" />
                 </div>
@@ -253,6 +265,25 @@ export const SigningDocumentCard = ({ document, onViewClick }: SigningDocumentCa
           </Link>
         </div>
       </CardFooter>
+
+      {/* Void Confirmation Dialog */}
+      <AlertDialog open={voidDialogOpen} onOpenChange={setVoidDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Void Document</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to void "{document.title}"? This action cannot be undone. The
+              document will no longer be valid for signing.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleVoid} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Void Document
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 };
