@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, forwardRef, useImperativeHandle } from 'react';
+import React, { useCallback, useEffect, forwardRef, useImperativeHandle, useRef } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Link from '@tiptap/extension-link';
@@ -55,6 +55,8 @@ const RichTextEditor = forwardRef<RichTextEditorRef, RichTextEditorProps>(
     },
     ref
   ) => {
+    console.log('RichTextEditor - Rendering with teamMembers:', teamMembers);
+
     const editor = useEditor({
       extensions: [
         StarterKit.configure({
@@ -81,7 +83,7 @@ const RichTextEditor = forwardRef<RichTextEditorRef, RichTextEditorProps>(
           HTMLAttributes: {
             class: 'mention font-bold text-green-600 dark:text-green-400',
           },
-          suggestion: MentionSuggestion(teamMembers),
+          suggestion: MentionSuggestion(teamMembers || []),
         }),
       ],
       content,
@@ -100,7 +102,7 @@ const RichTextEditor = forwardRef<RichTextEditorRef, RichTextEditorProps>(
           ),
         },
       },
-    });
+    }, [teamMembers]);
 
     useImperativeHandle(ref, () => ({
       focus: () => editor?.commands.focus(),
