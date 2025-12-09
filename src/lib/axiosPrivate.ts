@@ -92,8 +92,11 @@ async function request<T>(
 
     try {
       const errorData = await response.json();
+      // Handle both 'message' and 'error' fields in error responses
       if (typeof errorData?.message === "string") {
         errorMessage = errorData.message;
+      } else if (typeof errorData?.error === "string") {
+        errorMessage = errorData.error;
       }
     } catch (error) {
       // Ignore JSON parsing errors for non-JSON responses
