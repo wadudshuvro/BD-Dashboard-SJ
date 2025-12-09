@@ -43,11 +43,13 @@ export const EmbeddedSigningFrame = ({
     } finally {
       setLoading(false);
     }
-  }, [documentId, recipientEmail, embedSession]);
+    // embedSession.mutateAsync is stable, omitting from deps to prevent infinite loops
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [documentId, recipientEmail]);
 
   useEffect(() => {
     fetchSession();
-  }, [documentId, recipientEmail]);
+  }, [fetchSession]);
 
   // Listen for PandaDoc postMessage events
   useEffect(() => {

@@ -412,12 +412,12 @@ const TemplateStep = ({
       {/* Deal Selection */}
       <div className="space-y-2">
         <Label htmlFor="deal">Associated Deal (Optional)</Label>
-        <Select value={dealId} onValueChange={onDealIdChange} disabled={!!initialDealId}>
+        <Select value={dealId || "__none__"} onValueChange={(val) => onDealIdChange(val === "__none__" ? "" : val)} disabled={!!initialDealId}>
           <SelectTrigger id="deal">
             <SelectValue placeholder="Select a deal" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">No deal</SelectItem>
+            <SelectItem value="__none__">No deal</SelectItem>
             {deals.map((deal) => (
               <SelectItem key={deal.id} value={deal.id}>
                 {deal.title}
