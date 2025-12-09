@@ -25,6 +25,16 @@ import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   executeQuery,
   fetchQueryLogs,
   isSelectQuery,
@@ -44,6 +54,7 @@ const SQLQueryExecutor = () => {
   const [logsTotal, setLogsTotal] = useState(0);
   const [logsPage, setLogsPage] = useState(1);
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const { toast } = useToast();
 
   // Load query logs
@@ -70,8 +81,8 @@ const SQLQueryExecutor = () => {
     loadLogs();
   }, [loadLogs]);
 
-  // Execute query
-  const handleExecute = async () => {
+  // Show confirmation dialog before executing
+  const handleExecuteClick = () => {
     if (!query.trim()) {
       toast({
         title: 'Query required',
@@ -80,7 +91,12 @@ const SQLQueryExecutor = () => {
       });
       return;
     }
+    setShowConfirmDialog(true);
+  };
 
+  // Execute query after confirmation
+  const handleConfirmExecute = async () => {
+    setShowConfirmDialog(false);
     setIsExecuting(true);
     setResult(null);
     setError(null);
@@ -271,7 +287,7 @@ const SQLQueryExecutor = () => {
                     Clear
                   </Button>
                   <Button
-                    onClick={handleExecute}
+                    onClick={handleExecuteClick}
                     disabled={isExecuting || !query.trim()}
                     className="min-w-[120px]"
                   >
@@ -535,6 +551,49 @@ const SQLQueryExecutor = () => {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Confirmation Dialog */}
+      <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              Confirm Query Execution
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>
+                  You are about to execute a SQL query directly on the database.
+                  {!isSelectQuery(query) && (
+                    <span className="block text-amber-600 font-medium mt-1">
+                      This query may modify data.
+                    </span>
+                  )}
+                </p>
+                <div className="bg-muted/50 p-3 rounded-md">
+                  <p className="text-xs text-muted-foreground mb-1">Query to execute:</p>
+                  <pre className="text-sm font-mono whitespace-pre-wrap max-h-[150px] overflow-y-auto">
+                    {query.length > 300 ? query.substring(0, 300) + '...' : query}
+                  </pre>
+                </div>
+                <p className="text-sm">
+                  Are you sure you want to proceed?
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmExecute}
+              className={!isSelectQuery(query) ? 'bg-amber-600 hover:bg-amber-700' : ''}
+            >
+              <Play className="mr-2 h-4 w-4" />
+              Execute Query
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
