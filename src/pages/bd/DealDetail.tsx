@@ -223,6 +223,7 @@ interface Deal {
   pod_id?: string | null;
   deal_details?: string | null;
   client_email?: string | null;
+  client_phone?: string | null;
   
   // Document URLs
   estimate_url?: string | null;
@@ -1944,6 +1945,87 @@ export default function DealDetail() {
                     </Select>
                   </div>
                   
+                  {/* Client Email Field */}
+                  <div>
+                    <Label htmlFor="client-email" className="text-xs text-muted-foreground">
+                      Email Address
+                    </Label>
+                    <Input
+                      id="client-email"
+                      type="email"
+                      placeholder="client@example.com"
+                      value={deal.client_email || ''}
+                      onChange={(e) => {
+                        // Update local state immediately for responsive UI
+                        setDeal({ ...deal, client_email: e.target.value });
+                      }}
+                      onBlur={async (e) => {
+                        const newEmail = e.target.value.trim();
+                        // Only update if value changed
+                        if (newEmail !== (deal.client_email || '')) {
+                          try {
+                            const { error } = await supabase
+                              .from('deals')
+                              .update({ client_email: newEmail || null })
+                              .eq('id', deal.id);
+                            
+                            if (error) {
+                              console.error('Failed to update email address:', error);
+                              toast({ title: 'Failed to update email address', description: error.message, variant: 'destructive' });
+                            } else {
+                              toast({ title: 'Email address updated' });
+                              queryClient.invalidateQueries({ queryKey: ['deal', dealId] });
+                            }
+                          } catch (error) {
+                            console.error('Error updating email address:', error);
+                            toast({ title: 'Failed to update email address', variant: 'destructive' });
+                          }
+                        }
+                      }}
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                  
+                  {/* Client Phone Field */}
+                  <div>
+                    <Label htmlFor="client-phone" className="text-xs text-muted-foreground">
+                      Phone Number
+                    </Label>
+                    <Input
+                      id="client-phone"
+                      type="tel"
+                      placeholder="+1 (555) 123-4567"
+                      value={deal.client_phone || ''}
+                      onChange={(e) => {
+                        // Update local state immediately for responsive UI
+                        setDeal({ ...deal, client_phone: e.target.value });
+                      }}
+                      onBlur={async (e) => {
+                        const newPhone = e.target.value.trim();
+                        // Only update if value changed
+                        if (newPhone !== (deal.client_phone || '')) {
+                          try {
+                            const { error } = await supabase
+                              .from('deals')
+                              .update({ client_phone: newPhone || null })
+                              .eq('id', deal.id);
+                            
+                            if (error) {
+                              console.error('Failed to update phone number:', error);
+                              toast({ title: 'Failed to update phone number', description: error.message, variant: 'destructive' });
+                            } else {
+                              toast({ title: 'Phone number updated' });
+                              queryClient.invalidateQueries({ queryKey: ['deal', dealId] });
+                            }
+                          } catch (error) {
+                            console.error('Error updating phone number:', error);
+                            toast({ title: 'Failed to update phone number', variant: 'destructive' });
+                          }
+                        }
+                      }}
+                      className="h-8 text-sm"
+                    />
+                  </div>
                   
                   <div>
                     <p className="text-xs text-muted-foreground">POD</p>
