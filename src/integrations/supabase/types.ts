@@ -4046,6 +4046,51 @@ export type Database = {
           },
         ]
       }
+      sql_query_logs: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          execution_status: string
+          execution_time_ms: number | null
+          id: string
+          query_text: string
+          query_type: string
+          result_preview: Json | null
+          rows_affected: number | null
+          user_email: string
+          user_id: string
+          user_name: string | null
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          execution_status: string
+          execution_time_ms?: number | null
+          id?: string
+          query_text: string
+          query_type: string
+          result_preview?: Json | null
+          rows_affected?: number | null
+          user_email: string
+          user_id: string
+          user_name?: string | null
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          execution_status?: string
+          execution_time_ms?: number | null
+          id?: string
+          query_text?: string
+          query_type?: string
+          result_preview?: Json | null
+          rows_affected?: number | null
+          user_email?: string
+          user_id?: string
+          user_name?: string | null
+        }
+        Relationships: []
+      }
       target_niches: {
         Row: {
           business_type: string | null
@@ -4653,6 +4698,7 @@ export type Database = {
       }
       cleanup_old_sync_logs: { Args: never; Returns: undefined }
       clear_all_sync_logs: { Args: never; Returns: undefined }
+      execute_raw_sql: { Args: { query_text: string }; Returns: Json }
       fix_orphaned_users: {
         Args: never
         Returns: {
