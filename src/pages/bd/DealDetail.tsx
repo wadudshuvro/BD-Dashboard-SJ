@@ -634,7 +634,7 @@ export default function DealDetail() {
 
   // Rich text editor state for deal details
   const [dealDetailsContent, setDealDetailsContent] = useState("");
-  
+
   // Local state for email and phone to prevent loss during refetch
   const [localEmail, setLocalEmail] = useState("");
   const [localPhone, setLocalPhone] = useState("");
