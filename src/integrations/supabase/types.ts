@@ -3968,6 +3968,135 @@ export type Database = {
           },
         ]
       }
+      signing_document_activity_log: {
+        Row: {
+          action: string
+          actor_id: string | null
+          actor_type: string
+          created_at: string
+          description: string | null
+          document_id: string
+          id: string
+          metadata: Json | null
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          actor_type?: string
+          created_at?: string
+          description?: string | null
+          document_id: string
+          id?: string
+          metadata?: Json | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          actor_type?: string
+          created_at?: string
+          description?: string | null
+          document_id?: string
+          id?: string
+          metadata?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "signing_document_activity_log_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "signing_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      signing_document_recipients: {
+        Row: {
+          created_at: string
+          decline_reason: string | null
+          declined_at: string | null
+          document_id: string
+          email: string
+          first_name: string | null
+          id: string
+          last_name: string | null
+          role: string
+          signed_at: string | null
+          signing_order: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          decline_reason?: string | null
+          declined_at?: string | null
+          document_id: string
+          email: string
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          role?: string
+          signed_at?: string | null
+          signing_order?: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          decline_reason?: string | null
+          declined_at?: string | null
+          document_id?: string
+          email?: string
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          role?: string
+          signed_at?: string | null
+          signing_order?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "signing_document_recipients_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "signing_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      signing_document_watchers: {
+        Row: {
+          created_at: string
+          document_id: string
+          id: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          document_id: string
+          id?: string
+          role?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          document_id?: string
+          id?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "signing_document_watchers_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "signing_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       signing_documents: {
         Row: {
           client_id: string | null
@@ -3978,13 +4107,19 @@ export type Database = {
           declined_at: string | null
           document_type: string
           expired_at: string | null
+          expires_at: string | null
           file_url: string | null
           id: string
+          merge_fields: Json | null
+          metadata: Json | null
+          pandadoc_doc_id: string | null
+          project_id: string | null
           sent_at: string | null
           signed_file_url: string | null
           signer_email: string | null
           signer_name: string | null
           status: string
+          template_id: string | null
           title: string
           updated_at: string
           viewed_at: string | null
@@ -3998,13 +4133,19 @@ export type Database = {
           declined_at?: string | null
           document_type?: string
           expired_at?: string | null
+          expires_at?: string | null
           file_url?: string | null
           id?: string
+          merge_fields?: Json | null
+          metadata?: Json | null
+          pandadoc_doc_id?: string | null
+          project_id?: string | null
           sent_at?: string | null
           signed_file_url?: string | null
           signer_email?: string | null
           signer_name?: string | null
           status?: string
+          template_id?: string | null
           title: string
           updated_at?: string
           viewed_at?: string | null
@@ -4018,13 +4159,19 @@ export type Database = {
           declined_at?: string | null
           document_type?: string
           expired_at?: string | null
+          expires_at?: string | null
           file_url?: string | null
           id?: string
+          merge_fields?: Json | null
+          metadata?: Json | null
+          pandadoc_doc_id?: string | null
+          project_id?: string | null
           sent_at?: string | null
           signed_file_url?: string | null
           signer_email?: string | null
           signer_name?: string | null
           status?: string
+          template_id?: string | null
           title?: string
           updated_at?: string
           viewed_at?: string | null
