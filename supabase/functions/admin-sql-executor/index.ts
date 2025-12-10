@@ -73,7 +73,8 @@ function isBlockedQuery(query: string): { blocked: boolean; reason?: string } {
 }
 
 // Get user's role from user_roles table
-const getUserRole = async (client: ReturnType<typeof createClient>, userId: string): Promise<string | null> => {
+// deno-lint-ignore no-explicit-any
+const getUserRole = async (client: any, userId: string): Promise<string | null> => {
   const { data, error } = await client
     .from('user_roles')
     .select('role')
@@ -85,11 +86,12 @@ const getUserRole = async (client: ReturnType<typeof createClient>, userId: stri
     return null;
   }
 
-  return data?.role || null;
+  return (data as { role: string } | null)?.role || null;
 };
 
 // Get user details
-const getUserDetails = async (client: ReturnType<typeof createClient>, userId: string): Promise<{ email: string; name: string | null }> => {
+// deno-lint-ignore no-explicit-any
+const getUserDetails = async (client: any, userId: string): Promise<{ email: string; name: string | null }> => {
   const { data, error } = await client
     .from('users')
     .select('email, first_name, last_name')
@@ -100,8 +102,9 @@ const getUserDetails = async (client: ReturnType<typeof createClient>, userId: s
     return { email: 'unknown', name: null };
   }
 
-  const name = [data.first_name, data.last_name].filter(Boolean).join(' ') || null;
-  return { email: data.email, name };
+  const userData = data as { email: string; first_name?: string; last_name?: string };
+  const name = [userData.first_name, userData.last_name].filter(Boolean).join(' ') || null;
+  return { email: userData.email, name };
 };
 
 serve(async (req) => {

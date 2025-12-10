@@ -1944,46 +1944,6 @@ export default function DealDetail() {
                     </Select>
                   </div>
                   
-                  {/* Client Email Field */}
-                  <div>
-                    <Label htmlFor="client-email" className="text-xs text-muted-foreground">
-                      Email Address
-                    </Label>
-                    <Input
-                      id="client-email"
-                      type="email"
-                      placeholder="client@example.com"
-                      value={deal.client_email || ''}
-                      onChange={(e) => {
-                        // Update local state immediately for responsive UI
-                        setDeal({ ...deal, client_email: e.target.value });
-                      }}
-                      onBlur={async (e) => {
-                        const newEmail = e.target.value.trim();
-                        // Only update if value changed
-                        if (newEmail !== (deal.client_email || '')) {
-                          try {
-                            const { error } = await supabase
-                              .from('deals')
-                              .update({ client_email: newEmail || null })
-                              .eq('id', deal.id);
-                            
-                            if (error) {
-                              console.error('Failed to update email address:', error);
-                              toast({ title: 'Failed to update email address', description: error.message, variant: 'destructive' });
-                            } else {
-                              toast({ title: 'Email address updated' });
-                              queryClient.invalidateQueries({ queryKey: ['deal', dealId] });
-                            }
-                          } catch (error) {
-                            console.error('Error updating email address:', error);
-                            toast({ title: 'Failed to update email address', variant: 'destructive' });
-                          }
-                        }
-                      }}
-                      className="h-8 text-sm"
-                    />
-                  </div>
                   
                   <div>
                     <p className="text-xs text-muted-foreground">POD</p>
