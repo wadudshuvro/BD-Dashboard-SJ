@@ -2185,6 +2185,50 @@ export type Database = {
           },
         ]
       }
+      deal_detail_attachments: {
+        Row: {
+          created_at: string
+          deal_id: string
+          file_name: string
+          file_path: string
+          file_size: number
+          file_type: string
+          id: string
+          updated_at: string
+          uploaded_by: string
+        }
+        Insert: {
+          created_at?: string
+          deal_id: string
+          file_name: string
+          file_path: string
+          file_size: number
+          file_type: string
+          id?: string
+          updated_at?: string
+          uploaded_by: string
+        }
+        Update: {
+          created_at?: string
+          deal_id?: string
+          file_name?: string
+          file_path?: string
+          file_size?: number
+          file_type?: string
+          id?: string
+          updated_at?: string
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deal_detail_attachments_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deal_files: {
         Row: {
           category: string | null
@@ -2363,8 +2407,10 @@ export type Database = {
           client_agent_folder: string | null
           client_agent_url: string | null
           client_call_recording_link: string | null
+          client_email: string | null
           client_estimate_doc_url: string | null
           client_id: string | null
+          client_phone: string | null
           close_date: string | null
           collaborative_ai: string | null
           collaborative_ai_link: string | null
@@ -2420,8 +2466,10 @@ export type Database = {
           client_agent_folder?: string | null
           client_agent_url?: string | null
           client_call_recording_link?: string | null
+          client_email?: string | null
           client_estimate_doc_url?: string | null
           client_id?: string | null
+          client_phone?: string | null
           close_date?: string | null
           collaborative_ai?: string | null
           collaborative_ai_link?: string | null
@@ -2477,8 +2525,10 @@ export type Database = {
           client_agent_folder?: string | null
           client_agent_url?: string | null
           client_call_recording_link?: string | null
+          client_email?: string | null
           client_estimate_doc_url?: string | null
           client_id?: string | null
+          client_phone?: string | null
           close_date?: string | null
           collaborative_ai?: string | null
           collaborative_ai_link?: string | null
