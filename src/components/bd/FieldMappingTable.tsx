@@ -56,11 +56,13 @@ export function FieldMappingTable({
               <SelectItem value="__none__">
                 <span className="text-muted-foreground">-- Not mapped --</span>
               </SelectItem>
-              {sheetHeaders.map((header, index) => (
-                <SelectItem key={index} value={header}>
-                  {header}
-                </SelectItem>
-              ))}
+              {sheetHeaders
+                .filter((header) => header && header.trim() !== '')
+                .map((header, index) => (
+                  <SelectItem key={index} value={header}>
+                    {header}
+                  </SelectItem>
+                ))}
             </SelectContent>
           </Select>
         </TableCell>
