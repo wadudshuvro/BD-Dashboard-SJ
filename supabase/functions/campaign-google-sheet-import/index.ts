@@ -12,6 +12,7 @@ interface FetchAction {
   action: 'fetch';
   sheetId: string;
   sheetUrl: string;
+  gid?: string; // Optional tab ID - if provided, only imports from this specific tab
 }
 
 interface ValidateAction {
@@ -139,12 +140,15 @@ serve(async (req) => {
 });
 
 async function handleFetch(body: FetchAction): Promise<Response> {
-  const { sheetId } = body;
+  const { sheetId, gid } = body;
 
   // Construct CSV export URL for public sheets
-  const csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`;
+  // If gid is provided, only export that specific tab; otherwise export the default/first tab
+  const csvUrl = gid
+    ? `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`
+    : `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`;
 
-  console.log('[fetch] Fetching sheet:', csvUrl);
+  console.log('[fetch] Fetching sheet:', csvUrl, gid ? `(tab gid: ${gid})` : '(default tab)');
 
   const response = await fetch(csvUrl);
   if (!response.ok) {
