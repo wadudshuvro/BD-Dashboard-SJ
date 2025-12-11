@@ -17,6 +17,8 @@ export default function UserSettings() {
     proposal_signed: true,
     proposal_declined: true,
     proposal_expiring_soon: true,
+    deal_pm_assigned: true,
+    deal_owner_assigned: true,
   });
   const [profileData, setProfileData] = useState({
     firstName: '',
@@ -296,6 +298,50 @@ export default function UserSettings() {
               checked={notifications.proposal_expiring_soon}
               onCheckedChange={(checked) =>
                 setNotifications(prev => ({ ...prev, proposal_expiring_soon: checked }))
+              }
+            />
+          </div>
+
+          <Button onClick={saveNotificationPreferences} disabled={loading}>
+            {loading ? 'Saving...' : 'Save Notification Preferences'}
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Deal Notifications</CardTitle>
+          <CardDescription>
+            Choose which email notifications you want to receive for deal assignment events
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label>Assigned as Project Manager</Label>
+              <p className="text-sm text-muted-foreground">
+                Get notified when you are assigned as PM for a deal
+              </p>
+            </div>
+            <Switch
+              checked={notifications.deal_pm_assigned}
+              onCheckedChange={(checked) =>
+                setNotifications(prev => ({ ...prev, deal_pm_assigned: checked }))
+              }
+            />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label>Assigned as Deal Owner</Label>
+              <p className="text-sm text-muted-foreground">
+                Get notified when you are assigned as owner for a deal
+              </p>
+            </div>
+            <Switch
+              checked={notifications.deal_owner_assigned}
+              onCheckedChange={(checked) =>
+                setNotifications(prev => ({ ...prev, deal_owner_assigned: checked }))
               }
             />
           </div>
