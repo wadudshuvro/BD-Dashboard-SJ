@@ -30,6 +30,10 @@ export function GoogleSheetPicker({ onSheetSelected }: GoogleSheetPickerProps) {
 
     const sheetId = sheetIdMatch[1];
 
+    // Extract gid (tab ID) from URL if present - can be in fragment (#gid=) or query (?gid= or &gid=)
+    const gidMatch = sheetUrl.match(/[#?&]gid=(\d+)/);
+    const gid = gidMatch ? gidMatch[1] : undefined;
+
     setIsLoading(true);
     setError(null);
 
@@ -39,6 +43,7 @@ export function GoogleSheetPicker({ onSheetSelected }: GoogleSheetPickerProps) {
           action: 'fetch',
           sheetId,
           sheetUrl,
+          gid,
         },
       });
 
