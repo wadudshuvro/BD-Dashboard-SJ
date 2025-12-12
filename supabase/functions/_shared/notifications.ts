@@ -17,12 +17,15 @@ export async function sendEmail(params: SendGridEmailParams): Promise<void> {
     return;
   }
 
+  // Get sender email from environment or use default
+  const defaultFromEmail = Deno.env.get('SENDGRID_FROM_EMAIL') || 'noreply@resend.dev';
+  
   const { 
     to, 
     subject, 
     html, 
-    from = 'noreply@yourdomain.com',
-    fromName,
+    from = defaultFromEmail,
+    fromName = 'Lovable BD System',
     replyTo,
     cc,
     bcc
