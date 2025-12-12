@@ -129,10 +129,19 @@ serve(async (req) => {
         );
       }
 
-      // Send notification
+      // Send email notification (if preferences allow)
       await sendAssigneeNotification(
         assigneeEmail,
         assigneeName,
+        deal,
+        assignment_type,
+        appUrl
+      );
+
+      // Create in-app notification (always created, regardless of email preferences)
+      await createInAppNotification(
+        supabase,
+        new_assignee_id,
         deal,
         assignment_type,
         appUrl
@@ -151,24 +160,30 @@ serve(async (req) => {
     const notificationType = assignment_type === 'pm' ? 'deal_pm_assigned' : 'deal_owner_assigned';
     const shouldNotify = await checkNotificationPreferences(supabase, new_assignee_id, notificationType);
 
-    if (!shouldNotify) {
-      console.log(`[deal-assignee-notification] User ${new_assignee_id} has disabled ${notificationType} notifications`);
-      return new Response(
-        JSON.stringify({ success: true, message: "Notification disabled by user preferences" }),
-        { status: 200, headers }
+    // Send email notification (only if preferences allow)
+    if (shouldNotify) {
+      await sendAssigneeNotification(
+        assigneeEmail,
+        assigneeName,
+        deal,
+        assignment_type,
+        appUrl
       );
+      console.log(`[deal-assignee-notification] Email sent to ${assigneeEmail} for deal ${deal_id}`);
+    } else {
+      console.log(`[deal-assignee-notification] User ${new_assignee_id} has disabled ${notificationType} email notifications`);
     }
 
-    // Send notification
-    await sendAssigneeNotification(
-      assigneeEmail,
-      assigneeName,
+    // Create in-app notification (always created, regardless of email preferences)
+    await createInAppNotification(
+      supabase,
+      new_assignee_id,
       deal,
       assignment_type,
       appUrl
     );
 
-    console.log(`[deal-assignee-notification] Notification sent to ${assigneeEmail} for deal ${deal_id}`);
+    console.log(`[deal-assignee-notification] In-app notification created for user ${new_assignee_id}, deal ${deal_id}`);
 
     return new Response(
       JSON.stringify({ success: true, message: "Notification sent successfully" }),
@@ -278,4 +293,53 @@ async function sendAssigneeNotification(
     html,
     fromName: 'SJI BD Dashboard',
   });
+}
+
+/**
+ * Creates an in-app notification for the assigned user
+ */
+async function createInAppNotification(
+  supabase: any,
+  userId: string,
+  deal: DealData,
+  assignmentType: 'pm' | 'owner',
+  appUrl: string
+): Promise<void> {
+  const roleLabel = assignmentType === 'pm' ? 'Project Manager' : 'Deal Owner';
+  const clientOrCompanyName = deal.client?.name || deal.company?.name || 'Unknown Client';
+  const dealUrl = `${appUrl}/bd/deals/${deal.id}`;
+
+  const formatCurrency = (value: number | undefined) => {
+    if (!value) return '';
+    return ` (${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value)})`;
+  };
+
+  const title = `New ${roleLabel} Assignment`;
+  const message = `You've been assigned as ${roleLabel} for "${deal.title}" - ${clientOrCompanyName}${formatCurrency(deal.value)}`;
+
+  const { error } = await supabase
+    .from('user_notifications')
+    .insert({
+      user_id: userId,
+      type: assignmentType === 'pm' ? 'deal_pm_assigned' : 'deal_owner_assigned',
+      title,
+      message,
+      data: {
+        deal_id: deal.id,
+        deal_title: deal.title,
+        assignment_type: assignmentType,
+        client_name: clientOrCompanyName,
+        deal_value: deal.value,
+        deal_stage: deal.stage
+      },
+      link: `/bd/deals/${deal.id}`,
+      read: false
+    });
+
+  if (error) {
+    console.error('[deal-assignee-notification] Failed to create in-app notification:', error);
+    throw error;
+  }
+
+  console.log(`[deal-assignee-notification] In-app notification created for user ${userId}`);
 }

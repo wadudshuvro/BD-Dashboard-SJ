@@ -39,6 +39,7 @@ import { useState } from "react";
 import ProfileDropdown from "./ProfileDropdown";
 import logo from "@/assets/logo-sji.png";
 import { useFeatureFlag } from "@/hooks/useFeatureFlag";
+import { NotificationBell } from "./notifications/NotificationBell";
 
 function useDealCounts() {
   return useQuery({
@@ -353,18 +354,21 @@ const Layout = ({ userRole }: LayoutProps) => {
             <h1 className="text-xl font-bold bg-gradient-primary bg-clip-text text-transparent">
               SJ BD AI
             </h1>
-            <h2 className="text-sm text-muted-foreground">
-              {(() => {
-                const currentItem = navigation.find(item => 
-                  item.href && item.href !== "" && location.pathname.startsWith(item.href) && item.name !== "SEPARATOR"
-                );
-                const currentSubItem = navigation
-                  .flatMap(item => item.subItems || [])
-                  .find(subItem => location.pathname === subItem.href.split("?")[0]);
-                
-                return currentSubItem?.name || currentItem?.name || 'Dashboard';
-              })()}
-            </h2>
+            <div className="flex items-center gap-4">
+              <h2 className="text-sm text-muted-foreground">
+                {(() => {
+                  const currentItem = navigation.find(item =>
+                    item.href && item.href !== "" && location.pathname.startsWith(item.href) && item.name !== "SEPARATOR"
+                  );
+                  const currentSubItem = navigation
+                    .flatMap(item => item.subItems || [])
+                    .find(subItem => location.pathname === subItem.href.split("?")[0]);
+
+                  return currentSubItem?.name || currentItem?.name || 'Dashboard';
+                })()}
+              </h2>
+              <NotificationBell />
+            </div>
           </div>
         </div>
 
