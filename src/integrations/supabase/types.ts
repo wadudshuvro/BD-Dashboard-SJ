@@ -4528,6 +4528,48 @@ export type Database = {
           },
         ]
       }
+      user_notifications: {
+        Row: {
+          created_at: string
+          data: Json | null
+          id: string
+          link: string | null
+          message: string
+          read: boolean
+          read_at: string | null
+          title: string
+          type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          data?: Json | null
+          id?: string
+          link?: string | null
+          message: string
+          read?: boolean
+          read_at?: string | null
+          title: string
+          type: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          data?: Json | null
+          id?: string
+          link?: string | null
+          message?: string
+          read?: boolean
+          read_at?: string | null
+          title?: string
+          type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_performance_metrics: {
         Row: {
           ai_agents_run: number | null
@@ -4940,6 +4982,7 @@ export type Database = {
           deal_title: string
         }[]
       }
+      get_unread_notification_count: { Args: never; Returns: number }
       get_user_brands: {
         Args: { p_user_id: string }
         Returns: {
@@ -4958,6 +5001,11 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      mark_all_notifications_as_read: { Args: never; Returns: undefined }
+      mark_notification_as_read: {
+        Args: { notification_id: string }
+        Returns: undefined
       }
       update_campaign_financials: {
         Args: { p_campaign_id: string }
