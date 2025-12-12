@@ -996,12 +996,13 @@ export default function DealDetail() {
     mutationFn: async (pmId: string | null) => {
       if (!deal?.id) throw new Error("No deal ID");
 
+      const oldPmId = deal?.pm_assigned_id;
       const { data, error } = await supabase.from("deals").update({ pm_assigned_id: pmId }).eq("id", deal.id).select("pm_assigned_id").single();
 
       if (error) throw error;
-      return data;
+      return { data, oldPmId };
     },
-    onSuccess: async (_, pmId) => {
+    onSuccess: async (result, pmId) => {
       if (pmId) {
         const { data: pmData } = await supabase.from("users").select("id, first_name, last_name, email").eq("id", pmId).single();
         if (pmData) setPm(pmData as UserProfile);
@@ -1014,6 +1015,11 @@ export default function DealDetail() {
         description: pmId ? "Project manager has been updated" : "Project manager removed",
       });
       queryClient.invalidateQueries({ queryKey: ["deal", dealId] });
+      
+      // Send notification (non-blocking)
+      if (deal?.id && pmId) {
+        sendAssigneeNotification(deal.id, pmId, result.oldPmId || null, 'pm', user?.id);
+      }
     },
     onError: (error) => {
       toast({
@@ -1032,6 +1038,7 @@ export default function DealDetail() {
     if (!deal?.id || !user?.id) return;
 
     const field = role === "owner" ? "owner_id" : "pm_assigned_id";
+    const oldAssigneeId = role === "owner" ? deal?.owner_id : deal?.pm_assigned_id;
 
     try {
       const { error } = await supabase
@@ -1054,12 +1061,42 @@ export default function DealDetail() {
         description: `You are now the ${role === "owner" ? "deal owner" : "project manager"}`,
       });
       queryClient.invalidateQueries({ queryKey: ["deal", dealId] });
+      
+      // Send notification (self-assignment, but the edge function will skip it)
+      sendAssigneeNotification(deal.id, user.id, oldAssigneeId || null, role, user.id);
     } catch (error) {
       toast({
         title: "Assignment failed",
         description: error instanceof Error ? error.message : "Failed to assign",
         variant: "destructive",
       });
+    }
+  };
+
+  // Helper function to send assignee notification
+  const sendAssigneeNotification = async (
+    dealId: string,
+    newAssigneeId: string | null,
+    oldAssigneeId: string | null,
+    assignmentType: 'owner' | 'pm',
+    changedById?: string
+  ) => {
+    if (!newAssigneeId) return; // Don't notify if unassigning
+    
+    try {
+      await supabase.functions.invoke('deal-assignee-notification', {
+        body: {
+          deal_id: dealId,
+          new_assignee_id: newAssigneeId,
+          old_assignee_id: oldAssigneeId,
+          assignment_type: assignmentType,
+          changed_by_id: changedById,
+        },
+      });
+      console.log(`[DealDetail] Assignee notification sent for ${assignmentType}`);
+    } catch (error) {
+      // Don't block the assignment, just log the error
+      console.error(`[DealDetail] Failed to send assignee notification:`, error);
     }
   };
 
@@ -1986,6 +2023,7 @@ export default function DealDetail() {
                         <Select
                           value={owner?.id || "unassigned"}
                           onValueChange={async (value) => {
+                            const oldOwnerId = owner?.id || null;
                             try {
                               // Immediately update local state for instant UI feedback
                               if (value === "unassigned") {
@@ -2006,6 +2044,11 @@ export default function DealDetail() {
 
                               toast({ title: "Deal owner updated" });
                               queryClient.invalidateQueries({ queryKey: ["deal", dealId] });
+                              
+                              // Send notification (non-blocking)
+                              if (value !== "unassigned") {
+                                sendAssigneeNotification(deal.id, value, oldOwnerId, 'owner', user?.id);
+                              }
                             } catch (error) {
                               console.error("Failed to update deal owner:", error);
                               // Revert on error by refetching
@@ -2042,6 +2085,7 @@ export default function DealDetail() {
                         <Select
                           value={owner?.id || "unassigned"}
                           onValueChange={async (value) => {
+                            const oldOwnerId = owner?.id || null;
                             try {
                               // Immediately update local state for instant UI feedback
                               if (value === "unassigned") {
@@ -2062,6 +2106,11 @@ export default function DealDetail() {
 
                               toast({ title: "Deal owner updated" });
                               queryClient.invalidateQueries({ queryKey: ["deal", dealId] });
+                              
+                              // Send notification (non-blocking)
+                              if (value !== "unassigned") {
+                                sendAssigneeNotification(deal.id, value, oldOwnerId, 'owner', user?.id);
+                              }
                             } catch (error) {
                               console.error("Failed to update deal owner:", error);
                               // Revert on error by refetching
@@ -2113,6 +2162,11 @@ export default function DealDetail() {
 
                               toast({ title: "Deal owner updated" });
                               queryClient.invalidateQueries({ queryKey: ["deal", dealId] });
+                              
+                              // Send notification (non-blocking) - no old owner since was unassigned
+                              if (value !== "unassigned") {
+                                sendAssigneeNotification(deal.id, value, null, 'owner', user?.id);
+                              }
                             } catch (error) {
                               console.error("Failed to update deal owner:", error);
                               // Revert on error by refetching

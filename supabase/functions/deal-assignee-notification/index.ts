@@ -57,26 +57,37 @@ serve(async (req) => {
     }
 
     // Get deal details
-    const { data: deal, error: dealError } = await supabase
+    const { data: dealRaw, error: dealError } = await supabase
       .from("deals")
       .select(`
         id,
         title,
         stage,
-        value,
-        client:clients(name),
-        company:companies(name)
+        amount,
+        client:clients(name)
       `)
       .eq("id", deal_id)
       .single();
 
-    if (dealError || !deal) {
+    if (dealError || !dealRaw) {
       console.error("[deal-assignee-notification] Deal not found:", dealError);
       return new Response(
         JSON.stringify({ error: "Deal not found" }),
         { status: 404, headers }
       );
     }
+
+    // Transform the raw data to match expected DealData interface
+    // Supabase returns joined relations as arrays
+    const deal: DealData = {
+      id: dealRaw.id,
+      title: dealRaw.title,
+      stage: dealRaw.stage,
+      value: dealRaw.amount,
+      client: Array.isArray(dealRaw.client) && dealRaw.client.length > 0 
+        ? { name: dealRaw.client[0].name } 
+        : null,
+    };
 
     // Get new assignee details from users table
     const { data: newAssignee, error: assigneeError } = await supabase
