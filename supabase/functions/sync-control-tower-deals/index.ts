@@ -276,73 +276,61 @@ async function buildClientCache(supabase: any): Promise<Map<string, string>> {
   return cache;
 }
 
-// Extract client data from a deal (with joined client data from Control Tower)
+// Extract client data from deal fields (no join - extracted directly from deal)
 function extractClientData(ctDeal: any): any {
-  // Get the joined client data from Control Tower (if available)
-  const joinedClient = ctDeal.client || null;
+  // Extract client ID from deal fields
+  const clientId = ctDeal.client_id || ctDeal.clientId || ctDeal.hubspot_company_id;
 
-  // Extract client ID - prefer joined client, fallback to deal fields
-  const clientId = joinedClient?.id || ctDeal.client_id || ctDeal.clientId;
-
-  // Extract company name - prefer joined client data
-  const clientCompany = joinedClient?.company ||
-                        joinedClient?.name ||
-                        ctDeal.clientCompanyName ||
+  // Extract company name from deal fields - try multiple field variations
+  const clientCompany = ctDeal.clientCompanyName ||
+                        ctDeal.client_company_name ||
                         ctDeal.company_name ||
-                        ctDeal.client_company;
+                        ctDeal.client_company ||
+                        ctDeal.companyName ||
+                        ctDeal.dealname?.split(' - ')[0] || // Sometimes company is in deal name
+                        null;
 
   if (!clientCompany && !clientId) {
+    console.log('[Sync] No client data found in deal:', ctDeal.id);
     return null;
   }
 
-  // Build contact person from joined client data or deal fields
-  const contactPerson = joinedClient?.contact_person ||
-                        joinedClient?.contact_name ||
-                        joinedClient?.primary_contact ||
-                        (joinedClient?.first_name || joinedClient?.last_name
-                          ? `${joinedClient?.first_name || ''} ${joinedClient?.last_name || ''}`.trim()
-                          : null) ||
-                        ctDeal.clientContactName ||
-                        `${ctDeal.clientFirstName || ''} ${ctDeal.clientLastName || ''}`.trim() ||
-                        null;
-
-  // Build address object from joined client data
-  const address = joinedClient?.address ? {
-    street: joinedClient.address,
-    city: joinedClient.city || null,
-    state: joinedClient.state || null,
-    country: joinedClient.country || null,
-    postal_code: joinedClient.postal_code || null,
-  } : null;
+  // Build contact person from deal fields
+  const firstName = ctDeal.clientFirstName || ctDeal.client_first_name || ctDeal.contact_first_name || '';
+  const lastName = ctDeal.clientLastName || ctDeal.client_last_name || ctDeal.contact_last_name || '';
+  const contactPerson = ctDeal.clientContactName ||
+                        ctDeal.client_contact_name ||
+                        ctDeal.contact_name ||
+                        (firstName || lastName ? `${firstName} ${lastName}`.trim() : null);
 
   return {
     control_tower_id: clientId || null,
     name: clientCompany || 'Unknown Client',
     company: clientCompany || 'Unknown Client',
-    // Prioritize joined client data for contact info
-    email: joinedClient?.contact_email ||
-           joinedClient?.email ||
-           ctDeal.clientEmail ||
+    // Extract contact info from deal fields
+    email: ctDeal.clientEmail ||
            ctDeal.client_email ||
+           ctDeal.contact_email ||
+           ctDeal.email ||
            null,
-    phone: joinedClient?.contact_phone ||
-           joinedClient?.phone ||
-           ctDeal.clientPhone ||
+    phone: ctDeal.clientPhone ||
            ctDeal.client_phone ||
+           ctDeal.contact_phone ||
+           ctDeal.phone ||
            null,
     contact_person: contactPerson,
-    website: joinedClient?.website ||
-             joinedClient?.domain ||
-             ctDeal.clientWebsite ||
+    website: ctDeal.clientWebsite ||
              ctDeal.client_website ||
+             ctDeal.website ||
+             ctDeal.domain ||
              null,
-    industry: joinedClient?.industry || null,
-    address: address?.street || null,
-    city: address?.city || null,
-    state: address?.state || null,
-    country: address?.country || null,
-    postal_code: address?.postal_code || null,
-    status: joinedClient?.status || 'active',
+    industry: ctDeal.industry || ctDeal.client_industry || null,
+    address: null,
+    city: null,
+    state: null,
+    country: null,
+    postal_code: null,
+    status: 'active',
   };
 }
 
