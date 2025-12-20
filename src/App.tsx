@@ -35,6 +35,7 @@ import CompanyDetail from "./pages/bd/CompanyDetail";
 import PODManagement from "./pages/admin/PODManagement";
 
 import Prospecting from "./pages/bd/pipeline/Prospecting";
+import AllDeals from "./pages/bd/pipeline/AllDeals";
 import Qualification from "./pages/bd/pipeline/Qualification";
 import Proposal from "./pages/bd/pipeline/Proposal";
 import ProposalManagement from "./pages/bd/ProposalManagement";
@@ -183,6 +184,14 @@ const App = () => (
             </Route>
 
             {/* Pipeline routes - now at root level */}
+            <Route path="/all-deals" element={
+              <ProtectedRoute requiredMinimumRole="team_member">
+                <Layout />
+              </ProtectedRoute>
+            }>
+              <Route index element={<AllDeals />} />
+            </Route>
+
             <Route path="/prospecting" element={
               <ProtectedRoute requiredMinimumRole="team_member">
                 <Layout />
