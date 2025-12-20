@@ -432,32 +432,9 @@ async function performSync(
     console.log(`[Sync] Fetching deals from Control Tower${syncModeLabel}...`);
     
     // Join with clients table to get full contact details
-    let ctDealsQuery = ctClient.from('Deal').select(`
-      *,
-      client:clients!client_id (
-        id,
-        name,
-        email,
-        contact_email,
-        phone,
-        contact_phone,
-        contact_person,
-        contact_name,
-        primary_contact,
-        first_name,
-        last_name,
-        website,
-        domain,
-        address,
-        city,
-        state,
-        country,
-        postal_code,
-        industry,
-        company,
-        status
-      )
-    `);
+    // Fetch deals from Control Tower - without client join to avoid column mismatch
+    // Client data will be extracted from deal fields instead
+    let ctDealsQuery = ctClient.from('Deal').select('*');
     
     // Apply filters based on sync mode
     if (singleDealId) {
