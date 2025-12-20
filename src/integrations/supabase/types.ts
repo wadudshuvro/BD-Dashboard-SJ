@@ -2735,6 +2735,44 @@ export type Database = {
           },
         ]
       }
+      feedback_attachments: {
+        Row: {
+          content_type: string | null
+          created_at: string
+          feedback_id: string
+          file_name: string
+          file_path: string
+          file_size: number | null
+          id: string
+        }
+        Insert: {
+          content_type?: string | null
+          created_at?: string
+          feedback_id: string
+          file_name: string
+          file_path: string
+          file_size?: number | null
+          id?: string
+        }
+        Update: {
+          content_type?: string | null
+          created_at?: string
+          feedback_id?: string
+          file_name?: string
+          file_path?: string
+          file_size?: number | null
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feedback_attachments_feedback_id_fkey"
+            columns: ["feedback_id"]
+            isOneToOne: false
+            referencedRelation: "feedback_reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       feedback_comments: {
         Row: {
           comment: string
