@@ -33,6 +33,7 @@ import {
   Handshake,
   MessageSquare,
   PenTool,
+  Layers,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useState } from "react";
@@ -149,10 +150,11 @@ const Layout = ({ userRole }: LayoutProps) => {
       { name: "My Agents", href: "/bd/my-agents", icon: Zap, current: false },
       {
         name: "Pipeline",
-        href: "/prospecting",
+        href: "/all-deals",
         icon: Target,
         current: false,
         subItems: [
+          { name: "All Deals", href: "/all-deals", icon: Layers, current: false },
           { name: `Lead${dealCounts?.prospecting ? ` (${dealCounts.prospecting})` : ''}`, href: "/prospecting", icon: UserSearch, current: false },
           { name: `Estimation${dealCounts?.qualification ? ` (${dealCounts.qualification})` : ''}`, href: "/qualification", icon: ClipboardCheck, current: false },
           { name: `Discovery${dealCounts?.proposal ? ` (${dealCounts.proposal})` : ''}`, href: "/proposal", icon: FileText, current: false },
