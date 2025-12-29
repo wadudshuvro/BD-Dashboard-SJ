@@ -1,4 +1,4 @@
-export type ProviderName = "openai" | "openai-mini" | "gemini" | "perplexity" | "anthropic";
+export type ProviderName = "openai" | "openai-mini" | "gemini" | "perplexity" | "anthropic" | "lovable";
 
 export interface ProviderConfig {
   provider: ProviderName;
@@ -65,12 +65,18 @@ type GeminiResponse = {
 type AnthropicResponse = {
   content?: Array<{ text?: string }>;
 };
+
 function ensureApiKey(provider: ProviderName): string {
   switch (provider) {
     case "openai":
     case "openai-mini": {
       const key = Deno.env.get("OPENAI_API_KEY");
       if (!key) throw new Error("Missing OPENAI_API_KEY environment variable");
+      return key;
+    }
+    case "lovable": {
+      const key = Deno.env.get("LOVABLE_API_KEY");
+      if (!key) throw new Error("Missing LOVABLE_API_KEY environment variable");
       return key;
     }
     case "gemini": {
@@ -104,11 +110,12 @@ function withDefault(config: ProviderConfig | undefined, fallback: ProviderConfi
 }
 
 export function buildProviderChain(agentConfig: AgentConfig, defaultModel: string): ProviderConfig[] {
-  const defaultProvider: ProviderConfig = { provider: "openai", model: defaultModel || "gpt-4o-mini" };
+  // Default to Lovable AI Gateway for reliability
+  const defaultProvider: ProviderConfig = { provider: "lovable", model: defaultModel || "google/gemini-2.5-flash" };
   const primary = withDefault(agentConfig.providers?.primary, defaultProvider);
   const fallback = withDefault(
     agentConfig.providers?.fallback,
-    { provider: "openai", model: "gpt-4o-mini" },
+    { provider: "lovable", model: "google/gemini-2.5-flash" },
   );
   const research = agentConfig.features?.enableResearch
     ? withDefault(
@@ -121,7 +128,8 @@ export function buildProviderChain(agentConfig: AgentConfig, defaultModel: strin
   if (fallback && (fallback.provider !== primary.provider || fallback.model !== primary.model)) {
     chain.push(fallback);
   }
-  chain.push({ provider: "openai-mini", model: "gpt-4o-mini" });
+  // Add Lovable as final fallback
+  chain.push({ provider: "lovable", model: "google/gemini-2.5-flash" });
   if (research) {
     chain.push(research);
   }
@@ -323,6 +331,58 @@ export async function invokeProvider(
             provider: providerConfig.provider,
             model: providerConfig.model,
             latencyMs: Math.round(latency),
+          },
+        };
+      }
+      case "lovable": {
+        const apiKey = ensureApiKey("lovable");
+        const body: any = {
+          model: providerConfig.model || "google/gemini-2.5-flash",
+          messages,
+        };
+        
+        // Add response format for JSON if needed
+        if (messages.some(m => m.content.includes('JSON'))) {
+          body.response_format = { type: "json_object" };
+        }
+        
+        const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify(body),
+        });
+        const latency = performance.now() - startedAt;
+        if (!response.ok) {
+          const errorText = await response.text();
+          return {
+            content: "",
+            rawResponse: errorText,
+            telemetry: {
+              provider: providerConfig.provider,
+              model: providerConfig.model,
+              latencyMs: Math.round(latency),
+              error: { message: errorText, status: response.status },
+            },
+          };
+        }
+        const payload = await response.json() as OpenAIChatResponse;
+        const usage = payload.usage ?? {};
+        const messageContent = payload.choices?.[0]?.message?.content ?? "";
+        return {
+          content: messageContent,
+          rawResponse: payload,
+          telemetry: {
+            provider: providerConfig.provider,
+            model: providerConfig.model,
+            latencyMs: Math.round(latency),
+            tokenUsage: {
+              promptTokens: usage.prompt_tokens,
+              completionTokens: usage.completion_tokens,
+              totalTokens: usage.total_tokens,
+            },
           },
         };
       }

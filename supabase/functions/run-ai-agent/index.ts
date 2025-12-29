@@ -1242,33 +1242,38 @@ serve(async (req) => {
         content: `${enhancedMessages[0].content}\n\nIMPORTANT: For ${messageType} messages, STRICTLY limit each message variant to ${charLimit} characters or less. This is a hard LinkedIn platform constraint.`
       };
       
-      // Use OpenAI with tool calling for LinkedIn messages
-      const openaiKey = Deno.env.get('OPENAI_API_KEY');
+      // Use Lovable AI Gateway with tool calling for LinkedIn messages
+      const lovableKey = Deno.env.get('LOVABLE_API_KEY');
       
-      if (openaiKey) {
+      if (lovableKey) {
         const startTime = Date.now();
         try {
-          const toolCallResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+          console.log('🔄 Using Lovable AI Gateway for LinkedIn message generation');
+          const toolCallResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
             method: 'POST',
             headers: {
-              'Authorization': `Bearer ${openaiKey}`,
+              'Authorization': `Bearer ${lovableKey}`,
               'Content-Type': 'application/json',
             },
-        body: JSON.stringify({
-          model: 'gpt-4o-mini',
-          messages: enhancedMessages,
-          tools: [linkedInMessageToolSchema],
-          tool_choice: { type: "function", function: { name: "generate_linkedin_messages" } },
-          temperature: 0.8,
-        }),
+            body: JSON.stringify({
+              model: 'google/gemini-2.5-flash',
+              messages: enhancedMessages,
+              tools: [linkedInMessageToolSchema],
+              tool_choice: { type: "function", function: { name: "generate_linkedin_messages" } },
+            }),
           });
 
           const toolCallResult = await toolCallResponse.json();
           const latencyMs = Date.now() - startTime;
           
+          if (!toolCallResponse.ok) {
+            console.error('Lovable AI Gateway error:', toolCallResult);
+            throw new Error(toolCallResult.error?.message || 'Lovable AI Gateway request failed');
+          }
+          
           telemetry.push({
-            provider: 'openai',
-            model: 'gpt-4o-mini',
+            provider: 'lovable' as any,
+            model: 'google/gemini-2.5-flash',
             latencyMs,
             tokenUsage: {
               promptTokens: toolCallResult.usage?.prompt_tokens,
@@ -1318,12 +1323,14 @@ serve(async (req) => {
           console.error('LinkedIn tool calling failed, falling back to standard provider chain:', toolError);
           const latencyMs = Date.now() - startTime;
           telemetry.push({
-            provider: 'openai',
-            model: 'gpt-4o-mini',
+            provider: 'lovable' as any,
+            model: 'google/gemini-2.5-flash',
             latencyMs,
             error: { message: toolError instanceof Error ? toolError.message : 'Tool calling failed' },
           });
         }
+      } else {
+        console.warn('⚠️ LOVABLE_API_KEY not found, falling back to provider chain');
       }
     }
 
