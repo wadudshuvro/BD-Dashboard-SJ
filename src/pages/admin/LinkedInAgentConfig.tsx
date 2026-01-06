@@ -17,6 +17,7 @@ import { useRunAIAgent } from "@/hooks/useRunAIAgent";
 import { useAuth } from "@/hooks/useAuth";
 import { AgentConfigModal } from "@/features/ai/agents/AgentConfigModal";
 import { AgentRunHistoryPanel } from "@/features/ai/agents/AgentRunHistoryPanel";
+import { LeadEnrichmentAgentRunner } from "@/features/ai/agents/LeadEnrichmentAgentRunner";
 import type { AIAgent, AgentProviderConfig } from "@/Api/aiAgents";
 import { cn } from "@/lib/utils";
 import { Loader2, PlayCircle, RefreshCw, Settings, Bot } from "lucide-react";
@@ -280,7 +281,14 @@ export default function LinkedInAgentConfig() {
           </CardContent>
         </Card>
 
-        <AgentRunHistoryPanel agentId={selectedAgent?.id} />
+        <div className="space-y-6">
+          {/* Show interactive runner for Lead Auto-Enrichment Agent */}
+          {selectedAgent?.slug === "lead-auto-enrichment" && (
+            <LeadEnrichmentAgentRunner />
+          )}
+          
+          <AgentRunHistoryPanel agentId={selectedAgent?.id} />
+        </div>
       </div>
 
       <AgentConfigModal
