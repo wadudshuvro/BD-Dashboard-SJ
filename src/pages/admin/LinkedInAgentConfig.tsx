@@ -20,7 +20,7 @@ import { AgentRunHistoryPanel } from "@/features/ai/agents/AgentRunHistoryPanel"
 import { LeadEnrichmentAgentRunner } from "@/features/ai/agents/LeadEnrichmentAgentRunner";
 import type { AIAgent, AgentProviderConfig } from "@/Api/aiAgents";
 import { cn } from "@/lib/utils";
-import { Loader2, PlayCircle, RefreshCw, Settings, Bot } from "lucide-react";
+import { Loader2, PlayCircle, RefreshCw, Settings, Bot, Sparkles } from "lucide-react";
 
 function ProviderSummary({ agent }: { agent: AIAgent }) {
   const providers = agent.config?.providers;
@@ -83,15 +83,24 @@ export default function LinkedInAgentConfig() {
   const [editingAgent, setEditingAgent] = useState<AIAgent | null>(null);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
 
+  // Sort agents to put Lead Auto-Enrichment first
+  const sortedAgents = useMemo(() => {
+    return [...agents].sort((a, b) => {
+      if (a.slug === "lead-auto-enrichment") return -1;
+      if (b.slug === "lead-auto-enrichment") return 1;
+      return a.name.localeCompare(b.name);
+    });
+  }, [agents]);
+
   useEffect(() => {
-    if (!selectedAgentId && agents.length > 0) {
-      setSelectedAgentId(agents[0].id);
+    if (!selectedAgentId && sortedAgents.length > 0) {
+      setSelectedAgentId(sortedAgents[0].id);
     }
-  }, [agents, selectedAgentId]);
+  }, [sortedAgents, selectedAgentId]);
 
   const selectedAgent = useMemo(() => {
-    return agents.find((agent) => agent.id === selectedAgentId) ?? null;
-  }, [agents, selectedAgentId]);
+    return sortedAgents.find((agent) => agent.id === selectedAgentId) ?? null;
+  }, [sortedAgents, selectedAgentId]);
 
   const handleRunAgent = async () => {
     if (!selectedAgent) {
@@ -179,7 +188,7 @@ export default function LinkedInAgentConfig() {
                 <Skeleton className="h-12 w-full" />
                 <Skeleton className="h-12 w-full" />
               </div>
-            ) : agents.length === 0 ? (
+            ) : sortedAgents.length === 0 ? (
               <p className="text-sm text-muted-foreground">No AI agents are configured yet.</p>
             ) : (
               <ScrollArea className="h-72">
@@ -192,20 +201,36 @@ export default function LinkedInAgentConfig() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {agents.map((agent) => {
+                    {sortedAgents.map((agent) => {
                       const isSelected = agent.id === selectedAgentId;
+                      const isFeatured = agent.slug === "lead-auto-enrichment";
                       return (
                         <TableRow
                           key={agent.id}
                           className={cn(
-                            "cursor-pointer",
+                            "cursor-pointer transition-all",
                             isSelected ? "bg-muted/70" : "hover:bg-muted/40",
+                            isFeatured && "border-l-4 border-l-primary bg-primary/5 hover:bg-primary/10",
+                            isFeatured && isSelected && "bg-primary/15",
                           )}
                           onClick={() => setSelectedAgentId(agent.id)}
                         >
                           <TableCell>
                             <div className="space-y-1">
-                              <p className="font-medium leading-none">{agent.name}</p>
+                              <div className="flex items-center gap-2">
+                                {isFeatured && (
+                                  <Sparkles className="h-4 w-4 text-primary shrink-0" />
+                                )}
+                                <p className={cn(
+                                  "font-medium leading-none",
+                                  isFeatured && "text-primary"
+                                )}>{agent.name}</p>
+                                {isFeatured && (
+                                  <Badge className="bg-primary/20 text-primary hover:bg-primary/30 text-xs">
+                                    Featured
+                                  </Badge>
+                                )}
+                              </div>
                               {agent.description && (
                                 <p className="text-xs text-muted-foreground line-clamp-2">{agent.description}</p>
                               )}
