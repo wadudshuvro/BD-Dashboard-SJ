@@ -786,6 +786,7 @@ export type Database = {
           last_enriched_at: string | null
           last_linkedin_activity_date: string | null
           last_status_change_at: string | null
+          lead_quality_score: number | null
           linkedin_about: string | null
           linkedin_connection_count: number | null
           linkedin_follower_count: number | null
@@ -835,6 +836,7 @@ export type Database = {
           last_enriched_at?: string | null
           last_linkedin_activity_date?: string | null
           last_status_change_at?: string | null
+          lead_quality_score?: number | null
           linkedin_about?: string | null
           linkedin_connection_count?: number | null
           linkedin_follower_count?: number | null
@@ -884,6 +886,7 @@ export type Database = {
           last_enriched_at?: string | null
           last_linkedin_activity_date?: string | null
           last_status_change_at?: string | null
+          lead_quality_score?: number | null
           linkedin_about?: string | null
           linkedin_connection_count?: number | null
           linkedin_follower_count?: number | null
