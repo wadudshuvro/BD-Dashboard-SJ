@@ -218,6 +218,84 @@ const bdAnalysisToolSchema = {
   }
 };
 
+// Tool calling schema for Client Intelligence analysis
+const clientIntelligenceToolSchema = {
+  type: "function" as const,
+  function: {
+    name: "provide_client_intelligence",
+    description: "Provide comprehensive client intelligence analysis with structured insights",
+    parameters: {
+      type: "object",
+      properties: {
+        summary: {
+          type: "string",
+          description: "2-3 sentence executive summary answering the user's question directly"
+        },
+        key_findings: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              finding: { type: "string", description: "The insight or finding" },
+              evidence: { type: "string", description: "Supporting data or context from the provided data" },
+              source_type: { type: "string", enum: ["deal", "comment", "followup", "document", "campaign_contact", "client_profile"] },
+              confidence: { type: "string", enum: ["high", "medium", "low"] }
+            },
+            required: ["finding", "evidence", "source_type", "confidence"]
+          },
+          description: "3-7 key findings with evidence and source attribution"
+        },
+        risks: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              risk_description: { type: "string", description: "Description of the risk" },
+              severity: { type: "string", enum: ["high", "medium", "low"] },
+              recommendation: { type: "string", description: "Suggested action to mitigate" }
+            },
+            required: ["risk_description", "severity", "recommendation"]
+          },
+          description: "Identified risks with severity and mitigation recommendations"
+        },
+        opportunities: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              opportunity: { type: "string", description: "The opportunity identified" },
+              value_estimate: { type: "string", description: "Estimated value or impact" },
+              next_steps: { type: "string", description: "Recommended next steps to pursue" }
+            },
+            required: ["opportunity", "value_estimate", "next_steps"]
+          },
+          description: "Growth opportunities with value estimates"
+        },
+        action_items: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              action: { type: "string", description: "Specific action to take" },
+              priority: { type: "string", enum: ["high", "medium", "low"] },
+              owner: { type: "string", description: "Suggested owner (role or team)" },
+              timeline: { type: "string", description: "Suggested timeline (e.g., 'This week', 'Next 2 days')" }
+            },
+            required: ["action", "priority", "owner", "timeline"]
+          },
+          description: "Actionable items with priority and timeline"
+        },
+        sources_cited: {
+          type: "array",
+          items: { type: "string" },
+          description: "List of data sources used in the analysis"
+        }
+      },
+      required: ["summary", "key_findings", "risks", "opportunities", "action_items", "sources_cited"]
+    }
+  }
+};
+
 // Tool calling schema for LinkedIn message generation
 const linkedInMessageToolSchema = {
   type: "function" as const,
@@ -1259,6 +1337,110 @@ serve(async (req) => {
             error: { message: toolError instanceof Error ? toolError.message : 'Tool calling failed' },
           });
         }
+      }
+    }
+
+    // Check if this is Client Intelligence - use tool calling with Lovable AI Gateway
+    const isClientIntelligence = target === "client_intelligence";
+
+    if (isClientIntelligence && !parsedResponse) {
+      const lovableKey = Deno.env.get('LOVABLE_API_KEY');
+      
+      if (lovableKey) {
+        const startTime = Date.now();
+        try {
+          console.log('🔄 Using Lovable AI Gateway for Client Intelligence analysis');
+          
+          // Build enhanced messages with conversation history if provided
+          const intelligenceMessages = [...messages];
+          
+          // Include conversation history for multi-turn support
+          if (payload.conversation_history && payload.conversation_history.length > 0) {
+            // Insert conversation history before the current question
+            const systemMsg = intelligenceMessages.shift()!;
+            const currentUserMsg = intelligenceMessages.pop()!;
+            
+            intelligenceMessages.push(systemMsg);
+            for (const historyMsg of payload.conversation_history) {
+              intelligenceMessages.push({
+                role: historyMsg.role as 'user' | 'assistant',
+                content: typeof historyMsg.content === 'string' 
+                  ? historyMsg.content 
+                  : JSON.stringify(historyMsg.content)
+              });
+            }
+            intelligenceMessages.push(currentUserMsg);
+          }
+          
+          const toolCallResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${lovableKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: 'google/gemini-2.5-flash',
+              messages: intelligenceMessages,
+              tools: [clientIntelligenceToolSchema],
+              tool_choice: { type: "function", function: { name: "provide_client_intelligence" } },
+            }),
+          });
+
+          const toolCallResult = await toolCallResponse.json();
+          const latencyMs = Date.now() - startTime;
+          
+          if (!toolCallResponse.ok) {
+            console.error('Lovable AI Gateway error:', toolCallResult);
+            throw new Error(toolCallResult.error?.message || 'Lovable AI Gateway request failed');
+          }
+          
+          telemetry.push({
+            provider: 'lovable' as any,
+            model: 'google/gemini-2.5-flash',
+            latencyMs,
+            tokenUsage: {
+              promptTokens: toolCallResult.usage?.prompt_tokens,
+              completionTokens: toolCallResult.usage?.completion_tokens,
+              totalTokens: toolCallResult.usage?.total_tokens,
+            },
+          });
+          rawOutputs.push(toolCallResult);
+
+          const toolCall = toolCallResult.choices?.[0]?.message?.tool_calls?.[0];
+          if (toolCall && toolCall.function.name === "provide_client_intelligence") {
+            const intelligenceData = JSON.parse(toolCall.function.arguments);
+            
+            // Return the structured intelligence output directly as the response
+            // This will be returned as response.response in the API
+            parsedResponse = {
+              summary: intelligenceData.summary || "Analysis completed",
+              findings: intelligenceData.key_findings?.map((f: any) => f.finding) || [],
+              recommendations: intelligenceData.action_items?.map((a: any) => a.action) || [],
+              action_items: intelligenceData.action_items || [],
+              metrics: {
+                total_items_analyzed: (inputContext as any)?.deals?.length || 0,
+                high_priority_issues: intelligenceData.risks?.filter((r: any) => r.severity === 'high').length || 0,
+                anomalies_found: intelligenceData.risks?.length || 0
+              },
+              confidence_score: 0.9,
+              structured_output: intelligenceData
+            };
+            
+            console.log('✅ Client Intelligence analysis completed with tool calling');
+          } else {
+            console.warn('⚠️ Client Intelligence tool call did not return expected format, falling back to standard flow');
+          }
+        } catch (toolError) {
+          console.error('Client Intelligence tool calling failed, falling back to standard provider chain:', toolError);
+          telemetry.push({
+            provider: 'lovable' as any,
+            model: 'google/gemini-2.5-flash',
+            latencyMs: Date.now() - startTime,
+            error: { message: toolError instanceof Error ? toolError.message : 'Tool calling failed' },
+          });
+        }
+      } else {
+        console.warn('⚠️ LOVABLE_API_KEY not found for Client Intelligence, falling back to provider chain');
       }
     }
 
