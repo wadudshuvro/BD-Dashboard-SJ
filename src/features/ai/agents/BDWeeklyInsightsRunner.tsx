@@ -59,14 +59,14 @@ const BDWeeklyInsightsRunner: React.FC<BDWeeklyInsightsRunnerProps> = ({ agentId
   const [result, setResult] = useState<WeeklyInsightsResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch active campaigns
+  // Fetch campaigns (active, planning, and completed)
   const { data: campaigns, isLoading: loadingCampaigns } = useQuery({
     queryKey: ["bd-campaigns-for-insights"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("bd_campaigns")
         .select("id, name, slug, status, actual_contacts_reached, responses_received, meetings_booked, deals_generated")
-        .in("status", ["active", "completed"])
+        .in("status", ["active", "planning", "completed"])
         .order("created_at", { ascending: false });
       
       if (error) throw error;
