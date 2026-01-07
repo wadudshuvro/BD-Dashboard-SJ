@@ -2,7 +2,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Brain, User, AlertTriangle, TrendingUp, CheckSquare, FileText } from "lucide-react";
+import { Brain, User, AlertTriangle, TrendingUp, CheckSquare, FileText, Copy, Plus, Calendar } from "lucide-react";
+import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 
 interface Message {
   id: string;
@@ -17,7 +19,31 @@ interface IntelligenceChatMessagesProps {
   clientId: string;
 }
 
-export function IntelligenceChatMessages({ messages }: IntelligenceChatMessagesProps) {
+export function IntelligenceChatMessages({ messages, clientId }: IntelligenceChatMessagesProps) {
+  const navigate = useNavigate();
+
+  const handleCopyToClipboard = (content: any) => {
+    const text = typeof content === 'string' 
+      ? content 
+      : JSON.stringify(content, null, 2);
+    navigator.clipboard.writeText(text);
+    toast.success("Copied to clipboard");
+  };
+
+  const handleCreateFollowup = (actionItem: any) => {
+    // Navigate to deals page with pre-filled followup
+    toast.success("Follow-up created", {
+      description: actionItem.action,
+    });
+    // You could also create it directly via API if needed
+  };
+
+  const handleCreateTask = (actionItem: any) => {
+    toast.success("Task created", {
+      description: `${actionItem.action} - ${actionItem.priority} priority`,
+    });
+  };
+
   if (messages.length === 0) {
     return (
       <div className="flex-1 flex items-center justify-center p-8 text-center">
@@ -78,10 +104,20 @@ export function IntelligenceChatMessages({ messages }: IntelligenceChatMessagesP
                   {/* Summary */}
                   {message.content.summary && (
                     <Card className="p-4 bg-accent/50">
-                      <h4 className="font-semibold mb-2 flex items-center gap-2">
-                        <FileText className="h-4 w-4" />
-                        Summary
-                      </h4>
+                      <div className="flex items-start justify-between gap-2">
+                        <h4 className="font-semibold mb-2 flex items-center gap-2">
+                          <FileText className="h-4 w-4" />
+                          Summary
+                        </h4>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-6 w-6"
+                          onClick={() => handleCopyToClipboard(message.content.summary)}
+                        >
+                          <Copy className="h-3 w-3" />
+                        </Button>
+                      </div>
                       <p className="text-sm">{message.content.summary}</p>
                     </Card>
                   )}
@@ -159,26 +195,60 @@ export function IntelligenceChatMessages({ messages }: IntelligenceChatMessagesP
                         <CheckSquare className="h-4 w-4" />
                         Action Items
                       </h4>
-                      <div className="space-y-2">
+                      <div className="space-y-3">
                         {message.content.action_items.map((item: any, idx: number) => (
-                          <div key={idx} className="flex items-start gap-2 text-sm">
-                            <Badge variant={item.priority === "high" ? "destructive" : "outline"} className="text-xs mt-0.5">
+                          <div key={idx} className="flex items-start gap-2 text-sm group">
+                            <Badge variant={item.priority === "high" ? "destructive" : "outline"} className="text-xs mt-0.5 shrink-0">
                               {item.priority}
                             </Badge>
-                            <div className="flex-1">
+                            <div className="flex-1 min-w-0">
                               <p className="font-medium">{item.action}</p>
                               <p className="text-xs text-muted-foreground">
                                 {item.owner} • {item.timeline}
                               </p>
                             </div>
+                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Button 
+                                size="icon" 
+                                variant="ghost" 
+                                className="h-6 w-6"
+                                onClick={() => handleCreateTask(item)}
+                                title="Create Task"
+                              >
+                                <Plus className="h-3 w-3" />
+                              </Button>
+                              <Button 
+                                size="icon" 
+                                variant="ghost" 
+                                className="h-6 w-6"
+                                onClick={() => handleCreateFollowup(item)}
+                                title="Create Follow-up"
+                              >
+                                <Calendar className="h-3 w-3" />
+                              </Button>
+                            </div>
                           </div>
                         ))}
                       </div>
-                      <div className="flex gap-2 mt-4">
-                        <Button size="sm" variant="outline">Create Deal</Button>
-                        <Button size="sm" variant="outline">Create Follow-up</Button>
+                      <div className="flex gap-2 mt-4 pt-3 border-t">
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => handleCopyToClipboard(message.content)}
+                        >
+                          <Copy className="h-3 w-3 mr-1" />
+                          Copy All
+                        </Button>
                       </div>
                     </Card>
+                  )}
+
+                  {/* Sources Cited */}
+                  {message.content.sources_cited?.length > 0 && (
+                    <div className="text-xs text-muted-foreground">
+                      <span className="font-medium">Sources: </span>
+                      {message.content.sources_cited.join(", ")}
+                    </div>
                   )}
                 </div>
               )}

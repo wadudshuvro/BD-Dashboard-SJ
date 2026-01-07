@@ -59,13 +59,21 @@ export default function ClientIntelligenceChat() {
       mode,
     };
 
-    setMessages((prev) => [...prev, userMessage]);
+    const updatedMessages = [...messages, userMessage];
+    setMessages(updatedMessages);
 
     try {
+      // Pass conversation history for multi-turn support
+      const conversationHistory = messages.map(m => ({
+        role: m.role,
+        content: m.content
+      }));
+
       const result = await runIntelligence.mutateAsync({
         clientId: client.id,
         question,
         mode,
+        conversationHistory,
       });
 
       const assistantMessage: Message = {
