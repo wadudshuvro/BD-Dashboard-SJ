@@ -243,11 +243,33 @@ export function IntelligenceChatMessages({ messages, clientId }: IntelligenceCha
                     </Card>
                   )}
 
+                  {/* Data Quality */}
+                  {message.content.data_quality && (
+                    <Card className="p-3 bg-muted/50">
+                      <div className="flex items-center gap-2 text-xs">
+                        <span className="font-medium">Data Coverage:</span>
+                        <Badge variant={message.content.data_quality.coverage_score >= 50 ? "default" : "secondary"}>
+                          {message.content.data_quality.coverage_score}%
+                        </Badge>
+                        {message.content.data_quality.missing_data?.length > 0 && (
+                          <span className="text-muted-foreground">
+                            Missing: {message.content.data_quality.missing_data.slice(0, 2).join(", ")}
+                          </span>
+                        )}
+                      </div>
+                    </Card>
+                  )}
+
                   {/* Sources Cited */}
                   {message.content.sources_cited?.length > 0 && (
                     <div className="text-xs text-muted-foreground">
                       <span className="font-medium">Sources: </span>
-                      {message.content.sources_cited.join(", ")}
+                      {message.content.sources_cited.map((src: any, idx: number) => (
+                        <span key={idx}>
+                          {typeof src === 'string' ? src : `${src.type}: ${src.name}`}
+                          {idx < message.content.sources_cited.length - 1 ? ", " : ""}
+                        </span>
+                      ))}
                     </div>
                   )}
                 </div>

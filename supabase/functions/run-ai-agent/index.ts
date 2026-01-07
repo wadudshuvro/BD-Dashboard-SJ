@@ -229,19 +229,20 @@ const clientIntelligenceToolSchema = {
       properties: {
         summary: {
           type: "string",
-          description: "2-3 sentence executive summary answering the user's question directly"
+          description: "2-3 sentence executive summary directly answering the user's question. Be specific - reference deal names, dollar amounts, dates."
         },
         key_findings: {
           type: "array",
           items: {
             type: "object",
             properties: {
-              finding: { type: "string", description: "The insight or finding" },
-              evidence: { type: "string", description: "Supporting data or context from the provided data" },
+              finding: { type: "string", description: "The insight or finding - be specific with names, dates, amounts" },
+              evidence: { type: "string", description: "Exact quote or data point from the provided context that supports this finding" },
               source_type: { type: "string", enum: ["deal", "comment", "followup", "document", "campaign_contact", "client_profile"] },
+              source_reference: { type: "string", description: "Specific reference (e.g., deal title, comment date, follow-up title)" },
               confidence: { type: "string", enum: ["high", "medium", "low"] }
             },
-            required: ["finding", "evidence", "source_type", "confidence"]
+            required: ["finding", "evidence", "source_type", "source_reference", "confidence"]
           },
           description: "3-7 key findings with evidence and source attribution"
         },
@@ -250,11 +251,12 @@ const clientIntelligenceToolSchema = {
           items: {
             type: "object",
             properties: {
-              risk_description: { type: "string", description: "Description of the risk" },
+              risk_description: { type: "string", description: "Specific risk with context (which deal, what amount at stake)" },
               severity: { type: "string", enum: ["high", "medium", "low"] },
-              recommendation: { type: "string", description: "Suggested action to mitigate" }
+              affected_entity: { type: "string", description: "Which deal or relationship is affected" },
+              recommendation: { type: "string", description: "Specific action to mitigate - who should do what by when" }
             },
-            required: ["risk_description", "severity", "recommendation"]
+            required: ["risk_description", "severity", "affected_entity", "recommendation"]
           },
           description: "Identified risks with severity and mitigation recommendations"
         },
@@ -263,11 +265,12 @@ const clientIntelligenceToolSchema = {
           items: {
             type: "object",
             properties: {
-              opportunity: { type: "string", description: "The opportunity identified" },
-              value_estimate: { type: "string", description: "Estimated value or impact" },
-              next_steps: { type: "string", description: "Recommended next steps to pursue" }
+              opportunity: { type: "string", description: "The opportunity with specific context" },
+              value_estimate: { type: "string", description: "Estimated value or impact in dollars or business terms" },
+              related_entity: { type: "string", description: "Which deal or relationship this relates to" },
+              next_steps: { type: "string", description: "Concrete next step with owner and timeline" }
             },
-            required: ["opportunity", "value_estimate", "next_steps"]
+            required: ["opportunity", "value_estimate", "related_entity", "next_steps"]
           },
           description: "Growth opportunities with value estimates"
         },
@@ -276,22 +279,43 @@ const clientIntelligenceToolSchema = {
           items: {
             type: "object",
             properties: {
-              action: { type: "string", description: "Specific action to take" },
+              action: { type: "string", description: "Specific action - start with a verb (Call, Email, Schedule, Review)" },
+              context: { type: "string", description: "Why this action matters - what will it achieve" },
+              related_deal: { type: "string", description: "Related deal title if applicable, or 'General' if client-wide" },
               priority: { type: "string", enum: ["high", "medium", "low"] },
-              owner: { type: "string", description: "Suggested owner (role or team)" },
-              timeline: { type: "string", description: "Suggested timeline (e.g., 'This week', 'Next 2 days')" }
+              owner: { type: "string", description: "Suggested owner (Account Manager, BD, or specific role from comments)" },
+              timeline: { type: "string", description: "Specific timeline (e.g., 'Today', 'By Friday', 'This week')" }
             },
-            required: ["action", "priority", "owner", "timeline"]
+            required: ["action", "context", "priority", "owner", "timeline"]
           },
-          description: "Actionable items with priority and timeline"
+          description: "Actionable items with priority and timeline - these should be immediately executable"
         },
         sources_cited: {
           type: "array",
-          items: { type: "string" },
-          description: "List of data sources used in the analysis"
+          items: {
+            type: "object",
+            properties: {
+              type: { type: "string", enum: ["deal", "comment", "followup", "document", "campaign_contact", "client_profile"] },
+              name: { type: "string", description: "Name or title of the source" },
+              date: { type: "string", description: "Relevant date (created, updated, or mentioned)" },
+              relevance: { type: "string", description: "How this source was used in the analysis" }
+            },
+            required: ["type", "name", "relevance"]
+          },
+          description: "List of data sources used in the analysis with details"
+        },
+        data_quality: {
+          type: "object",
+          properties: {
+            coverage_score: { type: "number", description: "0-100 score of how complete the available data is" },
+            missing_data: { type: "array", items: { type: "string" }, description: "What data is missing that would improve analysis" },
+            data_freshness: { type: "string", description: "How recent the most relevant data is" },
+            recommendation: { type: "string", description: "What the user should do to improve data quality if needed" }
+          },
+          required: ["coverage_score", "missing_data", "data_freshness"]
         }
       },
-      required: ["summary", "key_findings", "risks", "opportunities", "action_items", "sources_cited"]
+      required: ["summary", "key_findings", "risks", "opportunities", "action_items", "sources_cited", "data_quality"]
     }
   }
 };
@@ -568,6 +592,146 @@ function replacePlaceholders(template: string, context: Record<string, any>): st
   });
 }
 
+// Build comprehensive client context for Client Intelligence analysis
+function buildClientIntelligenceContext(executionContext: Record<string, any>): string {
+  const sections: string[] = [];
+  
+  // Client Profile
+  const client = executionContext.client || {};
+  if (client.name || client.industry) {
+    sections.push(`### CLIENT PROFILE
+- **Name**: ${client.name || 'Unknown'}
+- **Industry**: ${client.industry || 'Not specified'}
+- **Status**: ${client.status || 'Active'}
+- **Website**: ${client.website || 'Not available'}
+- **Last Contact**: ${client.last_contact_date || 'Unknown'}
+- **Notes**: ${client.notes || 'None'}`);
+  }
+  
+  // Deals Summary
+  const deals = executionContext.deals || [];
+  if (deals.length > 0) {
+    const totalValue = deals.reduce((sum: number, d: any) => sum + (d.value || 0), 0);
+    const stageGroups = deals.reduce((acc: any, d: any) => {
+      const stage = d.stage || 'Unknown';
+      acc[stage] = (acc[stage] || 0) + 1;
+      return acc;
+    }, {});
+    
+    const stagesSummary = Object.entries(stageGroups).map(([s, c]) => `${s}: ${c}`).join(', ');
+    const dealsList = deals.slice(0, 10).map((d: any, i: number) => {
+      const title = d.title || 'Untitled';
+      const stage = d.stage || 'Unknown';
+      const value = (d.value || 0).toLocaleString();
+      const updated = d.updated_at ? new Date(d.updated_at).toLocaleDateString() : 'Unknown';
+      return `${i + 1}. **${title}** - ${stage} - $${value} - Updated: ${updated}`;
+    }).join('\n');
+    
+    sections.push(`### DEALS OVERVIEW
+- **Total Deals**: ${deals.length}
+- **Total Pipeline Value**: $${totalValue.toLocaleString()}
+- **By Stage**: ${stagesSummary}
+
+**Active Deals:**
+${dealsList}`);
+  } else {
+    sections.push(`### DEALS OVERVIEW
+No deals found for this client.`);
+  }
+  
+  // Recent Comments
+  const comments = executionContext.deal_comments || [];
+  if (comments.length > 0) {
+    const commentsList = comments.slice(0, 10).map((c: any, i: number) => {
+      const dealTitle = c.deal_title || 'Unknown Deal';
+      const userName = c.user_name || c.user_email || 'Unknown User';
+      const date = c.created_at ? new Date(c.created_at).toLocaleDateString() : 'Unknown';
+      const text = (c.comment || '').substring(0, 200);
+      return `${i + 1}. [${date}] **${dealTitle}** - ${userName}: "${text}..."`;
+    }).join('\n');
+    
+    sections.push(`### RECENT DEAL COMMENTS (Last 10)
+${commentsList}`);
+  }
+  
+  // Follow-ups
+  const followups = executionContext.followups || [];
+  if (followups.length > 0) {
+    const now = new Date();
+    const overdue = followups.filter((f: any) => f.status !== 'completed' && new Date(f.due_date) < now);
+    const upcoming = followups.filter((f: any) => f.status !== 'completed' && new Date(f.due_date) >= now);
+    const completed = followups.filter((f: any) => f.status === 'completed');
+    
+    let followupText = `### FOLLOW-UPS
+- **Overdue**: ${overdue.length}
+- **Upcoming**: ${upcoming.length}
+- **Completed**: ${completed.length}`;
+
+    if (overdue.length > 0) {
+      const overdueList = overdue.slice(0, 5).map((f: any) => {
+        const title = f.title || 'Untitled';
+        const due = new Date(f.due_date).toLocaleDateString();
+        return `- ${title} (Due: ${due})`;
+      }).join('\n');
+      followupText += `\n\n**Overdue:**\n${overdueList}`;
+    }
+
+    if (upcoming.length > 0) {
+      const upcomingList = upcoming.slice(0, 5).map((f: any) => {
+        const title = f.title || 'Untitled';
+        const due = new Date(f.due_date).toLocaleDateString();
+        return `- ${title} (Due: ${due})`;
+      }).join('\n');
+      followupText += `\n\n**Upcoming:**\n${upcomingList}`;
+    }
+    
+    sections.push(followupText);
+  }
+  
+  // Documents
+  const documents = executionContext.documents || [];
+  if (documents.length > 0) {
+    const docsList = documents.slice(0, 5).map((d: any) => {
+      const name = d.file_name || 'Unnamed';
+      const type = d.file_type || 'Unknown type';
+      return `- ${name} (${type})`;
+    }).join('\n');
+    sections.push(`### DOCUMENTS
+${docsList}`);
+  }
+  
+  // Campaign Contacts (if any)
+  const contacts = executionContext.campaign_contacts || [];
+  if (contacts.length > 0) {
+    const contactsList = contacts.slice(0, 5).map((c: any) => {
+      const name = c.contact_name || 'Unknown';
+      const title = c.contact_title || 'Unknown title';
+      const company = c.contact_company || 'Unknown company';
+      const status = c.status || 'Unknown';
+      return `- ${name} - ${title} at ${company} - Status: ${status}`;
+    }).join('\n');
+    sections.push(`### CAMPAIGN CONTACTS
+${contactsList}`);
+  }
+  
+  // Data Quality Assessment
+  const hasDeals = deals.length > 0;
+  const hasComments = comments.length > 0;
+  const hasFollowups = followups.length > 0;
+  const hasDocs = documents.length > 0;
+  const dataPoints = [hasDeals, hasComments, hasFollowups, hasDocs].filter(Boolean).length;
+  const coverageScore = Math.round((dataPoints / 4) * 100);
+  
+  sections.push(`### DATA QUALITY
+- **Coverage Score**: ${coverageScore}%
+- **Deals**: ${hasDeals ? '✓' : '✗ Missing'}
+- **Comments**: ${hasComments ? '✓' : '✗ Missing'}
+- **Follow-ups**: ${hasFollowups ? '✓' : '✗ Missing'}
+- **Documents**: ${hasDocs ? '✓' : '✗ Missing'}`);
+  
+  return sections.join('\n\n');
+}
+
 function assemblePrompt(
   agent: DatabaseAgent,
   businessContext: Record<string, unknown>,
@@ -771,13 +935,46 @@ ${responseTemplate}
 - If research_summary is missing, note that running "Run Research" first would enhance analysis
 - Include structured_output with lead_quality_score (A+ to F), engagement_readiness (hot/warm/cold), decision_maker_level, best_approach, key_talking_points, recommended_next_step, and recommended_timing
 `;
-  } else if (agent.prompt_template && agent.category !== 'linkedin_outreach' && (agent as any).slug !== 'linkedin-message-generator') {
+  } 
+  // Check if this is Client Intelligence - build a specialized prompt
+  else if ((agent as any).slug === 'client-intelligence' || agent.category === 'client_intelligence') {
+    // Build comprehensive client context for the AI
+    const clientContext = buildClientIntelligenceContext(executionContext);
+    const userQuestion = currentQuestion || userContext || defaultPrompt || "Analyze this client and provide actionable intelligence.";
+    
+    userPrompt = `# CLIENT INTELLIGENCE ANALYSIS REQUEST
+
+## USER'S QUESTION
+${userQuestion}
+
+## CLIENT CONTEXT
+${clientContext}
+
+## YOUR TASK
+As a senior business intelligence analyst, provide a comprehensive, data-driven response to the user's question.
+
+**CRITICAL REQUIREMENTS:**
+1. **Be Specific**: Reference actual deal names, dollar amounts, dates, and people mentioned in the data
+2. **Cite Sources**: For every finding, quote or reference the specific data point it came from
+3. **Be Actionable**: Every recommendation must specify WHO should do WHAT by WHEN
+4. **Quantify Impact**: Where possible, estimate business impact in dollars or risk level
+5. **Acknowledge Gaps**: If data is missing, say so and recommend how to fill the gap
+
+**DO NOT:**
+- Make generic statements that could apply to any client
+- Provide advice without evidence from the provided data
+- Use vague timelines like "soon" - be specific: "by Friday", "this week"
+- Assume data that isn't provided`;
+  }
+  else if (agent.prompt_template && agent.category !== 'linkedin_outreach' && (agent as any).slug !== 'linkedin-message-generator') {
     userPrompt = agent.prompt_template
       .replace(/\{\{deal_title\}\}/g, executionContext.deal_title as string || "N/A")
       .replace(/\{\{deal_stage\}\}/g, executionContext.deal_stage as string || "N/A")
       .replace(/\{\{client_name\}\}/g, executionContext.client_name as string || "N/A")
       .replace(/\{\{file_contents\}\}/g, fileContents || "[No documents provided]")
-      .replace(/\{\{user_context\}\}/g, userContext || "[No additional context]");
+      .replace(/\{\{user_context\}\}/g, userContext || "[No additional context]")
+      .replace(/\{\{context\}\}/g, serializedContext)
+      .replace(/\{\{question\}\}/g, currentQuestion || userContext || defaultPrompt || "");
   } else {
     userPrompt = `You are executing the ${agent.name} agent.\n\n` +
       `Contextual Filters: ${serializedContext}\n` +
@@ -1410,19 +1607,40 @@ serve(async (req) => {
           if (toolCall && toolCall.function.name === "provide_client_intelligence") {
             const intelligenceData = JSON.parse(toolCall.function.arguments);
             
+            // Quality gate: check if the response is meaningful
+            const hasFindings = intelligenceData.key_findings && intelligenceData.key_findings.length > 0;
+            const hasActions = intelligenceData.action_items && intelligenceData.action_items.length > 0;
+            const dataQuality = intelligenceData.data_quality || { coverage_score: 0, missing_data: [] };
+            
+            // If coverage is too low and no meaningful insights, add helpful guidance
+            if (!hasFindings && dataQuality.coverage_score < 25) {
+              intelligenceData.summary = "Limited data available for comprehensive analysis. See recommendations below to improve data quality.";
+              intelligenceData.key_findings = [{
+                finding: "Insufficient data for meaningful analysis",
+                evidence: `Only ${dataQuality.coverage_score}% of expected data sources are available`,
+                source_type: "client_profile",
+                source_reference: "Data quality assessment",
+                confidence: "high"
+              }];
+              intelligenceData.action_items = [
+                { action: "Add deal comments to track conversation progress", context: "Comments provide context for relationship analysis", priority: "high", owner: "Account Manager", timeline: "This week" },
+                { action: "Log follow-up tasks for upcoming client interactions", context: "Follow-ups enable proactive relationship management", priority: "high", owner: "BD Team", timeline: "Today" },
+                { action: "Create deals to track revenue opportunities", context: "Deals allow pipeline value tracking", priority: "medium", owner: "BD Team", timeline: "This week" }
+              ];
+            }
+            
             // Return the structured intelligence output directly as the response
-            // This will be returned as response.response in the API
             parsedResponse = {
               summary: intelligenceData.summary || "Analysis completed",
-              findings: intelligenceData.key_findings?.map((f: any) => f.finding) || [],
-              recommendations: intelligenceData.action_items?.map((a: any) => a.action) || [],
+              findings: intelligenceData.key_findings?.map((f: any) => typeof f === 'string' ? f : f.finding) || [],
+              recommendations: intelligenceData.action_items?.map((a: any) => typeof a === 'string' ? a : a.action) || [],
               action_items: intelligenceData.action_items || [],
               metrics: {
                 total_items_analyzed: (inputContext as any)?.deals?.length || 0,
                 high_priority_issues: intelligenceData.risks?.filter((r: any) => r.severity === 'high').length || 0,
                 anomalies_found: intelligenceData.risks?.length || 0
               },
-              confidence_score: 0.9,
+              confidence_score: dataQuality.coverage_score >= 50 ? 0.9 : 0.6,
               structured_output: intelligenceData
             };
             
