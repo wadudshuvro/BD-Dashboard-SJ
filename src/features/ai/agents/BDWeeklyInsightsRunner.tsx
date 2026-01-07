@@ -20,7 +20,9 @@ import {
   BarChart3,
   ArrowRight,
   Loader2,
-  RefreshCw
+  RefreshCw,
+  Sparkles,
+  Calendar
 } from "lucide-react";
 import { format, subDays, startOfWeek, endOfWeek } from "date-fns";
 
@@ -267,57 +269,71 @@ const BDWeeklyInsightsRunner: React.FC<BDWeeklyInsightsRunnerProps> = ({ agentId
 
       {/* Step: Configure */}
       {step === "configure" && (
-        <div className="grid gap-6 md:grid-cols-2">
-          {/* Date Range Selection */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <CalendarDays className="h-5 w-5" />
-                Time Period
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Select value={dateRange} onValueChange={(v) => setDateRange(v as "7" | "14" | "30" | "90")}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="7">Last 7 days</SelectItem>
-                  <SelectItem value="14">Last 14 days</SelectItem>
-                  <SelectItem value="30">Last 30 days</SelectItem>
-                  <SelectItem value="90">Last 3 months</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-sm text-muted-foreground mt-2">
-                {getDateRangeLabel()}
-              </p>
+        <div className="space-y-4">
+          {/* Time Period Selection - Compact */}
+          <Card className="border-border/50">
+            <CardContent className="py-4">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <Calendar className="h-4 w-4 text-primary" />
+                  </div>
+                  <span className="font-medium text-sm">Time Period</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Select value={dateRange} onValueChange={(v) => setDateRange(v as "7" | "14" | "30" | "90")}>
+                    <SelectTrigger className="w-[160px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="7">Last 7 days</SelectItem>
+                      <SelectItem value="14">Last 14 days</SelectItem>
+                      <SelectItem value="30">Last 30 days</SelectItem>
+                      <SelectItem value="90">Last 3 months</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <span className="text-sm text-muted-foreground hidden sm:inline">
+                    {getDateRangeLabel()}
+                  </span>
+                </div>
+              </div>
             </CardContent>
           </Card>
 
-          {/* Campaign Selection */}
+          {/* Campaign Selection - Main Area */}
           <Card>
-            <CardHeader>
+            <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Target className="h-5 w-5" />
-                  Campaigns ({selectedCampaigns.length} selected)
+                <CardTitle className="text-base flex items-center gap-2">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <Target className="h-4 w-4 text-primary" />
+                  </div>
+                  <span>Select Campaigns</span>
+                  <Badge variant="secondary" className="ml-2">
+                    {selectedCampaigns.length} selected
+                  </Badge>
                 </CardTitle>
                 <Button 
-                  variant="outline" 
+                  variant="ghost" 
                   size="sm" 
                   onClick={allCampaignsSelected ? unselectAllCampaigns : selectAllCampaigns}
+                  className="text-xs"
                 >
                   {allCampaignsSelected ? "Unselect All" : "Select All"}
                 </Button>
               </div>
             </CardHeader>
-            <CardContent>
-              <ScrollArea className="h-[250px] pr-4">
-                <div className="space-y-2">
+            <CardContent className="pt-0">
+              <ScrollArea className="h-[300px]">
+                <div className="space-y-1 pr-4">
                   {campaigns?.map((campaign) => (
                     <div
                       key={campaign.id}
-                      className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 cursor-pointer"
+                      className={`flex items-center gap-3 p-3 rounded-lg border transition-colors cursor-pointer ${
+                        selectedCampaigns.includes(campaign.id) 
+                          ? 'bg-primary/5 border-primary/30' 
+                          : 'border-transparent hover:bg-muted/50'
+                      }`}
                       onClick={() => toggleCampaign(campaign.id)}
                     >
                       <Checkbox
@@ -330,7 +346,7 @@ const BDWeeklyInsightsRunner: React.FC<BDWeeklyInsightsRunnerProps> = ({ agentId
                           {campaign.actual_contacts_reached || 0} contacts • {campaign.meetings_booked || 0} meetings
                         </p>
                       </div>
-                      <Badge variant={campaign.status === "active" ? "default" : "secondary"}>
+                      <Badge variant={campaign.status === "active" ? "default" : "outline"} className="text-xs">
                         {campaign.status}
                       </Badge>
                     </div>
@@ -342,6 +358,28 @@ const BDWeeklyInsightsRunner: React.FC<BDWeeklyInsightsRunnerProps> = ({ agentId
                   )}
                 </div>
               </ScrollArea>
+              
+              {/* Generate Button Inside Card */}
+              <div className="pt-4 mt-4 border-t">
+                <Button
+                  onClick={runInsightsAnalysis}
+                  disabled={isRunning || selectedCampaigns.length === 0}
+                  className="w-full"
+                  size="lg"
+                >
+                  {isRunning ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Generating Insights...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="mr-2 h-4 w-4" />
+                      Generate Weekly Insights
+                    </>
+                  )}
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>
