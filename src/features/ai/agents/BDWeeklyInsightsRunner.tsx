@@ -508,7 +508,7 @@ const BDWeeklyInsightsRunner: React.FC<BDWeeklyInsightsRunnerProps> = ({ agentId
                     result.keyWins.map((win, idx) => (
                       <li key={idx} className="flex items-start gap-2 text-sm">
                         <span className="text-green-500 mt-1">•</span>
-                        {win}
+                        {typeof win === "string" ? win : (win as any)?.description || JSON.stringify(win)}
                       </li>
                     ))
                   ) : (
@@ -531,7 +531,7 @@ const BDWeeklyInsightsRunner: React.FC<BDWeeklyInsightsRunnerProps> = ({ agentId
                     result.opportunities.map((opp, idx) => (
                       <li key={idx} className="flex items-start gap-2 text-sm">
                         <span className="text-amber-500 mt-1">•</span>
-                        {opp}
+                        {typeof opp === "string" ? opp : (opp as any)?.description || JSON.stringify(opp)}
                       </li>
                     ))
                   ) : (
@@ -555,7 +555,7 @@ const BDWeeklyInsightsRunner: React.FC<BDWeeklyInsightsRunnerProps> = ({ agentId
                 {result.recommendations.map((rec, idx) => (
                   <li key={idx} className="flex items-start gap-2 text-sm">
                     <span className="text-primary mt-1">{idx + 1}.</span>
-                    {rec}
+                    {typeof rec === "string" ? rec : (rec as any)?.description || JSON.stringify(rec)}
                   </li>
                 ))}
               </ul>
@@ -575,7 +575,7 @@ const BDWeeklyInsightsRunner: React.FC<BDWeeklyInsightsRunnerProps> = ({ agentId
                 {result.actionItems.map((item, idx) => (
                   <li key={idx} className="flex items-center gap-3 text-sm p-2 bg-muted/50 rounded-lg">
                     <Checkbox />
-                    {item}
+                    {typeof item === "string" ? item : (item as any)?.description || JSON.stringify(item)}
                   </li>
                 ))}
               </ul>
