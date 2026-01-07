@@ -865,7 +865,7 @@ serve(async (req) => {
       agent = intelligenceAgent as unknown as DatabaseAgent;
       agentId = intelligenceAgent.id;
       
-      // Gather multi-source context
+      // Gather multi-source context with expanded data
       const last90Days = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
       
       const [
@@ -882,15 +882,50 @@ serve(async (req) => {
       if (!clientData.data) throw new Error("Client not found");
       
       clientProfile = clientData.data as ClientRow;
+      const dealIds = (dealsData.data || []).map((d: any) => d.id);
       
-      // Build intelligence context
+      // Fetch additional context: comments, followups, reminders
+      const [commentsData, followupsData, remindersData] = await Promise.all([
+        dealIds.length > 0 
+          ? client.from("deal_comments").select("comment, created_at, deal_id, user_id").in("deal_id", dealIds).order("created_at", { ascending: false }).limit(50)
+          : Promise.resolve({ data: [], error: null }),
+        dealIds.length > 0
+          ? client.from("followups").select("*").in("deal_id", dealIds).order("date", { ascending: false }).limit(30)
+          : Promise.resolve({ data: [], error: null }),
+        dealIds.length > 0
+          ? client.from("deal_reminders").select("*").in("deal_id", dealIds).order("reminder_date", { ascending: true }).limit(20)
+          : Promise.resolve({ data: [], error: null }),
+      ]);
+      
+      // Fetch campaign contacts matching company name for relationship insights
+      const { data: campaignContacts } = await client
+        .from("campaign_contacts")
+        .select("contact_name, contact_title, contact_linkedin_url, linkedin_headline, linkedin_about, status, lead_quality_score, research_summary")
+        .ilike("contact_company", `%${clientProfile.name}%`)
+        .limit(20);
+      
+      // Build enriched intelligence context
       inputContext = {
         client: clientProfile,
         deals: dealsData.data || [],
         documents: filesData.data || [],
+        deal_comments: commentsData.data || [],
+        followups: followupsData.data || [],
+        reminders: remindersData.data || [],
+        campaign_contacts: campaignContacts || [],
         question,
         mode,
         timeframe: "Last 90 days",
+        analysis_hints: mode === "deep" ? [
+          "Analyze deal comments for sentiment and blockers",
+          "Identify overdue or pending followups",
+          "Cross-reference campaign contacts for relationship mapping",
+          "Look for patterns in deal progression",
+          "Assess risk signals from stalled deals"
+        ] : [
+          "Provide quick summary focusing on the question",
+          "Highlight top 3 most relevant insights"
+        ],
       };
       
       executionContext = {
