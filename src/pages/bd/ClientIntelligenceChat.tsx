@@ -1,14 +1,18 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Brain } from "lucide-react";
+import { ArrowLeft, Brain, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useClientBySlug } from "@/hooks/useClientBySlug";
 import { useRunClientIntelligence } from "@/hooks/useRunClientIntelligence";
 import { useIntelligenceSessions, useSaveIntelligenceSession } from "@/hooks/useIntelligenceSessions";
+import { useClientHealthStats } from "@/hooks/useClientHealthStats";
 import { IntelligenceChatInput } from "@/components/intelligence/IntelligenceChatInput";
 import { IntelligenceChatMessages } from "@/components/intelligence/IntelligenceChatMessages";
 import { IntelligenceHistorySidebar } from "@/components/intelligence/IntelligenceHistorySidebar";
+import { QuickInsightCards } from "@/components/intelligence/QuickInsightCards";
+import { ClientHealthPanel } from "@/components/intelligence/ClientHealthPanel";
 
 interface Message {
   id: string;
@@ -23,11 +27,26 @@ export default function ClientIntelligenceChat() {
   const navigate = useNavigate();
   const { data: client, isLoading: clientLoading } = useClientBySlug(clientSlug);
   const { data: sessions = [], isLoading: sessionsLoading } = useIntelligenceSessions(client?.id || "");
+  const { data: healthStats, isLoading: healthLoading } = useClientHealthStats(client?.id);
   const runIntelligence = useRunClientIntelligence();
   const saveSession = useSaveIntelligenceSession();
   
   const [messages, setMessages] = useState<Message[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+
+  // Compute proactive alerts
+  const alerts: string[] = [];
+  if (healthStats) {
+    if (healthStats.overdueFollowups > 0) {
+      alerts.push(`${healthStats.overdueFollowups} overdue follow-up${healthStats.overdueFollowups > 1 ? "s" : ""} need attention`);
+    }
+    if (healthStats.dealsAtRisk > 0) {
+      alerts.push(`${healthStats.dealsAtRisk} deal${healthStats.dealsAtRisk > 1 ? "s" : ""} stalled for 14+ days`);
+    }
+    if (healthStats.daysSinceContact !== null && healthStats.daysSinceContact > 30) {
+      alerts.push(`No contact in ${healthStats.daysSinceContact} days`);
+    }
+  }
 
   const handleAsk = async (question: string, mode: "quick" | "deep") => {
     if (!client) return;
@@ -70,6 +89,10 @@ export default function ClientIntelligenceChat() {
     } catch (error) {
       console.error("Failed to get intelligence:", error);
     }
+  };
+
+  const handleQuickInsight = (question: string) => {
+    handleAsk(question, "deep");
   };
 
   const handleLoadSession = (session: any) => {
@@ -123,6 +146,26 @@ export default function ClientIntelligenceChat() {
         </div>
       </div>
 
+      {/* Proactive Alerts Banner */}
+      {alerts.length > 0 && (
+        <div className="container pt-4">
+          <Alert variant="destructive" className="bg-destructive/10 border-destructive/30">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription className="flex items-center justify-between">
+              <span>{alerts.join(" • ")}</span>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="ml-4"
+                onClick={() => handleAsk("Analyze all urgent issues: overdue follow-ups, stalled deals, and suggest immediate actions to address them.", "deep")}
+              >
+                Analyze Now
+              </Button>
+            </AlertDescription>
+          </Alert>
+        </div>
+      )}
+
       {/* Main Content */}
       <div className="container py-6">
         <div className="grid grid-cols-12 gap-6">
@@ -143,7 +186,25 @@ export default function ClientIntelligenceChat() {
           {/* Chat Area */}
           <div className="col-span-6">
             <Card className="flex h-[calc(100vh-200px)] flex-col">
-              <IntelligenceChatMessages messages={messages} clientId={client.id} />
+              {messages.length === 0 ? (
+                <div className="flex-1 flex flex-col p-6 space-y-6">
+                  <div className="text-center space-y-2">
+                    <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 mx-auto">
+                      <Brain className="h-8 w-8 text-primary" />
+                    </div>
+                    <h3 className="font-semibold">What would you like to know?</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Choose a quick insight or ask your own question
+                    </p>
+                  </div>
+                  <QuickInsightCards 
+                    onSelectInsight={handleQuickInsight} 
+                    isLoading={runIntelligence.isPending} 
+                  />
+                </div>
+              ) : (
+                <IntelligenceChatMessages messages={messages} clientId={client.id} />
+              )}
               <IntelligenceChatInput
                 onAsk={handleAsk}
                 isLoading={runIntelligence.isPending}
@@ -151,29 +212,12 @@ export default function ClientIntelligenceChat() {
             </Card>
           </div>
 
-          {/* Stats Panel */}
+          {/* Health Stats Panel */}
           <div className="col-span-3">
-            <Card className="p-6">
-              <h3 className="font-semibold mb-4">Session Stats</h3>
-              <div className="space-y-3">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Total Sessions</span>
-                  <span className="font-medium">{sessions.length}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Quick Analyses</span>
-                  <span className="font-medium">
-                    {sessions.filter((s) => s.mode === "quick").length}
-                  </span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Deep Analyses</span>
-                  <span className="font-medium">
-                    {sessions.filter((s) => s.mode === "deep").length}
-                  </span>
-                </div>
-              </div>
-            </Card>
+            <ClientHealthPanel 
+              stats={healthStats} 
+              isLoading={healthLoading} 
+            />
           </div>
         </div>
       </div>
