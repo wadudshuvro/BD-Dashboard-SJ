@@ -42,6 +42,26 @@ interface EnrichmentResult {
   error?: string;
 }
 
+// Helper function for fallback scoring when AI is unavailable
+function calculateFallbackScore(contact: { contact_linkedin_url: string | null; contact_company: string | null; contact_title: string | null }): number {
+  let score = 30;
+  if (contact.contact_linkedin_url) score += 20;
+  if (contact.contact_company) score += 15;
+  if (contact.contact_title) {
+    const title = contact.contact_title.toLowerCase();
+    if (title.includes('ceo') || title.includes('founder') || title.includes('president') || title.includes('chief')) {
+      score += 25;
+    } else if (title.includes('vp') || title.includes('vice president') || title.includes('director')) {
+      score += 20;
+    } else if (title.includes('manager') || title.includes('head')) {
+      score += 15;
+    } else {
+      score += 10;
+    }
+  }
+  return Math.min(100, score);
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -197,10 +217,37 @@ serve(async (req) => {
           let enrichedData: Record<string, unknown> = {};
           let researchSummary: string | null = null;
 
-          // Use Perplexity if available for research
-          if (perplexityApiKey && contact.contact_company) {
+          // Use Perplexity if available for comprehensive research
+          if (perplexityApiKey) {
             try {
-              const researchQuery = `Find information about ${contact.contact_name}${contact.contact_title ? `, ${contact.contact_title}` : ''} at ${contact.contact_company}. Include: company website, industry, company size, headquarters location, and any recent news.`;
+              const researchQuery = `Research this professional and their company comprehensively:
+
+Person: ${contact.contact_name}
+Title: ${contact.contact_title || "Unknown"}
+Company: ${contact.contact_company || "Unknown"}
+LinkedIn: ${contact.contact_linkedin_url || "Not provided"}
+
+Please find and provide:
+1. PERSON INFO:
+   - Current job title and role description
+   - Professional headline or tagline
+   - Career summary/about section
+   - Location (city, state/country)
+   - Key skills and expertise areas (list top 5-10)
+   - Previous employers (list up to 5 recent ones)
+   - Education background (degrees, institutions)
+   - Estimated total years of professional experience
+   - Industry focus/specialization
+
+2. COMPANY INFO:
+   - Official website URL
+   - Industry/sector
+   - Company size (employee count range)
+   - Headquarters location
+   - Company description (1-2 sentences)
+   - Year founded if available
+
+Provide detailed, accurate information based on publicly available sources.`;
               
               const perplexityResponse = await fetch("https://api.perplexity.ai/chat/completions", {
                 method: "POST",
@@ -211,44 +258,60 @@ serve(async (req) => {
                 body: JSON.stringify({
                   model: "sonar",
                   messages: [{ role: "user", content: researchQuery }],
-                  max_tokens: 500,
+                  max_tokens: 1000,
                 }),
               });
 
               if (perplexityResponse.ok) {
                 const perplexityData = await perplexityResponse.json();
                 researchSummary = perplexityData.choices?.[0]?.message?.content || null;
+                console.log(`[auto-enrich-leads] Perplexity research completed for ${contact.contact_name}`);
               }
             } catch (e) {
               console.error(`[auto-enrich-leads] Perplexity error for ${contact.contact_name}:`, e);
             }
           }
 
-          // Use Lovable AI to analyze and score the lead
+          // Use Lovable AI to analyze, score, and extract structured LinkedIn data
           if (lovableApiKey) {
-            const scorePrompt = `Analyze this business contact and provide a lead quality score (0-100) and enrichment data.
+            const scorePrompt = `Analyze this business contact and extract comprehensive profile data. Return structured JSON.
 
 Contact Info:
 - Name: ${contact.contact_name}
 - Company: ${contact.contact_company || "Unknown"}
 - Title: ${contact.contact_title || "Unknown"}
-- LinkedIn: ${contact.contact_linkedin_url || "Not provided"}
+- LinkedIn URL: ${contact.contact_linkedin_url || "Not provided"}
 
-${researchSummary ? `Research Summary:\n${researchSummary}` : ""}
+${researchSummary ? `Research Data:\n${researchSummary}` : "No research data available - estimate based on title and company."}
 
-Based on the available information, evaluate:
-1. Profile completeness (has contact info, company data)
-2. Role seniority (C-level, VP, Director = higher scores)
-3. Company data quality (known industry, size, website)
-4. Engagement potential (active LinkedIn, recent company news)
+Based on ALL available information, provide a complete assessment.
 
-Respond with a JSON object containing:
-- quality_score: number 0-100
-- company_industry: string or null
-- company_size: string or null (e.g., "50-200", "1000+")
-- company_website: string or null
-- company_headquarters: string or null
-- reasoning: brief explanation of score`;
+SCORING CRITERIA (0-100):
+- Profile completeness: +20 if has LinkedIn, +15 if has company, +10 if has title
+- Role seniority: C-level/Founder=+25, VP/Director=+20, Manager=+15, Individual=+10
+- Company data quality: +15 if known industry/size/website
+- Engagement potential: +10 if recent activity or news mentioned
+
+Respond ONLY with this JSON structure (no markdown, no explanation):
+{
+  "quality_score": <number 0-100>,
+  "reasoning": "<brief 1-2 sentence explanation of score>",
+  "linkedin_headline": "<professional headline/tagline or null>",
+  "linkedin_about": "<career summary, max 200 chars or null>",
+  "linkedin_location": "<city, state/country or null>",
+  "linkedin_skills": ["skill1", "skill2", "skill3", "skill4", "skill5"],
+  "current_employer": "<current company name or null>",
+  "current_position_title": "<current job title or null>",
+  "previous_employers": ["company1", "company2", "company3"],
+  "education_summary": "<degrees and institutions, brief or null>",
+  "total_years_experience": <number or null>,
+  "industry_focus": "<primary industry/sector or null>",
+  "company_industry": "<company's industry or null>",
+  "company_size": "<employee range like '50-200' or '1000+' or null>",
+  "company_website": "<company website URL or null>",
+  "company_headquarters": "<city, country or null>",
+  "company_description": "<1-2 sentence company description or null>"
+}`;
 
             try {
               const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -260,10 +323,10 @@ Respond with a JSON object containing:
                 body: JSON.stringify({
                   model: "google/gemini-2.5-flash",
                   messages: [
-                    { role: "system", content: "You are a lead scoring assistant. Always respond with valid JSON." },
+                    { role: "system", content: "You are a professional data extraction assistant. Always respond with valid JSON only, no markdown formatting." },
                     { role: "user", content: scorePrompt }
                   ],
-                  temperature: 0.3,
+                  temperature: 0.2,
                 }),
               });
 
@@ -271,35 +334,66 @@ Respond with a JSON object containing:
                 const aiData = await aiResponse.json();
                 const content = aiData.choices?.[0]?.message?.content || "";
                 
-                // Extract JSON from response
-                const jsonMatch = content.match(/\{[\s\S]*\}/);
+                // Extract JSON from response (handle potential markdown wrapping)
+                let jsonStr = content;
+                const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/) || content.match(/\{[\s\S]*\}/);
                 if (jsonMatch) {
-                  const parsed = JSON.parse(jsonMatch[0]);
+                  jsonStr = jsonMatch[1] || jsonMatch[0];
+                }
+                
+                try {
+                  const parsed = JSON.parse(jsonStr.trim());
+                  
+                  // Build enriched data with all LinkedIn fields
                   enrichedData = {
+                    // Quality score
                     lead_quality_score: Math.min(100, Math.max(0, parsed.quality_score || 50)),
+                    
+                    // LinkedIn profile data
+                    linkedin_headline: parsed.linkedin_headline || null,
+                    linkedin_about: parsed.linkedin_about || null,
+                    linkedin_location: parsed.linkedin_location || null,
+                    linkedin_skills: Array.isArray(parsed.linkedin_skills) && parsed.linkedin_skills.length > 0 
+                      ? parsed.linkedin_skills.slice(0, 10) 
+                      : null,
+                    
+                    // Career data
+                    current_employer: parsed.current_employer || contact.contact_company || null,
+                    current_position_title: parsed.current_position_title || contact.contact_title || null,
+                    previous_employers: Array.isArray(parsed.previous_employers) && parsed.previous_employers.length > 0 
+                      ? parsed.previous_employers.slice(0, 5) 
+                      : null,
+                    education_summary: parsed.education_summary || null,
+                    total_years_experience: typeof parsed.total_years_experience === 'number' 
+                      ? parsed.total_years_experience 
+                      : null,
+                    industry_focus: parsed.industry_focus || null,
+                    
+                    // Company data
                     company_industry: parsed.company_industry || null,
                     company_size: parsed.company_size || null,
                     company_website: parsed.company_website || null,
                     company_headquarters: parsed.company_headquarters || null,
+                    company_description: parsed.company_description || null,
                   };
+                  
+                  console.log(`[auto-enrich-leads] AI enrichment successful for ${contact.contact_name}: score=${enrichedData.lead_quality_score}`);
+                } catch (parseError) {
+                  console.error(`[auto-enrich-leads] JSON parse error for ${contact.contact_name}:`, parseError);
+                  // Fallback scoring
+                  enrichedData.lead_quality_score = calculateFallbackScore(contact);
                 }
+              } else {
+                console.error(`[auto-enrich-leads] AI response not OK for ${contact.contact_name}: ${aiResponse.status}`);
+                enrichedData.lead_quality_score = calculateFallbackScore(contact);
               }
             } catch (e) {
               console.error(`[auto-enrich-leads] AI scoring error for ${contact.contact_name}:`, e);
-              // Default score based on available data
-              let defaultScore = 30;
-              if (contact.contact_linkedin_url) defaultScore += 20;
-              if (contact.contact_company) defaultScore += 15;
-              if (contact.contact_title) defaultScore += 10;
-              enrichedData.lead_quality_score = defaultScore;
+              enrichedData.lead_quality_score = calculateFallbackScore(contact);
             }
           } else {
             // Fallback scoring without AI
-            let defaultScore = 30;
-            if (contact.contact_linkedin_url) defaultScore += 20;
-            if (contact.contact_company) defaultScore += 15;
-            if (contact.contact_title) defaultScore += 10;
-            enrichedData.lead_quality_score = defaultScore;
+            enrichedData.lead_quality_score = calculateFallbackScore(contact);
           }
 
           // Add research summary if available
@@ -307,7 +401,8 @@ Respond with a JSON object containing:
             enrichedData.research_summary = { 
               content: researchSummary, 
               enriched_at: new Date().toISOString(),
-              source: "auto-enrichment"
+              source: "auto-enrichment",
+              fields_extracted: Object.keys(enrichedData).filter(k => enrichedData[k] !== null).length
             };
           }
 
