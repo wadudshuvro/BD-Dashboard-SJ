@@ -18,6 +18,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { AgentConfigModal } from "@/features/ai/agents/AgentConfigModal";
 import { AgentRunHistoryPanel } from "@/features/ai/agents/AgentRunHistoryPanel";
 import { LeadEnrichmentAgentRunner } from "@/features/ai/agents/LeadEnrichmentAgentRunner";
+import { BDResearchAnalystRunner } from "@/features/ai/agents/BDResearchAnalystRunner";
 import type { AIAgent, AgentProviderConfig } from "@/Api/aiAgents";
 import { cn } from "@/lib/utils";
 import { Loader2, PlayCircle, RefreshCw, Settings, Bot, Sparkles } from "lucide-react";
@@ -310,6 +311,11 @@ export default function LinkedInAgentConfig() {
           {/* Show interactive runner for Lead Auto-Enrichment Agent */}
           {selectedAgent?.slug === "lead-auto-enrichment" && (
             <LeadEnrichmentAgentRunner />
+          )}
+          
+          {/* Show interactive runner for BD Research Analyst Agent */}
+          {selectedAgent?.slug === "bd-research-analyst" && (
+            <BDResearchAnalystRunner />
           )}
           
           <AgentRunHistoryPanel agentId={selectedAgent?.id} />

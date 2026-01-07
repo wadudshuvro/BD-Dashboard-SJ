@@ -85,3 +85,6 @@ verify_jwt = true
 
 [functions.run-ai-agent]
 verify_jwt = false
+
+[functions.bd-research-batch]
+verify_jwt = false
