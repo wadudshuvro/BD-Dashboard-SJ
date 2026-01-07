@@ -341,8 +341,8 @@ export async function invokeProvider(
           messages,
         };
         
-        // Add response format for JSON if needed
-        if (messages.some(m => m.content.includes('JSON'))) {
+        // Add response format for JSON if needed (null-safe check)
+        if (messages.some(m => m.content && typeof m.content === 'string' && m.content.includes('JSON'))) {
           body.response_format = { type: "json_object" };
         }
         
