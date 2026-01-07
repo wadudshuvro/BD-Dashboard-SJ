@@ -88,6 +88,12 @@ const BDWeeklyInsightsRunner: React.FC<BDWeeklyInsightsRunnerProps> = ({ agentId
     }
   };
 
+  const unselectAllCampaigns = () => {
+    setSelectedCampaigns([]);
+  };
+
+  const allCampaignsSelected = campaigns && campaigns.length > 0 && selectedCampaigns.length === campaigns.length;
+
   const getDateRangeLabel = () => {
     const days = parseInt(dateRange);
     const endDate = new Date();
@@ -296,13 +302,17 @@ const BDWeeklyInsightsRunner: React.FC<BDWeeklyInsightsRunnerProps> = ({ agentId
                   <Target className="h-5 w-5" />
                   Campaigns ({selectedCampaigns.length} selected)
                 </CardTitle>
-                <Button variant="outline" size="sm" onClick={selectAllCampaigns}>
-                  Select All
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={allCampaignsSelected ? unselectAllCampaigns : selectAllCampaigns}
+                >
+                  {allCampaignsSelected ? "Unselect All" : "Select All"}
                 </Button>
               </div>
             </CardHeader>
             <CardContent>
-              <ScrollArea className="h-[200px]">
+              <ScrollArea className="h-[250px] pr-4">
                 <div className="space-y-2">
                   {campaigns?.map((campaign) => (
                     <div
