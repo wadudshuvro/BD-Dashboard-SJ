@@ -65,14 +65,44 @@ const BDWeeklyInsightsRunner: React.FC<BDWeeklyInsightsRunnerProps> = ({ agentId
   const { data: campaigns, isLoading: loadingCampaigns } = useQuery({
     queryKey: ["bd-campaigns-for-insights"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // Fetch campaigns
+      const { data: campaignsData, error: campaignsError } = await supabase
         .from("bd_campaigns")
-        .select("id, name, slug, status, actual_contacts_reached, responses_received, meetings_booked, deals_generated")
+        .select("id, name, slug, status")
         .in("status", ["active", "planning", "completed"])
         .order("created_at", { ascending: false });
       
-      if (error) throw error;
-      return data || [];
+      if (campaignsError) throw campaignsError;
+      if (!campaignsData || campaignsData.length === 0) return [];
+
+      // Fetch contact counts per campaign
+      const { data: contactStats, error: contactsError } = await supabase
+        .from("campaign_contacts")
+        .select("campaign_id, status")
+        .in("campaign_id", campaignsData.map(c => c.id));
+
+      if (contactsError) throw contactsError;
+
+      // Calculate stats for each campaign
+      const statsMap: Record<string, { total: number; meetings: number; responses: number; deals: number }> = {};
+      (contactStats || []).forEach((contact) => {
+        if (!statsMap[contact.campaign_id]) {
+          statsMap[contact.campaign_id] = { total: 0, meetings: 0, responses: 0, deals: 0 };
+        }
+        statsMap[contact.campaign_id].total += 1;
+        if (contact.status === "meeting_booked") statsMap[contact.campaign_id].meetings += 1;
+        if (contact.status === "responded") statsMap[contact.campaign_id].responses += 1;
+        if (contact.status === "won") statsMap[contact.campaign_id].deals += 1;
+      });
+
+      // Merge campaigns with stats
+      return campaignsData.map(c => ({
+        ...c,
+        actual_contacts_reached: statsMap[c.id]?.total || 0,
+        meetings_booked: statsMap[c.id]?.meetings || 0,
+        responses_received: statsMap[c.id]?.responses || 0,
+        deals_generated: statsMap[c.id]?.deals || 0,
+      }));
     },
   });
 
