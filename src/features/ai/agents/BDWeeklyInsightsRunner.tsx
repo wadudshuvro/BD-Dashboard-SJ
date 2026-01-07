@@ -53,7 +53,7 @@ const BDWeeklyInsightsRunner: React.FC<BDWeeklyInsightsRunnerProps> = ({ agentId
   const { toast } = useToast();
   const [step, setStep] = useState<Step>("configure");
   const [selectedCampaigns, setSelectedCampaigns] = useState<string[]>([]);
-  const [dateRange, setDateRange] = useState<"7" | "14" | "30">("7");
+  const [dateRange, setDateRange] = useState<"7" | "14" | "30" | "90">("7");
   const [isRunning, setIsRunning] = useState(false);
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<WeeklyInsightsResult | null>(null);
@@ -271,7 +271,7 @@ const BDWeeklyInsightsRunner: React.FC<BDWeeklyInsightsRunnerProps> = ({ agentId
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <Select value={dateRange} onValueChange={(v) => setDateRange(v as "7" | "14" | "30")}>
+              <Select value={dateRange} onValueChange={(v) => setDateRange(v as "7" | "14" | "30" | "90")}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -279,6 +279,7 @@ const BDWeeklyInsightsRunner: React.FC<BDWeeklyInsightsRunnerProps> = ({ agentId
                   <SelectItem value="7">Last 7 days</SelectItem>
                   <SelectItem value="14">Last 14 days</SelectItem>
                   <SelectItem value="30">Last 30 days</SelectItem>
+                  <SelectItem value="90">Last 3 months</SelectItem>
                 </SelectContent>
               </Select>
               <p className="text-sm text-muted-foreground mt-2">
