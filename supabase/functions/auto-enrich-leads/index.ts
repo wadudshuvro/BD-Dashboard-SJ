@@ -75,12 +75,14 @@ serve(async (req) => {
           .select("*", { count: "exact", head: true })
           .eq("campaign_id", campaign.id);
 
-        // Get enriched contacts (have last_enriched_at)
+        // Get enriched contacts - must have BOTH last_enriched_at AND lead_quality_score
+        // This ensures newly added contacts (that may have last_enriched_at set by import) are still marked as pending
         const { count: enrichedCount } = await supabase
           .from("campaign_contacts")
           .select("*", { count: "exact", head: true })
           .eq("campaign_id", campaign.id)
-          .not("last_enriched_at", "is", null);
+          .not("last_enriched_at", "is", null)
+          .not("lead_quality_score", "is", null);
 
         // Get average quality score
         const { data: scoreData } = await supabase
@@ -115,6 +117,7 @@ serve(async (req) => {
     }
 
     // MODE: PREVIEW - Get contacts that need enrichment
+    // A contact needs enrichment if lead_quality_score is NULL (regardless of last_enriched_at)
     if (mode === "preview") {
       if (!campaign_ids || campaign_ids.length === 0) {
         throw new Error("No campaigns selected for preview");
@@ -124,18 +127,18 @@ serve(async (req) => {
         .from("campaign_contacts")
         .select("id, contact_name, contact_company, contact_title, contact_email, contact_linkedin_url, last_enriched_at")
         .in("campaign_id", campaign_ids)
-        .is("last_enriched_at", null)
+        .is("lead_quality_score", null)
         .limit(batch_size)
         .order("created_at", { ascending: true });
 
       if (contactsError) throw contactsError;
 
-      // Get total count
+      // Get total count of contacts needing enrichment
       const { count: totalPending } = await supabase
         .from("campaign_contacts")
         .select("*", { count: "exact", head: true })
         .in("campaign_id", campaign_ids)
-        .is("last_enriched_at", null);
+        .is("lead_quality_score", null);
 
       return new Response(JSON.stringify({
         success: true,
@@ -153,6 +156,7 @@ serve(async (req) => {
       const targetContactIds = contact_ids || [];
       
       // If no specific contacts, get unenriched ones from selected campaigns
+      // A contact needs enrichment if lead_quality_score is NULL
       let contactsToEnrich: { id: string; contact_name: string; contact_company: string | null; contact_linkedin_url: string | null; contact_title: string | null }[] = [];
       
       if (targetContactIds.length > 0) {
@@ -166,7 +170,7 @@ serve(async (req) => {
           .from("campaign_contacts")
           .select("id, contact_name, contact_company, contact_linkedin_url, contact_title")
           .in("campaign_id", campaign_ids)
-          .is("last_enriched_at", null)
+          .is("lead_quality_score", null)
           .limit(batch_size);
         contactsToEnrich = data || [];
       }
