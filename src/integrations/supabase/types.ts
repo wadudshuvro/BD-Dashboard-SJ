@@ -656,11 +656,19 @@ export type Database = {
           id: string
           message_type: string
           message_variants: Json
+          notes: string | null
           reasoning: string | null
           recommended_variant: string
+          response_received: boolean | null
+          response_received_at: string | null
+          response_type: string | null
           send_timing_suggestion: string | null
+          sent_at: string | null
+          sequence_id: string | null
+          sequence_step_order: number | null
           updated_at: string | null
           user_context: string | null
+          variant_sent: string | null
         }
         Insert: {
           campaign_id: string
@@ -672,11 +680,19 @@ export type Database = {
           id?: string
           message_type: string
           message_variants: Json
+          notes?: string | null
           reasoning?: string | null
           recommended_variant: string
+          response_received?: boolean | null
+          response_received_at?: string | null
+          response_type?: string | null
           send_timing_suggestion?: string | null
+          sent_at?: string | null
+          sequence_id?: string | null
+          sequence_step_order?: number | null
           updated_at?: string | null
           user_context?: string | null
+          variant_sent?: string | null
         }
         Update: {
           campaign_id?: string
@@ -688,11 +704,19 @@ export type Database = {
           id?: string
           message_type?: string
           message_variants?: Json
+          notes?: string | null
           reasoning?: string | null
           recommended_variant?: string
+          response_received?: boolean | null
+          response_received_at?: string | null
+          response_type?: string | null
           send_timing_suggestion?: string | null
+          sent_at?: string | null
+          sequence_id?: string | null
+          sequence_step_order?: number | null
           updated_at?: string | null
           user_context?: string | null
+          variant_sent?: string | null
         }
         Relationships: [
           {
@@ -4948,7 +4972,28 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      linkedin_message_analytics: {
+        Row: {
+          campaign_id: string | null
+          message_type: string | null
+          negative_responses: number | null
+          neutral_responses: number | null
+          positive_responses: number | null
+          response_rate_percent: number | null
+          total_generated: number | null
+          total_responses: number | null
+          total_sent: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_contact_linkedin_messages_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "bd_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       auto_resolve_alerts: { Args: never; Returns: undefined }

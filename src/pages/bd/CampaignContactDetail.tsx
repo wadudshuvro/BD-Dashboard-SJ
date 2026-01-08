@@ -27,6 +27,9 @@ import { useRunCampaignAgent } from "@/hooks/useRunCampaignAgent";
 import { useAgentRunHistory } from "@/hooks/useAgentRunHistory";
 import { useGenerateLinkedInMessage } from "@/hooks/useGenerateLinkedInMessage";
 import { useLinkedInMessageHistory } from "@/hooks/useLinkedInMessageHistory";
+import { LinkedInMessageCard } from "@/components/linkedin/LinkedInMessageCard";
+import { LinkedInSequenceBuilder } from "@/components/linkedin/LinkedInSequenceBuilder";
+import { LinkedInAnalyticsDashboard } from "@/components/linkedin/LinkedInAnalyticsDashboard";
 import { toast } from "sonner";
 import { parseLinkedInProfile } from "@/utils/parseLinkedInData";
 import { LinkedInProfileCard } from "@/components/contact/LinkedInProfileCard";
@@ -1627,6 +1630,14 @@ export default function CampaignContactDetail() {
                 </CardContent>
               </Card>
 
+              {/* Sequence Builder */}
+              {contact && (
+                <LinkedInSequenceBuilder 
+                  contactId={contact.id} 
+                  contactName={contact.contact_name} 
+                />
+              )}
+
               {/* Message History Card */}
               <Card>
                 <CardHeader>
@@ -1643,68 +1654,21 @@ export default function CampaignContactDetail() {
                   ) : (
                     <div className="space-y-3">
                       {messageHistory.map((msg: any) => (
-                        <Card key={msg.id} className="border-l-4 border-l-primary">
-                          <CardContent className="pt-4">
-                            <div className="flex items-start justify-between mb-2">
-                              <div>
-                                <Badge variant="outline" className="mb-1">
-                                  {msg.message_type.replace('_', ' ').toUpperCase()}
-                                </Badge>
-                                <p className="text-xs text-muted-foreground">
-                                  {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}
-                                </p>
-                              </div>
-                              <Badge variant="secondary">{msg.recommended_variant}</Badge>
-                            </div>
-                            
-                            {msg.user_context && (
-                              <p className="text-xs text-muted-foreground italic mb-2">
-                                Context: {msg.user_context}
-                              </p>
-                            )}
-
-                            <Tabs defaultValue={msg.recommended_variant} className="mt-2">
-                              <TabsList className="grid w-full grid-cols-3 h-8">
-                                {msg.message_variants.map((variant: any) => (
-                                  <TabsTrigger key={variant.variant_name} value={variant.variant_name} className="text-xs">
-                                    {variant.variant_name.split(' ')[0]}
-                                  </TabsTrigger>
-                                ))}
-                              </TabsList>
-
-                              {msg.message_variants.map((variant: any) => (
-                                <TabsContent key={variant.variant_name} value={variant.variant_name}>
-                                  <div className="relative">
-                                    <p className="text-xs whitespace-pre-wrap p-2 bg-muted rounded-md">
-                                      {replacePlaceholders(variant.message)}
-                                    </p>
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      onClick={() => copyToClipboard(replacePlaceholders(variant.message))}
-                                      className="absolute top-1 right-1 h-6 w-6 p-0"
-                                    >
-                                      <Copy className="h-3 w-3" />
-                                    </Button>
-                                  </div>
-                                  <div className="flex gap-1 mt-2">
-                                    <Badge variant="outline" className="text-xs">
-                                      {variant.character_count} chars
-                                    </Badge>
-                                    <Badge variant="secondary" className="text-xs">
-                                      {variant.tone}
-                                    </Badge>
-                                  </div>
-                                </TabsContent>
-                              ))}
-                            </Tabs>
-                          </CardContent>
-                        </Card>
+                        <LinkedInMessageCard
+                          key={msg.id}
+                          message={msg}
+                          replacePlaceholders={replacePlaceholders}
+                        />
                       ))}
                     </div>
                   )}
                 </CardContent>
               </Card>
+
+              {/* Analytics Dashboard */}
+              {contact?.campaign_id && (
+                <LinkedInAnalyticsDashboard campaignId={contact.campaign_id} />
+              )}
             </TabsContent>
 
             <TabsContent value="research" className="space-y-4 mt-6">
