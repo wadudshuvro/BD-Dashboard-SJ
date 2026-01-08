@@ -20,6 +20,7 @@ import { AgentRunHistoryPanel } from "@/features/ai/agents/AgentRunHistoryPanel"
 import { LeadEnrichmentAgentRunner } from "@/features/ai/agents/LeadEnrichmentAgentRunner";
 import { BDResearchAnalystRunner } from "@/features/ai/agents/BDResearchAnalystRunner";
 import BDWeeklyInsightsRunner from "@/features/ai/agents/BDWeeklyInsightsRunner";
+import { LinkedInMessageGeneratorRunner } from "@/features/ai/agents/LinkedInMessageGeneratorRunner";
 import type { AIAgent, AgentProviderConfig } from "@/Api/aiAgents";
 import { cn } from "@/lib/utils";
 import { Loader2, PlayCircle, RefreshCw, Settings, Bot, Sparkles } from "lucide-react";
@@ -322,6 +323,11 @@ export default function LinkedInAgentConfig() {
           {/* Show interactive runner for BD Weekly Insights Agent */}
           {selectedAgent?.slug === "bd-weekly-insights" && selectedAgent?.id && (
             <BDWeeklyInsightsRunner agentId={selectedAgent.id} />
+          )}
+          
+          {/* Show interactive runner for LinkedIn Message Generator Agent */}
+          {selectedAgent?.slug === "linkedin-message-generator" && (
+            <LinkedInMessageGeneratorRunner />
           )}
           
           <AgentRunHistoryPanel agentId={selectedAgent?.id} />
