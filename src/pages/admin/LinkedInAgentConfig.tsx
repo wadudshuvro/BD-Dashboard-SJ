@@ -86,13 +86,24 @@ export default function LinkedInAgentConfig() {
   const [editingAgent, setEditingAgent] = useState<AIAgent | null>(null);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
 
-  // Sort agents to put Lead Auto-Enrichment first
+  // Sort agents: Lead Auto-Enrichment first, LinkedIn Message Generator at 4th position
   const sortedAgents = useMemo(() => {
-    return [...agents].sort((a, b) => {
+    const sorted = [...agents].sort((a, b) => {
+      // Lead Auto-Enrichment always first
       if (a.slug === "lead-auto-enrichment") return -1;
       if (b.slug === "lead-auto-enrichment") return 1;
+      // Rest sorted alphabetically
       return a.name.localeCompare(b.name);
     });
+    
+    // Move LinkedIn Message Generator to 4th position (index 3)
+    const linkedInIndex = sorted.findIndex(a => a.slug === "linkedin-message-generator");
+    if (linkedInIndex > 3) {
+      const [linkedInAgent] = sorted.splice(linkedInIndex, 1);
+      sorted.splice(3, 0, linkedInAgent);
+    }
+    
+    return sorted;
   }, [agents]);
 
   useEffect(() => {
