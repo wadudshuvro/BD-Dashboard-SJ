@@ -14,8 +14,15 @@ import { useQuery } from "@tanstack/react-query";
 import { useGenerateLinkedInMessage } from "@/hooks/useGenerateLinkedInMessage";
 import { 
   Loader2, MessageSquare, Sparkles, ArrowRight, Copy, Check, 
-  User, Building2, Search, Send
+  User, Building2, Search, Send, ChevronLeft, Briefcase, Users
 } from "lucide-react";
+
+interface Campaign {
+  id: string;
+  name: string;
+  status: string;
+  contact_count: number;
+}
 
 interface CampaignContact {
   id: string;
@@ -25,10 +32,6 @@ interface CampaignContact {
   contact_linkedin_url: string | null;
   campaign_id: string;
   status: string;
-  bd_campaigns: {
-    id: string;
-    name: string;
-  };
 }
 
 interface MessageVariant {
@@ -48,7 +51,7 @@ interface GenerationResult {
   follow_up_strategy: string;
 }
 
-type Step = "select" | "configure" | "running" | "complete";
+type Step = "campaign" | "select" | "configure" | "running" | "complete";
 type MessageType = 'connection_request' | 'first_followup' | 'second_followup' | 'meeting_request';
 
 const MESSAGE_TYPE_LABELS: Record<MessageType, string> = {
@@ -66,8 +69,10 @@ const MESSAGE_TYPE_LIMITS: Record<MessageType, number> = {
 };
 
 export function LinkedInMessageGeneratorRunner() {
-  const [step, setStep] = useState<Step>("select");
-  const [searchQuery, setSearchQuery] = useState("");
+  const [step, setStep] = useState<Step>("campaign");
+  const [campaignSearchQuery, setCampaignSearchQuery] = useState("");
+  const [contactSearchQuery, setContactSearchQuery] = useState("");
+  const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(null);
   const [selectedContact, setSelectedContact] = useState<CampaignContact | null>(null);
   const [messageType, setMessageType] = useState<MessageType>("connection_request");
   const [userContext, setUserContext] = useState("");
@@ -76,36 +81,85 @@ export function LinkedInMessageGeneratorRunner() {
 
   const generateMutation = useGenerateLinkedInMessage();
 
-  // Fetch contacts for selection
-  const { data: contacts = [], isLoading: loadingContacts } = useQuery({
-    queryKey: ['campaign-contacts-for-linkedin'],
+  // Fetch campaigns with contact counts
+  const { data: campaigns = [], isLoading: loadingCampaigns } = useQuery({
+    queryKey: ['campaigns-for-linkedin-generator'],
     queryFn: async () => {
       const { data, error } = await supabase
+        .from('bd_campaigns')
+        .select('id, name, status')
+        .in('status', ['active', 'planning', 'paused'])
+        .order('name');
+
+      if (error) throw error;
+
+      // Get contact counts for each campaign
+      const campaignsWithCounts = await Promise.all(
+        data.map(async (campaign) => {
+          const { count } = await supabase
+            .from('campaign_contacts')
+            .select('*', { count: 'exact', head: true })
+            .eq('campaign_id', campaign.id)
+            .in('status', ['identified', 'researched', 'qualified']);
+
+          return {
+            ...campaign,
+            contact_count: count || 0,
+          };
+        })
+      );
+
+      return campaignsWithCounts as Campaign[];
+    },
+  });
+
+  // Fetch contacts for selected campaign
+  const { data: contacts = [], isLoading: loadingContacts } = useQuery({
+    queryKey: ['campaign-contacts-for-linkedin', selectedCampaignId],
+    queryFn: async () => {
+      if (!selectedCampaignId) return [];
+      
+      const { data, error } = await supabase
         .from('campaign_contacts')
-        .select(`
-          id, contact_name, contact_company, contact_title, 
-          contact_linkedin_url, campaign_id, status,
-          bd_campaigns!inner(id, name)
-        `)
+        .select('id, contact_name, contact_company, contact_title, contact_linkedin_url, campaign_id, status')
+        .eq('campaign_id', selectedCampaignId)
         .in('status', ['identified', 'researched', 'qualified'])
-        .order('created_at', { ascending: false })
-        .limit(200);
+        .order('contact_name');
 
       if (error) throw error;
       return data as CampaignContact[];
     },
+    enabled: !!selectedCampaignId,
   });
+
+  // Filter campaigns by search
+  const filteredCampaigns = useMemo(() => {
+    if (!campaignSearchQuery.trim()) return campaigns;
+    const query = campaignSearchQuery.toLowerCase();
+    return campaigns.filter(c => c.name.toLowerCase().includes(query));
+  }, [campaigns, campaignSearchQuery]);
 
   // Filter contacts by search
   const filteredContacts = useMemo(() => {
-    if (!searchQuery.trim()) return contacts.slice(0, 20);
-    const query = searchQuery.toLowerCase();
+    if (!contactSearchQuery.trim()) return contacts;
+    const query = contactSearchQuery.toLowerCase();
     return contacts.filter(c => 
       c.contact_name.toLowerCase().includes(query) ||
       c.contact_company?.toLowerCase().includes(query) ||
-      (c.bd_campaigns as any)?.name?.toLowerCase().includes(query)
-    ).slice(0, 20);
-  }, [contacts, searchQuery]);
+      c.contact_title?.toLowerCase().includes(query)
+    );
+  }, [contacts, contactSearchQuery]);
+
+  const selectedCampaign = useMemo(() => 
+    campaigns.find(c => c.id === selectedCampaignId),
+    [campaigns, selectedCampaignId]
+  );
+
+  const handleSelectCampaign = (campaignId: string) => {
+    setSelectedCampaignId(campaignId);
+    setContactSearchQuery("");
+    setStep("select");
+  };
 
   const handleSelectContact = (contact: CampaignContact) => {
     setSelectedContact(contact);
@@ -140,11 +194,14 @@ export function LinkedInMessageGeneratorRunner() {
   };
 
   const reset = () => {
-    setStep("select");
+    setStep("campaign");
+    setSelectedCampaignId(null);
     setSelectedContact(null);
     setResult(null);
     setUserContext("");
     setCopiedVariant(null);
+    setCampaignSearchQuery("");
+    setContactSearchQuery("");
   };
 
   const getCharCountColor = (count: number, limit: number) => {
@@ -152,8 +209,17 @@ export function LinkedInMessageGeneratorRunner() {
     return "text-red-400";
   };
 
-  // Step 1: Contact Selection
-  if (step === "select") {
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'active': return 'bg-green-500/10 text-green-500 border-green-500/20';
+      case 'planning': return 'bg-blue-500/10 text-blue-500 border-blue-500/20';
+      case 'paused': return 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20';
+      default: return 'bg-muted text-muted-foreground';
+    }
+  };
+
+  // Step 1: Campaign Selection
+  if (step === "campaign") {
     return (
       <Card>
         <CardHeader>
@@ -162,21 +228,110 @@ export function LinkedInMessageGeneratorRunner() {
             LinkedIn Message Generator
           </CardTitle>
           <CardDescription>
-            Select a contact to generate personalized LinkedIn outreach messages
+            Select a campaign to view its contacts and generate personalized messages
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search contacts by name, company, or campaign..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search campaigns..."
+              value={campaignSearchQuery}
+              onChange={(e) => setCampaignSearchQuery(e.target.value)}
               className="pl-10"
             />
           </div>
 
-          <ScrollArea className="h-[300px]">
+          <ScrollArea className="h-[350px]">
+            {loadingCampaigns ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : filteredCampaigns.length === 0 ? (
+              <p className="text-center py-8 text-muted-foreground">
+                No campaigns found.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {filteredCampaigns.map(campaign => (
+                  <div
+                    key={campaign.id}
+                    onClick={() => campaign.contact_count > 0 && handleSelectCampaign(campaign.id)}
+                    className={`flex items-center justify-between p-4 rounded-lg border transition-colors ${
+                      campaign.contact_count > 0 
+                        ? 'border-border hover:border-primary/50 hover:bg-muted/50 cursor-pointer' 
+                        : 'border-border/50 opacity-50 cursor-not-allowed'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                        <Briefcase className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <p className="font-medium">{campaign.name}</p>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Users className="h-3 w-3" />
+                          <span>{campaign.contact_count} eligible contacts</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className={`text-xs ${getStatusColor(campaign.status)}`}>
+                        {campaign.status}
+                      </Badge>
+                      {campaign.contact_count > 0 && (
+                        <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </ScrollArea>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Step 2: Contact Selection
+  if (step === "select" && selectedCampaignId) {
+    return (
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2 mb-2">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => {
+                setStep("campaign");
+                setSelectedCampaignId(null);
+              }}
+              className="h-8 px-2"
+            >
+              <ChevronLeft className="h-4 w-4 mr-1" />
+              Back
+            </Button>
+          </div>
+          <CardTitle className="flex items-center gap-2">
+            <User className="h-5 w-5 text-primary" />
+            Select Contact
+          </CardTitle>
+          <CardDescription>
+            {selectedCampaign?.name} • {contacts.length} eligible contacts
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search contacts by name, company, or title..."
+              value={contactSearchQuery}
+              onChange={(e) => setContactSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+
+          <ScrollArea className="h-[350px]">
             {loadingContacts ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -216,9 +371,6 @@ export function LinkedInMessageGeneratorRunner() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="text-xs">
-                        {(contact.bd_campaigns as any)?.name}
-                      </Badge>
                       <Badge variant="secondary" className="text-xs">
                         {contact.status}
                       </Badge>
@@ -234,7 +386,7 @@ export function LinkedInMessageGeneratorRunner() {
     );
   }
 
-  // Step 2: Configure Message Type
+  // Step 3: Configure Message Type
   if (step === "configure" && selectedContact) {
     return (
       <Card>
@@ -310,7 +462,7 @@ export function LinkedInMessageGeneratorRunner() {
     );
   }
 
-  // Step 3: Running
+  // Step 4: Running
   if (step === "running") {
     return (
       <Card>
@@ -342,7 +494,7 @@ export function LinkedInMessageGeneratorRunner() {
     );
   }
 
-  // Step 4: Complete - Show Results
+  // Step 5: Complete - Show Results
   if (step === "complete" && result) {
     const charLimit = MESSAGE_TYPE_LIMITS[messageType];
 
