@@ -8,10 +8,12 @@ import { useCampaignBySlug } from '@/hooks/useCampaignBySlug';
 import { TaskCard } from '@/components/tasks/TaskCard';
 import { TaskForm } from '@/components/tasks/TaskForm';
 import { EmptyTasks } from '@/components/tasks/EmptyTasks';
+import type { ProjectTask } from '@/hooks/useProjectTasks';
 
 export default function CampaignTasksPage() {
   const { slug } = useParams<{ slug: string }>();
-  const { data: campaign, isLoading: campaignLoading } = useCampaignBySlug(slug || '');
+  const { data: campaignData, isLoading: campaignLoading } = useCampaignBySlug(slug || '');
+  const campaign = campaignData?.campaign;
   const { data: tasks, isLoading: tasksLoading, error } = useCampaignTasks(campaign?.id);
   const [showTaskForm, setShowTaskForm] = useState(false);
 
@@ -34,17 +36,20 @@ export default function CampaignTasksPage() {
     );
   }
 
+  // Cast tasks to proper type
+  const typedTasks = (tasks || []) as ProjectTask[];
+
   const tasksByCategory = {
-    ideas: tasks?.filter((t) => t.category === 'ideas') || [],
-    discussion: tasks?.filter((t) => t.category === 'discussion') || [],
-    work: tasks?.filter((t) => t.category === 'work') || [],
-    other: tasks?.filter((t) => t.category === 'other') || [],
+    ideas: typedTasks.filter((t) => t.category === 'ideas'),
+    discussion: typedTasks.filter((t) => t.category === 'discussion'),
+    work: typedTasks.filter((t) => t.category === 'work' || !t.category),
+    other: typedTasks.filter((t) => t.category === 'other'),
   };
 
-  const totalTasks = tasks?.length || 0;
-  const completedTasks = tasks?.filter((t) => t.status === 'completed').length || 0;
-  const inProgressTasks = tasks?.filter((t) => t.status === 'in_progress').length || 0;
-  const blockedTasks = tasks?.filter((t) => t.status === 'blocked').length || 0;
+  const totalTasks = typedTasks.length;
+  const completedTasks = typedTasks.filter((t) => t.status === 'completed').length;
+  const inProgressTasks = typedTasks.filter((t) => t.status === 'in_progress').length;
+  const blockedTasks = typedTasks.filter((t) => t.status === 'blocked').length;
 
   return (
     <div className="space-y-6 p-6">

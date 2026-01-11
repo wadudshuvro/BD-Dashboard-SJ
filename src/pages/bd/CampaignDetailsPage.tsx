@@ -8,7 +8,7 @@ import { format } from 'date-fns';
 
 export default function CampaignDetailsPage() {
   const { slug } = useParams<{ slug: string }>();
-  const { data: campaign, isLoading, error } = useCampaignBySlug(slug || '');
+  const { data, isLoading, error } = useCampaignBySlug(slug || '');
 
   if (isLoading) {
     return (
@@ -18,7 +18,7 @@ export default function CampaignDetailsPage() {
     );
   }
 
-  if (error || !campaign) {
+  if (error || !data?.campaign) {
     return (
       <div className="flex flex-col items-center justify-center h-96">
         <div className="text-destructive">Failed to load campaign details</div>
@@ -29,6 +29,7 @@ export default function CampaignDetailsPage() {
     );
   }
 
+  const campaign = data.campaign;
   const campaignTypes = campaign.campaign_types || [campaign.campaign_type];
 
   return (

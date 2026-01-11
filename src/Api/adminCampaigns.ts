@@ -63,6 +63,7 @@ export interface CampaignSummary {
   responses_received: number | null;
   meetings_booked: number | null;
   deals_generated: number | null;
+  campaign_objective?: string | null;
   owned_by: string | null;
   created_by: string | null;
   created_at?: string;
