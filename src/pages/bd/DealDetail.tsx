@@ -56,7 +56,6 @@ const PIPELINE_OPTIONS = [
 const CATEGORY_OPTIONS = [
   { value: "development", label: "Development" },
   { value: "leadslift", label: "LeadsLift" },
-  { value: "collabai", label: "CollabAI" },
   { value: "consulting", label: "Consulting" },
   { value: "other", label: "Other" },
 ];
@@ -138,7 +137,6 @@ const LEAD_SOURCE_OPTIONS = [
 interface DealExternalLinks {
   n8n_workflow_url?: string | null;
   activecollab_project_url?: string | null;
-  collabai_agent_url?: string | null;
 }
 
 interface Deal {
@@ -270,7 +268,7 @@ const actionItems = [
     id: "ask-ai",
     label: "Ask AI for Suggestions",
     icon: Sparkles,
-    tooltip: "CollabAI Integration - Coming in Phase 2",
+    tooltip: "AI Integration - Coming in Phase 2",
   },
   {
     id: "create-task",
@@ -429,12 +427,11 @@ interface ExternalLinksSectionProps {
   leadsLiftUrl?: string | null;
   estimateUrl?: string | null;
   pandadocUrl?: string | null;
-  collabAiUrl?: string | null;
   workboardUrl?: string | null;
   clientAgentUrl?: string | null;
 }
 
-const ExternalLinksSection = ({ externalLinks, hubspotUrl, leadsLiftUrl, estimateUrl, pandadocUrl, collabAiUrl, workboardUrl, clientAgentUrl }: ExternalLinksSectionProps) => {
+const ExternalLinksSection = ({ externalLinks, hubspotUrl, leadsLiftUrl, estimateUrl, pandadocUrl, workboardUrl, clientAgentUrl }: ExternalLinksSectionProps) => {
   const links = useMemo(
     () =>
       [
@@ -463,12 +460,6 @@ const ExternalLinksSection = ({ externalLinks, hubspotUrl, leadsLiftUrl, estimat
           color: "text-purple-600",
         },
         {
-          label: "CollabAI Workspace",
-          url: collabAiUrl,
-          icon: Bot,
-          color: "text-green-600",
-        },
-        {
           label: "Workboard AI",
           url: workboardUrl,
           icon: Workflow,
@@ -492,14 +483,8 @@ const ExternalLinksSection = ({ externalLinks, hubspotUrl, leadsLiftUrl, estimat
           icon: Folder,
           color: "text-blue-600",
         },
-        {
-          label: "CollabAI Agent (Legacy)",
-          url: externalLinks?.collabai_agent_url,
-          icon: Bot,
-          color: "text-green-600",
-        },
       ].filter((link) => link.url),
-    [externalLinks, hubspotUrl, leadsLiftUrl, estimateUrl, pandadocUrl, collabAiUrl, workboardUrl, clientAgentUrl]
+    [externalLinks, hubspotUrl, leadsLiftUrl, estimateUrl, pandadocUrl, workboardUrl, clientAgentUrl]
   );
 
   if (links.length === 0) return null;
@@ -2460,50 +2445,6 @@ export default function DealDetail() {
               </CardHeader>
               <CardContent className="space-y-3">
                 <div>
-                  <Label htmlFor="collaborative_ai" className="text-xs">
-                    CollabAI Reference
-                  </Label>
-                  <Input
-                    id="collaborative_ai"
-                    className="h-8 text-sm"
-                    placeholder="Enter CollabAI reference"
-                    defaultValue={deal.collaborative_ai || ""}
-                    onBlur={async (e) => {
-                      if (e.target.value !== (deal.collaborative_ai || "")) {
-                        try {
-                          await supabase.from("deals").update({ collaborative_ai: e.target.value }).eq("id", deal.id);
-                          toast({ title: "CollabAI reference updated" });
-                          queryClient.invalidateQueries({ queryKey: ["deal", dealId] });
-                        } catch (error) {
-                          toast({ title: "Failed to update CollabAI reference", variant: "destructive" });
-                        }
-                      }
-                    }}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="collaborative_ai_link" className="text-xs">
-                    CollabAI Workspace URL
-                  </Label>
-                  <Input
-                    id="collaborative_ai_link"
-                    className="h-8 text-sm"
-                    placeholder="https://..."
-                    defaultValue={deal.collaborative_ai_link || ""}
-                    onBlur={async (e) => {
-                      if (e.target.value !== (deal.collaborative_ai_link || "")) {
-                        try {
-                          await supabase.from("deals").update({ collaborative_ai_link: e.target.value }).eq("id", deal.id);
-                          toast({ title: "CollabAI link updated" });
-                          queryClient.invalidateQueries({ queryKey: ["deal", dealId] });
-                        } catch (error) {
-                          toast({ title: "Failed to update CollabAI link", variant: "destructive" });
-                        }
-                      }
-                    }}
-                  />
-                </div>
-                <div>
                   <Label htmlFor="workboard_ai_link" className="text-xs">
                     Workboard AI URL
                   </Label>
@@ -3026,7 +2967,7 @@ export default function DealDetail() {
             </CardContent>
           </Card>
 
-          <ExternalLinksSection externalLinks={deal.external_links} hubspotUrl={deal.hubspot_crm_deal_url} leadsLiftUrl={deal.leadslift_crm_deal_url} estimateUrl={deal.estimate_url} pandadocUrl={deal.pandadoc_proposal_url} collabAiUrl={deal.collaborative_ai_link} workboardUrl={deal.workboard_ai_link} clientAgentUrl={deal.client_agent_url} />
+          <ExternalLinksSection externalLinks={deal.external_links} hubspotUrl={deal.hubspot_crm_deal_url} leadsLiftUrl={deal.leadslift_crm_deal_url} estimateUrl={deal.estimate_url} pandadocUrl={deal.pandadoc_proposal_url} workboardUrl={deal.workboard_ai_link} clientAgentUrl={deal.client_agent_url} />
 
           <Card>
             <CardHeader>

@@ -86,26 +86,6 @@ export interface SystemSetting {
 // Mock Brands Data
 export const mockBrands: Brand[] = [
   {
-    id: '1',
-    name: 'CollabAI',
-    slug: 'collab-ai',
-    type: 'internal',
-    description: 'AI collaboration platform for teams',
-    owner_id: '2',
-    owner_name: 'Fozle Rahman',
-    is_active: true,
-    team_members: ['2', '3', '4'],
-    active_integrations: ['google_analytics', 'linkedin', 'hubspot'],
-    monthly_budget: 5000,
-    kpis: [
-      { id: '1', name: 'Website Sessions', type: 'number', description: 'Monthly website visits', current_value: 4200, target_value: 5000, source: 'google_analytics', display_order: 1 },
-      { id: '2', name: 'LinkedIn Followers', type: 'number', description: 'Total LinkedIn followers', current_value: 1250, target_value: 2000, source: 'linkedin', display_order: 2 },
-      { id: '3', name: 'Demo Requests', type: 'number', description: 'Monthly demo requests', current_value: 18, target_value: 25, source: 'hubspot', display_order: 3 },
-      { id: '4', name: 'Conversion Rate', type: 'percentage', description: 'Demo to customer conversion', current_value: 12.5, target_value: 15, source: 'hubspot', display_order: 4 }
-    ],
-    created_at: '2024-01-15'
-  },
-  {
     id: '2',
     name: 'LeadsLift',
     slug: 'leads-lift',
@@ -478,18 +458,6 @@ export const mockUsers: User[] = [
 // Mock Global Integrations (Admin-only configuration)
 export const mockGlobalIntegrations = [
   {
-    id: 'global_1',
-    name: 'CollabAI',
-    type: 'collab_ai',
-    description: 'Collaborative AI platform for team productivity',
-    icon: '🚀',
-    category: 'ai',
-    is_available: true,
-    is_enabled: false,
-    setup_complexity: 'easy',
-    required_fields: ['api_key', 'workspace_id', 'model_preference']
-  },
-  {
     id: 'global_2',
     name: 'OpenAI',
     type: 'openai',
@@ -706,17 +674,6 @@ export const mockIntegrations: Integration[] = [
     is_enabled: false,
     setup_complexity: 'easy',
     required_fields: ['api_key', 'organization_id', 'model_preference']
-  },
-  {
-    id: '14',
-    name: 'CollabAI',
-    type: 'collab_ai',
-    description: 'Collaborative AI platform for team productivity',
-    icon: '🚀',
-    is_available: true,
-    is_enabled: false,
-    setup_complexity: 'easy',
-    required_fields: ['api_key', 'workspace_id', 'model_preference']
   }
 ];
 

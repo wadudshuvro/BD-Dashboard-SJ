@@ -110,14 +110,6 @@ const IntegrationManager = () => {
   const { toast } = useToast();
   const [globalIntegrations, setGlobalIntegrations] = useState<GlobalIntegration[]>([
     {
-      id: "collabai",
-      name: "CollabAI",
-      description: "Collaborative AI platform base URL configuration",
-      category: "AI",
-      is_enabled: false,
-      icon: "🤝",
-    },
-    {
       id: "openai",
       name: "OpenAI",
       description: "GPT powered automation and analysis",
@@ -236,16 +228,6 @@ const IntegrationManager = () => {
       setIsCrmLoading(false);
     }
 
-    try {
-      const { data: collabaiConfig } = await supabase.functions.invoke("collabai-manage", { method: "GET" });
-      const collabEnabled = Boolean(collabaiConfig?.enabled);
-      const collabaiIndex = nextGlobal.findIndex((integration) => integration.id === "collabai");
-      if (collabaiIndex !== -1) {
-        nextGlobal[collabaiIndex] = { ...nextGlobal[collabaiIndex], is_enabled: collabEnabled };
-      }
-    } catch (error) {
-      console.error("Failed to load CollabAI config", error);
-    }
 
     try {
       const { data: openaiStatus } = await supabase.functions.invoke("openai-test", {
