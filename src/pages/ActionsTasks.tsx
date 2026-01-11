@@ -1,18 +1,23 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 import { useAllProjectTasks } from "@/hooks/useProjectTasks";
 import { TaskCard } from "@/components/tasks/TaskCard";
 import { TaskForm } from "@/components/tasks/TaskForm";
-import { Plus, CheckCircle, Clock, AlertCircle, Calendar, History } from "lucide-react";
+import { Plus, CheckCircle, Clock, AlertCircle, Calendar, History, Lightbulb, MessageSquare, Briefcase, MoreHorizontal } from "lucide-react";
 import { EmptyTasks } from "@/components/empty-states/EmptyTasks";
+
+type TaskCategory = 'all' | 'ideas' | 'discussion' | 'work' | 'other';
 
 export default function ActionsTasks() {
   const navigate = useNavigate();
   const [showTaskForm, setShowTaskForm] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
+  const [selectedCategory, setSelectedCategory] = useState<TaskCategory>('all');
   const { data: tasks = [], isLoading, error } = useAllProjectTasks();
 
   const handleEditTask = (task: any) => {
@@ -25,11 +30,28 @@ export default function ActionsTasks() {
     setSelectedTask(null);
   };
 
-  // Task statistics
-  const totalTasks = tasks.length;
-  const completedTasks = tasks.filter(t => t.status === 'completed').length;
-  const inProgressTasks = tasks.filter(t => t.status === 'in_progress').length;
-  const blockedTasks = tasks.filter(t => t.status === 'blocked').length;
+  // Filter tasks by category
+  const filteredTasks = useMemo(() => {
+    if (selectedCategory === 'all') return tasks;
+    return tasks.filter(t => t.category === selectedCategory);
+  }, [tasks, selectedCategory]);
+
+  // Category statistics
+  const categoryStats = useMemo(() => {
+    return {
+      all: tasks.length,
+      ideas: tasks.filter(t => t.category === 'ideas').length,
+      discussion: tasks.filter(t => t.category === 'discussion').length,
+      work: tasks.filter(t => t.category === 'work').length,
+      other: tasks.filter(t => t.category === 'other').length,
+    };
+  }, [tasks]);
+
+  // Task statistics (for current filter)
+  const totalTasks = filteredTasks.length;
+  const completedTasks = filteredTasks.filter(t => t.status === 'completed').length;
+  const inProgressTasks = filteredTasks.filter(t => t.status === 'in_progress').length;
+  const blockedTasks = filteredTasks.filter(t => t.status === 'blocked').length;
 
   if (error) {
     return (
@@ -181,20 +203,64 @@ export default function ActionsTasks() {
         </Card>
       </div>
 
-      {/* Tasks List */}
+      {/* Tasks List with Category Filter */}
       <Card>
         <CardHeader>
           <CardTitle>All Tasks</CardTitle>
-          <CardDescription>View and manage your tasks</CardDescription>
+          <CardDescription>View and manage your tasks by category</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {tasks.length === 0 ? (
-            <EmptyTasks 
-              onCreateTask={() => setShowTaskForm(true)}
-            />
+          {/* Category Tabs */}
+          <Tabs value={selectedCategory} onValueChange={(value) => setSelectedCategory(value as TaskCategory)} className="w-full">
+            <TabsList className="grid w-full grid-cols-5">
+              <TabsTrigger value="all" className="gap-2">
+                All
+                <Badge variant="secondary" className="ml-1">{categoryStats.all}</Badge>
+              </TabsTrigger>
+              <TabsTrigger value="ideas" className="gap-2">
+                <Lightbulb className="h-4 w-4" />
+                Ideas
+                <Badge variant="secondary" className="ml-1">{categoryStats.ideas}</Badge>
+              </TabsTrigger>
+              <TabsTrigger value="discussion" className="gap-2">
+                <MessageSquare className="h-4 w-4" />
+                Discussion
+                <Badge variant="secondary" className="ml-1">{categoryStats.discussion}</Badge>
+              </TabsTrigger>
+              <TabsTrigger value="work" className="gap-2">
+                <Briefcase className="h-4 w-4" />
+                Work
+                <Badge variant="secondary" className="ml-1">{categoryStats.work}</Badge>
+              </TabsTrigger>
+              <TabsTrigger value="other" className="gap-2">
+                <MoreHorizontal className="h-4 w-4" />
+                Other
+                <Badge variant="secondary" className="ml-1">{categoryStats.other}</Badge>
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+
+          {/* Filtered Tasks */}
+          {filteredTasks.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="text-muted-foreground">
+                {selectedCategory === 'all'
+                  ? 'No tasks yet. Create your first task!'
+                  : `No ${selectedCategory} tasks yet.`
+                }
+              </div>
+              <Button
+                variant="outline"
+                className="mt-4"
+                onClick={() => setShowTaskForm(true)}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Create Task
+              </Button>
+            </div>
           ) : (
             <div className="grid gap-4">
-              {tasks.map((task) => (
+              {filteredTasks.map((task) => (
                 <TaskCard key={task.id} task={task} onEdit={handleEditTask} />
               ))}
             </div>

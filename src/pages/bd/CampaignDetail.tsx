@@ -413,11 +413,25 @@ export default function CampaignDetail() {
     <div className="container mx-auto py-8 space-y-6">
       {/* Navigation */}
       <div className="flex items-center justify-between">
-        <Button variant="ghost" asChild className="gap-2">
-          <Link to="/campaigns">
-            <ArrowLeft className="h-4 w-4" /> Back to campaigns
-          </Link>
-        </Button>
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" asChild className="gap-2">
+            <Link to="/campaigns">
+              <ArrowLeft className="h-4 w-4" /> Back to campaigns
+            </Link>
+          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" asChild>
+              <Link to={`/campaigns/${slug}/details`}>
+                Campaign Details
+              </Link>
+            </Button>
+            <Button variant="outline" size="sm" asChild>
+              <Link to={`/campaigns/${slug}/tasks`}>
+                Tasks
+              </Link>
+            </Button>
+          </div>
+        </div>
         <div className="flex flex-wrap items-center gap-2">
           {canRunResearch && (
             <Button
