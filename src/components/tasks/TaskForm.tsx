@@ -5,6 +5,7 @@ import * as z from "zod";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useBDCampaigns } from "@/hooks/useBDCampaigns";
 import {
   Dialog,
   DialogContent,
@@ -38,7 +39,9 @@ const taskFormSchema = z.object({
   description: z.string().optional(),
   status: z.enum(["pending", "in_progress", "completed", "blocked"]),
   priority: z.enum(["low", "medium", "high"]),
+  category: z.enum(["ideas", "discussion", "work", "other"]),
   project_id: z.string().optional(),
+  campaign_id: z.string().optional(),
   assigned_to: z.string().optional(),
   due_date: z.string().optional(),
   estimated_hours: z.string().optional(),
@@ -50,12 +53,20 @@ interface TaskFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   task?: any;
+  initialCampaignId?: string;
 }
 
-export function TaskForm({ open, onOpenChange, task }: TaskFormProps) {
+export function TaskForm({ open, onOpenChange, task, initialCampaignId }: TaskFormProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Fetch active campaigns only
+  const { campaigns } = useBDCampaigns({
+    status: 'active',
+    page: 1,
+    pageSize: 100,
+  });
 
   const form = useForm<TaskFormValues>({
     resolver: zodResolver(taskFormSchema),
@@ -64,7 +75,9 @@ export function TaskForm({ open, onOpenChange, task }: TaskFormProps) {
       description: "",
       status: "pending",
       priority: "medium",
+      category: "work",
       project_id: "",
+      campaign_id: initialCampaignId || "",
       assigned_to: "",
       due_date: "",
       estimated_hours: "",
@@ -78,7 +91,9 @@ export function TaskForm({ open, onOpenChange, task }: TaskFormProps) {
         description: task.description || "",
         status: task.status || "pending",
         priority: task.priority || "medium",
+        category: task.category || "work",
         project_id: task.project_id || "",
+        campaign_id: task.campaign_id || "",
         assigned_to: task.assigned_to || "",
         due_date: task.due_date || "",
         estimated_hours: task.estimated_hours?.toString() || "",
@@ -89,13 +104,15 @@ export function TaskForm({ open, onOpenChange, task }: TaskFormProps) {
         description: "",
         status: "pending",
         priority: "medium",
+        category: "work",
         project_id: "",
+        campaign_id: initialCampaignId || "",
         assigned_to: user?.id || "",
         due_date: "",
         estimated_hours: "",
       });
     }
-  }, [task, form, user]);
+  }, [task, form, user, initialCampaignId]);
 
   const onSubmit = async (values: TaskFormValues) => {
     setIsSubmitting(true);
@@ -105,7 +122,9 @@ export function TaskForm({ open, onOpenChange, task }: TaskFormProps) {
         description: values.description,
         status: values.status,
         priority: values.priority,
+        category: values.category,
         project_id: values.project_id || null,
+        campaign_id: values.campaign_id || null,
         assigned_to: values.assigned_to || null,
         due_date: values.due_date || null,
         estimated_hours: values.estimated_hours ? parseFloat(values.estimated_hours) : null,
@@ -183,6 +202,32 @@ export function TaskForm({ open, onOpenChange, task }: TaskFormProps) {
               )}
             />
 
+            <FormField
+              control={form.control}
+              name="campaign_id"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Campaign (Optional)</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a campaign" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="">None</SelectItem>
+                      {campaigns?.map((campaign) => (
+                        <SelectItem key={campaign.id} value={campaign.id}>
+                          {campaign.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -231,6 +276,30 @@ export function TaskForm({ open, onOpenChange, task }: TaskFormProps) {
                 )}
               />
             </div>
+
+            <FormField
+              control={form.control}
+              name="category"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Category</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select category" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="ideas">Ideas</SelectItem>
+                      <SelectItem value="discussion">Discussion</SelectItem>
+                      <SelectItem value="work">Work</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <div className="grid grid-cols-2 gap-4">
               <FormField

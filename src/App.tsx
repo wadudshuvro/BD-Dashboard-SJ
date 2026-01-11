@@ -29,6 +29,8 @@ import UserProfile from "./pages/UserProfile";
 import NicheManagement from "./pages/bd/NicheManagement";
 import CampaignManagement from "./pages/bd/CampaignManagement";
 import CampaignDetail from "./pages/bd/CampaignDetail";
+import CampaignDetailsPage from "./pages/bd/CampaignDetailsPage";
+import CampaignTasksPage from "./pages/bd/CampaignTasksPage";
 import SequenceManagement from "./pages/bd/SequenceManagement";
 import CampaignContactDetail from "./pages/bd/CampaignContactDetail";
 import CompanyDetail from "./pages/bd/CompanyDetail";
@@ -287,6 +289,8 @@ const App = () => (
               <Route index element={<CampaignManagement />} />
               <Route path="import-history" element={<React.Suspense fallback={<div>Loading...</div>}><CampaignImportHistory /></React.Suspense>} />
               <Route path=":slug" element={<CampaignDetail />} />
+              <Route path=":slug/details" element={<CampaignDetailsPage />} />
+              <Route path=":slug/tasks" element={<CampaignTasksPage />} />
               <Route path=":slug/roi" element={<CampaignROI />} />
               <Route path=":campaignSlug/contacts/:contactSlug" element={<CampaignContactDetail />} />
             </Route>

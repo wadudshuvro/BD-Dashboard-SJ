@@ -51,6 +51,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import RichTextEditor from '@/components/rich-text/RichTextEditor';
 
 const CAMPAIGN_TYPES: CampaignType[] = [
   'email_outbound',
@@ -114,6 +115,7 @@ const campaignFormSchema = z
     startDate: optionalDate,
     endDate: optionalDate,
     targetContactsCount: optionalNumber,
+    campaignObjective: z.string().optional(),
     ownedBy: z.string().uuid().optional().or(z.literal('')).transform(val => val === '' ? undefined : val),
     seedKpis: z.boolean().optional().default(false),
     enableTaskTemplate: z.boolean().optional().default(false),
@@ -169,6 +171,7 @@ export function CampaignDialog({ open, onOpenChange, niches, campaign, mode = 'c
       startDate: undefined,
       endDate: undefined,
       targetContactsCount: undefined,
+      campaignObjective: '',
       ownedBy: user?.id || undefined,
       seedKpis: false,
       enableTaskTemplate: false,
@@ -201,6 +204,7 @@ export function CampaignDialog({ open, onOpenChange, niches, campaign, mode = 'c
         startDate: undefined,
         endDate: undefined,
         targetContactsCount: undefined,
+        campaignObjective: '',
         ownedBy: user?.id || undefined,
         seedKpis: false,
         enableTaskTemplate: false,
@@ -216,6 +220,7 @@ export function CampaignDialog({ open, onOpenChange, niches, campaign, mode = 'c
         startDate: campaign.start_date || undefined,
         endDate: campaign.end_date || undefined,
         targetContactsCount: campaign.target_contacts_count || undefined,
+        campaignObjective: campaign.campaign_objective || '',
         ownedBy: campaign.owned_by || user?.id,
         seedKpis: false,
         enableTaskTemplate: false,
@@ -293,6 +298,7 @@ export function CampaignDialog({ open, onOpenChange, niches, campaign, mode = 'c
         start_date: values.startDate ?? null,
         end_date: values.endDate ?? null,
         target_contacts_count: typeof values.targetContactsCount === 'number' ? values.targetContactsCount : null,
+        campaign_objective: values.campaignObjective || null,
         owned_by: values.ownedBy || null,
       };
 
@@ -615,6 +621,28 @@ export function CampaignDialog({ open, onOpenChange, niches, campaign, mode = 'c
                 )}
               />
             </div>
+
+            <FormField
+              control={form.control}
+              name="campaignObjective"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Campaign Objective</FormLabel>
+                  <FormControl>
+                    <RichTextEditor
+                      content={field.value || ''}
+                      onChange={field.onChange}
+                      placeholder="Describe the campaign story, goals, target audience, and strategy..."
+                      className="min-h-[200px]"
+                    />
+                  </FormControl>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Provide context and narrative about what this campaign aims to achieve
+                  </p>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             {!isEditMode && (
               <div className="space-y-4 rounded-lg border p-4">

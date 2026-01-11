@@ -356,6 +356,7 @@ export type Database = {
         Row: {
           actual_contacts_reached: number | null
           brand_id: string | null
+          campaign_objective: string | null
           campaign_type: string
           campaign_types: string[] | null
           created_at: string
@@ -379,6 +380,7 @@ export type Database = {
         Insert: {
           actual_contacts_reached?: number | null
           brand_id?: string | null
+          campaign_objective?: string | null
           campaign_type: string
           campaign_types?: string[] | null
           created_at?: string
@@ -402,6 +404,7 @@ export type Database = {
         Update: {
           actual_contacts_reached?: number | null
           brand_id?: string | null
+          campaign_objective?: string | null
           campaign_type?: string
           campaign_types?: string[] | null
           created_at?: string
@@ -3492,6 +3495,8 @@ export type Database = {
         Row: {
           actual_hours: number | null
           assigned_to: string | null
+          campaign_id: string | null
+          category: string | null
           completed_at: string | null
           created_at: string
           created_by: string | null
@@ -3508,6 +3513,8 @@ export type Database = {
         Insert: {
           actual_hours?: number | null
           assigned_to?: string | null
+          campaign_id?: string | null
+          category?: string | null
           completed_at?: string | null
           created_at?: string
           created_by?: string | null
@@ -3524,6 +3531,8 @@ export type Database = {
         Update: {
           actual_hours?: number | null
           assigned_to?: string | null
+          campaign_id?: string | null
+          category?: string | null
           completed_at?: string | null
           created_at?: string
           created_by?: string | null
@@ -3538,6 +3547,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "project_tasks_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "bd_campaigns"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "project_tasks_project_id_fkey"
             columns: ["project_id"]
