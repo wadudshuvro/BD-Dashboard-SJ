@@ -147,7 +147,6 @@ const Layout = ({ userRole }: LayoutProps) => {
   const getNavigation = (role: string): NavigationItem[] => {
     const navigation: NavigationItem[] = [
       { name: "BD Dashboard", href: "/bd/dashboard", icon: LayoutDashboard, current: false },
-      { name: "My Agents", href: "/bd/my-agents", icon: Zap, current: false },
       {
         name: "Pipeline",
         href: "/all-deals",

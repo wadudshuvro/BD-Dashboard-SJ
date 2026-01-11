@@ -50,12 +50,12 @@ export function useSystemStats() {
           .select('*', { count: 'exact', head: true });
         stats.totalUsers = usersCount || 0;
 
-        // Fetch active integrations
-        const { data: collabIntegrations } = await supabase
-          .from('collabai_integrations')
-          .select('id')
-          .eq('is_active', true);
-        stats.totalIntegrations = collabIntegrations?.length || 0;
+        // Fetch active integrations (brand integrations)
+        const { count: integrationsCount } = await supabase
+          .from('brand_integrations')
+          .select('*', { count: 'exact', head: true })
+          .eq('is_enabled', true);
+        stats.totalIntegrations = integrationsCount || 0;
 
         // Fetch total PODs
         const { count: podsCount } = await supabase
