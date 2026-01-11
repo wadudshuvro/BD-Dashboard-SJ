@@ -62,11 +62,7 @@ export function TaskForm({ open, onOpenChange, task, initialCampaignId }: TaskFo
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Fetch active campaigns only
-  const { campaigns } = useBDCampaigns({
-    status: 'active',
-    page: 1,
-    pageSize: 100,
-  });
+  const { campaigns } = useBDCampaigns(undefined, 1, 100, undefined, 'active');
 
   const form = useForm<TaskFormValues>({
     resolver: zodResolver(taskFormSchema),

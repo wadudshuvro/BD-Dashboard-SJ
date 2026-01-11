@@ -5,10 +5,12 @@ import { toast } from '@/components/ui/use-toast';
 export interface ProjectTask {
   id: string;
   project_id: string;
+  campaign_id?: string | null;
   title: string;
   description?: string;
   status: 'todo' | 'in_progress' | 'review' | 'completed' | 'blocked';
   priority: 'low' | 'medium' | 'high' | 'urgent';
+  category?: 'ideas' | 'discussion' | 'work' | 'other' | null;
   assigned_to?: string;
   estimated_hours?: number;
   actual_hours?: number;
