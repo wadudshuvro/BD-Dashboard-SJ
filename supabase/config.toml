@@ -65,3 +65,6 @@ verify_jwt = false
 
 [functions.bd-research-batch]
 verify_jwt = false
+
+[functions.exa]
+verify_jwt = true
