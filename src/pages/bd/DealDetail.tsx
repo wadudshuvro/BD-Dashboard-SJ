@@ -103,7 +103,7 @@ const LEAD_SOURCE_OPTIONS = [
   { value: "aws_iq", label: "AWS IQ" },
   { value: "clutch", label: "Clutch" },
   { value: "cold_email_campaign", label: "Cold Email Campaign" },
-  { value: "collab_ai_form_sub", label: "Collab AI Form Sub" },
+  
   { value: "crafted_email", label: "Crafted.email" },
   { value: "email_geeks_slack", label: "Email Geeks (Slack)" },
   { value: "existing_client", label: "Existing Client" },

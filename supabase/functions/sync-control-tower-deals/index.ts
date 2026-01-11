@@ -800,7 +800,6 @@ async function performSync(
           external_links: {
             n8n_workflow_url: ctDeal.n8n_workflow_url || null,
             activecollab_project_url: ctDeal.activecollab_project_url || null,
-            collabai_agent_url: ctDeal.collabai_agent_url || null,
           },
           control_tower_metadata: ctDeal,
           last_activity_date: ctDeal.updated_at?.split('T')[0] || ctDeal.last_activity_date || new Date().toISOString().split('T')[0],
