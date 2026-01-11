@@ -63,6 +63,7 @@ serve(async (req) => {
         id,
         title,
         stage,
+        slug,
         amount,
         client:clients(name)
       `)
@@ -83,6 +84,7 @@ serve(async (req) => {
       id: dealRaw.id,
       title: dealRaw.title,
       stage: dealRaw.stage,
+      slug: dealRaw.slug,
       value: dealRaw.amount,
       client: Array.isArray(dealRaw.client) && dealRaw.client.length > 0 
         ? { name: dealRaw.client[0].name } 
@@ -203,6 +205,7 @@ interface DealData {
   id: string;
   title: string;
   stage?: string;
+  slug?: string;
   value?: number;
   client?: { name: string } | null;
   company?: { name: string } | null;

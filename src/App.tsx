@@ -164,15 +164,6 @@ const App = () => (
               <Route index element={<BDDashboard />} />
             </Route>
 
-            {/* My Agents Route */}
-            <Route path="/my-agents" element={
-              <ProtectedRoute requiredMinimumRole="team_member">
-                <Layout />
-              </ProtectedRoute>
-            }>
-              <Route index element={<MyAgentsPage />} />
-            </Route>
-
             {/* Performance Routes */}
             <Route path="/performance" element={
               <ProtectedRoute requiredMinimumRole="team_member">
