@@ -96,7 +96,7 @@ export const SigningDocumentCard = ({ document, onViewClick }: SigningDocumentCa
               <SigningStatusBadge status={document.status} size="sm" />
             </div>
             <Link
-              to={`/bd/signing-documents/${document.id}`}
+              to={`/signing-documents/${document.id}`}
               className="font-semibold hover:underline line-clamp-1"
             >
               {document.title}
@@ -257,7 +257,7 @@ export const SigningDocumentCard = ({ document, onViewClick }: SigningDocumentCa
             <div />
           )}
 
-          <Link to={`/bd/signing-documents/${document.id}`}>
+          <Link to={`/signing-documents/${document.id}`}>
             <Button size="sm" variant="ghost">
               View
               <Eye className="h-4 w-4 ml-1" />

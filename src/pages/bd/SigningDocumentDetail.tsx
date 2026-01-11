@@ -93,7 +93,7 @@ export default function SigningDocumentDetail() {
           <p className="text-muted-foreground mb-4">
             The document you're looking for doesn't exist or you don't have access.
           </p>
-          <Button onClick={() => navigate("/bd/signing-documents")}>
+          <Button onClick={() => navigate("/signing-documents")}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Documents
           </Button>
@@ -131,7 +131,7 @@ export default function SigningDocumentDetail() {
   const handleDuplicate = async () => {
     const newDoc = await duplicateDocument.mutateAsync({ documentId: document.id });
     if (newDoc?.id) {
-      navigate(`/bd/signing-documents/${newDoc.id}`);
+      navigate(`/signing-documents/${newDoc.id}`);
     }
   };
 
@@ -145,7 +145,7 @@ export default function SigningDocumentDetail() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div className="flex items-start gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/bd/signing-documents")}>
+          <Button variant="ghost" size="icon" onClick={() => navigate("/signing-documents")}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>

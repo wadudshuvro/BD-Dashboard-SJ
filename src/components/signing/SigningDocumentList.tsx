@@ -95,7 +95,7 @@ export const SigningDocumentList = ({
               <SigningDocumentCard
                 key={document.id}
                 document={document}
-                onViewClick={() => navigate(`/bd/signing-documents/${document.id}`)}
+                onViewClick={() => navigate(`/signing-documents/${document.id}`)}
               />
             ))}
           </div>
@@ -173,7 +173,7 @@ export const SigningDocumentTable = ({
             <TableRow key={doc.id}>
               <TableCell>
                 <Link
-                  to={`/bd/signing-documents/${doc.id}`}
+                  to={`/signing-documents/${doc.id}`}
                   className="font-medium hover:underline"
                 >
                   {doc.title}
@@ -201,7 +201,7 @@ export const SigningDocumentTable = ({
                 {formatDistanceToNow(new Date(doc.updated_at), { addSuffix: true })}
               </TableCell>
               <TableCell>
-                <Link to={`/bd/signing-documents/${doc.id}`}>
+                <Link to={`/signing-documents/${doc.id}`}>
                   <Button variant="ghost" size="icon">
                     <Eye className="h-4 w-4" />
                   </Button>

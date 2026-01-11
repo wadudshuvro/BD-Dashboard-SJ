@@ -73,14 +73,14 @@ const FeedbackSubmitPage = lazy(() => import("./pages/feedback/SubmitFeedback"))
 const AdminFeedbackManager = lazy(() => import("./pages/admin/FeedbackManager"));
 const CampaignImportHistory = lazy(() => import("./pages/bd/CampaignImportHistory"));
 
-// Smart redirect component - send everyone to BD Dashboard
+// Smart redirect component - send everyone to Dashboard
 function DashboardRedirect() {
   const { user } = useAuth();
-  
+
   if (!user) return <Navigate to="/login" replace />;
-  
-  // All users go to BD Dashboard as main entry point
-  return <Navigate to="/bd/dashboard" replace />;
+
+  // All users go to Dashboard as main entry point
+  return <Navigate to="/dashboard" replace />;
 }
 
 const App = () => (
@@ -155,31 +155,53 @@ const App = () => (
               />
             </Route>
 
-            {/* BD Portal Routes - Available to all users */}
-            <Route path="/bd/*" element={
+            {/* Dashboard Route */}
+            <Route path="/dashboard" element={
               <ProtectedRoute requiredMinimumRole="team_member">
                 <Layout />
               </ProtectedRoute>
             }>
-              <Route index element={<Navigate to="/bd/dashboard" replace />} />
-              <Route path="dashboard" element={<BDDashboard />} />
-              
-              {/* Redirect old campaign URLs */}
-              <Route path="strategy/campaigns" element={<Navigate to="/campaigns" replace />} />
-              <Route path="strategy/campaigns/:campaignId" element={<Navigate to="/campaigns" replace />} />
-              
-              {/* Performance */}
-              <Route path="performance/personal" element={<PersonalDashboard />} />
-              <Route path="performance/reports" element={<PerformanceReports />} />
-              
-              {/* Actions */}
-              <Route path="actions/tasks" element={<ActionsTasks />} />
-              <Route path="actions/eod" element={<EODSubmission />} />
-              <Route path="actions/eod-history" element={<MyEODSubmissions />} />
-              
-              {/* Admin */}
-              <Route path="admin/documentation" element={<React.Suspense fallback={<div>Loading...</div>}><Documentation /></React.Suspense>} />
-              <Route path="admin/settings" element={<UserSettings />} />
+              <Route index element={<BDDashboard />} />
+            </Route>
+
+            {/* My Agents Route */}
+            <Route path="/my-agents" element={
+              <ProtectedRoute requiredMinimumRole="team_member">
+                <Layout />
+              </ProtectedRoute>
+            }>
+              <Route index element={<MyAgentsPage />} />
+            </Route>
+
+            {/* Performance Routes */}
+            <Route path="/performance" element={
+              <ProtectedRoute requiredMinimumRole="team_member">
+                <Layout />
+              </ProtectedRoute>
+            }>
+              <Route path="personal" element={<PersonalDashboard />} />
+              <Route path="reports" element={<PerformanceReports />} />
+            </Route>
+
+            {/* Actions Routes */}
+            <Route path="/actions" element={
+              <ProtectedRoute requiredMinimumRole="team_member">
+                <Layout />
+              </ProtectedRoute>
+            }>
+              <Route path="tasks" element={<ActionsTasks />} />
+              <Route path="eod" element={<EODSubmission />} />
+              <Route path="eod-history" element={<MyEODSubmissions />} />
+            </Route>
+
+            {/* Admin Routes (user-level) */}
+            <Route path="/admin" element={
+              <ProtectedRoute requiredMinimumRole="team_member">
+                <Layout />
+              </ProtectedRoute>
+            }>
+              <Route path="documentation" element={<React.Suspense fallback={<div>Loading...</div>}><Documentation /></React.Suspense>} />
+              <Route path="settings" element={<UserSettings />} />
             </Route>
 
             {/* Pipeline routes - now at root level */}
@@ -325,16 +347,6 @@ const App = () => (
 
             {/* Signing Documents */}
             <Route path="/signing-documents" element={
-              <ProtectedRoute requiredMinimumRole="team_member">
-                <Layout />
-              </ProtectedRoute>
-            }>
-              <Route index element={<SigningDocuments />} />
-              <Route path=":id" element={<SigningDocumentDetail />} />
-            </Route>
-
-            {/* Also support /bd/signing-documents path */}
-            <Route path="/bd/signing-documents" element={
               <ProtectedRoute requiredMinimumRole="team_member">
                 <Layout />
               </ProtectedRoute>

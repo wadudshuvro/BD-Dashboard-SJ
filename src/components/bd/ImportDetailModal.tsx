@@ -90,7 +90,7 @@ export function ImportDetailModal({ open, onOpenChange, importJob }: ImportDetai
                     <span className="text-muted-foreground">Campaign:</span>
                     <p className="mt-1">
                       <Link 
-                        to={`/bd/campaigns/${importJob.bd_campaigns?.slug}`}
+                        to={`/campaigns/${importJob.bd_campaigns?.slug}`}
                         className="text-primary hover:underline"
                       >
                         {importJob.bd_campaigns?.name}
@@ -220,7 +220,7 @@ export function ImportDetailModal({ open, onOpenChange, importJob }: ImportDetai
               {/* Actions */}
               <div className="flex gap-2 pt-4">
                 <Button variant="outline" size="sm" asChild>
-                  <Link to={`/bd/campaigns/${importJob.bd_campaigns?.slug}`}>
+                  <Link to={`/campaigns/${importJob.bd_campaigns?.slug}`}>
                     View Campaign
                   </Link>
                 </Button>

@@ -146,7 +146,8 @@ const Layout = ({ userRole }: LayoutProps) => {
   // Get navigation based on role - simplified for BD-focused dashboard
   const getNavigation = (role: string): NavigationItem[] => {
     const navigation: NavigationItem[] = [
-      { name: "BD Dashboard", href: "/bd/dashboard", icon: LayoutDashboard, current: false },
+      { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, current: false },
+      { name: "My Agents", href: "/my-agents", icon: Zap, current: false },
       {
         name: "Pipeline",
         href: "/all-deals",
@@ -164,30 +165,30 @@ const Layout = ({ userRole }: LayoutProps) => {
       { name: `Campaigns${campaignCount ? ` (${campaignCount})` : ''}`, href: "/campaigns", icon: Megaphone, current: false },
       { name: "Sequences", href: "/sequences", icon: Zap, current: false },
       { name: "Signing Documents", href: "/signing-documents", icon: PenTool, current: false },
-      { 
-        name: "Performance", 
-        href: "/bd/performance/personal", 
-        icon: BarChart3, 
+      {
+        name: "Performance",
+        href: "/performance/personal",
+        icon: BarChart3,
         current: false,
         subItems: [
-          { name: "My Performance", href: "/bd/performance/personal", icon: TrendingUp, current: false },
+          { name: "My Performance", href: "/performance/personal", icon: TrendingUp, current: false },
           { name: "Meetings & Follow-Ups", href: "/follow-ups", icon: Calendar, current: false },
-          { name: "Reports & Exports", href: "/bd/performance/reports", icon: FileDown, current: false },
+          { name: "Reports & Exports", href: "/performance/reports", icon: FileDown, current: false },
         ]
       },
-      { 
-        name: "Actions", 
-        href: "/bd/actions/tasks", 
-        icon: CheckSquare, 
+      {
+        name: "Actions",
+        href: "/actions/tasks",
+        icon: CheckSquare,
         current: false,
         subItems: [
-          { name: "My Tasks", href: "/bd/actions/tasks", icon: CheckSquare, current: false },
-          { name: "Submit EOD", href: "/bd/actions/eod", icon: Calendar, current: false },
-          { name: "My EOD History", href: "/bd/actions/eod-history", icon: History, current: false },
+          { name: "My Tasks", href: "/actions/tasks", icon: CheckSquare, current: false },
+          { name: "Submit EOD", href: "/actions/eod", icon: Calendar, current: false },
+          { name: "My EOD History", href: "/actions/eod-history", icon: History, current: false },
         ]
       },
       { name: "SEPARATOR", href: "", icon: null, current: false, isHeader: true },
-      { name: "Settings", href: "/bd/admin/settings", icon: Settings, current: false },
+      { name: "Settings", href: "/admin/settings", icon: Settings, current: false },
     ];
 
     // Add admin panel for admin and super_admin

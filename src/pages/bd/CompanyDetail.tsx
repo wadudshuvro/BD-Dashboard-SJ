@@ -80,7 +80,7 @@ export default function CompanyDetail() {
               The company you're looking for doesn't exist.
             </p>
             <Button asChild>
-              <Link to="/bd/campaigns">
+              <Link to="/campaigns">
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back to Campaigns
               </Link>
@@ -97,7 +97,7 @@ export default function CompanyDetail() {
         <div className="flex items-start justify-between">
           <div className="space-y-4">
             <Button variant="ghost" size="sm" asChild>
-              <Link to="/bd/campaigns">
+              <Link to="/campaigns">
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back
               </Link>

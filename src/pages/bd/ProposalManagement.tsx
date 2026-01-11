@@ -40,7 +40,7 @@ export default function ProposalManagement() {
           <p className="text-muted-foreground">Create, send, and track proposals with e-signature</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => navigate('/bd/proposals/analytics')}>
+          <Button variant="outline" onClick={() => navigate('/proposals/analytics')}>
             <BarChart3 className="h-4 w-4 mr-2" />
             Analytics
           </Button>

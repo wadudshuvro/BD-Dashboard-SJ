@@ -332,7 +332,7 @@ async function createInAppNotification(
         deal_value: deal.value,
         deal_stage: deal.stage
       },
-      link: `/bd/deals/${deal.id}`,
+      link: `/${deal.stage}/${deal.slug || deal.id}`,
       read: false
     });
 
