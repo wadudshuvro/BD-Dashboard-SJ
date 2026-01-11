@@ -443,14 +443,14 @@ const ChecklistTemplateManager = () => {
               <div className="space-y-2">
                 <Label>Applies To Stage</Label>
                 <Select
-                  value={formState.stage}
-                  onValueChange={(value) => setFormState((prev) => ({ ...prev, stage: value }))}
+                  value={formState.stage || "__all__"}
+                  onValueChange={(value) => setFormState((prev) => ({ ...prev, stage: value === "__all__" ? "" : value }))}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="All stages" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Stages</SelectItem>
+                    <SelectItem value="__all__">All Stages</SelectItem>
                     {pipelineStages.map((stage) => (
                       <SelectItem key={stage.value} value={stage.value} className="capitalize">
                         {stage.label}

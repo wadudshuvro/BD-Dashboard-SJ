@@ -267,9 +267,9 @@ const AdminLayout = () => {
 
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" asChild>
-              <NavLink to="/bd/dashboard" className="flex items-center gap-2">
+              <NavLink to="/dashboard" className="flex items-center gap-2">
                 <ArrowLeft className="h-4 w-4" />
-                BD Portal
+                Dashboard
               </NavLink>
             </Button>
             <Button 

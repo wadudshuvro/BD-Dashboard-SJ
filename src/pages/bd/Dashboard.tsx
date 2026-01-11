@@ -185,7 +185,7 @@ export default function BDDashboard() {
             Proposal Performance
           </CardTitle>
           <Button variant="outline" size="sm" asChild>
-            <Link to="/bd/proposals">View All</Link>
+            <Link to="/proposals">View All</Link>
           </Button>
         </CardHeader>
         <CardContent>
