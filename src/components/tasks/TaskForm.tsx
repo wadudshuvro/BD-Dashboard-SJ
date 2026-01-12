@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -37,7 +37,7 @@ import { useAuth } from "@/hooks/useAuth";
 const taskFormSchema = z.object({
   title: z.string().min(1, "Title is required"),
   description: z.string().optional(),
-  status: z.enum(["pending", "in_progress", "completed", "blocked"]),
+  status: z.enum(["todo", "in_progress", "review", "completed", "blocked"]),
   priority: z.enum(["low", "medium", "high"]),
   category: z.enum(["ideas", "discussion", "work", "other"]),
   project_id: z.string().optional(),
@@ -60,6 +60,8 @@ export function TaskForm({ open, onOpenChange, task, initialCampaignId }: TaskFo
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const hasInitialized = useRef(false);
+  const previousOpen = useRef(open);
 
   // Fetch active campaigns only
   const { campaigns } = useBDCampaigns(undefined, 1, 100, undefined, 'active');
@@ -69,7 +71,7 @@ export function TaskForm({ open, onOpenChange, task, initialCampaignId }: TaskFo
     defaultValues: {
       title: "",
       description: "",
-      status: "pending",
+      status: "todo",
       priority: "medium",
       category: "work",
       project_id: "",
@@ -80,35 +82,50 @@ export function TaskForm({ open, onOpenChange, task, initialCampaignId }: TaskFo
     },
   });
 
+  // Only reset form when dialog opens (not on every re-render or tab switch)
   useEffect(() => {
-    if (task) {
-      form.reset({
-        title: task.title || "",
-        description: task.description || "",
-        status: task.status || "pending",
-        priority: task.priority || "medium",
-        category: task.category || "work",
-        project_id: task.project_id || "",
-        campaign_id: task.campaign_id || "",
-        assigned_to: task.assigned_to || "",
-        due_date: task.due_date || "",
-        estimated_hours: task.estimated_hours?.toString() || "",
-      });
-    } else {
-      form.reset({
-        title: "",
-        description: "",
-        status: "pending",
-        priority: "medium",
-        category: "work",
-        project_id: "",
-        campaign_id: initialCampaignId || "",
-        assigned_to: user?.id || "",
-        due_date: "",
-        estimated_hours: "",
-      });
+    const justOpened = open && !previousOpen.current;
+    previousOpen.current = open;
+
+    // Reset initialization flag when dialog closes
+    if (!open) {
+      hasInitialized.current = false;
+      return;
     }
-  }, [task, form, user, initialCampaignId]);
+
+    // Only reset form when dialog just opened
+    if (justOpened || !hasInitialized.current) {
+      hasInitialized.current = true;
+      
+      if (task) {
+        form.reset({
+          title: task.title || "",
+          description: task.description || "",
+          status: task.status || "todo",
+          priority: task.priority || "medium",
+          category: task.category || "work",
+          project_id: task.project_id || "",
+          campaign_id: task.campaign_id || "",
+          assigned_to: task.assigned_to || "",
+          due_date: task.due_date || "",
+          estimated_hours: task.estimated_hours?.toString() || "",
+        });
+      } else {
+        form.reset({
+          title: "",
+          description: "",
+          status: "todo",
+          priority: "medium",
+          category: "work",
+          project_id: "",
+          campaign_id: initialCampaignId || "",
+          assigned_to: user?.id || "",
+          due_date: "",
+          estimated_hours: "",
+        });
+      }
+    }
+  }, [open, task, form, user, initialCampaignId]);
 
   const onSubmit = async (values: TaskFormValues) => {
     setIsSubmitting(true);
@@ -145,6 +162,8 @@ export function TaskForm({ open, onOpenChange, task, initialCampaignId }: TaskFo
       }
 
       queryClient.invalidateQueries({ queryKey: ["project-tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["all-project-tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["campaign-tasks"] });
       onOpenChange(false);
       form.reset();
     } catch (error: any) {
@@ -241,8 +260,9 @@ export function TaskForm({ open, onOpenChange, task, initialCampaignId }: TaskFo
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="todo">To Do</SelectItem>
                         <SelectItem value="in_progress">In Progress</SelectItem>
+                        <SelectItem value="review">In Review</SelectItem>
                         <SelectItem value="completed">Completed</SelectItem>
                         <SelectItem value="blocked">Blocked</SelectItem>
                       </SelectContent>
