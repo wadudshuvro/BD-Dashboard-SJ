@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Navigate, useSearchParams } from "react-router-dom";
+import { Link, Navigate, useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,7 +12,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useFeatureFlag } from "@/hooks/useFeatureFlag";
 import { supabase } from "@/integrations/supabase/client";
 import { submitFeedback, type FeedbackType } from "@/features/feedback/api";
-import { Bug, Sparkles, UploadCloud, X } from "lucide-react";
+import { Bug, List, Sparkles, UploadCloud, X } from "lucide-react";
 
 const TYPE_OPTIONS: FeedbackType[] = ["bug", "feature"];
 
@@ -236,9 +236,12 @@ export default function SubmitFeedback() {
                   Quickly report issues or request enhancements. Your submission routes directly to the Business Dev AI admins.
                 </CardDescription>
               </div>
-              <Badge variant="secondary" className="flex items-center gap-1 text-xs">
-                <UploadCloud className="h-3.5 w-3.5" /> Direct to Supabase
-              </Badge>
+              <Button variant="outline" size="sm" asChild>
+                <Link to="/feedback" className="flex items-center gap-2">
+                  <List className="h-4 w-4" />
+                  View All Feedback
+                </Link>
+              </Button>
             </div>
           </CardHeader>
           <CardContent className="space-y-6">
