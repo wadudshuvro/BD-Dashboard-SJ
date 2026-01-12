@@ -21,12 +21,15 @@ export interface ProjectTask {
 }
 
 export interface CreateProjectTaskData {
-  project_id: string;
+  project_id?: string;
+  campaign_id?: string;
   title: string;
   description?: string;
   status?: 'todo' | 'in_progress' | 'review' | 'completed' | 'blocked';
   priority?: 'low' | 'medium' | 'high' | 'urgent';
+  category?: 'ideas' | 'discussion' | 'work' | 'other';
   assigned_to?: string;
+  created_by?: string;
   estimated_hours?: number;
   due_date?: string;
 }
@@ -98,9 +101,23 @@ export const useCreateProjectTask = () => {
 
   return useMutation({
     mutationFn: async (taskData: CreateProjectTaskData) => {
+      // Get current user to ensure created_by is set
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        throw new Error('You must be logged in to create tasks');
+      }
+
+      const payload = {
+        ...taskData,
+        created_by: taskData.created_by || user.id,
+      };
+
+      console.log('Creating task with payload:', payload);
+
       const { data, error } = await supabase
         .from('project_tasks')
-        .insert([taskData])
+        .insert([payload])
         .select()
         .single();
 
@@ -114,16 +131,17 @@ export const useCreateProjectTask = () => {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['project-tasks'] });
       queryClient.invalidateQueries({ queryKey: ['all-project-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['campaign-tasks'] });
       toast({
         title: "Task created",
         description: "Project task has been created successfully.",
       });
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error('Create project task error:', error);
       toast({
         title: "Error",
-        description: "Failed to create project task. Please try again.",
+        description: error?.message || "Failed to create project task. Please try again.",
         variant: "destructive",
       });
     },
