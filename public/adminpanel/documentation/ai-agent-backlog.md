@@ -872,6 +872,60 @@ CREATE POLICY "Users can update own records"
 
 ---
 
+### BD Research Analyst Agent ✅
+
+**Status**: Documented | **Priority**: 3 | **Complexity**: Medium
+
+**Overview**: Analyzes Exa research data and generates 10 actionable insights for personalized outreach.
+
+**Data Sources**:
+| Table | Purpose |
+|-------|---------|
+| campaign_contacts | Lead profile data |
+| campaign_research | Exa API results |
+| bd_campaigns | Campaign context |
+| clients | Agency capabilities |
+
+**Trigger**: After Exa research completes or Manual
+
+**Output Highlights**:
+- Prospect summary with readiness score
+- 10 prioritized insights with sources
+- Recommended outreach approach
+- Talking points and questions to ask
+- Objection handling strategies
+
+**Full Specification**: See Feedback ID `747498c6-9a28-41a9-ad97-1cae6fcfe082`
+
+---
+
+### LinkedIn Message Generator Agent ✅
+
+**Status**: Documented | **Priority**: 4 | **Complexity**: Low
+
+**Overview**: Generates 3 personalized LinkedIn message variants with recommendation and reasoning.
+
+**Data Sources**:
+| Table | Purpose |
+|-------|---------|
+| campaign_contacts | Contact profile for personalization |
+| bd_campaigns | Campaign context |
+| campaign_contact_linkedin_messages | Previous messages (avoid repetition) |
+| clients | Agency value props |
+
+**Trigger**: Manual from Contact Detail page or Bulk
+
+**Output Highlights**:
+- Contact analysis (priorities, pain points, tone)
+- 3 message variants (direct, curiosity, value-first)
+- Recommended variant with reasoning
+- Follow-up strategy and timing suggestion
+- Character count validation (300 char limit)
+
+**Full Specification**: See Feedback ID `72fa51ab-9a18-42b0-97cb-1bdb8125e72d`
+
+---
+
 ## Success Metrics
 
 | Metric | Baseline | Target | Measurement |
