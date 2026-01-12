@@ -299,31 +299,56 @@ async function checkUserRole(serviceClient: SupabaseClient, userId: string): Pro
   return data.role;
 }
 
+// Helper to resolve either a UUID or slug to the campaign's actual UUID
+async function resolveCampaignIdOrSlug(
+  client: SupabaseClient,
+  idOrSlug: string
+): Promise<{ id: string; owned_by: string | null; created_by: string | null } | null> {
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrSlug);
+  
+  let query = client
+    .from("bd_campaigns")
+    .select("id, owned_by, created_by");
+  
+  if (isUuid) {
+    query = query.eq("id", idOrSlug);
+  } else {
+    query = query.eq("slug", idOrSlug);
+  }
+  
+  const { data, error } = await query.maybeSingle();
+  
+  if (error || !data) {
+    return null;
+  }
+  
+  return data;
+}
+
 async function canUpdateCampaign(
   serviceClient: SupabaseClient,
-  campaignId: string,
+  campaignIdOrSlug: string,
   userId: string
-): Promise<boolean> {
+): Promise<{ allowed: boolean; resolvedId: string | null }> {
+  // Resolve slug to UUID first
+  const campaign = await resolveCampaignIdOrSlug(serviceClient, campaignIdOrSlug);
+  
+  if (!campaign) {
+    return { allowed: false, resolvedId: null };
+  }
+  
   // Get user's role
   const role = await checkUserRole(serviceClient, userId);
   
   // Super admins and admins can update any campaign
   if (role === "super_admin" || role === "admin") {
-    return true;
+    return { allowed: true, resolvedId: campaign.id };
   }
   
   // Otherwise, check if user is the owner or creator
-  const { data: campaign, error } = await serviceClient
-    .from("bd_campaigns")
-    .select("owned_by, created_by")
-    .eq("id", campaignId)
-    .maybeSingle();
+  const isOwnerOrCreator = campaign.owned_by === userId || campaign.created_by === userId;
   
-  if (error || !campaign) {
-    return false;
-  }
-  
-  return campaign.owned_by === userId || campaign.created_by === userId;
+  return { allowed: isOwnerOrCreator, resolvedId: campaign.id };
 }
 
 function parseRoute(url: URL) {
@@ -714,14 +739,22 @@ async function handleCreate(req: Request, client: SupabaseClient, userId: string
 async function handleUpdate(
   req: Request,
   client: SupabaseClient,
-  campaignId: string,
+  campaignIdOrSlug: string,
   userId: string,
 ) {
-  // Check authorization first
-  const canUpdate = await canUpdateCampaign(client, campaignId, userId);
-  if (!canUpdate) {
+  // Resolve slug to UUID and check authorization
+  const { allowed, resolvedId } = await canUpdateCampaign(client, campaignIdOrSlug, userId);
+  
+  if (!resolvedId) {
+    throw new Error("Campaign not found");
+  }
+  
+  if (!allowed) {
     throw new Error("You do not have permission to update this campaign");
   }
+
+  // Use the resolved UUID for all subsequent operations
+  const campaignId = resolvedId;
 
   const payload = UpdateRequestSchema.parse(await req.json());
   const { campaign: updates = {}, metrics = [], options } = payload;
@@ -885,11 +918,18 @@ async function triggerCompletionSummary(
   }
 }
 
-async function handleDelete(client: SupabaseClient, campaignId: string) {
+async function handleDelete(client: SupabaseClient, campaignIdOrSlug: string) {
+  // Resolve slug to UUID first
+  const campaign = await resolveCampaignIdOrSlug(client, campaignIdOrSlug);
+  
+  if (!campaign) {
+    throw new Error("Campaign not found");
+  }
+
   const { data, error } = await client
     .from("bd_campaigns")
     .update({ status: "archived", updated_at: new Date().toISOString() })
-    .eq("id", campaignId)
+    .eq("id", campaign.id)
     .select("id, status")
     .single();
 
