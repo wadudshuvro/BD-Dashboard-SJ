@@ -1,4 +1,4 @@
-import { BookOpen, Database, Workflow, ArchiveRestore, ClipboardCheck, Plug, Sparkles, type LucideIcon } from "lucide-react";
+import { BookOpen, Database, Workflow, ArchiveRestore, ClipboardCheck, Plug, Sparkles, Rocket, type LucideIcon } from "lucide-react";
 
 export interface DocCategory {
   id: string;
@@ -19,6 +19,23 @@ export interface DocItem {
 }
 
 export const documentationIndex: DocCategory[] = [
+  {
+    id: "backlog",
+    title: "Product Backlog",
+    icon: Rocket,
+    description: "AI agent workflows, implementation roadmap, and prioritized feature backlog.",
+    items: [
+      {
+        id: "ai-agent-backlog",
+        title: "AI Agent Workflow Backlog",
+        description: "Prioritized list of 15+ AI agents for productivity, sales, campaigns, and client success.",
+        category: "backlog",
+        file: "ai-agent-backlog.md",
+        tags: ["ai", "agents", "backlog", "workflow", "automation", "productivity", "roadmap"],
+        lastUpdated: "2025-01-12",
+      },
+    ],
+  },
   {
     id: "vision",
     title: "Vision & Strategy",
