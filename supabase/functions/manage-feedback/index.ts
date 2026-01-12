@@ -109,6 +109,7 @@ function parseRoute(req: Request) {
 async function handleList(client: any, url: URL) {
   const type = url.searchParams.get("type");
   const status = url.searchParams.get("status");
+  const statuses = url.searchParams.get("statuses"); // Support multiple statuses as comma-separated
   const includeClosed = url.searchParams.get("includeClosed") === "true";
   const search = url.searchParams.get("search");
 
@@ -121,12 +122,18 @@ async function handleList(client: any, url: URL) {
     query = query.eq("type", type);
   }
 
-  if (status) {
+  // Support multiple statuses via comma-separated string
+  if (statuses) {
+    const statusArray = statuses.split(",").map(s => s.trim()).filter(Boolean);
+    if (statusArray.length > 0) {
+      query = query.in("status", statusArray);
+    }
+  } else if (status) {
     query = query.eq("status", status);
   }
 
   // Exclude closed unless explicitly requested OR status is already 'closed'
-  if (!includeClosed && status !== 'closed') {
+  if (!includeClosed && status !== 'closed' && !statuses?.includes('closed')) {
     query = query.is("deleted_at", null).neq("status", "closed");
   }
 

@@ -51,6 +51,7 @@ const TABS = {
     description: "Track and prioritize platform issues reported by the team.",
     type: "bug" as FeedbackType,
     includeClosed: false,
+    defaultStatuses: ["open", "in_review"] as FeedbackStatus[],
   },
   features: {
     label: "Features",
@@ -131,6 +132,11 @@ export default function FeedbackManager() {
       if ("type" in tabConfig) {
         params.type = tabConfig.type;
         params.includeClosed = tabConfig.includeClosed;
+        
+        // Use defaultStatuses if no specific filter is applied
+        if (statusFilter === 'all' && "defaultStatuses" in tabConfig && tabConfig.defaultStatuses) {
+          params.statuses = tabConfig.defaultStatuses;
+        }
       }
 
       if ("status" in tabConfig) {
@@ -141,6 +147,7 @@ export default function FeedbackManager() {
       // Add status filter if not "all" and not in "Closed" tab
       if (statusFilter !== 'all' && activeTab !== 'closed') {
         params.status = statusFilter;
+        delete params.statuses; // Use single status filter instead
       }
 
       const response = await listFeedbackReports(params);
