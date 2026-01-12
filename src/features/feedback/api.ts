@@ -90,13 +90,29 @@ export async function submitFeedback(payload: SubmitFeedbackPayload) {
 export async function listFeedbackReports(params: {
   type?: FeedbackType;
   status?: FeedbackStatus;
+  statuses?: FeedbackStatus[];
   includeClosed?: boolean;
   page?: number;
   pageSize?: number;
   search?: string;
 }) {
+  const { statuses, ...restParams } = params;
+  const apiParams: Record<string, string | number | boolean> = {};
+  
+  if (restParams.type) apiParams.type = restParams.type;
+  if (restParams.status) apiParams.status = restParams.status;
+  if (restParams.includeClosed !== undefined) apiParams.includeClosed = restParams.includeClosed;
+  if (restParams.page !== undefined) apiParams.page = restParams.page;
+  if (restParams.pageSize !== undefined) apiParams.pageSize = restParams.pageSize;
+  if (restParams.search) apiParams.search = restParams.search;
+  
+  if (statuses && statuses.length > 0) {
+    apiParams.statuses = statuses.join(",");
+    delete apiParams.status;
+  }
+  
   const response = await axiosPrivate.get<FeedbackListResponse>("/manage-feedback/list", {
-    params,
+    params: apiParams,
   });
   return response.data;
 }
