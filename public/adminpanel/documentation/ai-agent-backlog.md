@@ -926,6 +926,59 @@ CREATE POLICY "Users can update own records"
 
 ---
 
+### Client Objection Handler Agent ✅
+
+**Status**: Documented | **Priority**: 5 | **Complexity**: Medium
+
+**Overview**: Analyzes deal context and documents to provide evidence-based objection responses with scripts.
+
+**Data Sources**:
+| Table | Purpose |
+|-------|---------|
+| deals | Deal context and history |
+| deal_files | Document evidence (proposals, requirements) |
+| deal_comments | Previous discussions |
+| clients | Client background |
+
+**Trigger**: Manual from Deal Detail page
+
+**Output Highlights**:
+- Objection categorization (PRICE, TIMING, TRUST, etc.)
+- Evidence from documents with citations
+- Word-for-word response scripts
+- Follow-up if they push back
+- Concession strategies if needed
+
+**Full Specification**: See Feedback ID `5f2e219a-cdbd-4eb5-81d4-efd14c88c22b`
+
+---
+
+### Document Q&A Assistant Agent ✅
+
+**Status**: Documented | **Priority**: 6 | **Complexity**: Medium
+
+**Overview**: Natural language Q&A over deal documents with accurate citations.
+
+**Data Sources**:
+| Table | Purpose |
+|-------|---------|
+| deals | Deal context |
+| deal_files | Document inventory |
+| Supabase Storage | Parsed document JSON content |
+
+**Trigger**: Chat interface on Deal Detail page
+
+**Output Highlights**:
+- Direct answers with source citations
+- Confidence level with reasoning
+- Related information discovered
+- Suggested follow-up questions
+- Multi-turn conversation support
+
+**Full Specification**: See Feedback ID `7fd7da1c-53d7-4fd5-a4c6-3517013a0c52`
+
+---
+
 ## Success Metrics
 
 | Metric | Baseline | Target | Measurement |
