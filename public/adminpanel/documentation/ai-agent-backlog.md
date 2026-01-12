@@ -979,6 +979,62 @@ CREATE POLICY "Users can update own records"
 
 ---
 
+### Proposal Gap Analysis Agent ✅
+
+**Status**: Documented | **Priority**: 7 | **Complexity**: Medium
+
+**Overview**: Compares proposals against requirements to identify gaps before submission.
+
+**Data Sources**:
+| Table | Purpose |
+|-------|---------|
+| deals | Deal context |
+| deal_files | Proposal and requirements documents |
+| Supabase Storage | Parsed document content |
+
+**Trigger**: Manual before proposal submission
+
+**Output Highlights**:
+- Coverage score (0-100)
+- All requirements extracted with categories
+- Gap analysis with severity ratings
+- Critical gaps flagged as deal-breakers
+- Value-adds identified beyond requirements
+- Prioritized fix recommendations
+
+**Full Specification**: See Feedback ID `fe998e02-bac7-450f-aa39-bcd4c1b4f6d6`
+
+---
+
+### Deal Status Intelligence Agent ✅
+
+**Status**: Documented | **Priority**: 8 | **Complexity**: Medium
+
+**Overview**: Analyzes all deal artifacts to generate objective status with win probability.
+
+**Data Sources**:
+| Table | Purpose |
+|-------|---------|
+| deals | Deal metadata |
+| deal_files | Meeting notes, documents |
+| deal_comments | Internal discussions |
+| deal_checklist_items | Progress tracking |
+| deal_stage_history | Stage progression |
+
+**Trigger**: Manual or Daily scheduled for active deals
+
+**Output Highlights**:
+- Status category (ON_TRACK, AT_RISK, STALLED, etc.)
+- Win probability with positive/negative signals
+- Blockers with resolution suggestions
+- Stakeholder analysis
+- Prioritized next steps
+- Manager attention flag
+
+**Full Specification**: See Feedback ID `ee9aeb51-e02f-40b3-920d-831b436ff91d`
+
+---
+
 ## Success Metrics
 
 | Metric | Baseline | Target | Measurement |
