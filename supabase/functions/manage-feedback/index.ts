@@ -69,6 +69,12 @@ async function assertAtLeastAdmin(client: any, userId: string) {
     throw new Error("Insufficient privileges");
   }
 }
+
+// Any authenticated user can perform this action (internal portal)
+async function assertAuthenticated(_client: any, _userId: string) {
+  // No role check - just being authenticated is enough
+  return true;
+}
 async function fetchProfileMap(client: any, userIds: string[]) {
   if (userIds.length === 0) {
     return new Map<string, { name: string | null; email: string | null }>();
@@ -497,7 +503,8 @@ serve(async (req) => {
 
     if (req.method === "GET") {
       try {
-        await assertAtLeastAdmin(serviceClient, user.id);
+        // Any authenticated user can view feedback details
+        await assertAuthenticated(serviceClient, user.id);
       } catch (error) {
         const message = error instanceof Error ? error.message : "Forbidden";
         const status = message === "Insufficient privileges" ? 403 : 500;
@@ -511,7 +518,8 @@ serve(async (req) => {
 
     if (req.method === "POST" && routeSegments[1] === "comment") {
       try {
-        await assertAtLeastAdmin(serviceClient, user.id);
+        // Any authenticated user can add comments (internal portal)
+        await assertAuthenticated(serviceClient, user.id);
       } catch (error) {
         const message = error instanceof Error ? error.message : "Forbidden";
         const status = message === "Insufficient privileges" ? 403 : 500;
@@ -526,7 +534,8 @@ serve(async (req) => {
 
     if (req.method === "PUT" && routeSegments.length >= 2 && routeSegments[1] === "status") {
       try {
-        await assertAtLeastAdmin(serviceClient, user.id);
+        // Any authenticated user can update status (internal portal)
+        await assertAuthenticated(serviceClient, user.id);
       } catch (error) {
         const message = error instanceof Error ? error.message : "Forbidden";
         const status = message === "Insufficient privileges" ? 403 : 500;
