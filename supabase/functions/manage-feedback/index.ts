@@ -480,7 +480,8 @@ serve(async (req) => {
 
     if (req.method === "GET" && (routeSegments.length === 0 || routeSegments[0] === "list")) {
       try {
-        await assertAtLeastAdmin(serviceClient, user.id);
+        // Any authenticated user can list feedback (internal portal)
+        await assertAuthenticated(serviceClient, user.id);
       } catch (error) {
         const message = error instanceof Error ? error.message : "Forbidden";
         const status = message === "Insufficient privileges" ? 403 : 500;
