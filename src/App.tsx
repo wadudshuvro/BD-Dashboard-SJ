@@ -71,6 +71,9 @@ const queryClient = new QueryClient();
 const Documentation = lazy(() => import("./pages/admin/Documentation"));
 const FeedbackSubmitPage = lazy(() => import("./pages/feedback/SubmitFeedback"));
 const AdminFeedbackManager = lazy(() => import("./pages/admin/FeedbackManager"));
+const AdminFeedbackDetail = lazy(() => import("./pages/admin/FeedbackDetail"));
+const FeedbackList = lazy(() => import("./pages/feedback/FeedbackList"));
+const FeedbackDetail = lazy(() => import("./pages/feedback/FeedbackDetail"));
 const CampaignImportHistory = lazy(() => import("./pages/bd/CampaignImportHistory"));
 
 // Smart redirect component - send everyone to Dashboard
@@ -127,6 +130,10 @@ const App = () => (
                 path="feedback"
                 element={<React.Suspense fallback={<div>Loading...</div>}><AdminFeedbackManager /></React.Suspense>}
               />
+              <Route
+                path="feedback/:id"
+                element={<React.Suspense fallback={<div>Loading...</div>}><AdminFeedbackDetail /></React.Suspense>}
+              />
               <Route path="users" element={<UserManagement />} />
               <Route path="users/:userId" element={<UserDetail />} />
               <Route path="integrations" element={<IntegrationManager />} />
@@ -144,14 +151,22 @@ const App = () => (
             </Route>
 
             {/* Feedback Module */}
-            <Route path="/feedback/*" element={
+            <Route path="/feedback" element={
               <ProtectedRoute requiredMinimumRole="team_member">
                 <Layout />
               </ProtectedRoute>
             }>
               <Route
+                index
+                element={<React.Suspense fallback={<div>Loading...</div>}><FeedbackList /></React.Suspense>}
+              />
+              <Route
                 path="submit"
                 element={<React.Suspense fallback={<div>Loading...</div>}><FeedbackSubmitPage /></React.Suspense>}
+              />
+              <Route
+                path=":id"
+                element={<React.Suspense fallback={<div>Loading...</div>}><FeedbackDetail /></React.Suspense>}
               />
             </Route>
 

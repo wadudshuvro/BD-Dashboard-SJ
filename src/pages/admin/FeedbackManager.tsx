@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import {
   Card,
   CardContent,
@@ -111,6 +112,7 @@ export default function FeedbackManager() {
   const [commentDraft, setCommentDraft] = useState("");
   const [statusFilter, setStatusFilter] = useState<FeedbackStatus | 'all'>('all');
   const [prioritySortDirection, setPrioritySortDirection] = useState<SortDirection>(null);
+  const navigate = useNavigate();
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -458,7 +460,7 @@ export default function FeedbackManager() {
                                 ? "bg-primary/5 hover:bg-primary/10"
                                 : "hover:bg-muted/40",
                             )}
-                            onClick={() => setSelectedFeedbackId(item.id)}
+                            onClick={() => navigate(`/adminpanel/feedback/${item.id}`)}
                           >
                             <TableCell className="font-medium">{item.subject}</TableCell>
                             <TableCell>
