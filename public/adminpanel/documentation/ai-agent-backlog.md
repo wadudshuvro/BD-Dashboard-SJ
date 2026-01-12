@@ -814,6 +814,64 @@ CREATE POLICY "Users can update own records"
 
 ---
 
+## Implemented Agent Specifications
+
+### BD Weekly Insights Agent ✅
+
+**Status**: Documented | **Priority**: 1 | **Complexity**: Medium
+
+**Overview**: Generates weekly summary of BD team activities, wins, pipeline changes, and action items every Monday.
+
+**Data Sources**:
+| Table | Purpose |
+|-------|---------|
+| deals | Track deals won/lost/created |
+| deal_stage_history | Stage progression |
+| follow_ups | Completion rates |
+| eod_reports | Team blockers/accomplishments |
+| campaign_contacts | New contacts, status changes |
+
+**Trigger**: Scheduled Monday 6AM EST or Manual
+
+**Output Highlights**:
+- Executive summary (100 words max)
+- Wins with owner attribution
+- Pipeline health metrics
+- Risk flags with mitigation
+- Prioritized action items
+
+**Full Specification**: See Feedback ID `5d4f4444-d83f-47f2-970e-9e01fe2793e1`
+
+---
+
+### Deal Pipeline Analyzer Agent ✅
+
+**Status**: Documented | **Priority**: 2 | **Complexity**: Medium
+
+**Overview**: Analyzes pipeline health, identifies bottlenecks, flags stale deals, calculates conversion rates.
+
+**Data Sources**:
+| Table | Purpose |
+|-------|---------|
+| deals | Current pipeline state |
+| deal_stage_history | Stage transition timing |
+| deal_comments | Activity signals |
+| deal_checklist_items | Progress tracking |
+
+**Trigger**: Daily 7AM EST or Manual
+
+**Output Highlights**:
+- Health score (0-100)
+- Stage breakdown with benchmarks
+- Bottleneck identification
+- Stale/stuck deals list
+- Conversion rate analysis
+- Immediate action items
+
+**Full Specification**: See Feedback ID `92864366-aa35-4b1a-b7cc-641943b1cd9f`
+
+---
+
 ## Success Metrics
 
 | Metric | Baseline | Target | Measurement |
