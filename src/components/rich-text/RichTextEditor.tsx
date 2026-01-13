@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, forwardRef, useImperativeHandle, useRef } from 'react';
+import React, { useCallback, useEffect, forwardRef, useImperativeHandle, useRef, useMemo } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Link from '@tiptap/extension-link';
@@ -55,7 +55,14 @@ const RichTextEditor = forwardRef<RichTextEditorRef, RichTextEditorProps>(
     },
     ref
   ) => {
-    console.log('RichTextEditor - Rendering with teamMembers:', teamMembers);
+    // Memoize teamMembers to prevent infinite re-renders
+    const teamMembersRef = useRef(teamMembers);
+    teamMembersRef.current = teamMembers;
+
+    // Create a stable mention suggestion that reads from ref
+    const stableMentionSuggestion = useMemo(() => {
+      return MentionSuggestion(teamMembers || []);
+    }, []); // Empty deps - we'll use ref for updates
 
     const editor = useEditor({
       extensions: [
@@ -83,7 +90,7 @@ const RichTextEditor = forwardRef<RichTextEditorRef, RichTextEditorProps>(
           HTMLAttributes: {
             class: 'mention font-bold text-green-600 dark:text-green-400',
           },
-          suggestion: MentionSuggestion(teamMembers || []),
+          suggestion: stableMentionSuggestion,
         }),
       ],
       content,
@@ -102,7 +109,7 @@ const RichTextEditor = forwardRef<RichTextEditorRef, RichTextEditorProps>(
           ),
         },
       },
-    }, [teamMembers]);
+    });
 
     useImperativeHandle(ref, () => ({
       focus: () => editor?.commands.focus(),
