@@ -2,9 +2,13 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ProjectTask, useUpdateProjectTask, useDeleteProjectTask } from "@/hooks/useProjectTasks";
-import { MoreHorizontal, Clock, Calendar, User } from "lucide-react";
+import { MoreHorizontal, Clock, Calendar, User, Folder, Paperclip, ExternalLink, Tag } from "lucide-react";
 import { format } from "date-fns";
+import { useBDTeamMembers } from "@/hooks/useBDTeamMembers";
+import { useBDCampaigns } from "@/hooks/useBDCampaigns";
+import { useNavigate } from "react-router-dom";
 
 interface TaskCardProps {
   task: ProjectTask;
@@ -46,6 +50,9 @@ const getPriorityColor = (priority: ProjectTask['priority']) => {
 export function TaskCard({ task, onEdit }: TaskCardProps) {
   const updateTask = useUpdateProjectTask();
   const deleteTask = useDeleteProjectTask();
+  const navigate = useNavigate();
+  const { data: bdMembers = [] } = useBDTeamMembers();
+  const { campaigns } = useBDCampaigns(undefined, 1, 100);
 
   const handleStatusChange = (newStatus: ProjectTask['status']) => {
     updateTask.mutate({
@@ -60,8 +67,22 @@ export function TaskCard({ task, onEdit }: TaskCardProps) {
     }
   };
 
+  const handleCardClick = () => {
+    navigate(`/bd/actions/tasks/${task.id}`);
+  };
+
+  // Get assignee details
+  const assignee = task.assigned_to 
+    ? bdMembers.find(m => m.id === task.assigned_to)
+    : null;
+
+  // Get campaign details
+  const campaign = task.is_campaign_associated && task.campaign_id
+    ? campaigns.find(c => c.id === task.campaign_id)
+    : null;
+
   return (
-    <Card className="hover:shadow-md transition-shadow">
+    <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={handleCardClick}>
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between">
           <CardTitle className="text-sm font-medium leading-tight">
@@ -69,7 +90,12 @@ export function TaskCard({ task, onEdit }: TaskCardProps) {
           </CardTitle>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="h-8 w-8 p-0"
+                onClick={(e) => e.stopPropagation()}
+              >
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -115,14 +141,36 @@ export function TaskCard({ task, onEdit }: TaskCardProps) {
           <Badge variant="outline" className={getPriorityColor(task.priority)}>
             {task.priority}
           </Badge>
+          {campaign && (
+            <Badge variant="secondary" className="bg-purple-100 text-purple-800">
+              Campaign: {campaign.name}
+            </Badge>
+          )}
         </div>
 
-        <div className="text-xs text-muted-foreground">
-          <strong>Project:</strong> <Badge variant="outline" className="text-xs">Unknown Project</Badge>
-        </div>
+        {/* Labels */}
+        {task.labels && task.labels.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {task.labels.map((label) => (
+              <Badge
+                key={label.id}
+                variant="secondary"
+                style={{ 
+                  backgroundColor: `${label.color}20`, 
+                  color: label.color,
+                  borderColor: label.color 
+                }}
+                className="text-xs border flex items-center gap-1"
+              >
+                <Tag className="h-2.5 w-2.5" />
+                {label.name}
+              </Badge>
+            ))}
+          </div>
+        )}
 
         <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 flex-wrap">
             {task.estimated_hours && (
               <div className="flex items-center gap-1">
                 <Clock className="h-3 w-3" />
@@ -135,14 +183,33 @@ export function TaskCard({ task, onEdit }: TaskCardProps) {
                 <span>Due {format(new Date(task.due_date), 'MMM d')}</span>
               </div>
             )}
+            {task.google_folder && (
+              <div className="flex items-center gap-1">
+                <Folder className="h-3 w-3" />
+                <span>Drive folder</span>
+              </div>
+            )}
+            {task.attachments && task.attachments.length > 0 && (
+              <div className="flex items-center gap-1">
+                <Paperclip className="h-3 w-3" />
+                <span>{task.attachments.length}</span>
+              </div>
+            )}
           </div>
-          {task.assigned_to && (
-            <div className="flex items-center gap-1">
-              <User className="h-3 w-3" />
-              <span>Assigned</span>
-            </div>
-          )}
         </div>
+
+        {/* Assignee */}
+        {assignee && (
+          <div className="flex items-center gap-2 pt-2 border-t">
+            <Avatar className="h-6 w-6">
+              <AvatarImage src={assignee.avatar_url} />
+              <AvatarFallback className="text-xs">
+                {assignee.full_name?.substring(0, 2).toUpperCase() || 'U'}
+              </AvatarFallback>
+            </Avatar>
+            <span className="text-xs text-muted-foreground">{assignee.full_name}</span>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

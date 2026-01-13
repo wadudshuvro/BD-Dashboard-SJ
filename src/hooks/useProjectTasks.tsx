@@ -2,15 +2,38 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/use-toast';
 
+export interface TaskLabel {
+  id: string;
+  name: string;
+  color: string;
+  created_at?: string;
+  created_by?: string;
+}
+
+export interface TaskAttachment {
+  id: string;
+  task_id: string;
+  file_name: string;
+  file_path: string;
+  file_size: number;
+  file_type: string;
+  uploaded_by?: string;
+  created_at: string;
+}
+
+export interface GoogleFolder {
+  id: string;
+  name?: string;
+  url?: string;
+}
+
 export interface ProjectTask {
   id: string;
   project_id: string;
-  campaign_id?: string | null;
   title: string;
   description?: string;
   status: 'todo' | 'in_progress' | 'review' | 'completed' | 'blocked';
   priority: 'low' | 'medium' | 'high' | 'urgent';
-  category?: 'ideas' | 'discussion' | 'work' | 'other' | null;
   assigned_to?: string;
   estimated_hours?: number;
   actual_hours?: number;
@@ -18,20 +41,33 @@ export interface ProjectTask {
   completed_at?: string;
   created_at: string;
   updated_at: string;
+  // New enhanced fields
+  is_campaign_associated?: boolean;
+  campaign_id?: string | null;
+  google_folder?: GoogleFolder | null;
+  active_collab_link?: string | null;
+  workboard_ai_link?: string | null;
+  reference_url?: string | null;
+  labels?: TaskLabel[];
+  attachments?: TaskAttachment[];
 }
 
 export interface CreateProjectTaskData {
-  project_id?: string;
-  campaign_id?: string;
+  project_id: string;
   title: string;
   description?: string;
   status?: 'todo' | 'in_progress' | 'review' | 'completed' | 'blocked';
   priority?: 'low' | 'medium' | 'high' | 'urgent';
-  category?: 'ideas' | 'discussion' | 'work' | 'other';
   assigned_to?: string;
-  created_by?: string;
   estimated_hours?: number;
   due_date?: string;
+  // New enhanced fields
+  is_campaign_associated?: boolean;
+  campaign_id?: string | null;
+  google_folder?: GoogleFolder | null;
+  active_collab_link?: string | null;
+  workboard_ai_link?: string | null;
+  reference_url?: string | null;
 }
 
 export interface UpdateProjectTaskData {
@@ -44,6 +80,13 @@ export interface UpdateProjectTaskData {
   actual_hours?: number;
   due_date?: string;
   completed_at?: string | null;
+  // New enhanced fields
+  is_campaign_associated?: boolean;
+  campaign_id?: string | null;
+  google_folder?: GoogleFolder | null;
+  active_collab_link?: string | null;
+  workboard_ai_link?: string | null;
+  reference_url?: string | null;
 }
 
 export const useProjectTasks = (projectId?: string) => {
@@ -101,23 +144,9 @@ export const useCreateProjectTask = () => {
 
   return useMutation({
     mutationFn: async (taskData: CreateProjectTaskData) => {
-      // Get current user to ensure created_by is set
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        throw new Error('You must be logged in to create tasks');
-      }
-
-      const payload = {
-        ...taskData,
-        created_by: taskData.created_by || user.id,
-      };
-
-      console.log('Creating task with payload:', payload);
-
       const { data, error } = await supabase
         .from('project_tasks')
-        .insert([payload])
+        .insert([taskData])
         .select()
         .single();
 
@@ -131,17 +160,16 @@ export const useCreateProjectTask = () => {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['project-tasks'] });
       queryClient.invalidateQueries({ queryKey: ['all-project-tasks'] });
-      queryClient.invalidateQueries({ queryKey: ['campaign-tasks'] });
       toast({
         title: "Task created",
         description: "Project task has been created successfully.",
       });
     },
-    onError: (error: any) => {
+    onError: (error) => {
       console.error('Create project task error:', error);
       toast({
         title: "Error",
-        description: error?.message || "Failed to create project task. Please try again.",
+        description: "Failed to create project task. Please try again.",
         variant: "destructive",
       });
     },

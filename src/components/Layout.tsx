@@ -33,14 +33,13 @@ import {
   Handshake,
   MessageSquare,
   PenTool,
-  Layers,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useState } from "react";
 import ProfileDropdown from "./ProfileDropdown";
+import { NotificationBadge } from "./notifications/NotificationBadge";
 import logo from "@/assets/logo-sji.png";
 import { useFeatureFlag } from "@/hooks/useFeatureFlag";
-import { NotificationBell } from "./notifications/NotificationBell";
 
 function useDealCounts() {
   return useQuery({
@@ -146,15 +145,14 @@ const Layout = ({ userRole }: LayoutProps) => {
   // Get navigation based on role - simplified for BD-focused dashboard
   const getNavigation = (role: string): NavigationItem[] => {
     const navigation: NavigationItem[] = [
-      { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard, current: false },
-      { name: "My Agents", href: "/my-agents", icon: Zap, current: false },
+      { name: "BD Dashboard", href: "/bd/dashboard", icon: LayoutDashboard, current: false },
+      { name: "My Agents", href: "/bd/my-agents", icon: Zap, current: false },
       {
         name: "Pipeline",
-        href: "/all-deals",
+        href: "/prospecting",
         icon: Target,
         current: false,
         subItems: [
-          { name: "All Deals", href: "/all-deals", icon: Layers, current: false },
           { name: `Lead${dealCounts?.prospecting ? ` (${dealCounts.prospecting})` : ''}`, href: "/prospecting", icon: UserSearch, current: false },
           { name: `Estimation${dealCounts?.qualification ? ` (${dealCounts.qualification})` : ''}`, href: "/qualification", icon: ClipboardCheck, current: false },
           { name: `Discovery${dealCounts?.proposal ? ` (${dealCounts.proposal})` : ''}`, href: "/proposal", icon: FileText, current: false },
@@ -165,30 +163,30 @@ const Layout = ({ userRole }: LayoutProps) => {
       { name: `Campaigns${campaignCount ? ` (${campaignCount})` : ''}`, href: "/campaigns", icon: Megaphone, current: false },
       { name: "Sequences", href: "/sequences", icon: Zap, current: false },
       { name: "Signing Documents", href: "/signing-documents", icon: PenTool, current: false },
-      {
-        name: "Performance",
-        href: "/performance/personal",
-        icon: BarChart3,
+      { 
+        name: "Performance", 
+        href: "/bd/performance/personal", 
+        icon: BarChart3, 
         current: false,
         subItems: [
-          { name: "My Performance", href: "/performance/personal", icon: TrendingUp, current: false },
+          { name: "My Performance", href: "/bd/performance/personal", icon: TrendingUp, current: false },
           { name: "Meetings & Follow-Ups", href: "/follow-ups", icon: Calendar, current: false },
-          { name: "Reports & Exports", href: "/performance/reports", icon: FileDown, current: false },
+          { name: "Reports & Exports", href: "/bd/performance/reports", icon: FileDown, current: false },
         ]
       },
-      {
-        name: "Actions",
-        href: "/actions/tasks",
-        icon: CheckSquare,
+      { 
+        name: "Actions", 
+        href: "/bd/actions/tasks", 
+        icon: CheckSquare, 
         current: false,
         subItems: [
-          { name: "My Tasks", href: "/actions/tasks", icon: CheckSquare, current: false },
-          { name: "Submit EOD", href: "/actions/eod", icon: Calendar, current: false },
-          { name: "My EOD History", href: "/actions/eod-history", icon: History, current: false },
+          { name: "My Tasks", href: "/bd/actions/tasks", icon: CheckSquare, current: false },
+          { name: "Submit EOD", href: "/bd/actions/eod", icon: Calendar, current: false },
+          { name: "My EOD History", href: "/bd/actions/eod-history", icon: History, current: false },
         ]
       },
       { name: "SEPARATOR", href: "", icon: null, current: false, isHeader: true },
-      { name: "Settings", href: "/admin/settings", icon: Settings, current: false },
+      { name: "Settings", href: "/bd/admin/settings", icon: Settings, current: false },
     ];
 
     // Add admin panel for admin and super_admin
@@ -359,17 +357,17 @@ const Layout = ({ userRole }: LayoutProps) => {
             <div className="flex items-center gap-4">
               <h2 className="text-sm text-muted-foreground">
                 {(() => {
-                  const currentItem = navigation.find(item =>
+                  const currentItem = navigation.find(item => 
                     item.href && item.href !== "" && location.pathname.startsWith(item.href) && item.name !== "SEPARATOR"
                   );
                   const currentSubItem = navigation
                     .flatMap(item => item.subItems || [])
                     .find(subItem => location.pathname === subItem.href.split("?")[0]);
-
+                  
                   return currentSubItem?.name || currentItem?.name || 'Dashboard';
                 })()}
               </h2>
-              <NotificationBell />
+              <NotificationBadge />
             </div>
           </div>
         </div>

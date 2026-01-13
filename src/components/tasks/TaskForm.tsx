@@ -1,11 +1,10 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useBDCampaigns } from "@/hooks/useBDCampaigns";
 import {
   Dialog,
   DialogContent,
@@ -32,19 +31,64 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from "@/hooks/useAuth";
+import { useBDTeamMembers } from "@/hooks/useBDTeamMembers";
+import { useTaskLabelAssociations } from "@/hooks/useTaskLabels";
+import { useTaskAttachments } from "@/hooks/useTaskAttachments";
+import { recordTaskHistory, recordTaskCreation } from "@/services/taskHistoryService";
+import { createAssigneeChangeNotification } from "@/services/notificationService";
+import { CampaignAssociationField } from "./CampaignAssociationField";
+import { TaskLabelsField } from "./TaskLabelsField";
+import { GoogleFolderField } from "./GoogleFolderField";
+import { TaskAttachmentsField } from "./TaskAttachmentsField";
+import { OptionalLinksSection } from "./OptionalLinksSection";
+import type { GoogleFolder } from "@/hooks/useProjectTasks";
+
+// URL validation helper
+const urlSchema = z.string().optional().nullable().refine(
+  (val) => {
+    if (!val || val.trim() === "") return true;
+    try {
+      new URL(val.startsWith('http') ? val : `https://${val}`);
+      return true;
+    } catch {
+      return false;
+    }
+  },
+  { message: "Please enter a valid URL" }
+);
 
 const taskFormSchema = z.object({
   title: z.string().min(1, "Title is required"),
   description: z.string().optional(),
   status: z.enum(["todo", "in_progress", "review", "completed", "blocked"]),
-  priority: z.enum(["low", "medium", "high"]),
-  category: z.enum(["ideas", "discussion", "work", "other"]),
+  priority: z.enum(["low", "medium", "high", "urgent"]),
   project_id: z.string().optional(),
-  campaign_id: z.string().optional(),
-  assigned_to: z.string().optional(),
+  assigned_to: z.string().nullable().optional(),
   due_date: z.string().optional(),
   estimated_hours: z.string().optional(),
+  // New enhanced fields
+  is_campaign_associated: z.boolean().default(false),
+  campaign_id: z.string().nullable().optional(),
+  label_ids: z.array(z.string()).default([]),
+  google_folder: z.object({
+    id: z.string(),
+    name: z.string().optional(),
+    url: z.string().optional(),
+  }).nullable().optional(),
+  active_collab_link: urlSchema,
+  workboard_ai_link: urlSchema,
+  reference_url: urlSchema,
+}).refine((data) => {
+  // If campaign associated, campaign_id is required
+  if (data.is_campaign_associated && !data.campaign_id) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Campaign selection is required when associated with a campaign",
+  path: ["campaign_id"],
 });
 
 type TaskFormValues = z.infer<typeof taskFormSchema>;
@@ -53,18 +97,18 @@ interface TaskFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   task?: any;
-  initialCampaignId?: string;
 }
 
-export function TaskForm({ open, onOpenChange, task, initialCampaignId }: TaskFormProps) {
+export function TaskForm({ open, onOpenChange, task }: TaskFormProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const hasInitialized = useRef(false);
-  const previousOpen = useRef(open);
+  const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
+  const [uploadingAttachments, setUploadingAttachments] = useState(false);
 
-  // Fetch active campaigns only
-  const { campaigns } = useBDCampaigns(undefined, 1, 100, undefined, 'active');
+  const { data: bdMembers = [] } = useBDTeamMembers();
+  const { associateLabelsAsync } = useTaskLabelAssociations(task?.id);
+  const { uploadAttachmentAsync } = useTaskAttachments(task?.id);
 
   const form = useForm<TaskFormValues>({
     resolver: zodResolver(taskFormSchema),
@@ -73,61 +117,69 @@ export function TaskForm({ open, onOpenChange, task, initialCampaignId }: TaskFo
       description: "",
       status: "todo",
       priority: "medium",
-      category: "work",
       project_id: "",
-      campaign_id: initialCampaignId || "",
-      assigned_to: "",
+      assigned_to: null,
       due_date: "",
       estimated_hours: "",
+      is_campaign_associated: false,
+      campaign_id: null,
+      label_ids: [],
+      google_folder: null,
+      active_collab_link: null,
+      workboard_ai_link: null,
+      reference_url: null,
     },
   });
 
-  // Only reset form when dialog opens (not on every re-render or tab switch)
   useEffect(() => {
-    const justOpened = open && !previousOpen.current;
-    previousOpen.current = open;
+    if (task) {
+      form.reset({
+        title: task.title || "",
+        description: task.description || "",
+        status: task.status || "todo",
+        priority: task.priority || "medium",
+        project_id: task.project_id || "",
+        assigned_to: task.assigned_to || null,
+        due_date: task.due_date || "",
+        estimated_hours: task.estimated_hours?.toString() || "",
+        is_campaign_associated: task.is_campaign_associated || false,
+        campaign_id: task.campaign_id || null,
+        label_ids: task.labels?.map((l: any) => l.id) || [],
+        google_folder: task.google_folder || null,
+        active_collab_link: task.active_collab_link || null,
+        workboard_ai_link: task.workboard_ai_link || null,
+        reference_url: task.reference_url || null,
+      });
+      setAttachmentFiles([]); // Reset attachments for edit mode
+    } else {
+      form.reset({
+        title: "",
+        description: "",
+        status: "todo",
+        priority: "medium",
+        project_id: "",
+        assigned_to: user?.id || null,
+        due_date: "",
+        estimated_hours: "",
+        is_campaign_associated: false,
+        campaign_id: null,
+        label_ids: [],
+        google_folder: null,
+        active_collab_link: null,
+        workboard_ai_link: null,
+        reference_url: null,
+      });
+      setAttachmentFiles([]);
+    }
+  }, [task, form, user, open]);
 
-    // Reset initialization flag when dialog closes
-    if (!open) {
-      hasInitialized.current = false;
+  const onSubmit = async (values: TaskFormValues) => {
+    // Prevent submit if attachments are being uploaded
+    if (uploadingAttachments) {
+      toast.error("Please wait for attachments to finish uploading");
       return;
     }
 
-    // Only reset form when dialog just opened
-    if (justOpened || !hasInitialized.current) {
-      hasInitialized.current = true;
-      
-      if (task) {
-        form.reset({
-          title: task.title || "",
-          description: task.description || "",
-          status: task.status || "todo",
-          priority: task.priority || "medium",
-          category: task.category || "work",
-          project_id: task.project_id || "",
-          campaign_id: task.campaign_id || "",
-          assigned_to: task.assigned_to || "",
-          due_date: task.due_date || "",
-          estimated_hours: task.estimated_hours?.toString() || "",
-        });
-      } else {
-        form.reset({
-          title: "",
-          description: "",
-          status: "todo",
-          priority: "medium",
-          category: "work",
-          project_id: "",
-          campaign_id: initialCampaignId || "",
-          assigned_to: user?.id || "",
-          due_date: "",
-          estimated_hours: "",
-        });
-      }
-    }
-  }, [open, task, form, user, initialCampaignId]);
-
-  const onSubmit = async (values: TaskFormValues) => {
     setIsSubmitting(true);
     try {
       const payload = {
@@ -135,38 +187,111 @@ export function TaskForm({ open, onOpenChange, task, initialCampaignId }: TaskFo
         description: values.description,
         status: values.status,
         priority: values.priority,
-        category: values.category,
         project_id: values.project_id || null,
-        campaign_id: values.campaign_id || null,
         assigned_to: values.assigned_to || null,
         due_date: values.due_date || null,
         estimated_hours: values.estimated_hours ? parseFloat(values.estimated_hours) : null,
         created_by: user?.id,
+        // New enhanced fields
+        is_campaign_associated: values.is_campaign_associated,
+        campaign_id: values.campaign_id || null,
+        google_folder: values.google_folder || null,
+        active_collab_link: values.active_collab_link || null,
+        workboard_ai_link: values.workboard_ai_link || null,
+        reference_url: values.reference_url || null,
       };
 
+      let taskId: string;
+      const oldTask = task ? { ...task } : null;
+
       if (task) {
+        // Update existing task
         const { error } = await supabase
           .from("project_tasks")
           .update(payload)
           .eq("id", task.id);
 
         if (error) throw error;
+        taskId = task.id;
+
+        // Record history for task updates
+        if (user?.id && oldTask) {
+          try {
+            await recordTaskHistory(taskId, oldTask, payload, user.id);
+            
+            // Check if assignee changed and create notification
+            if (oldTask.assigned_to !== values.assigned_to) {
+              await createAssigneeChangeNotification(
+                taskId,
+                values.title,
+                oldTask.assigned_to || null,
+                values.assigned_to || null,
+                user.id
+              );
+            }
+          } catch (historyError) {
+            console.error('Failed to record history:', historyError);
+            // Don't fail the task update if history recording fails
+          }
+        }
+
         toast.success("Task updated successfully");
       } else {
-        const { error } = await supabase
+        // Create new task
+        const { data, error } = await supabase
           .from("project_tasks")
-          .insert([payload]);
+          .insert([payload])
+          .select()
+          .single();
 
         if (error) throw error;
+        if (!data) throw new Error("Failed to create task");
+        
+        taskId = data.id;
+
+        // Record task creation in history
+        if (user?.id) {
+          try {
+            await recordTaskCreation(taskId, user.id);
+          } catch (historyError) {
+            console.error('Failed to record creation:', historyError);
+          }
+        }
+
         toast.success("Task created successfully");
       }
 
+      // Associate labels
+      if (values.label_ids.length > 0) {
+        await associateLabelsAsync({ taskId, labelIds: values.label_ids });
+      }
+
+      // Upload attachments (only for new files)
+      if (attachmentFiles.length > 0) {
+        setUploadingAttachments(true);
+        const uploadPromises = attachmentFiles.map(file => 
+          uploadAttachmentAsync({ taskId, file })
+        );
+        
+        try {
+          await Promise.all(uploadPromises);
+        } catch (uploadError) {
+          console.error("Some attachments failed to upload:", uploadError);
+          toast.error("Some attachments failed to upload");
+        } finally {
+          setUploadingAttachments(false);
+        }
+      }
+
+      // Invalidate queries
       queryClient.invalidateQueries({ queryKey: ["project-tasks"] });
       queryClient.invalidateQueries({ queryKey: ["all-project-tasks"] });
-      queryClient.invalidateQueries({ queryKey: ["campaign-tasks"] });
+      
       onOpenChange(false);
       form.reset();
+      setAttachmentFiles([]);
     } catch (error: any) {
+      console.error("Task save error:", error);
       toast.error(error.message || "Failed to save task");
     } finally {
       setIsSubmitting(false);
@@ -175,7 +300,7 @@ export function TaskForm({ open, onOpenChange, task, initialCampaignId }: TaskFo
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[700px] max-h-[90vh]">
         <DialogHeader>
           <DialogTitle>{task ? "Edit Task" : "Create New Task"}</DialogTitle>
           <DialogDescription>
@@ -183,88 +308,119 @@ export function TaskForm({ open, onOpenChange, task, initialCampaignId }: TaskFo
           </DialogDescription>
         </DialogHeader>
 
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="title"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Title</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Enter task title" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Description</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="Enter task description"
-                      className="resize-none"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="campaign_id"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Campaign (Optional)</FormLabel>
-                  <Select
-                    onValueChange={(value) => field.onChange(value === "__none__" ? "" : value)}
-                    value={field.value || "__none__"}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a campaign" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="__none__">None</SelectItem>
-                      {campaigns?.map((campaign) => (
-                        <SelectItem key={campaign.id} value={campaign.id}>
-                          {campaign.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <div className="grid grid-cols-2 gap-4">
+        <ScrollArea className="max-h-[calc(90vh-200px)] pr-4">
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <FormField
                 control={form.control}
-                name="status"
+                name="title"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Status</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormLabel>Title <span className="text-destructive">*</span></FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter task title" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Description</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Enter task description"
+                        className="resize-none"
+                        rows={3}
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Campaign Association */}
+              <CampaignAssociationField form={form} />
+
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="status"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Status</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select status" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="todo">To Do</SelectItem>
+                          <SelectItem value="in_progress">In Progress</SelectItem>
+                          <SelectItem value="review">In Review</SelectItem>
+                          <SelectItem value="completed">Completed</SelectItem>
+                          <SelectItem value="blocked">Blocked</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="priority"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Priority</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select priority" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="low">Low</SelectItem>
+                          <SelectItem value="medium">Medium</SelectItem>
+                          <SelectItem value="high">High</SelectItem>
+                          <SelectItem value="urgent">Urgent</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              {/* Assignee Field with BD Members */}
+              <FormField
+                control={form.control}
+                name="assigned_to"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Assignee</FormLabel>
+                    <Select 
+                      onValueChange={field.onChange} 
+                      value={field.value || "unassigned"}
+                    >
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select status" />
+                          <SelectValue placeholder="Select assignee" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="todo">To Do</SelectItem>
-                        <SelectItem value="in_progress">In Progress</SelectItem>
-                        <SelectItem value="review">In Review</SelectItem>
-                        <SelectItem value="completed">Completed</SelectItem>
-                        <SelectItem value="blocked">Blocked</SelectItem>
+                        <SelectItem value="unassigned">Unassigned</SelectItem>
+                        {bdMembers.map((member) => (
+                          <SelectItem key={member.id} value={member.id}>
+                            {member.full_name}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -272,99 +428,70 @@ export function TaskForm({ open, onOpenChange, task, initialCampaignId }: TaskFo
                 )}
               />
 
-              <FormField
-                control={form.control}
-                name="priority"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Priority</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="due_date"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Due Date</FormLabel>
                       <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select priority" />
-                        </SelectTrigger>
+                        <Input type="date" {...field} />
                       </FormControl>
-                      <SelectContent>
-                        <SelectItem value="low">Low</SelectItem>
-                        <SelectItem value="medium">Medium</SelectItem>
-                        <SelectItem value="high">High</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-            <FormField
-              control={form.control}
-              name="category"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Category</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select category" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="ideas">Ideas</SelectItem>
-                      <SelectItem value="discussion">Discussion</SelectItem>
-                      <SelectItem value="work">Work</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                <FormField
+                  control={form.control}
+                  name="estimated_hours"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Estimated Hours</FormLabel>
+                      <FormControl>
+                        <Input type="number" step="0.5" placeholder="0" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="due_date"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Due Date</FormLabel>
-                    <FormControl>
-                      <Input type="date" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+              {/* Labels */}
+              <TaskLabelsField form={form} />
+
+              {/* Google Folder */}
+              <GoogleFolderField form={form} />
+
+              {/* Attachments */}
+              <TaskAttachmentsField 
+                attachments={attachmentFiles}
+                onAttachmentsChange={setAttachmentFiles}
               />
 
-              <FormField
-                control={form.control}
-                name="estimated_hours"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Estimated Hours</FormLabel>
-                    <FormControl>
-                      <Input type="number" step="0.5" placeholder="0" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+              {/* Optional Links */}
+              <OptionalLinksSection form={form} />
 
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => onOpenChange(false)}
-                disabled={isSubmitting}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Saving..." : task ? "Update Task" : "Create Task"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </Form>
+              <DialogFooter className="mt-6">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => onOpenChange(false)}
+                  disabled={isSubmitting || uploadingAttachments}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit" 
+                  disabled={isSubmitting || uploadingAttachments}
+                >
+                  {isSubmitting ? "Saving..." : uploadingAttachments ? "Uploading..." : task ? "Update Task" : "Create Task"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </ScrollArea>
       </DialogContent>
     </Dialog>
   );
