@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useParams } from "react-router-dom";
 import { AuthProvider, useAuth } from "./hooks/useAuth";
 import Layout from "./components/Layout";
 import AdminLayout from "./components/AdminLayout";
@@ -74,11 +74,16 @@ const CampaignImportHistory = lazy(() => import("./pages/bd/CampaignImportHistor
 // Smart redirect component - send everyone to BD Dashboard
 function DashboardRedirect() {
   const { user } = useAuth();
-  
+
   if (!user) return <Navigate to="/login" replace />;
-  
+
   // All users go to BD Dashboard as main entry point
   return <Navigate to="/bd/dashboard" replace />;
+}
+
+function TaskViewRedirect() {
+  const { taskId } = useParams<{ taskId: string }>();
+  return <Navigate to={`/bd/actions/tasks/${taskId}`} replace />;
 }
 
 const App = () => (
@@ -152,6 +157,16 @@ const App = () => (
                 element={<React.Suspense fallback={<div>Loading...</div>}><FeedbackSubmitPage /></React.Suspense>}
               />
             </Route>
+
+            {/* Legacy Task Routes */}
+            <Route
+              path="/actions/tasks"
+              element={<Navigate to="/bd/actions/tasks" replace />}
+            />
+            <Route
+              path="/actions/tasks/:taskId"
+              element={<TaskViewRedirect />}
+            />
 
             {/* BD Portal Routes - Available to all users */}
             <Route path="/bd/*" element={

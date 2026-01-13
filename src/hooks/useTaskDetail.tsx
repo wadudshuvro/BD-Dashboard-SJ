@@ -33,17 +33,6 @@ export const useTaskDetail = (taskId?: string) => {
           campaign:bd_campaigns(
             id,
             name
-          ),
-          assignee:profiles!project_tasks_assigned_to_fkey(
-            id,
-            full_name,
-            email,
-            avatar_url
-          ),
-          created_by_user:profiles!project_tasks_created_by_fkey(
-            id,
-            full_name,
-            email
           )
         `)
         .eq('id', taskId)
