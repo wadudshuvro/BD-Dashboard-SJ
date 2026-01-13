@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -131,7 +131,26 @@ export function TaskForm({ open, onOpenChange, task }: TaskFormProps) {
     },
   });
 
+  const lastInitialTaskId = useRef<string | null>(null);
+  const initializedForm = useRef(false);
+  const currentUserId = user?.id ?? null;
+
   useEffect(() => {
+    if (!open) {
+      initializedForm.current = false;
+      lastInitialTaskId.current = null;
+      return;
+    }
+
+    const currentTaskId = task?.id ?? null;
+
+    if (initializedForm.current && lastInitialTaskId.current === currentTaskId) {
+      return;
+    }
+
+    initializedForm.current = true;
+    lastInitialTaskId.current = currentTaskId;
+
     if (task) {
       form.reset({
         title: task.title || "",
@@ -158,7 +177,7 @@ export function TaskForm({ open, onOpenChange, task }: TaskFormProps) {
         status: "todo",
         priority: "medium",
         project_id: "",
-        assigned_to: user?.id || null,
+        assigned_to: currentUserId,
         due_date: "",
         estimated_hours: "",
         is_campaign_associated: false,
@@ -171,7 +190,7 @@ export function TaskForm({ open, onOpenChange, task }: TaskFormProps) {
       });
       setAttachmentFiles([]);
     }
-  }, [task, form, user, open]);
+  }, [open, task, form, currentUserId]);
 
   const onSubmit = async (values: TaskFormValues) => {
     // Prevent submit if attachments are being uploaded
