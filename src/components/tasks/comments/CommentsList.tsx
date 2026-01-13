@@ -49,7 +49,7 @@ export function CommentsList({ comments, isLoading, error }: CommentsListProps) 
   }
 
   return (
-    <div className="divide-y">
+    <div className="divide-y max-w-full">
       {comments.map((comment) => (
         <CommentItem key={comment.id} comment={comment} />
       ))}

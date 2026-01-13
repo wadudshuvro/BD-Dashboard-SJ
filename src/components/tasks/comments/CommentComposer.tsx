@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Bold, Italic, Code } from 'lucide-react';
 import { MentionDropdown } from './MentionDropdown';
 import { findMentionTriggerPosition, getMentionSearchQuery, insertMention } from '@/utils/mentionParser';
 
@@ -98,6 +98,46 @@ export function CommentComposer({ onSubmit, isSubmitting }: CommentComposerProps
     }
   };
 
+  const applyFormatting = (format: 'bold' | 'italic' | 'code') => {
+    if (!textareaRef.current) return;
+
+    const start = textareaRef.current.selectionStart;
+    const end = textareaRef.current.selectionEnd;
+    const selectedText = text.substring(start, end);
+
+    let formattedText = '';
+    let cursorOffset = 0;
+
+    switch (format) {
+      case 'bold':
+        formattedText = `**${selectedText || 'bold text'}**`;
+        cursorOffset = selectedText ? 2 : 2; // Position cursor after **
+        break;
+      case 'italic':
+        formattedText = `*${selectedText || 'italic text'}*`;
+        cursorOffset = selectedText ? 1 : 1; // Position cursor after *
+        break;
+      case 'code':
+        formattedText = `\`${selectedText || 'code'}\``;
+        cursorOffset = selectedText ? 1 : 1; // Position cursor after `
+        break;
+    }
+
+    const newText = text.substring(0, start) + formattedText + text.substring(end);
+    setText(newText);
+
+    // Set cursor position after formatting
+    setTimeout(() => {
+      if (textareaRef.current) {
+        const newCursorPos = selectedText
+          ? start + formattedText.length
+          : start + cursorOffset + (formattedText.length - cursorOffset * 2);
+        textareaRef.current.focus();
+        textareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
+      }
+    }, 0);
+  };
+
   const remainingChars = MAX_LENGTH - text.length;
   const isOverLimit = remainingChars < 0;
 
@@ -113,7 +153,7 @@ export function CommentComposer({ onSubmit, isSubmitting }: CommentComposerProps
           className="min-h-[100px] resize-none"
           disabled={isSubmitting}
         />
-        
+
         {showMentionDropdown && (
           <MentionDropdown
             searchQuery={mentionSearchQuery}
@@ -124,9 +164,46 @@ export function CommentComposer({ onSubmit, isSubmitting }: CommentComposerProps
       </div>
 
       <div className="flex items-center justify-between">
-        <span className={`text-xs ${isOverLimit ? 'text-destructive' : 'text-muted-foreground'}`}>
-          {remainingChars} characters remaining
-        </span>
+        <div className="flex items-center gap-2">
+          <div className="flex gap-1 border-r pr-2">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0"
+              onClick={() => applyFormatting('bold')}
+              disabled={isSubmitting}
+              title="Bold (Ctrl+B)"
+            >
+              <Bold className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0"
+              onClick={() => applyFormatting('italic')}
+              disabled={isSubmitting}
+              title="Italic (Ctrl+I)"
+            >
+              <Italic className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0"
+              onClick={() => applyFormatting('code')}
+              disabled={isSubmitting}
+              title="Code (Ctrl+`)"
+            >
+              <Code className="h-4 w-4" />
+            </Button>
+          </div>
+          <span className={`text-xs ${isOverLimit ? 'text-destructive' : 'text-muted-foreground'}`}>
+            {remainingChars} chars
+          </span>
+        </div>
 
         <div className="flex gap-2">
           <Button

@@ -1,7 +1,8 @@
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Bell, CheckCheck } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Bell, CheckCheck, AlertCircle } from 'lucide-react';
 import { useNotifications, useMarkAllNotificationsRead } from '@/hooks/useNotifications';
 import { NotificationItem } from './NotificationItem';
 
@@ -10,7 +11,7 @@ interface NotificationListProps {
 }
 
 export function NotificationList({ onClose }: NotificationListProps) {
-  const { notifications, isLoading } = useNotifications(false);
+  const { notifications, isLoading, error } = useNotifications(false);
   const markAllAsRead = useMarkAllNotificationsRead();
   const unreadNotifications = notifications.filter(n => !n.read_at);
 
@@ -26,6 +27,19 @@ export function NotificationList({ onClose }: NotificationListProps) {
             </div>
           </div>
         ))}
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="w-96 p-4">
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            {error.message || 'Failed to load notifications. Please try again later.'}
+          </AlertDescription>
+        </Alert>
       </div>
     );
   }
