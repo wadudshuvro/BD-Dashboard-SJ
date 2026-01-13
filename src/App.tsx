@@ -15,6 +15,7 @@ import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 import Unauthorized from "./pages/Unauthorized";
 import ActionsTasks from "./pages/ActionsTasks";
+import TaskViewPage from "./pages/bd/TaskViewPage";
 import EODSubmission from "./pages/EODSubmission";
 import MyEODSubmissions from "./pages/MyEODSubmissions";
 import UserManagement from "./pages/admin/UserManagement";
@@ -24,20 +25,17 @@ import AdminSettings from "./pages/admin/AdminSettings";
 import EODManagement from "./pages/admin/EODManagement";
 import UserDetail from "./pages/admin/UserDetail";
 import AdminPanel from "./pages/admin/AdminPanel";
-
+import MyAgentsPage from "./pages/my-agents";
 import UserProfile from "./pages/UserProfile";
 import NicheManagement from "./pages/bd/NicheManagement";
 import CampaignManagement from "./pages/bd/CampaignManagement";
 import CampaignDetail from "./pages/bd/CampaignDetail";
-import CampaignDetailsPage from "./pages/bd/CampaignDetailsPage";
-import CampaignTasksPage from "./pages/bd/CampaignTasksPage";
 import SequenceManagement from "./pages/bd/SequenceManagement";
 import CampaignContactDetail from "./pages/bd/CampaignContactDetail";
 import CompanyDetail from "./pages/bd/CompanyDetail";
 import PODManagement from "./pages/admin/PODManagement";
 
 import Prospecting from "./pages/bd/pipeline/Prospecting";
-import AllDeals from "./pages/bd/pipeline/AllDeals";
 import Qualification from "./pages/bd/pipeline/Qualification";
 import Proposal from "./pages/bd/pipeline/Proposal";
 import ProposalManagement from "./pages/bd/ProposalManagement";
@@ -64,7 +62,6 @@ import CampaignROI from "./pages/bd/CampaignROI";
 import TestEmailPage from "./pages/TestEmailPage";
 import SigningDocuments from "./pages/bd/SigningDocuments";
 import SigningDocumentDetail from "./pages/bd/SigningDocumentDetail";
-import MyAgents from "./pages/MyAgents";
 
 const queryClient = new QueryClient();
 
@@ -72,19 +69,16 @@ const queryClient = new QueryClient();
 const Documentation = lazy(() => import("./pages/admin/Documentation"));
 const FeedbackSubmitPage = lazy(() => import("./pages/feedback/SubmitFeedback"));
 const AdminFeedbackManager = lazy(() => import("./pages/admin/FeedbackManager"));
-const AdminFeedbackDetail = lazy(() => import("./pages/admin/FeedbackDetail"));
-const FeedbackList = lazy(() => import("./pages/feedback/FeedbackList"));
-const FeedbackDetail = lazy(() => import("./pages/feedback/FeedbackDetail"));
 const CampaignImportHistory = lazy(() => import("./pages/bd/CampaignImportHistory"));
 
-// Smart redirect component - send everyone to Dashboard
+// Smart redirect component - send everyone to BD Dashboard
 function DashboardRedirect() {
   const { user } = useAuth();
-
+  
   if (!user) return <Navigate to="/login" replace />;
-
-  // All users go to Dashboard as main entry point
-  return <Navigate to="/dashboard" replace />;
+  
+  // All users go to BD Dashboard as main entry point
+  return <Navigate to="/bd/dashboard" replace />;
 }
 
 const App = () => (
@@ -112,15 +106,6 @@ const App = () => (
             </Route>
             
             {/* Personal Performance Dashboard */}
-            {/* My Agents Route */}
-            <Route path="/my-agents" element={
-              <ProtectedRoute requiredMinimumRole="team_member">
-                <Layout />
-              </ProtectedRoute>
-            }>
-              <Route index element={<MyAgents />} />
-            </Route>
-            
             <Route path="/my-performance" element={
               <ProtectedRoute requiredMinimumRole="team_member">
                 <Layout />
@@ -140,10 +125,6 @@ const App = () => (
                 path="feedback"
                 element={<React.Suspense fallback={<div>Loading...</div>}><AdminFeedbackManager /></React.Suspense>}
               />
-              <Route
-                path="feedback/:id"
-                element={<React.Suspense fallback={<div>Loading...</div>}><AdminFeedbackDetail /></React.Suspense>}
-              />
               <Route path="users" element={<UserManagement />} />
               <Route path="users/:userId" element={<UserDetail />} />
               <Route path="integrations" element={<IntegrationManager />} />
@@ -161,74 +142,49 @@ const App = () => (
             </Route>
 
             {/* Feedback Module */}
-            <Route path="/feedback" element={
+            <Route path="/feedback/*" element={
               <ProtectedRoute requiredMinimumRole="team_member">
                 <Layout />
               </ProtectedRoute>
             }>
-              <Route
-                index
-                element={<React.Suspense fallback={<div>Loading...</div>}><FeedbackList /></React.Suspense>}
-              />
               <Route
                 path="submit"
                 element={<React.Suspense fallback={<div>Loading...</div>}><FeedbackSubmitPage /></React.Suspense>}
               />
-              <Route
-                path=":id"
-                element={<React.Suspense fallback={<div>Loading...</div>}><FeedbackDetail /></React.Suspense>}
-              />
             </Route>
 
-            {/* Dashboard Route */}
-            <Route path="/dashboard" element={
+            {/* BD Portal Routes - Available to all users */}
+            <Route path="/bd/*" element={
               <ProtectedRoute requiredMinimumRole="team_member">
                 <Layout />
               </ProtectedRoute>
             }>
-              <Route index element={<BDDashboard />} />
-            </Route>
-
-            {/* Performance Routes */}
-            <Route path="/performance" element={
-              <ProtectedRoute requiredMinimumRole="team_member">
-                <Layout />
-              </ProtectedRoute>
-            }>
-              <Route path="personal" element={<PersonalDashboard />} />
-              <Route path="reports" element={<PerformanceReports />} />
-            </Route>
-
-            {/* Actions Routes */}
-            <Route path="/actions" element={
-              <ProtectedRoute requiredMinimumRole="team_member">
-                <Layout />
-              </ProtectedRoute>
-            }>
-              <Route path="tasks" element={<ActionsTasks />} />
-              <Route path="eod" element={<EODSubmission />} />
-              <Route path="eod-history" element={<MyEODSubmissions />} />
-            </Route>
-
-            {/* Admin Routes (user-level) */}
-            <Route path="/admin" element={
-              <ProtectedRoute requiredMinimumRole="team_member">
-                <Layout />
-              </ProtectedRoute>
-            }>
-              <Route path="documentation" element={<React.Suspense fallback={<div>Loading...</div>}><Documentation /></React.Suspense>} />
-              <Route path="settings" element={<UserSettings />} />
+              <Route index element={<Navigate to="/bd/dashboard" replace />} />
+              <Route path="dashboard" element={<BDDashboard />} />
+              
+              {/* My Agents */}
+              <Route path="my-agents" element={<MyAgentsPage />} />
+              
+              {/* Redirect old campaign URLs */}
+              <Route path="strategy/campaigns" element={<Navigate to="/campaigns" replace />} />
+              <Route path="strategy/campaigns/:campaignId" element={<Navigate to="/campaigns" replace />} />
+              
+              {/* Performance */}
+              <Route path="performance/personal" element={<PersonalDashboard />} />
+              <Route path="performance/reports" element={<PerformanceReports />} />
+              
+              {/* Actions */}
+              <Route path="actions/tasks" element={<ActionsTasks />} />
+              <Route path="actions/tasks/:taskId" element={<TaskViewPage />} />
+              <Route path="actions/eod" element={<EODSubmission />} />
+              <Route path="actions/eod-history" element={<MyEODSubmissions />} />
+              
+              {/* Admin */}
+              <Route path="admin/documentation" element={<React.Suspense fallback={<div>Loading...</div>}><Documentation /></React.Suspense>} />
+              <Route path="admin/settings" element={<UserSettings />} />
             </Route>
 
             {/* Pipeline routes - now at root level */}
-            <Route path="/all-deals" element={
-              <ProtectedRoute requiredMinimumRole="team_member">
-                <Layout />
-              </ProtectedRoute>
-            }>
-              <Route index element={<AllDeals />} />
-            </Route>
-
             <Route path="/prospecting" element={
               <ProtectedRoute requiredMinimumRole="team_member">
                 <Layout />
@@ -327,8 +283,6 @@ const App = () => (
               <Route index element={<CampaignManagement />} />
               <Route path="import-history" element={<React.Suspense fallback={<div>Loading...</div>}><CampaignImportHistory /></React.Suspense>} />
               <Route path=":slug" element={<CampaignDetail />} />
-              <Route path=":slug/details" element={<CampaignDetailsPage />} />
-              <Route path=":slug/tasks" element={<CampaignTasksPage />} />
               <Route path=":slug/roi" element={<CampaignROI />} />
               <Route path=":campaignSlug/contacts/:contactSlug" element={<CampaignContactDetail />} />
             </Route>
@@ -363,6 +317,16 @@ const App = () => (
 
             {/* Signing Documents */}
             <Route path="/signing-documents" element={
+              <ProtectedRoute requiredMinimumRole="team_member">
+                <Layout />
+              </ProtectedRoute>
+            }>
+              <Route index element={<SigningDocuments />} />
+              <Route path=":id" element={<SigningDocumentDetail />} />
+            </Route>
+
+            {/* Also support /bd/signing-documents path */}
+            <Route path="/bd/signing-documents" element={
               <ProtectedRoute requiredMinimumRole="team_member">
                 <Layout />
               </ProtectedRoute>
