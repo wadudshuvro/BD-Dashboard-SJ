@@ -64,6 +64,7 @@ import CampaignROI from "./pages/bd/CampaignROI";
 import TestEmailPage from "./pages/TestEmailPage";
 import SigningDocuments from "./pages/bd/SigningDocuments";
 import SigningDocumentDetail from "./pages/bd/SigningDocumentDetail";
+import MyAgents from "./pages/MyAgents";
 
 const queryClient = new QueryClient();
 
@@ -111,6 +112,15 @@ const App = () => (
             </Route>
             
             {/* Personal Performance Dashboard */}
+            {/* My Agents Route */}
+            <Route path="/my-agents" element={
+              <ProtectedRoute requiredMinimumRole="team_member">
+                <Layout />
+              </ProtectedRoute>
+            }>
+              <Route index element={<MyAgents />} />
+            </Route>
+            
             <Route path="/my-performance" element={
               <ProtectedRoute requiredMinimumRole="team_member">
                 <Layout />
