@@ -87,6 +87,7 @@ cat AGENTS.md          # AI agent development
 ### VS Code Setup
 
 **Recommended Extensions**:
+
 ```json
 {
   "recommendations": [
@@ -102,6 +103,7 @@ cat AGENTS.md          # AI agent development
 ```
 
 **Workspace Settings** (`.vscode/settings.json`):
+
 ```json
 {
   "editor.formatOnSave": true,
@@ -119,6 +121,7 @@ cat AGENTS.md          # AI agent development
 ### Environment Configuration
 
 **Required Environment Variables**:
+
 ```bash
 # Supabase
 VITE_SUPABASE_URL=         # Your Supabase project URL
@@ -129,6 +132,7 @@ PERPLEXITY_API_KEY=        # Perplexity AI integration
 ```
 
 **Environment Files**:
+
 - `.env` - Local development (not committed)
 - `.env.local.example` - Template for required variables
 
@@ -994,6 +998,7 @@ gh pr create --title "feat: Add campaign tagging" --body "Description..."
 **Format**: `<type>(<scope>): <subject>`
 
 **Types**:
+
 - `feat`: New feature
 - `fix`: Bug fix
 - `docs`: Documentation
@@ -1003,6 +1008,7 @@ gh pr create --title "feat: Add campaign tagging" --body "Description..."
 - `chore`: Maintenance
 
 **Examples**:
+
 ```bash
 feat(campaigns): Add tagging functionality
 fix(deals): Resolve sync race condition
@@ -1018,6 +1024,7 @@ test(components): Add CampaignCard tests
 ### Checklist
 
 **For Authors**:
+
 - [ ] Code follows style guide
 - [ ] Tests added/updated
 - [ ] Documentation updated
@@ -1026,6 +1033,7 @@ test(components): Add CampaignCard tests
 - [ ] Self-reviewed changes
 
 **For Reviewers**:
+
 - [ ] Code is readable
 - [ ] Logic is correct
 - [ ] Edge cases handled
@@ -1041,6 +1049,7 @@ test(components): Add CampaignCard tests
 
 **Issue**: TypeScript errors after pulling
 **Solution**: Regenerate types
+
 ```bash
 supabase gen types typescript --local > src/integrations/supabase/types.ts
 ```
@@ -1050,6 +1059,7 @@ supabase gen types typescript --local > src/integrations/supabase/types.ts
 
 **Issue**: Build fails
 **Solution**: Clear cache and rebuild
+
 ```bash
 rm -rf node_modules/.vite
 npm run build
@@ -1071,6 +1081,7 @@ npm run build
 ---
 
 **For questions or issues, please consult**:
+
 - `CLAUDE.md` - Main guide
 - `ARCHITECTURE.md` - Architecture details
 - `AGENTS.md` - AI agent guide
