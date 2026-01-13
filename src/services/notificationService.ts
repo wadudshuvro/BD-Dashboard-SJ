@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import type { CreateNotificationData, Notification } from '@/types/notifications';
+import { handleSupabaseError } from '@/utils/supabaseErrors';
 
 /**
  * Create mention notifications for users mentioned in a comment
@@ -14,7 +15,7 @@ export async function createMentionNotifications(
 ): Promise<void> {
   // Don't notify the author
   const usersToNotify = Array.from(new Set(mentionedUserIds)).filter(id => id !== actorId);
-  
+
   if (usersToNotify.length === 0) {
     return;
   }
@@ -30,12 +31,16 @@ export async function createMentionNotifications(
     link_url: `/bd/actions/tasks/${taskId}#comment-${commentId}`,
   }));
 
-  // Use type assertion to work around missing table types
-  const { error } = await (supabase as any)
-    .from('notifications')
-    .insert(notifications);
+  try {
+    // Use type assertion to work around missing table types
+    const { error } = await (supabase as any)
+      .from('notifications')
+      .insert(notifications);
 
-  if (error) {
+    if (error) {
+      handleSupabaseError(error, 'notifications');
+    }
+  } catch (error) {
     console.error('Failed to create mention notifications:', error);
     throw error;
   }
@@ -66,12 +71,16 @@ export async function createAssigneeChangeNotification(
     link_url: `/bd/actions/tasks/${taskId}`,
   };
 
-  // Use type assertion
-  const { error } = await (supabase as any)
-    .from('notifications')
-    .insert(notification);
+  try {
+    // Use type assertion
+    const { error } = await (supabase as any)
+      .from('notifications')
+      .insert(notification);
 
-  if (error) {
+    if (error) {
+      handleSupabaseError(error, 'notifications');
+    }
+  } catch (error) {
     console.error('Failed to create assignee notification:', error);
     throw error;
   }
@@ -84,56 +93,64 @@ export async function fetchNotifications(
   userId: string,
   unreadOnly: boolean = false
 ): Promise<Notification[]> {
-  // Use type assertion
-  let query = (supabase as any)
-    .from('notifications')
-    .select(`
-      id,
-      user_id,
-      type,
-      task_id,
-      comment_id,
-      actor_id,
-      title,
-      message,
-      link_url,
-      read_at,
-      created_at,
-      actor:profiles!notifications_actor_id_fkey(
+  try {
+    // Use type assertion
+    let query = (supabase as any)
+      .from('notifications')
+      .select(`
         id,
-        full_name,
-        avatar_url
-      )
-    `)
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false })
-    .limit(50);
+        user_id,
+        type,
+        task_id,
+        comment_id,
+        actor_id,
+        title,
+        message,
+        link_url,
+        read_at,
+        created_at,
+        actor:profiles!notifications_actor_id_fkey(
+          id,
+          full_name,
+          avatar_url
+        )
+      `)
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(50);
 
-  if (unreadOnly) {
-    query = query.is('read_at', null);
-  }
+    if (unreadOnly) {
+      query = query.is('read_at', null);
+    }
 
-  const { data, error } = await query;
+    const { data, error } = await query;
 
-  if (error) {
+    if (error) {
+      handleSupabaseError(error, 'notifications');
+    }
+
+    return (data || []) as Notification[];
+  } catch (error) {
     console.error('Failed to fetch notifications:', error);
     throw error;
   }
-
-  return (data || []) as Notification[];
 }
 
 /**
  * Mark notification as read
  */
 export async function markNotificationAsRead(notificationId: string): Promise<void> {
-  // Use type assertion
-  const { error } = await (supabase as any)
-    .from('notifications')
-    .update({ read_at: new Date().toISOString() })
-    .eq('id', notificationId);
+  try {
+    // Use type assertion
+    const { error } = await (supabase as any)
+      .from('notifications')
+      .update({ read_at: new Date().toISOString() })
+      .eq('id', notificationId);
 
-  if (error) {
+    if (error) {
+      handleSupabaseError(error, 'notifications');
+    }
+  } catch (error) {
     console.error('Failed to mark notification as read:', error);
     throw error;
   }
@@ -143,14 +160,18 @@ export async function markNotificationAsRead(notificationId: string): Promise<vo
  * Mark all notifications as read for a user
  */
 export async function markAllNotificationsAsRead(userId: string): Promise<void> {
-  // Use type assertion
-  const { error } = await (supabase as any)
-    .from('notifications')
-    .update({ read_at: new Date().toISOString() })
-    .eq('user_id', userId)
-    .is('read_at', null);
+  try {
+    // Use type assertion
+    const { error } = await (supabase as any)
+      .from('notifications')
+      .update({ read_at: new Date().toISOString() })
+      .eq('user_id', userId)
+      .is('read_at', null);
 
-  if (error) {
+    if (error) {
+      handleSupabaseError(error, 'notifications');
+    }
+  } catch (error) {
     console.error('Failed to mark all notifications as read:', error);
     throw error;
   }
@@ -160,37 +181,46 @@ export async function markAllNotificationsAsRead(userId: string): Promise<void> 
  * Get unread notification count
  */
 export async function getUnreadCount(userId: string): Promise<number> {
-  // Use type assertion
-  const { count, error } = await (supabase as any)
-    .from('notifications')
-    .select('*', { count: 'exact', head: true })
-    .eq('user_id', userId)
-    .is('read_at', null);
+  try {
+    // Use type assertion
+    const { count, error } = await (supabase as any)
+      .from('notifications')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .is('read_at', null);
 
-  if (error) {
+    if (error) {
+      handleSupabaseError(error, 'notifications');
+    }
+
+    return count || 0;
+  } catch (error) {
     console.error('Failed to get unread count:', error);
     return 0;
   }
-
-  return count || 0;
 }
 
 /**
  * Delete old read notifications (cleanup)
  */
 export async function deleteOldNotifications(userId: string, daysOld: number = 30): Promise<void> {
-  const cutoffDate = new Date();
-  cutoffDate.setDate(cutoffDate.getDate() - daysOld);
+  try {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - daysOld);
 
-  // Use type assertion
-  const { error } = await (supabase as any)
-    .from('notifications')
-    .delete()
-    .eq('user_id', userId)
-    .not('read_at', 'is', null)
-    .lt('read_at', cutoffDate.toISOString());
+    // Use type assertion
+    const { error } = await (supabase as any)
+      .from('notifications')
+      .delete()
+      .eq('user_id', userId)
+      .not('read_at', 'is', null)
+      .lt('read_at', cutoffDate.toISOString());
 
-  if (error) {
+    if (error) {
+      handleSupabaseError(error, 'notifications');
+    }
+  } catch (error) {
     console.error('Failed to delete old notifications:', error);
+    // Don't throw, this is a cleanup operation
   }
 }

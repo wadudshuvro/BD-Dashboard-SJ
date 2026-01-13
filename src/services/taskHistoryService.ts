@@ -1,6 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import type { ProjectTask } from '@/hooks/useProjectTasks';
 import { computeTaskDiff, type TaskChange } from '@/utils/taskDiff';
+import { handleSupabaseError } from '@/utils/supabaseErrors';
 
 export interface TaskHistoryEntry {
   id: string;
@@ -28,7 +29,7 @@ export async function recordTaskHistory(
   actorId: string
 ): Promise<void> {
   const changes = computeTaskDiff(oldTask, newTask);
-  
+
   if (changes.length === 0) {
     return; // No changes to record
   }
@@ -42,12 +43,16 @@ export async function recordTaskHistory(
     new_value: change.newValue,
   }));
 
-  // Use type assertion to work around missing table types
-  const { error } = await (supabase as any)
-    .from('task_history')
-    .insert(historyEntries);
+  try {
+    // Use type assertion to work around missing table types
+    const { error } = await (supabase as any)
+      .from('task_history')
+      .insert(historyEntries);
 
-  if (error) {
+    if (error) {
+      handleSupabaseError(error, 'task_history');
+    }
+  } catch (error) {
     console.error('Failed to record task history:', error);
     throw error;
   }
@@ -60,19 +65,23 @@ export async function recordTaskCreation(
   taskId: string,
   actorId: string
 ): Promise<void> {
-  // Use type assertion
-  const { error } = await (supabase as any)
-    .from('task_history')
-    .insert({
-      task_id: taskId,
-      actor_id: actorId,
-      action_type: 'create',
-      field_name: null,
-      old_value: null,
-      new_value: null,
-    });
+  try {
+    // Use type assertion
+    const { error } = await (supabase as any)
+      .from('task_history')
+      .insert({
+        task_id: taskId,
+        actor_id: actorId,
+        action_type: 'create',
+        field_name: null,
+        old_value: null,
+        new_value: null,
+      });
 
-  if (error) {
+    if (error) {
+      handleSupabaseError(error, 'task_history');
+    }
+  } catch (error) {
     console.error('Failed to record task creation:', error);
     throw error;
   }
@@ -82,33 +91,37 @@ export async function recordTaskCreation(
  * Fetch task history
  */
 export async function fetchTaskHistory(taskId: string): Promise<TaskHistoryEntry[]> {
-  // Use type assertion
-  const { data, error } = await (supabase as any)
-    .from('task_history')
-    .select(`
-      id,
-      task_id,
-      actor_id,
-      action_type,
-      field_name,
-      old_value,
-      new_value,
-      created_at,
-      actor:profiles!task_history_actor_id_fkey(
+  try {
+    // Use type assertion
+    const { data, error } = await (supabase as any)
+      .from('task_history')
+      .select(`
         id,
-        full_name,
-        avatar_url
-      )
-    `)
-    .eq('task_id', taskId)
-    .order('created_at', { ascending: false });
+        task_id,
+        actor_id,
+        action_type,
+        field_name,
+        old_value,
+        new_value,
+        created_at,
+        actor:profiles!task_history_actor_id_fkey(
+          id,
+          full_name,
+          avatar_url
+        )
+      `)
+      .eq('task_id', taskId)
+      .order('created_at', { ascending: false });
 
-  if (error) {
+    if (error) {
+      handleSupabaseError(error, 'task_history');
+    }
+
+    return (data || []) as TaskHistoryEntry[];
+  } catch (error) {
     console.error('Failed to fetch task history:', error);
     throw error;
   }
-
-  return (data || []) as TaskHistoryEntry[];
 }
 
 /**
@@ -149,13 +162,18 @@ export async function recordLabelChanges(
   }
 
   if (entries.length > 0) {
-    // Use type assertion
-    const { error } = await (supabase as any)
-      .from('task_history')
-      .insert(entries);
+    try {
+      // Use type assertion
+      const { error } = await (supabase as any)
+        .from('task_history')
+        .insert(entries);
 
-    if (error) {
+      if (error) {
+        handleSupabaseError(error, 'task_history');
+      }
+    } catch (error) {
       console.error('Failed to record label changes:', error);
+      // Don't throw, this is a non-critical operation
     }
   }
 }
@@ -169,19 +187,24 @@ export async function recordAttachmentChange(
   fileName: string,
   actorId: string
 ): Promise<void> {
-  // Use type assertion
-  const { error } = await (supabase as any)
-    .from('task_history')
-    .insert({
-      task_id: taskId,
-      actor_id: actorId,
-      action_type: 'update',
-      field_name: action === 'added' ? 'attachment_added' : 'attachment_removed',
-      old_value: action === 'removed' ? fileName : null,
-      new_value: action === 'added' ? fileName : null,
-    });
+  try {
+    // Use type assertion
+    const { error } = await (supabase as any)
+      .from('task_history')
+      .insert({
+        task_id: taskId,
+        actor_id: actorId,
+        action_type: 'update',
+        field_name: action === 'added' ? 'attachment_added' : 'attachment_removed',
+        old_value: action === 'removed' ? fileName : null,
+        new_value: action === 'added' ? fileName : null,
+      });
 
-  if (error) {
+    if (error) {
+      handleSupabaseError(error, 'task_history');
+    }
+  } catch (error) {
     console.error('Failed to record attachment change:', error);
+    // Don't throw, this is a non-critical operation
   }
 }

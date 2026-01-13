@@ -428,8 +428,11 @@ export function TaskForm({ open, onOpenChange, task }: TaskFormProps) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Assignee</FormLabel>
-                    <Select 
-                      onValueChange={field.onChange} 
+                    <Select
+                      onValueChange={(value) => {
+                        // Translate "unassigned" string to null before saving
+                        field.onChange(value === "unassigned" ? null : value);
+                      }}
                       value={field.value || "unassigned"}
                     >
                       <FormControl>
