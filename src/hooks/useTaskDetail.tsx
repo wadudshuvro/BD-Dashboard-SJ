@@ -8,28 +8,11 @@ export const useTaskDetail = (taskId?: string) => {
     queryFn: async () => {
       if (!taskId) return null;
 
+      // Fetch the task with basic relations
       const { data, error } = await supabase
         .from('project_tasks')
         .select(`
           *,
-          labels:project_task_labels(
-            label_id,
-            task_labels(
-              id,
-              name,
-              color
-            )
-          ),
-          attachments:task_attachments(
-            id,
-            task_id,
-            file_name,
-            file_path,
-            file_size,
-            file_type,
-            uploaded_by,
-            created_at
-          ),
           campaign:bd_campaigns(
             id,
             name
@@ -51,12 +34,40 @@ export const useTaskDetail = (taskId?: string) => {
 
       if (error) throw error;
 
-      // Transform labels data
+      // Fetch labels separately using type assertion
+      let labels: any[] = [];
+      try {
+        const { data: labelData } = await (supabase as any)
+          .from('project_task_labels')
+          .select(`
+            label_id,
+            task_labels(id, name, color)
+          `)
+          .eq('task_id', taskId);
+        
+        labels = (labelData || []).map((l: any) => l.task_labels).filter(Boolean);
+      } catch (e) {
+        console.log('Labels table may not exist:', e);
+      }
+
+      // Fetch attachments separately using type assertion
+      let attachments: any[] = [];
+      try {
+        const { data: attachData } = await (supabase as any)
+          .from('task_attachments')
+          .select('*')
+          .eq('task_id', taskId);
+        
+        attachments = attachData || [];
+      } catch (e) {
+        console.log('Attachments table may not exist:', e);
+      }
+
+      // Transform and return
       const transformedTask = {
         ...data,
-        labels: (data.labels || [])
-          .map((l: any) => l.task_labels)
-          .filter(Boolean),
+        labels,
+        attachments,
       };
 
       return transformedTask as ProjectTask;
@@ -72,4 +83,3 @@ export const useTaskDetail = (taskId?: string) => {
     refetch,
   };
 };
-

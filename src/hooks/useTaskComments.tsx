@@ -14,7 +14,8 @@ export const useTaskComments = (taskId?: string) => {
     queryFn: async () => {
       if (!taskId) return [];
 
-      const { data, error } = await supabase
+      // Use type assertion to work around missing table types
+      const { data, error } = await (supabase as any)
         .from('task_comments')
         .select(`
           id,
@@ -41,7 +42,7 @@ export const useTaskComments = (taskId?: string) => {
         .order('created_at', { ascending: true });
 
       if (error) throw error;
-      return (data || []) as unknown as TaskComment[];
+      return (data || []) as TaskComment[];
     },
     enabled: !!taskId,
     staleTime: 30000, // 30 seconds
@@ -53,8 +54,8 @@ export const useTaskComments = (taskId?: string) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
-      // Create comment
-      const { data: comment, error: commentError } = await supabase
+      // Create comment using type assertion
+      const { data: comment, error: commentError } = await (supabase as any)
         .from('task_comments')
         .insert({
           task_id: commentData.task_id,
@@ -76,7 +77,7 @@ export const useTaskComments = (taskId?: string) => {
           mentioned_user_id: userId,
         }));
 
-        const { error: mentionError } = await supabase
+        const { error: mentionError } = await (supabase as any)
           .from('task_comment_mentions')
           .insert(mentions);
 
@@ -120,7 +121,8 @@ export const useTaskComments = (taskId?: string) => {
   // Update comment
   const updateComment = useMutation({
     mutationFn: async ({ commentId, bodyText }: { commentId: string; bodyText: string }) => {
-      const { data, error } = await supabase
+      // Use type assertion
+      const { data, error } = await (supabase as any)
         .from('task_comments')
         .update({ body_text: bodyText })
         .eq('id', commentId)
@@ -160,4 +162,3 @@ export const useTaskComments = (taskId?: string) => {
     isUpdating: updateComment.isPending,
   };
 };
-

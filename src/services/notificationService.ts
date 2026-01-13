@@ -30,7 +30,8 @@ export async function createMentionNotifications(
     link_url: `/bd/actions/tasks/${taskId}#comment-${commentId}`,
   }));
 
-  const { error } = await supabase
+  // Use type assertion to work around missing table types
+  const { error } = await (supabase as any)
     .from('notifications')
     .insert(notifications);
 
@@ -65,7 +66,8 @@ export async function createAssigneeChangeNotification(
     link_url: `/bd/actions/tasks/${taskId}`,
   };
 
-  const { error } = await supabase
+  // Use type assertion
+  const { error } = await (supabase as any)
     .from('notifications')
     .insert(notification);
 
@@ -82,7 +84,8 @@ export async function fetchNotifications(
   userId: string,
   unreadOnly: boolean = false
 ): Promise<Notification[]> {
-  let query = supabase
+  // Use type assertion
+  let query = (supabase as any)
     .from('notifications')
     .select(`
       id,
@@ -117,14 +120,15 @@ export async function fetchNotifications(
     throw error;
   }
 
-  return (data || []) as unknown as Notification[];
+  return (data || []) as Notification[];
 }
 
 /**
  * Mark notification as read
  */
 export async function markNotificationAsRead(notificationId: string): Promise<void> {
-  const { error } = await supabase
+  // Use type assertion
+  const { error } = await (supabase as any)
     .from('notifications')
     .update({ read_at: new Date().toISOString() })
     .eq('id', notificationId);
@@ -139,7 +143,8 @@ export async function markNotificationAsRead(notificationId: string): Promise<vo
  * Mark all notifications as read for a user
  */
 export async function markAllNotificationsAsRead(userId: string): Promise<void> {
-  const { error } = await supabase
+  // Use type assertion
+  const { error } = await (supabase as any)
     .from('notifications')
     .update({ read_at: new Date().toISOString() })
     .eq('user_id', userId)
@@ -155,7 +160,8 @@ export async function markAllNotificationsAsRead(userId: string): Promise<void> 
  * Get unread notification count
  */
 export async function getUnreadCount(userId: string): Promise<number> {
-  const { count, error } = await supabase
+  // Use type assertion
+  const { count, error } = await (supabase as any)
     .from('notifications')
     .select('*', { count: 'exact', head: true })
     .eq('user_id', userId)
@@ -176,7 +182,8 @@ export async function deleteOldNotifications(userId: string, daysOld: number = 3
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - daysOld);
 
-  const { error } = await supabase
+  // Use type assertion
+  const { error } = await (supabase as any)
     .from('notifications')
     .delete()
     .eq('user_id', userId)
@@ -187,4 +194,3 @@ export async function deleteOldNotifications(userId: string, daysOld: number = 3
     console.error('Failed to delete old notifications:', error);
   }
 }
-

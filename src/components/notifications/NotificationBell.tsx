@@ -6,11 +6,11 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
-import { useNotifications } from '@/hooks/useNotifications';
+import { useUnreadCount } from '@/hooks/useNotifications';
 import { NotificationList } from './NotificationList';
 
 export function NotificationBell() {
-  const { unreadCount } = useNotifications();
+  const { count: unreadCount } = useUnreadCount();
 
   return (
     <Popover>

@@ -12,14 +12,15 @@ export const useTaskAttachments = (taskId?: string) => {
     queryFn: async () => {
       if (!taskId) return [];
 
-      const { data, error } = await supabase
+      // Use type assertion to work around missing table types
+      const { data, error } = await (supabase as any)
         .from('task_attachments')
         .select('*')
         .eq('task_id', taskId)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return data as TaskAttachment[];
+      return (data || []) as TaskAttachment[];
     },
     enabled: !!taskId,
   });
@@ -41,8 +42,8 @@ export const useTaskAttachments = (taskId?: string) => {
 
       if (uploadError) throw uploadError;
 
-      // Create attachment record
-      const { data, error: insertError } = await supabase
+      // Create attachment record using type assertion
+      const { data, error: insertError } = await (supabase as any)
         .from('task_attachments')
         .insert({
           task_id: taskId,
@@ -82,8 +83,8 @@ export const useTaskAttachments = (taskId?: string) => {
   // Delete attachment
   const deleteAttachment = useMutation({
     mutationFn: async (attachment: TaskAttachment) => {
-      // Delete from database
-      const { error: dbError } = await supabase
+      // Delete from database using type assertion
+      const { error: dbError } = await (supabase as any)
         .from('task_attachments')
         .delete()
         .eq('id', attachment.id);
@@ -136,4 +137,3 @@ export const useTaskAttachments = (taskId?: string) => {
     isUploading: uploadAttachment.isPending,
   };
 };
-
