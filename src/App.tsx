@@ -25,7 +25,7 @@ import AdminSettings from "./pages/admin/AdminSettings";
 import EODManagement from "./pages/admin/EODManagement";
 import UserDetail from "./pages/admin/UserDetail";
 import AdminPanel from "./pages/admin/AdminPanel";
-import MyAgentsPage from "./pages/my-agents";
+import MyAgentsPage from "./pages/MyAgents";
 import UserProfile from "./pages/UserProfile";
 import NicheManagement from "./pages/bd/NicheManagement";
 import CampaignManagement from "./pages/bd/CampaignManagement";

@@ -73,10 +73,14 @@ const taskFormSchema = z.object({
   campaign_id: z.string().nullable().optional(),
   label_ids: z.array(z.string()).default([]),
   google_folder: z.object({
-    id: z.string(),
+    id: z.string().optional(),
     name: z.string().optional(),
     url: z.string().optional(),
-  }).nullable().optional(),
+  }).nullable().optional().transform((val) => {
+    // Transform to ensure id is present if object exists
+    if (val && val.id) return val as { id: string; name?: string; url?: string };
+    return null;
+  }),
   active_collab_link: urlSchema,
   workboard_ai_link: urlSchema,
   reference_url: urlSchema,

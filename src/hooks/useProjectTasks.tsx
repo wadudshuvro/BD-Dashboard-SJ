@@ -41,6 +41,9 @@ export interface ProjectTask {
   completed_at?: string;
   created_at: string;
   updated_at: string;
+  created_by?: string;
+  // Category field for task organization
+  category?: 'ideas' | 'discussion' | 'work' | 'other';
   // New enhanced fields
   is_campaign_associated?: boolean;
   campaign_id?: string | null;

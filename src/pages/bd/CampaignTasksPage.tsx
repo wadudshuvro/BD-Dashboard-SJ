@@ -187,7 +187,7 @@ export default function CampaignTasksPage() {
       <TaskForm
         open={showTaskForm}
         onOpenChange={setShowTaskForm}
-        initialCampaignId={campaign.id}
+        task={null}
       />
     </div>
   );

@@ -16,13 +16,14 @@ export const useTaskLabels = () => {
   const { data: labels = [], isLoading, error } = useQuery({
     queryKey: ['task-labels'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // Use type assertion to work around missing table types
+      const { data, error } = await (supabase as any)
         .from('task_labels')
         .select('*')
         .order('name');
 
       if (error) throw error;
-      return data as TaskLabel[];
+      return (data || []) as TaskLabel[];
     },
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
@@ -38,7 +39,8 @@ export const useTaskLabels = () => {
       const colorIndex = labels.length % LABEL_COLORS.length;
       const color = LABEL_COLORS[colorIndex];
 
-      const { data, error } = await supabase
+      // Use type assertion
+      const { data, error } = await (supabase as any)
         .from('task_labels')
         .insert({
           name: labelName,
@@ -99,7 +101,8 @@ export const useTaskLabelAssociations = (taskId?: string) => {
     queryFn: async () => {
       if (!taskId) return [];
 
-      const { data, error } = await supabase
+      // Use type assertion to work around missing table types
+      const { data, error } = await (supabase as any)
         .from('project_task_labels')
         .select(`
           label_id,
@@ -114,7 +117,7 @@ export const useTaskLabelAssociations = (taskId?: string) => {
 
       if (error) throw error;
       
-      return (data || []).map((item: any) => item.task_labels).filter(Boolean) as TaskLabel[];
+      return ((data || []) as any[]).map((item) => item.task_labels).filter(Boolean) as TaskLabel[];
     },
     enabled: !!taskId,
   });
@@ -122,8 +125,8 @@ export const useTaskLabelAssociations = (taskId?: string) => {
   // Associate labels with a task
   const associateLabels = useMutation({
     mutationFn: async ({ taskId, labelIds }: { taskId: string; labelIds: string[] }) => {
-      // First, remove all existing associations
-      await supabase
+      // First, remove all existing associations using type assertion
+      await (supabase as any)
         .from('project_task_labels')
         .delete()
         .eq('task_id', taskId);
@@ -135,7 +138,7 @@ export const useTaskLabelAssociations = (taskId?: string) => {
           label_id: labelId,
         }));
 
-        const { error } = await supabase
+        const { error } = await (supabase as any)
           .from('project_task_labels')
           .insert(associations);
 
@@ -163,4 +166,3 @@ export const useTaskLabelAssociations = (taskId?: string) => {
     associateLabelsAsync: associateLabels.mutateAsync,
   };
 };
-

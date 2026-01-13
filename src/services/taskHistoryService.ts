@@ -42,7 +42,8 @@ export async function recordTaskHistory(
     new_value: change.newValue,
   }));
 
-  const { error } = await supabase
+  // Use type assertion to work around missing table types
+  const { error } = await (supabase as any)
     .from('task_history')
     .insert(historyEntries);
 
@@ -59,7 +60,8 @@ export async function recordTaskCreation(
   taskId: string,
   actorId: string
 ): Promise<void> {
-  const { error } = await supabase
+  // Use type assertion
+  const { error } = await (supabase as any)
     .from('task_history')
     .insert({
       task_id: taskId,
@@ -80,7 +82,8 @@ export async function recordTaskCreation(
  * Fetch task history
  */
 export async function fetchTaskHistory(taskId: string): Promise<TaskHistoryEntry[]> {
-  const { data, error } = await supabase
+  // Use type assertion
+  const { data, error } = await (supabase as any)
     .from('task_history')
     .select(`
       id,
@@ -105,7 +108,7 @@ export async function fetchTaskHistory(taskId: string): Promise<TaskHistoryEntry
     throw error;
   }
 
-  return (data || []) as unknown as TaskHistoryEntry[];
+  return (data || []) as TaskHistoryEntry[];
 }
 
 /**
@@ -146,7 +149,8 @@ export async function recordLabelChanges(
   }
 
   if (entries.length > 0) {
-    const { error } = await supabase
+    // Use type assertion
+    const { error } = await (supabase as any)
       .from('task_history')
       .insert(entries);
 
@@ -165,7 +169,8 @@ export async function recordAttachmentChange(
   fileName: string,
   actorId: string
 ): Promise<void> {
-  const { error } = await supabase
+  // Use type assertion
+  const { error } = await (supabase as any)
     .from('task_history')
     .insert({
       task_id: taskId,
@@ -180,4 +185,3 @@ export async function recordAttachmentChange(
     console.error('Failed to record attachment change:', error);
   }
 }
-
