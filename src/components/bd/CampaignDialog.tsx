@@ -146,7 +146,7 @@ interface BrandOption {
   name: string;
 }
 
-export function CampaignDialog({ open, onOpenChange, niches, campaign, mode = 'create' }: CampaignDialogProps) {
+export function CampaignDialog({ open, onOpenChange, niches = [], campaign, mode = 'create' }: CampaignDialogProps) {
   const { createCampaign, updateCampaign, deleteCampaign } = useBDCampaigns();
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -157,6 +157,9 @@ export function CampaignDialog({ open, onOpenChange, niches, campaign, mode = 'c
   const [newNicheName, setNewNicheName] = useState('');
   const [newNicheDescription, setNewNicheDescription] = useState('');
   const [isCreatingNiche, setIsCreatingNiche] = useState(false);
+
+  // Ensure niches is always an array
+  const safeNiches = Array.isArray(niches) ? niches : [];
   
   const { data: campaignOwners = [], isLoading: ownersLoading } = useCampaignOwners();
   const { createNiche } = useTargetNiches();
@@ -385,11 +388,17 @@ export function CampaignDialog({ open, onOpenChange, niches, campaign, mode = 'c
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {niches.map((niche) => (
-                          <SelectItem key={niche.id} value={niche.id}>
-                            {niche.name}
+                        {safeNiches.length === 0 ? (
+                          <SelectItem value="loading" disabled>
+                            Loading niches...
                           </SelectItem>
-                        ))}
+                        ) : (
+                          safeNiches.map((niche) => (
+                            <SelectItem key={niche.id} value={niche.id}>
+                              {niche.name}
+                            </SelectItem>
+                          ))
+                        )}
                       </SelectContent>
                     </Select>
                     <FormMessage />
