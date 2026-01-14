@@ -3550,6 +3550,7 @@ export type Database = {
       }
       project_tasks: {
         Row: {
+          active_collab_link: string | null
           actual_hours: number | null
           assigned_to: string | null
           campaign_id: string | null
@@ -3560,14 +3561,19 @@ export type Database = {
           description: string | null
           due_date: string | null
           estimated_hours: number | null
+          google_folder: Json | null
           id: string
+          is_campaign_associated: boolean | null
           priority: string | null
           project_id: string | null
+          reference_url: string | null
           status: string | null
           title: string
           updated_at: string
+          workboard_ai_link: string | null
         }
         Insert: {
+          active_collab_link?: string | null
           actual_hours?: number | null
           assigned_to?: string | null
           campaign_id?: string | null
@@ -3578,14 +3584,19 @@ export type Database = {
           description?: string | null
           due_date?: string | null
           estimated_hours?: number | null
+          google_folder?: Json | null
           id?: string
+          is_campaign_associated?: boolean | null
           priority?: string | null
           project_id?: string | null
+          reference_url?: string | null
           status?: string | null
           title: string
           updated_at?: string
+          workboard_ai_link?: string | null
         }
         Update: {
+          active_collab_link?: string | null
           actual_hours?: number | null
           assigned_to?: string | null
           campaign_id?: string | null
@@ -3596,12 +3607,16 @@ export type Database = {
           description?: string | null
           due_date?: string | null
           estimated_hours?: number | null
+          google_folder?: Json | null
           id?: string
+          is_campaign_associated?: boolean | null
           priority?: string | null
           project_id?: string | null
+          reference_url?: string | null
           status?: string | null
           title?: string
           updated_at?: string
+          workboard_ai_link?: string | null
         }
         Relationships: [
           {

@@ -5,7 +5,6 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Loader2, Bold, Italic, Code, List, ListOrdered, Link as LinkIcon, Image } from 'lucide-react';
 import { MentionDropdown } from './MentionDropdown';
-import { MentionText } from './MentionText';
 import { findMentionTriggerPosition, getMentionSearchQuery, insertMention } from '@/utils/mentionParser';
 
 interface CommentComposerProps {
@@ -27,7 +26,6 @@ export function CommentComposer({ onSubmit, isSubmitting }: CommentComposerProps
   const [linkText, setLinkText] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [imageAlt, setImageAlt] = useState('');
-  const [showPreview, setShowPreview] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -92,7 +90,6 @@ export function CommentComposer({ onSubmit, isSubmitting }: CommentComposerProps
     onSubmit(trimmedText);
     setText('');
     setShowMentionDropdown(false);
-    setShowPreview(false);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -252,28 +249,6 @@ export function CommentComposer({ onSubmit, isSubmitting }: CommentComposerProps
         )}
       </div>
 
-      {/* Preview Toggle & Preview Area */}
-      {text && (
-        <div className="border rounded-md overflow-hidden">
-          <div className="bg-muted/30 px-3 py-1.5 border-b flex items-center justify-between">
-            <span className="text-xs font-medium text-muted-foreground">Preview</span>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-6 text-xs"
-              onClick={() => setShowPreview(!showPreview)}
-            >
-              {showPreview ? 'Hide' : 'Show'}
-            </Button>
-          </div>
-          {showPreview && (
-            <div className="p-3 text-sm whitespace-pre-wrap break-words">
-              <MentionText text={text} />
-            </div>
-          )}
-        </div>
-      )}
 
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-2 flex-wrap">

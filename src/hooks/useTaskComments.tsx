@@ -200,6 +200,49 @@ export const useTaskComments = (taskId?: string) => {
     },
   });
 
+  // Delete comment
+  const deleteComment = useMutation({
+    mutationFn: async (commentId: string) => {
+      try {
+        console.log(`Deleting comment ${commentId}...`);
+
+        const { error } = await (supabase as any)
+          .from('task_comments')
+          .delete()
+          .eq('id', commentId);
+
+        if (error) {
+          console.error('Error deleting comment:', error);
+          handleSupabaseError(error, 'task_comments');
+        }
+
+        console.log('Comment deleted successfully');
+        return commentId;
+      } catch (error: any) {
+        console.error('Failed to delete comment:', error);
+        throw new Error(error.message || 'Failed to delete comment');
+      }
+    },
+    onSuccess: () => {
+      // Invalidate comments for the current task
+      if (taskId) {
+        queryClient.invalidateQueries({ queryKey: ['task-comments', taskId] });
+      }
+      toast({
+        title: "Comment deleted",
+        description: "Your comment has been deleted successfully.",
+      });
+    },
+    onError: (error: Error) => {
+      console.error('Comment deletion error:', error);
+      toast({
+        title: "Failed to delete comment",
+        description: error.message || 'An error occurred while deleting the comment',
+        variant: "destructive",
+      });
+    },
+  });
+
   return {
     comments,
     isLoading,
@@ -208,7 +251,9 @@ export const useTaskComments = (taskId?: string) => {
     createComment: createComment.mutate,
     createCommentAsync: createComment.mutateAsync,
     updateComment: updateComment.mutate,
+    deleteComment: deleteComment.mutate,
     isCreating: createComment.isPending,
     isUpdating: updateComment.isPending,
+    isDeleting: deleteComment.isPending,
   };
 };

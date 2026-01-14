@@ -23,7 +23,7 @@ export default function TaskViewPage() {
   const [activeTab, setActiveTab] = useState('comments');
 
   const { task, isLoading: taskLoading, error: taskError, refetch: refetchTask } = useTaskDetail(taskId);
-  const { comments, isLoading: commentsLoading, error: commentsError, createComment, isCreating, updateComment, isUpdating } = useTaskComments(taskId);
+  const { comments, isLoading: commentsLoading, error: commentsError, createComment, isCreating, updateComment, isUpdating, deleteComment, isDeleting } = useTaskComments(taskId);
   const { history, isLoading: historyLoading, error: historyError } = useTaskHistory(activeTab === 'history' ? taskId : undefined);
   const deleteTask = useDeleteProjectTask();
 
@@ -54,6 +54,12 @@ export default function TaskViewPage() {
 
   const handleCommentUpdate = (commentId: string, newText: string) => {
     updateComment({ commentId, bodyText: newText });
+  };
+
+  const handleCommentDelete = (commentId: string) => {
+    if (window.confirm('Are you sure you want to delete this comment? This action cannot be undone.')) {
+      deleteComment(commentId);
+    }
   };
 
   if (taskLoading) {
@@ -153,7 +159,9 @@ export default function TaskViewPage() {
                     isLoading={commentsLoading}
                     error={commentsError}
                     onUpdateComment={handleCommentUpdate}
+                    onDeleteComment={handleCommentDelete}
                     isUpdating={isUpdating}
+                    isDeleting={isDeleting}
                   />
 
                   <div className="border-t pt-4">

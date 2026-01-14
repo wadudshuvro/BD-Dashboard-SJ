@@ -66,6 +66,13 @@ CREATE POLICY "Users can update their own comments"
   USING (author_id = auth.uid())
   WITH CHECK (author_id = auth.uid());
 
+CREATE POLICY "Users can delete their own comments within 1 hour"
+  ON task_comments FOR DELETE
+  USING (
+    author_id = auth.uid()
+    AND created_at > NOW() - INTERVAL '1 hour'
+  );
+
 -- =====================================================
 -- PART 2: TASK COMMENT MENTIONS TABLE
 -- =====================================================
