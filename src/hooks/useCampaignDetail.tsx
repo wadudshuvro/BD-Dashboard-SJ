@@ -63,7 +63,10 @@ export const useCampaignDetail = (campaignId?: string) => {
     },
     onSuccess: () => {
       if (!campaignId) return;
+      // Invalidate the detail query for this specific campaign
       queryClient.invalidateQueries({ queryKey: ['admin-campaign-detail', campaignId] });
+      // Invalidate all campaign list queries to refresh the tiles/listing
+      queryClient.invalidateQueries({ queryKey: ['admin-campaigns'] });
     },
   });
 
@@ -112,9 +115,9 @@ export const useCampaignDetail = (campaignId?: string) => {
   const aiAgentRuns: CampaignAIAgentRun[] = detail?.ai_agent_runs ?? [];
 
   const markCompleted = async () =>
-    updateMutation.mutateAsync({ status: 'completed', trigger_ai_summary: true });
+    updateMutation.mutateAsync({ campaign: { status: 'completed' } });
 
-  const softArchive = async () => updateMutation.mutateAsync({ status: 'archived', archived: true });
+  const softArchive = async () => updateMutation.mutateAsync({ campaign: { status: 'archived' } });
 
   return {
     campaign: detail?.campaign as BDCampaign | undefined,
