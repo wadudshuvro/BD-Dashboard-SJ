@@ -158,26 +158,32 @@ export const useTaskComments = (taskId?: string) => {
   const updateComment = useMutation({
     mutationFn: async ({ commentId, bodyText }: { commentId: string; bodyText: string }) => {
       try {
+        console.log(`Updating comment ${commentId}...`);
+
         // Use type assertion
         const { data, error } = await (supabase as any)
           .from('task_comments')
-          .update({ body_text: bodyText })
+          .update({ body_text: bodyText, edited: true })
           .eq('id', commentId)
           .select()
           .single();
 
         if (error) {
+          console.error('Error updating comment:', error);
           handleSupabaseError(error, 'task_comments');
         }
+
+        console.log('Comment updated successfully');
         return data;
-      } catch (error) {
-        // Re-throw to let React Query handle it
-        throw error;
+      } catch (error: any) {
+        console.error('Failed to update comment:', error);
+        throw new Error(error.message || 'Failed to update comment');
       }
     },
-    onSuccess: (_data, _variables, context: any) => {
-      if (context?.taskId) {
-        queryClient.invalidateQueries({ queryKey: ['task-comments', context.taskId] });
+    onSuccess: (_data, _variables) => {
+      // Invalidate comments for the current task
+      if (taskId) {
+        queryClient.invalidateQueries({ queryKey: ['task-comments', taskId] });
       }
       toast({
         title: "Comment updated",
@@ -185,9 +191,10 @@ export const useTaskComments = (taskId?: string) => {
       });
     },
     onError: (error: Error) => {
+      console.error('Comment update error:', error);
       toast({
         title: "Failed to update comment",
-        description: error.message,
+        description: error.message || 'An error occurred while updating the comment',
         variant: "destructive",
       });
     },

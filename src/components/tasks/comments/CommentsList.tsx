@@ -9,9 +9,11 @@ interface CommentsListProps {
   comments: TaskComment[];
   isLoading: boolean;
   error?: Error | null;
+  onUpdateComment?: (commentId: string, newText: string) => void;
+  isUpdating?: boolean;
 }
 
-export function CommentsList({ comments, isLoading, error }: CommentsListProps) {
+export function CommentsList({ comments, isLoading, error, onUpdateComment, isUpdating }: CommentsListProps) {
   if (isLoading) {
     return (
       <div className="space-y-4">
@@ -66,7 +68,12 @@ export function CommentsList({ comments, isLoading, error }: CommentsListProps) 
   return (
     <div className="divide-y max-w-full">
       {comments.map((comment) => (
-        <CommentItem key={comment.id} comment={comment} />
+        <CommentItem
+          key={comment.id}
+          comment={comment}
+          onUpdate={onUpdateComment}
+          isUpdating={isUpdating}
+        />
       ))}
     </div>
   );
