@@ -79,28 +79,36 @@ export function CommentItem({ comment, onUpdate, onDelete, isUpdating = false, i
             <span className="text-xs text-muted-foreground italic">(edited)</span>
           )}
           {!isEditing && isOwnComment && (
-            <div className="flex gap-1 ml-auto">
+            <div className="flex gap-1.5 ml-auto items-center">
               {onUpdate && (
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-6 w-6 p-0"
+                  className="h-8 w-8 p-0 hover:bg-blue-50 dark:hover:bg-blue-950"
                   onClick={handleStartEdit}
                   title="Edit comment"
                 >
-                  <Edit2 className="h-3 w-3" />
+                  <Edit2 className="h-4 w-4 text-blue-600" />
                 </Button>
               )}
               {onDelete && (
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-6 w-6 p-0"
+                  className={`h-8 w-8 p-0 ${
+                    canDelete
+                      ? 'hover:bg-red-50 dark:hover:bg-red-950'
+                      : 'hover:bg-gray-100 dark:hover:bg-gray-800'
+                  }`}
                   onClick={handleDelete}
                   disabled={!canDelete || isDeleting}
                   title={canDelete ? "Delete comment (within 1 hour)" : "Can only delete within 1 hour"}
                 >
-                  <Trash2 className="h-3 w-3" />
+                  <Trash2 className={`h-4 w-4 ${
+                    canDelete
+                      ? 'text-red-600'
+                      : 'text-muted-foreground/50'
+                  }`} />
                 </Button>
               )}
             </div>
