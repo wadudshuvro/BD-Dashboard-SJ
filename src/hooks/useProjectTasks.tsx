@@ -124,9 +124,19 @@ export const useAllProjectTasks = () => {
   return useQuery({
     queryKey: ['all-project-tasks'],
     queryFn: async () => {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (!user) {
+        console.error('No authenticated user');
+        return [];
+      }
+
+      // Fetch tasks assigned to current user
       const { data, error } = await supabase
         .from('project_tasks')
         .select('*')
+        .eq('assigned_to', user.id)
         .order('created_at', { ascending: false });
 
       if (error) {

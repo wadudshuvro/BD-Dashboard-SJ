@@ -98,18 +98,8 @@ export async function fetchNotifications(
     let query = (supabase as any)
       .from('notifications')
       .select(`
-        id,
-        user_id,
-        type,
-        task_id,
-        comment_id,
-        actor_id,
-        title,
-        message,
-        link_url,
-        read_at,
-        created_at,
-        actor:profiles!notifications_actor_id_fkey(
+        *,
+        actor:profiles!actor_id(
           id,
           full_name,
           avatar_url

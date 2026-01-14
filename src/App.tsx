@@ -62,6 +62,7 @@ import CampaignROI from "./pages/bd/CampaignROI";
 import TestEmailPage from "./pages/TestEmailPage";
 import SigningDocuments from "./pages/bd/SigningDocuments";
 import SigningDocumentDetail from "./pages/bd/SigningDocumentDetail";
+import NotificationsPage from "./pages/NotificationsPage";
 
 const queryClient = new QueryClient();
 
@@ -193,7 +194,10 @@ const App = () => (
               <Route path="actions/tasks/:taskId" element={<TaskViewPage />} />
               <Route path="actions/eod" element={<EODSubmission />} />
               <Route path="actions/eod-history" element={<MyEODSubmissions />} />
-              
+
+              {/* Notifications */}
+              <Route path="notifications" element={<NotificationsPage />} />
+
               {/* Admin */}
               <Route path="admin/documentation" element={<React.Suspense fallback={<div>Loading...</div>}><Documentation /></React.Suspense>} />
               <Route path="admin/settings" element={<UserSettings />} />
