@@ -109,15 +109,25 @@ export function CommentItem({ comment, onUpdate, onDelete, isUpdating = false, i
 
         {isEditing ? (
           <div className="space-y-2">
-            <Textarea
-              value={editText}
-              onChange={(e) => setEditText(e.target.value)}
-              onKeyDown={handleKeyDown}
-              className="min-h-[80px] resize-none text-sm"
-              placeholder="Edit your comment..."
-              disabled={isUpdating}
-              autoFocus
-            />
+            <div className="border rounded-md bg-muted/30">
+              <Textarea
+                value={editText}
+                onChange={(e) => setEditText(e.target.value)}
+                onKeyDown={handleKeyDown}
+                className="min-h-[80px] resize-none text-sm border-0 bg-muted/30"
+                placeholder="Edit your comment..."
+                disabled={isUpdating}
+                autoFocus
+              />
+              {editText && (
+                <div className="border-t px-3 py-3 bg-white dark:bg-slate-950">
+                  <p className="text-xs text-muted-foreground mb-2 font-medium">Preview:</p>
+                  <div className="text-sm text-foreground whitespace-pre-wrap break-words">
+                    <MentionText text={editText} />
+                  </div>
+                </div>
+              )}
+            </div>
             <div className="flex items-center justify-between">
               <p className="text-xs text-muted-foreground">
                 Press Ctrl+Enter to save, Esc to cancel
