@@ -23,7 +23,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
-import { Trash2, Plus, X } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import {
   Form,
   FormControl,
@@ -42,11 +42,10 @@ import {
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Textarea } from '@/components/ui/textarea';
 import { useBDCampaigns, type BDCampaign } from '@/hooks/useBDCampaigns';
 import { useCampaignOwners } from '@/hooks/useCampaignOwners';
 import type { CampaignType } from '@/Api/adminCampaigns';
-import { useTargetNiches, type TargetNiche } from '@/hooks/useTargetNiches';
+import { type TargetNiche } from '@/hooks/useTargetNiches';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -110,7 +109,6 @@ const campaignFormSchema = z
   .object({
     name: z.string().min(1, 'Campaign name is required'),
     nicheId: z.string().uuid('Please select a niche'),
-    brandIds: z.array(z.string().uuid()).default([]),
     campaignTypes: z.array(z.enum(['email_outbound', 'linkedin_outbound', 'cold_calling', 'abm', 'other'] as const)).min(1, 'Select at least one campaign type'),
     startDate: optionalDate,
     endDate: optionalDate,
@@ -141,11 +139,6 @@ interface CampaignDialogProps {
   mode?: 'create' | 'edit';
 }
 
-interface BrandOption {
-  id: string;
-  name: string;
-}
-
 export function CampaignDialog({ open, onOpenChange, niches = [], campaign, mode = 'create' }: CampaignDialogProps) {
   const { createCampaign, updateCampaign, deleteCampaign } = useBDCampaigns();
   const queryClient = useQueryClient();
@@ -153,23 +146,17 @@ export function CampaignDialog({ open, onOpenChange, niches = [], campaign, mode
   const { user } = useAuth();
   const isEditMode = mode === 'edit' && campaign;
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [showCreateNiche, setShowCreateNiche] = useState(false);
-  const [newNicheName, setNewNicheName] = useState('');
-  const [newNicheDescription, setNewNicheDescription] = useState('');
-  const [isCreatingNiche, setIsCreatingNiche] = useState(false);
 
   // Ensure niches is always an array
   const safeNiches = Array.isArray(niches) ? niches : [];
-  
+
   const { data: campaignOwners = [], isLoading: ownersLoading } = useCampaignOwners();
-  const { createNiche } = useTargetNiches();
 
   const form = useForm<CampaignFormValues>({
     resolver: zodResolver(campaignFormSchema),
     defaultValues: {
       name: '',
       nicheId: '',
-      brandIds: [],
       campaignTypes: [],
       startDate: undefined,
       endDate: undefined,
@@ -182,27 +169,11 @@ export function CampaignDialog({ open, onOpenChange, niches = [], campaign, mode
     },
   });
 
-  const { data: brands = [], isLoading: brandsLoading } = useQuery<BrandOption[]>({
-    queryKey: ['bd-brands'],
-    queryFn: async () => {
-      const { data, error } = await supabase.from('clients').select('id, name').order('name');
-      if (error) {
-        throw new Error(error.message);
-      }
-      return (data ?? []).map((brand) => ({
-        id: brand.id,
-        name: brand.name ?? 'Untitled brand',
-      }));
-    },
-    staleTime: 5 * 60 * 1000,
-  });
-
   useEffect(() => {
     if (!open) {
       form.reset({
         name: '',
         nicheId: '',
-        brandIds: [],
         campaignTypes: [],
         startDate: undefined,
         endDate: undefined,
@@ -218,7 +189,6 @@ export function CampaignDialog({ open, onOpenChange, niches = [], campaign, mode
       form.reset({
         name: campaign.name,
         nicheId: campaign.niche_id,
-        brandIds: campaign.brand_ids || (campaign.brand_id ? [campaign.brand_id] : []),
         campaignTypes: campaign.campaign_types || [campaign.campaign_type],
         startDate: campaign.start_date || undefined,
         endDate: campaign.end_date || undefined,
@@ -231,48 +201,6 @@ export function CampaignDialog({ open, onOpenChange, niches = [], campaign, mode
       });
     }
   }, [open, isEditMode, campaign, form]);
-
-  const handleCreateNewNiche = async () => {
-    if (!newNicheName.trim()) {
-      toast({
-        title: 'Error',
-        description: 'Please enter a niche name',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    setIsCreatingNiche(true);
-    try {
-      const newNiche = await createNiche.mutateAsync({
-        name: newNicheName.trim(),
-        description: newNicheDescription.trim() || undefined,
-        status: 'active',
-        priority: 'medium',
-        created_by: user?.id,
-      });
-
-      // Set the newly created niche as the selected value
-      form.setValue('nicheId', newNiche.id);
-      
-      // Reset form and hide the create section
-      setNewNicheName('');
-      setNewNicheDescription('');
-      setShowCreateNiche(false);
-      
-      // Invalidate the niches query to refresh the list
-      queryClient.invalidateQueries({ queryKey: ['target_niches'] });
-      
-      toast({
-        title: 'Success',
-        description: 'New niche created and selected',
-      });
-    } catch (error) {
-      console.error('Failed to create niche:', error);
-    } finally {
-      setIsCreatingNiche(false);
-    }
-  };
 
   const handleDelete = async () => {
     if (!campaign) return;
@@ -295,7 +223,6 @@ export function CampaignDialog({ open, onOpenChange, niches = [], campaign, mode
       const payload = {
         name: values.name,
         niche_id: values.nicheId,
-        brand_ids: values.brandIds,
         campaign_type: values.campaignTypes[0], // Legacy field - use first type
         campaign_types: values.campaignTypes,
         start_date: values.startDate ?? null,
@@ -402,62 +329,6 @@ export function CampaignDialog({ open, onOpenChange, niches = [], campaign, mode
                       </SelectContent>
                     </Select>
                     <FormMessage />
-                    
-                    {!showCreateNiche ? (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="mt-2 w-full"
-                        onClick={() => setShowCreateNiche(true)}
-                      >
-                        <Plus className="mr-2 h-4 w-4" />
-                        Create New Niche
-                      </Button>
-                    ) : (
-                      <div className="mt-3 space-y-3 p-3 border rounded-lg bg-muted/50">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium">Create New Niche</span>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              setShowCreateNiche(false);
-                              setNewNicheName('');
-                              setNewNicheDescription('');
-                            }}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                        
-                        <div className="space-y-2">
-                          <Input
-                            placeholder="Niche name (e.g., AI Solutions)"
-                            value={newNicheName}
-                            onChange={(e) => setNewNicheName(e.target.value)}
-                            disabled={isCreatingNiche}
-                          />
-                          <Textarea
-                            placeholder="Description (optional)"
-                            value={newNicheDescription}
-                            onChange={(e) => setNewNicheDescription(e.target.value)}
-                            disabled={isCreatingNiche}
-                            rows={2}
-                          />
-                          <Button
-                            type="button"
-                            size="sm"
-                            className="w-full"
-                            onClick={handleCreateNewNiche}
-                            disabled={isCreatingNiche || !newNicheName.trim()}
-                          >
-                            {isCreatingNiche ? 'Creating...' : 'Create & Select'}
-                          </Button>
-                        </div>
-                      </div>
-                    )}
                   </FormItem>
                 )}
               />
@@ -496,45 +367,6 @@ export function CampaignDialog({ open, onOpenChange, niches = [], campaign, mode
                         )}
                       </SelectContent>
                     </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="brandIds"
-                render={({ field }) => (
-                  <FormItem className="md:col-span-2">
-                    <FormLabel>Brands (Optional)</FormLabel>
-                    <div className="border rounded-md p-3 max-h-60 overflow-y-auto space-y-2">
-                      {brandsLoading ? (
-                        <p className="text-sm text-muted-foreground">Loading brands...</p>
-                      ) : brands.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">No brands available</p>
-                      ) : (
-                        brands.map((brand) => (
-                          <div key={brand.id} className="flex items-center space-x-2">
-                            <Checkbox
-                              id={`brand-${brand.id}`}
-                              checked={field.value?.includes(brand.id)}
-                              onCheckedChange={(checked) => {
-                                const newValue = checked
-                                  ? [...(field.value || []), brand.id]
-                                  : (field.value || []).filter((id) => id !== brand.id);
-                                field.onChange(newValue);
-                              }}
-                            />
-                            <label 
-                              htmlFor={`brand-${brand.id}`}
-                              className="text-sm cursor-pointer flex-1"
-                            >
-                              {brand.name}
-                            </label>
-                          </div>
-                        ))
-                      )}
-                    </div>
                     <FormMessage />
                   </FormItem>
                 )}

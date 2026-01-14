@@ -160,7 +160,7 @@ const Layout = ({ userRole }: LayoutProps) => {
           { name: `Clients${clientCount ? ` (${clientCount})` : ''}`, href: "/clients", icon: Building2, current: false },
         ]
       },
-      { name: `Campaigns${campaignCount ? ` (${campaignCount})` : ''}`, href: "/campaigns", icon: Megaphone, current: false },
+      { name: `Outreach${campaignCount ? ` (${campaignCount})` : ''}`, href: "/campaigns", icon: Megaphone, current: false },
       { name: "Sequences", href: "/sequences", icon: Zap, current: false },
       { name: "Signing Documents", href: "/signing-documents", icon: PenTool, current: false },
       { 

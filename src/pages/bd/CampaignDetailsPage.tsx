@@ -23,7 +23,7 @@ export default function CampaignDetailsPage() {
       <div className="flex flex-col items-center justify-center h-96">
         <div className="text-destructive">Failed to load campaign details</div>
         <Button asChild className="mt-4">
-          <Link to="/campaigns">Back to Campaigns</Link>
+          <Link to="/campaigns">Back to Outreach</Link>
         </Button>
       </div>
     );
