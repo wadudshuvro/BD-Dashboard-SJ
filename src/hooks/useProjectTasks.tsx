@@ -112,7 +112,7 @@ export const useProjectTasks = (projectId?: string) => {
         throw error;
       }
 
-      return data as ProjectTask[];
+      return data as unknown as ProjectTask[];
     },
     retry: 2,
     staleTime: 30000,
@@ -124,9 +124,19 @@ export const useAllProjectTasks = () => {
   return useQuery({
     queryKey: ['all-project-tasks'],
     queryFn: async () => {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (!user) {
+        console.error('No authenticated user');
+        return [];
+      }
+
+      // Fetch tasks assigned to current user
       const { data, error } = await supabase
         .from('project_tasks')
         .select('*')
+        .eq('assigned_to', user.id)
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -134,7 +144,7 @@ export const useAllProjectTasks = () => {
         throw error;
       }
 
-      return data as ProjectTask[];
+      return data as unknown as ProjectTask[];
     },
     retry: 2,
     staleTime: 30000,
@@ -149,7 +159,7 @@ export const useCreateProjectTask = () => {
     mutationFn: async (taskData: CreateProjectTaskData) => {
       const { data, error } = await supabase
         .from('project_tasks')
-        .insert([taskData])
+        .insert([taskData as any])
         .select()
         .single();
 
@@ -195,7 +205,7 @@ export const useUpdateProjectTask = () => {
 
       const { data, error } = await supabase
         .from('project_tasks')
-        .update(updateData)
+        .update(updateData as any)
         .eq('id', id)
         .select()
         .single();
