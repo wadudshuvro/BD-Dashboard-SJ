@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Loader2, Bold, Italic, Code, List, ListOrdered, Link as LinkIcon, Image } from 'lucide-react';
 import { MentionDropdown } from './MentionDropdown';
+import { MentionText } from './MentionText';
 import { findMentionTriggerPosition, getMentionSearchQuery, insertMention } from '@/utils/mentionParser';
 
 interface CommentComposerProps {
@@ -229,28 +230,38 @@ export function CommentComposer({ onSubmit, isSubmitting }: CommentComposerProps
 
   return (
     <div className="space-y-2">
-      <div className="relative">
-        <Textarea
-          ref={textareaRef}
-          value={text}
-          onChange={handleTextChange}
-          onKeyDown={handleKeyDown}
-          placeholder="Write a comment... Type @ to mention someone"
-          className="min-h-[100px] resize-none"
-          disabled={isSubmitting}
-        />
-
-        {showMentionDropdown && (
-          <MentionDropdown
-            searchQuery={mentionSearchQuery}
-            onSelect={handleMentionSelect}
-            position={mentionPosition}
+      <div className="space-y-2">
+        <div className="relative border rounded-md bg-muted/30">
+          <Textarea
+            ref={textareaRef}
+            value={text}
+            onChange={handleTextChange}
+            onKeyDown={handleKeyDown}
+            placeholder="Write a comment... Type @ to mention someone"
+            className="min-h-[100px] resize-none text-sm border-0 bg-muted/30"
+            disabled={isSubmitting}
           />
-        )}
+
+          {text && (
+            <div className="border-t px-3 py-3 bg-white dark:bg-slate-950">
+              <p className="text-xs text-muted-foreground mb-2 font-medium">Preview:</p>
+              <div className="text-sm text-foreground whitespace-pre-wrap break-words">
+                <MentionText text={text} />
+              </div>
+            </div>
+          )}
+
+          {showMentionDropdown && (
+            <MentionDropdown
+              searchQuery={mentionSearchQuery}
+              onSelect={handleMentionSelect}
+              position={mentionPosition}
+            />
+          )}
+        </div>
       </div>
 
-
-      <div className="flex items-center justify-between flex-wrap gap-2">
+      <div className="flex items-center justify-between flex-wrap gap-2 mt-2">
         <div className="flex items-center gap-2 flex-wrap">
           {/* Text Formatting */}
           <div className="flex gap-1 border-r pr-2">
