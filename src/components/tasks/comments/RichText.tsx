@@ -84,7 +84,7 @@ export function RichText({ text, className = '' }: RichTextProps) {
         <div key={i} className="ml-4 flex items-start gap-2">
           <span className="text-primary flex-shrink-0">•</span>
           <span className="flex-1">
-            {inlineSegments.map((seg, idx) => renderSegment(seg, `${i}-${idx}`))}
+            {inlineSegments.map((seg, idx) => renderSegment(seg, Number(`${i}${idx}`)))}
           </span>
         </div>
       );
@@ -96,7 +96,7 @@ export function RichText({ text, className = '' }: RichTextProps) {
         <div key={i} className="ml-4 flex items-start gap-2">
           <span className="text-primary font-medium flex-shrink-0">{segment.order}.</span>
           <span className="flex-1">
-            {inlineSegments.map((seg, idx) => renderSegment(seg, `${i}-${idx}`))}
+            {inlineSegments.map((seg, idx) => renderSegment(seg, Number(`${i}${idx}`)))}
           </span>
         </div>
       );

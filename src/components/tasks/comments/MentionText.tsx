@@ -146,29 +146,4 @@ function processLines(text: string): React.ReactNode[] {
 export function MentionText({ text, className = '' }: MentionTextProps) {
   // Use RichText component which handles both mentions and markdown formatting
   return <RichText text={text} className={className} />;
-  const segments = parseTextWithMentions(text);
-
-  return (
-    <div className={className}>
-      {segments.map((segment, index) => {
-        if (segment.type === 'mention') {
-          return (
-            <span
-              key={index}
-              className="inline-flex items-center px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium"
-              title={`@${segment.userName}`}
-            >
-              @{segment.userName}
-            </span>
-          );
-        }
-        // Process regular text for markdown formatting
-        return (
-          <span key={index}>
-            {processLines(segment.content)}
-          </span>
-        );
-      })}
-    </div>
-  );
 }
