@@ -4635,39 +4635,48 @@ export type Database = {
       }
       user_notifications: {
         Row: {
+          actor_id: string | null
+          comment_id: string | null
           created_at: string
           data: Json | null
           id: string
-          link: string | null
+          link_url: string | null
           message: string
           read: boolean
           read_at: string | null
+          task_id: string | null
           title: string
           type: string
           updated_at: string
           user_id: string
         }
         Insert: {
+          actor_id?: string | null
+          comment_id?: string | null
           created_at?: string
           data?: Json | null
           id?: string
-          link?: string | null
+          link_url?: string | null
           message: string
           read?: boolean
           read_at?: string | null
+          task_id?: string | null
           title: string
           type: string
           updated_at?: string
           user_id: string
         }
         Update: {
+          actor_id?: string | null
+          comment_id?: string | null
           created_at?: string
           data?: Json | null
           id?: string
-          link?: string | null
+          link_url?: string | null
           message?: string
           read?: boolean
           read_at?: string | null
+          task_id?: string | null
           title?: string
           type?: string
           updated_at?: string
