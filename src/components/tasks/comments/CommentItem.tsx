@@ -3,7 +3,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { formatDistanceToNow } from 'date-fns';
-import { Edit2, X, Check } from 'lucide-react';
+import { Edit2, Trash2, X, Check } from 'lucide-react';
 import type { TaskComment } from '@/types/comments';
 import { MentionText } from './MentionText';
 import { useAuth } from '@/hooks/useAuth';
@@ -11,10 +11,12 @@ import { useAuth } from '@/hooks/useAuth';
 interface CommentItemProps {
   comment: TaskComment;
   onUpdate?: (commentId: string, newText: string) => void;
+  onDelete?: (commentId: string) => void;
   isUpdating?: boolean;
+  isDeleting?: boolean;
 }
 
-export function CommentItem({ comment, onUpdate, isUpdating = false }: CommentItemProps) {
+export function CommentItem({ comment, onUpdate, onDelete, isUpdating = false, isDeleting = false }: CommentItemProps) {
   const { user } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState('');
@@ -22,6 +24,11 @@ export function CommentItem({ comment, onUpdate, isUpdating = false }: CommentIt
   const authorName = comment.author?.full_name || comment.author?.email || 'Unknown User';
   const authorInitials = authorName.substring(0, 2).toUpperCase();
   const isOwnComment = user?.id === comment.author_id;
+
+  // Check if comment is within 1 hour of creation
+  const createdTime = new Date(comment.created_at);
+  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+  const canDelete = isOwnComment && createdTime > oneHourAgo;
 
   const handleStartEdit = () => {
     // Set the raw text for editing - preserves mention format
@@ -39,6 +46,12 @@ export function CommentItem({ comment, onUpdate, isUpdating = false }: CommentIt
       onUpdate(comment.id, editText.trim());
     }
     setIsEditing(false);
+  };
+
+  const handleDelete = () => {
+    if (onDelete && canDelete) {
+      onDelete(comment.id);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -65,41 +78,46 @@ export function CommentItem({ comment, onUpdate, isUpdating = false }: CommentIt
           {comment.edited && (
             <span className="text-xs text-muted-foreground italic">(edited)</span>
           )}
-          {!isEditing && isOwnComment && onUpdate && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-6 w-6 p-0 ml-auto"
-              onClick={handleStartEdit}
-              title="Edit comment"
-            >
-              <Edit2 className="h-3 w-3" />
-            </Button>
+          {!isEditing && isOwnComment && (
+            <div className="flex gap-1 ml-auto">
+              {onUpdate && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0"
+                  onClick={handleStartEdit}
+                  title="Edit comment"
+                >
+                  <Edit2 className="h-3 w-3" />
+                </Button>
+              )}
+              {onDelete && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0"
+                  onClick={handleDelete}
+                  disabled={!canDelete || isDeleting}
+                  title={canDelete ? "Delete comment (within 1 hour)" : "Can only delete within 1 hour"}
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              )}
+            </div>
           )}
         </div>
 
         {isEditing ? (
           <div className="space-y-2">
-            <div className="border rounded-md">
-              <Textarea
-                value={editText}
-                onChange={(e) => setEditText(e.target.value)}
-                onKeyDown={handleKeyDown}
-                className="min-h-[80px] resize-none text-sm border-0 focus-visible:ring-0"
-                placeholder="Edit your comment..."
-                disabled={isUpdating}
-                autoFocus
-              />
-              {/* Preview area */}
-              {editText && (
-                <div className="border-t bg-muted/30 p-3">
-                  <p className="text-xs text-muted-foreground mb-2 font-medium">Preview:</p>
-                  <div className="text-sm text-foreground whitespace-pre-wrap break-words">
-                    <MentionText text={editText} />
-                  </div>
-                </div>
-              )}
-            </div>
+            <Textarea
+              value={editText}
+              onChange={(e) => setEditText(e.target.value)}
+              onKeyDown={handleKeyDown}
+              className="min-h-[80px] resize-none text-sm"
+              placeholder="Edit your comment..."
+              disabled={isUpdating}
+              autoFocus
+            />
             <div className="flex items-center justify-between">
               <p className="text-xs text-muted-foreground">
                 Press Ctrl+Enter to save, Esc to cancel

@@ -10,10 +10,12 @@ interface CommentsListProps {
   isLoading: boolean;
   error?: Error | null;
   onUpdateComment?: (commentId: string, newText: string) => void;
+  onDeleteComment?: (commentId: string) => void;
   isUpdating?: boolean;
+  isDeleting?: boolean;
 }
 
-export function CommentsList({ comments, isLoading, error, onUpdateComment, isUpdating }: CommentsListProps) {
+export function CommentsList({ comments, isLoading, error, onUpdateComment, onDeleteComment, isUpdating, isDeleting }: CommentsListProps) {
   if (isLoading) {
     return (
       <div className="space-y-4">
@@ -72,7 +74,9 @@ export function CommentsList({ comments, isLoading, error, onUpdateComment, isUp
           key={comment.id}
           comment={comment}
           onUpdate={onUpdateComment}
+          onDelete={onDeleteComment}
           isUpdating={isUpdating}
+          isDeleting={isDeleting}
         />
       ))}
     </div>
