@@ -110,7 +110,7 @@ export function TaskForm({ open, onOpenChange, task }: TaskFormProps) {
   const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
   const [uploadingAttachments, setUploadingAttachments] = useState(false);
 
-  const { data: bdMembers = [] } = useBDTeamMembers();
+  const { data: bdMembers = [], isLoading: isLoadingMembers, error: membersError } = useBDTeamMembers();
   const { associateLabelsAsync } = useTaskLabelAssociations(task?.id);
   const { uploadAttachmentAsync } = useTaskAttachments(task?.id);
 
@@ -421,7 +421,7 @@ export function TaskForm({ open, onOpenChange, task }: TaskFormProps) {
                 />
               </div>
 
-              {/* Assignee Field with BD Members */}
+              {/* Assignee Field with All Users */}
               <FormField
                 control={form.control}
                 name="assigned_to"
@@ -434,22 +434,44 @@ export function TaskForm({ open, onOpenChange, task }: TaskFormProps) {
                         field.onChange(value === "unassigned" ? null : value);
                       }}
                       value={field.value || "unassigned"}
+                      disabled={isLoadingMembers}
                     >
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select assignee" />
+                          <SelectValue
+                            placeholder={
+                              isLoadingMembers
+                                ? "Loading users..."
+                                : membersError
+                                ? "Error loading users"
+                                : "Select assignee"
+                            }
+                          />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
                         <SelectItem value="unassigned">Unassigned</SelectItem>
-                        {bdMembers.map((member) => (
-                          <SelectItem key={member.id} value={member.id}>
-                            {member.full_name}
-                          </SelectItem>
-                        ))}
+                        {isLoadingMembers ? (
+                          <SelectItem value="loading" disabled>Loading users...</SelectItem>
+                        ) : membersError ? (
+                          <SelectItem value="error" disabled>Failed to load users</SelectItem>
+                        ) : bdMembers.length === 0 ? (
+                          <SelectItem value="empty" disabled>No users found</SelectItem>
+                        ) : (
+                          bdMembers.map((member) => (
+                            <SelectItem key={member.id} value={member.id}>
+                              {member.full_name}
+                            </SelectItem>
+                          ))
+                        )}
                       </SelectContent>
                     </Select>
                     <FormMessage />
+                    {membersError && (
+                      <p className="text-sm text-destructive mt-1">
+                        Error loading users: {membersError.message}
+                      </p>
+                    )}
                   </FormItem>
                 )}
               />
