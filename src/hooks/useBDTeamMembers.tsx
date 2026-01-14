@@ -14,42 +14,46 @@ export function useBDTeamMembers() {
     queryKey: ['bd-team-members'],
     queryFn: async () => {
       try {
-        // Fetch all users with their roles (if they have any)
-        const { data, error } = await supabase
+        // Fetch all users from profiles table (without user_roles to avoid relationship errors)
+        const { data: profilesData, error: profilesError } = await supabase
           .from('profiles')
-          .select(`
-            id,
-            full_name,
-            email,
-            avatar_url,
-            user_roles(role)
-          `)
+          .select('id, full_name, email, avatar_url')
           .order('full_name');
 
-        if (error) {
-          console.error('Error fetching BD team members:', error);
-          throw new Error(error.message);
+        if (profilesError) {
+          console.error('Error fetching profiles:', profilesError);
+          throw new Error(profilesError.message);
         }
 
-        if (!data) {
+        if (!profilesData || profilesData.length === 0) {
           console.warn('No profiles data returned');
           return [];
         }
 
-        const members = data.map((member: any) => {
-          // Get the role from user_roles if it exists
-          const role = Array.isArray(member.user_roles) && member.user_roles.length > 0
-            ? member.user_roles[0].role
-            : 'team_member';
+        // Try to fetch roles separately if the table exists
+        let rolesMap: Record<string, string> = {};
+        try {
+          const { data: rolesData, error: rolesError } = await supabase
+            .from('user_roles')
+            .select('user_id, role');
 
-          return {
-            id: member.id,
-            full_name: member.full_name || member.email,
-            email: member.email,
-            avatar_url: member.avatar_url,
-            role: role,
-          };
-        }) as BDTeamMember[];
+          if (!rolesError && rolesData) {
+            rolesMap = rolesData.reduce((acc, r: any) => {
+              acc[r.user_id] = r.role;
+              return acc;
+            }, {} as Record<string, string>);
+          }
+        } catch (roleError) {
+          console.warn('user_roles table not available, assigning default role');
+        }
+
+        const members = profilesData.map((member: any) => ({
+          id: member.id,
+          full_name: member.full_name || member.email || 'Unknown User',
+          email: member.email,
+          avatar_url: member.avatar_url,
+          role: rolesMap[member.id] || 'team_member',
+        })) as BDTeamMember[];
 
         console.log(`Fetched ${members.length} team members for assignee dropdown`);
         return members;
