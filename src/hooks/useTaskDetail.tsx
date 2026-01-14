@@ -59,7 +59,7 @@ export const useTaskDetail = (taskId?: string) => {
         attachments,
       };
 
-      return transformedTask as ProjectTask;
+      return transformedTask as unknown as ProjectTask;
     },
     enabled: !!taskId,
     staleTime: 30000, // 30 seconds
