@@ -191,7 +191,52 @@ export interface CampaignDetailResponse {
 }
 
 export interface UpdateCampaignPayload {
-  status?: string;
-  trigger_ai_summary?: boolean;
-  archived?: boolean;
+  campaign?: {
+    status?: string;
+    archived?: boolean;
+    name?: string;
+    campaign_type?: string;
+    campaign_types?: string[];
+    brand_id?: string | null;
+    brand_ids?: string[];
+    niche_id?: string;
+    ghl_campaign_id?: string | null;
+    linkedin_campaign_id?: string | null;
+    ai_agent_id?: string | null;
+    content_template?: unknown;
+    research_data?: Record<string, unknown> | null;
+    linkedin_stats?: Record<string, unknown> | null;
+    ghl_stats?: Record<string, unknown> | null;
+    contacts_summary?: unknown;
+    metadata?: Record<string, unknown> | null;
+    start_date?: string | null;
+    end_date?: string | null;
+    target_contacts?: string[] | null;
+    target_regions?: string[] | null;
+    target_contacts_count?: number | null;
+    actual_contacts_reached?: number | null;
+    responses_received?: number | null;
+    meetings_booked?: number | null;
+    deals_generated?: number | null;
+    owned_by?: string | null;
+  };
+  metrics?: Array<{
+    metric_name: string;
+    metric_value: number;
+    source?: string;
+    recorded_at?: string;
+    dimensions?: Record<string, unknown>;
+  }>;
+  options?: {
+    seedKpis?: boolean;
+    taskTemplateKey?: string;
+    tasks?: Array<{
+      title: string;
+      description?: string | null;
+      status?: string;
+      priority?: "low" | "medium" | "high";
+      dueInDays?: number | null;
+      assigned_to?: string | null;
+    }>;
+  };
 }
