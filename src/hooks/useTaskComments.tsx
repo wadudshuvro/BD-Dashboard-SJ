@@ -16,39 +16,49 @@ export const useTaskComments = (taskId?: string) => {
       if (!taskId) return [];
 
       try {
-        // Use type assertion to work around missing table types
+        // First, try simplified query without foreign key joins
         const { data, error } = await (supabase as any)
           .from('task_comments')
-          .select(`
-            id,
-            task_id,
-            author_id,
-            body_text,
-            created_at,
-            updated_at,
-            edited,
-            author:profiles!task_comments_author_id_fkey(
-              id,
-              full_name,
-              email,
-              avatar_url
-            ),
-            mentions:task_comment_mentions(
-              id,
-              comment_id,
-              mentioned_user_id,
-              created_at
-            )
-          `)
+          .select('*')
           .eq('task_id', taskId)
           .order('created_at', { ascending: true });
 
         if (error) {
+          console.error('Error fetching comments:', error);
           handleSupabaseError(error, 'task_comments');
         }
-        return (data || []) as TaskComment[];
+
+        if (!data) return [];
+
+        // Then fetch author info separately for each comment
+        const commentsWithAuthors = await Promise.all(
+          data.map(async (comment: any) => {
+            try {
+              const { data: authorData } = await supabase
+                .from('profiles')
+                .select('id, full_name, email, avatar_url')
+                .eq('id', comment.author_id)
+                .single();
+
+              return {
+                ...comment,
+                author: authorData || { id: comment.author_id, full_name: 'Unknown', email: '' },
+                mentions: [], // We'll fetch mentions separately if needed
+              };
+            } catch (err) {
+              console.warn('Failed to fetch author for comment:', err);
+              return {
+                ...comment,
+                author: { id: comment.author_id, full_name: 'Unknown', email: '' },
+                mentions: [],
+              };
+            }
+          })
+        );
+
+        return commentsWithAuthors as TaskComment[];
       } catch (error) {
-        // Re-throw to let React Query handle it
+        console.error('Failed to fetch task comments:', error);
         throw error;
       }
     },
@@ -59,10 +69,10 @@ export const useTaskComments = (taskId?: string) => {
   // Create comment
   const createComment = useMutation({
     mutationFn: async ({ data: commentData, taskTitle }: { data: CreateCommentData; taskTitle: string }) => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not authenticated');
-
       try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('User not authenticated');
+
         // Create comment using type assertion
         const { data: comment, error: commentError } = await (supabase as any)
           .from('task_comments')
@@ -75,46 +85,56 @@ export const useTaskComments = (taskId?: string) => {
           .single();
 
         if (commentError) {
+          console.error('Error creating comment:', commentError);
           handleSupabaseError(commentError, 'task_comments');
+        }
+
+        if (!comment) {
+          throw new Error('Failed to create comment');
         }
 
         // Extract mentioned user IDs from text
         const mentionedUserIds = extractMentionedUserIds(commentData.body_text);
 
-        // Create mention records if any
+        // Create mention records if any (non-blocking)
         if (mentionedUserIds.length > 0) {
-          const mentions = mentionedUserIds.map(userId => ({
-            comment_id: comment.id,
-            mentioned_user_id: userId,
-          }));
-
-          const { error: mentionError } = await (supabase as any)
-            .from('task_comment_mentions')
-            .insert(mentions);
-
-          if (mentionError) {
-            console.error('Failed to create mentions:', mentionError);
-          }
-
-          // Create notifications for mentioned users
           try {
-            await createMentionNotifications(
-              comment.id,
-              commentData.task_id,
-              taskTitle,
-              mentionedUserIds,
-              user.id,
-              commentData.body_text
-            );
-          } catch (notifError) {
-            console.error('Failed to create mention notifications:', notifError);
+            const mentions = mentionedUserIds.map(userId => ({
+              comment_id: comment.id,
+              mentioned_user_id: userId,
+            }));
+
+            const { error: mentionError } = await (supabase as any)
+              .from('task_comment_mentions')
+              .insert(mentions);
+
+            if (mentionError) {
+              console.error('Failed to create mentions:', mentionError);
+            }
+
+            // Create notifications for mentioned users (non-blocking)
+            try {
+              await createMentionNotifications(
+                comment.id,
+                commentData.task_id,
+                taskTitle,
+                mentionedUserIds,
+                user.id,
+                commentData.body_text
+              );
+            } catch (notifError) {
+              console.error('Failed to create mention notifications:', notifError);
+            }
+          } catch (err) {
+            console.error('Failed to process mentions:', err);
+            // Don't fail the comment creation if mentions fail
           }
         }
 
         return comment;
-      } catch (error) {
-        // Re-throw to let React Query handle it
-        throw error;
+      } catch (error: any) {
+        console.error('Failed to create comment:', error);
+        throw new Error(error.message || 'Failed to post comment');
       }
     },
     onSuccess: (_data, variables) => {
@@ -125,9 +145,10 @@ export const useTaskComments = (taskId?: string) => {
       });
     },
     onError: (error: Error) => {
+      console.error('Comment creation error:', error);
       toast({
         title: "Failed to post comment",
-        description: error.message,
+        description: error.message || 'An error occurred while posting the comment',
         variant: "destructive",
       });
     },

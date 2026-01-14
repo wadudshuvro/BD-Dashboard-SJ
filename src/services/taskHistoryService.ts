@@ -92,32 +92,59 @@ export async function recordTaskCreation(
  */
 export async function fetchTaskHistory(taskId: string): Promise<TaskHistoryEntry[]> {
   try {
-    // Use type assertion
+    console.log(`Fetching task history for task: ${taskId}`);
+
+    // First, fetch history records without joins
     const { data, error } = await (supabase as any)
       .from('task_history')
-      .select(`
-        id,
-        task_id,
-        actor_id,
-        action_type,
-        field_name,
-        old_value,
-        new_value,
-        created_at,
-        actor:profiles!task_history_actor_id_fkey(
-          id,
-          full_name,
-          avatar_url
-        )
-      `)
+      .select('*')
       .eq('task_id', taskId)
       .order('created_at', { ascending: false });
 
     if (error) {
+      console.error('Error fetching task history:', error);
       handleSupabaseError(error, 'task_history');
     }
 
-    return (data || []) as TaskHistoryEntry[];
+    if (!data || data.length === 0) {
+      console.log('No history entries found for this task');
+      return [];
+    }
+
+    console.log(`Fetched ${data.length} history entries`);
+
+    // Then fetch actor info separately for each entry
+    const historyWithActors = await Promise.all(
+      data.map(async (entry: any) => {
+        if (!entry.actor_id) {
+          return {
+            ...entry,
+            actor: null,
+          };
+        }
+
+        try {
+          const { data: actorData } = await supabase
+            .from('profiles')
+            .select('id, full_name, avatar_url')
+            .eq('id', entry.actor_id)
+            .single();
+
+          return {
+            ...entry,
+            actor: actorData || { id: entry.actor_id, full_name: 'Unknown', avatar_url: null },
+          };
+        } catch (err) {
+          console.warn('Failed to fetch actor for history entry:', err);
+          return {
+            ...entry,
+            actor: { id: entry.actor_id, full_name: 'Unknown', avatar_url: null },
+          };
+        }
+      })
+    );
+
+    return historyWithActors as TaskHistoryEntry[];
   } catch (error) {
     console.error('Failed to fetch task history:', error);
     throw error;
