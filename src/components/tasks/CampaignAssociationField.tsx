@@ -18,14 +18,14 @@ export function CampaignAssociationField({ form }: CampaignAssociationFieldProps
   
   const isCampaignAssociated = form.watch("is_campaign_associated");
   
-  // Fetch campaigns with search
+  // Fetch campaigns with search - only show active campaigns, not completed ones
   const effectiveSearchQuery = searchQuery.length >= 3 ? searchQuery : undefined;
   const { campaigns, isLoading } = useBDCampaigns(
     undefined,
     1,
     50,
     effectiveSearchQuery,
-    'all'
+    'active'
   );
 
   const selectedCampaign = useMemo(() => {
