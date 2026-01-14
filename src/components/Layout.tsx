@@ -174,13 +174,14 @@ const Layout = ({ userRole }: LayoutProps) => {
           { name: "Reports & Exports", href: "/bd/performance/reports", icon: FileDown, current: false },
         ]
       },
-      { 
-        name: "Actions", 
-        href: "/bd/actions/tasks", 
-        icon: CheckSquare, 
+      {
+        name: "Actions",
+        href: "/bd/actions/tasks",
+        icon: CheckSquare,
         current: false,
         subItems: [
           { name: "My Tasks", href: "/bd/actions/tasks", icon: CheckSquare, current: false },
+          { name: "Notifications", href: "/bd/notifications", icon: Bell, current: false },
           { name: "Submit EOD", href: "/bd/actions/eod", icon: Calendar, current: false },
           { name: "My EOD History", href: "/bd/actions/eod-history", icon: History, current: false },
         ]
