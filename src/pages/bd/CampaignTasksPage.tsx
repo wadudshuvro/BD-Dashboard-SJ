@@ -37,7 +37,7 @@ export default function CampaignTasksPage() {
   }
 
   // Cast tasks to proper type
-  const typedTasks = (tasks || []) as ProjectTask[];
+  const typedTasks = (tasks || []) as unknown as ProjectTask[];
 
   const tasksByCategory = {
     ideas: typedTasks.filter((t) => t.category === 'ideas'),

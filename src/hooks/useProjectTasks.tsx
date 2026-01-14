@@ -112,7 +112,7 @@ export const useProjectTasks = (projectId?: string) => {
         throw error;
       }
 
-      return data as ProjectTask[];
+      return data as unknown as ProjectTask[];
     },
     retry: 2,
     staleTime: 30000,
@@ -134,7 +134,7 @@ export const useAllProjectTasks = () => {
         throw error;
       }
 
-      return data as ProjectTask[];
+      return data as unknown as ProjectTask[];
     },
     retry: 2,
     staleTime: 30000,
@@ -149,7 +149,7 @@ export const useCreateProjectTask = () => {
     mutationFn: async (taskData: CreateProjectTaskData) => {
       const { data, error } = await supabase
         .from('project_tasks')
-        .insert([taskData])
+        .insert([taskData as any])
         .select()
         .single();
 
@@ -195,7 +195,7 @@ export const useUpdateProjectTask = () => {
 
       const { data, error } = await supabase
         .from('project_tasks')
-        .update(updateData)
+        .update(updateData as any)
         .eq('id', id)
         .select()
         .single();
