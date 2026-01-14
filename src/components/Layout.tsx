@@ -148,7 +148,11 @@ const Layout = ({ userRole }: LayoutProps) => {
     const navigation: NavigationItem[] = [
       { name: "BD Dashboard", href: "/bd/dashboard", icon: LayoutDashboard, current: false },
       { name: "My Agents", href: "/bd/my-agents", icon: Zap, current: false },
-      {
+    ];
+
+    // Add Pipeline menu only for non-team_member roles
+    if (role !== 'team_member') {
+      navigation.push({
         name: "Pipeline",
         href: "/prospecting",
         icon: Target,
@@ -160,14 +164,17 @@ const Layout = ({ userRole }: LayoutProps) => {
           { name: `Proposal Shared${dealCounts?.negotiation ? ` (${dealCounts.negotiation})` : ''}`, href: "/negotiation", icon: Handshake, current: false },
           { name: `Clients${clientCount ? ` (${clientCount})` : ''}`, href: "/clients", icon: Building2, current: false },
         ]
-      },
+      });
+    }
+
+    navigation.push(
       { name: `Outreach${campaignCount ? ` (${campaignCount})` : ''}`, href: "/campaigns", icon: Megaphone, current: false },
       { name: "Sequences", href: "/sequences", icon: Zap, current: false },
       { name: "Signing Documents", href: "/signing-documents", icon: PenTool, current: false },
-      { 
-        name: "Performance", 
-        href: "/bd/performance/personal", 
-        icon: BarChart3, 
+      {
+        name: "Performance",
+        href: "/bd/performance/personal",
+        icon: BarChart3,
         current: false,
         subItems: [
           { name: "My Performance", href: "/bd/performance/personal", icon: TrendingUp, current: false },
@@ -181,7 +188,7 @@ const Layout = ({ userRole }: LayoutProps) => {
         icon: CheckSquare,
         current: false,
         subItems: [
-          { name: "My Tasks", href: "/bd/actions/tasks", icon: CheckSquare, current: false },
+          { name: "Tasks", href: "/bd/actions/tasks", icon: CheckSquare, current: false },
           { name: "Notifications", href: "/bd/notifications", icon: Bell, current: false },
           { name: "Submit EOD", href: "/bd/actions/eod", icon: Calendar, current: false },
           { name: "My EOD History", href: "/bd/actions/eod-history", icon: History, current: false },
@@ -189,7 +196,7 @@ const Layout = ({ userRole }: LayoutProps) => {
       },
       { name: "SEPARATOR", href: "", icon: null, current: false, isHeader: true },
       { name: "Settings", href: "/bd/admin/settings", icon: Settings, current: false },
-    ];
+    );
 
     // Add admin panel for admin and super_admin
     if (role === 'super_admin' || role === 'admin') {
