@@ -82,7 +82,7 @@ export default function CompanyDetail() {
             <Button asChild>
               <Link to="/campaigns">
                 <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Campaigns
+                Back to Outreach
               </Link>
             </Button>
           </CardContent>

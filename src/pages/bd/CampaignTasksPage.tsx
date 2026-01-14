@@ -30,7 +30,7 @@ export default function CampaignTasksPage() {
       <div className="flex flex-col items-center justify-center h-96">
         <div className="text-destructive">Campaign not found</div>
         <Button asChild className="mt-4">
-          <Link to="/campaigns">Back to Campaigns</Link>
+          <Link to="/campaigns">Back to Outreach</Link>
         </Button>
       </div>
     );
@@ -63,7 +63,7 @@ export default function CampaignTasksPage() {
             </Link>
           </Button>
           <div>
-            <h1 className="text-2xl font-bold">Campaign Tasks</h1>
+            <h1 className="text-2xl font-bold">Outreach Tasks</h1>
             <p className="text-muted-foreground">{campaign.name}</p>
           </div>
         </div>

@@ -152,7 +152,7 @@ export default function CampaignManagement() {
         <div className="container mx-auto py-8 space-y-6">
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-3xl font-bold">Campaign Management</h1>
+              <h1 className="text-3xl font-bold">Outreach</h1>
               <p className="text-muted-foreground">Track and manage your outbound campaigns</p>
             </div>
             <Button onClick={() => {
@@ -193,7 +193,7 @@ export default function CampaignManagement() {
       <div className="container mx-auto py-8">
         <div className="flex justify-between items-center mb-6">
           <div>
-            <h1 className="text-3xl font-bold">Campaign Management</h1>
+            <h1 className="text-3xl font-bold">Outreach</h1>
             <p className="text-muted-foreground">Track and manage your outbound campaigns</p>
           </div>
           <div className="flex gap-2">

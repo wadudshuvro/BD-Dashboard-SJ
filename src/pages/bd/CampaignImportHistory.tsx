@@ -69,7 +69,7 @@ export default function CampaignImportHistory() {
     <div className="container mx-auto py-8">
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold">Campaign Import History</h1>
+          <h1 className="text-3xl font-bold">Outreach Import History</h1>
           <p className="text-muted-foreground mt-1">
             View and manage all campaign contact imports
           </p>
