@@ -1,8 +1,9 @@
 import { Skeleton } from '@/components/ui/skeleton';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { History as HistoryIcon } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { History as HistoryIcon, AlertCircle, Database } from 'lucide-react';
 import type { TaskHistoryEntry } from '@/services/taskHistoryService';
 import { HistoryItem } from './HistoryItem';
+import { SupabaseError } from '@/utils/supabaseErrors';
 
 interface HistoryTimelineProps {
   history: TaskHistoryEntry[];
@@ -28,10 +29,24 @@ export function HistoryTimeline({ history, isLoading, error }: HistoryTimelinePr
   }
 
   if (error) {
+    const isTableMissing = error instanceof SupabaseError && error.isTableMissing;
+    const errorMessage = error.message || 'Failed to load history';
+
     return (
-      <Alert variant="destructive">
+      <Alert variant={isTableMissing ? "default" : "destructive"}>
+        {isTableMissing ? <Database className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
+        <AlertTitle>{isTableMissing ? 'Migration Required' : 'Error Loading History'}</AlertTitle>
         <AlertDescription>
-          Failed to load history. Please try again.
+          {isTableMissing ? (
+            <div className="space-y-2">
+              <p>The task history feature requires a database migration.</p>
+              <p className="text-sm font-mono bg-muted p-2 rounded">
+                Please run the migration SQL from MIGRATION_TO_RUN.sql file in your Supabase dashboard.
+              </p>
+            </div>
+          ) : (
+            <p>{errorMessage}</p>
+          )}
         </AlertDescription>
       </Alert>
     );

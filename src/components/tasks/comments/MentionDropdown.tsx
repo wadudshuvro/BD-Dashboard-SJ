@@ -13,10 +13,13 @@ export function MentionDropdown({ searchQuery, onSelect, position }: MentionDrop
   const { data: bdMembers = [], isLoading } = useBDTeamMembers();
   const [selectedIndex, setSelectedIndex] = useState(0);
 
-  const filteredMembers = bdMembers.filter(member =>
-    member.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    member.email.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // If no search query, show all members. Otherwise, filter by search query
+  const filteredMembers = searchQuery.trim() === ''
+    ? bdMembers.slice(0, 10) // Show first 10 users when just @ is typed
+    : bdMembers.filter(member =>
+        member.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        member.email.toLowerCase().includes(searchQuery.toLowerCase())
+      );
 
   useEffect(() => {
     setSelectedIndex(0);
@@ -54,15 +57,23 @@ export function MentionDropdown({ searchQuery, onSelect, position }: MentionDrop
 
   return (
     <div
-      className="absolute z-50 w-72 bg-popover border rounded-md shadow-md overflow-hidden"
+      className="absolute z-50 w-72 bg-popover border rounded-md shadow-lg overflow-hidden"
       style={{ top: position.top, left: position.left }}
     >
       <Command>
         <CommandList>
           {filteredMembers.length === 0 ? (
-            <CommandEmpty>No users found</CommandEmpty>
+            <CommandEmpty>
+              <p className="text-sm text-muted-foreground py-4">No users found</p>
+              <p className="text-xs text-muted-foreground">Try a different search</p>
+            </CommandEmpty>
           ) : (
             <CommandGroup>
+              {searchQuery.trim() === '' && (
+                <div className="px-2 py-1.5 text-xs text-muted-foreground bg-muted/50 border-b">
+                  Type to search • ↑↓ to navigate • Enter to select
+                </div>
+              )}
               {filteredMembers.map((member, index) => (
                 <CommandItem
                   key={member.id}
@@ -84,6 +95,11 @@ export function MentionDropdown({ searchQuery, onSelect, position }: MentionDrop
                   </div>
                 </CommandItem>
               ))}
+              {searchQuery.trim() === '' && bdMembers.length > 10 && (
+                <div className="px-2 py-1.5 text-xs text-muted-foreground text-center border-t">
+                  {bdMembers.length - 10} more users available • type to search
+                </div>
+              )}
             </CommandGroup>
           )}
         </CommandList>

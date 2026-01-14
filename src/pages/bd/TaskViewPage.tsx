@@ -23,7 +23,7 @@ export default function TaskViewPage() {
   const [activeTab, setActiveTab] = useState('comments');
 
   const { task, isLoading: taskLoading, error: taskError, refetch: refetchTask } = useTaskDetail(taskId);
-  const { comments, isLoading: commentsLoading, error: commentsError, createComment, isCreating } = useTaskComments(taskId);
+  const { comments, isLoading: commentsLoading, error: commentsError, createComment, isCreating, updateComment, isUpdating } = useTaskComments(taskId);
   const { history, isLoading: historyLoading, error: historyError } = useTaskHistory(activeTab === 'history' ? taskId : undefined);
   const deleteTask = useDeleteProjectTask();
 
@@ -41,7 +41,7 @@ export default function TaskViewPage() {
 
   const handleCommentSubmit = (text: string) => {
     if (!taskId || !task) return;
-    
+
     createComment({
       data: {
         task_id: taskId,
@@ -50,6 +50,10 @@ export default function TaskViewPage() {
       },
       taskTitle: task.title,
     });
+  };
+
+  const handleCommentUpdate = (commentId: string, newText: string) => {
+    updateComment({ commentId, bodyText: newText });
   };
 
   if (taskLoading) {
@@ -148,6 +152,8 @@ export default function TaskViewPage() {
                     comments={comments}
                     isLoading={commentsLoading}
                     error={commentsError}
+                    onUpdateComment={handleCommentUpdate}
+                    isUpdating={isUpdating}
                   />
 
                   <div className="border-t pt-4">

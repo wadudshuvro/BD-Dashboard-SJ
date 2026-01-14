@@ -14,51 +14,68 @@ export function useBDTeamMembers() {
     queryKey: ['bd-team-members'],
     queryFn: async () => {
       try {
-        // Fetch all users with their roles (if they have any)
-        const { data, error } = await supabase
+        console.log('Fetching team members...');
+
+        // Fetch all users from profiles table (without user_roles to avoid relationship errors)
+        const { data: profilesData, error: profilesError } = await supabase
           .from('profiles')
-          .select(`
-            id,
-            full_name,
-            email,
-            avatar_url,
-            user_roles(role)
-          `)
+          .select('id, full_name, email, avatar_url')
           .order('full_name');
 
-        if (error) {
-          console.error('Error fetching BD team members:', error);
-          throw new Error(error.message);
+        if (profilesError) {
+          console.error('Error fetching profiles:', profilesError);
+          throw new Error(`Failed to fetch profiles: ${profilesError.message}`);
         }
 
-        if (!data) {
-          console.warn('No profiles data returned');
+        if (!profilesData) {
+          console.warn('No profiles data returned - data is null');
           return [];
         }
 
-        const members = data.map((member: any) => {
-          // Get the role from user_roles if it exists
-          const role = Array.isArray(member.user_roles) && member.user_roles.length > 0
-            ? member.user_roles[0].role
-            : 'team_member';
+        console.log(`Fetched ${profilesData.length} profiles`);
 
-          return {
-            id: member.id,
-            full_name: member.full_name || member.email,
-            email: member.email,
-            avatar_url: member.avatar_url,
-            role: role,
-          };
-        }) as BDTeamMember[];
+        if (profilesData.length === 0) {
+          console.warn('No users found in profiles table');
+          return [];
+        }
 
-        console.log(`Fetched ${members.length} team members for assignee dropdown`);
+        // Try to fetch roles separately if the table exists
+        let rolesMap: Record<string, string> = {};
+        try {
+          const { data: rolesData, error: rolesError } = await supabase
+            .from('user_roles')
+            .select('user_id, role');
+
+          if (!rolesError && rolesData) {
+            rolesMap = rolesData.reduce((acc, r: any) => {
+              acc[r.user_id] = r.role;
+              return acc;
+            }, {} as Record<string, string>);
+            console.log(`Fetched roles for ${Object.keys(rolesMap).length} users`);
+          } else if (rolesError) {
+            console.warn('Could not fetch user roles:', rolesError.message);
+          }
+        } catch (roleError) {
+          console.warn('user_roles table not available, assigning default role');
+        }
+
+        const members = profilesData.map((member: any) => ({
+          id: member.id,
+          full_name: member.full_name || member.email || 'Unknown User',
+          email: member.email,
+          avatar_url: member.avatar_url,
+          role: rolesMap[member.id] || 'team_member',
+        })) as BDTeamMember[];
+
+        console.log(`Successfully prepared ${members.length} team members for assignee dropdown`);
         return members;
-      } catch (error) {
+      } catch (error: any) {
         console.error('Failed to fetch team members:', error);
-        throw error;
+        throw new Error(error.message || 'Failed to load users');
       }
     },
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
     retry: 2, // Retry failed requests twice
+    retryDelay: 1000, // Wait 1 second between retries
   });
 }

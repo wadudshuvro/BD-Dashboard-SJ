@@ -1,16 +1,19 @@
 import { Skeleton } from '@/components/ui/skeleton';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { MessageSquare } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { MessageSquare, AlertCircle, Database } from 'lucide-react';
 import type { TaskComment } from '@/types/comments';
 import { CommentItem } from './CommentItem';
+import { SupabaseError } from '@/utils/supabaseErrors';
 
 interface CommentsListProps {
   comments: TaskComment[];
   isLoading: boolean;
   error?: Error | null;
+  onUpdateComment?: (commentId: string, newText: string) => void;
+  isUpdating?: boolean;
 }
 
-export function CommentsList({ comments, isLoading, error }: CommentsListProps) {
+export function CommentsList({ comments, isLoading, error, onUpdateComment, isUpdating }: CommentsListProps) {
   if (isLoading) {
     return (
       <div className="space-y-4">
@@ -28,10 +31,24 @@ export function CommentsList({ comments, isLoading, error }: CommentsListProps) 
   }
 
   if (error) {
+    const isTableMissing = error instanceof SupabaseError && error.isTableMissing;
+    const errorMessage = error.message || 'Failed to load comments';
+
     return (
-      <Alert variant="destructive">
+      <Alert variant={isTableMissing ? "default" : "destructive"}>
+        {isTableMissing ? <Database className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
+        <AlertTitle>{isTableMissing ? 'Migration Required' : 'Error Loading Comments'}</AlertTitle>
         <AlertDescription>
-          Failed to load comments. Please try again.
+          {isTableMissing ? (
+            <div className="space-y-2">
+              <p>The task comments feature requires a database migration.</p>
+              <p className="text-sm font-mono bg-muted p-2 rounded">
+                Please run the migration SQL from MIGRATION_TO_RUN.sql file in your Supabase dashboard.
+              </p>
+            </div>
+          ) : (
+            <p>{errorMessage}</p>
+          )}
         </AlertDescription>
       </Alert>
     );
@@ -51,7 +68,12 @@ export function CommentsList({ comments, isLoading, error }: CommentsListProps) 
   return (
     <div className="divide-y max-w-full">
       {comments.map((comment) => (
-        <CommentItem key={comment.id} comment={comment} />
+        <CommentItem
+          key={comment.id}
+          comment={comment}
+          onUpdate={onUpdateComment}
+          isUpdating={isUpdating}
+        />
       ))}
     </div>
   );
