@@ -150,8 +150,8 @@ const Layout = ({ userRole }: LayoutProps) => {
       { name: "My Agents", href: "/bd/my-agents", icon: Zap, current: false },
     ];
 
-    // Add Pipeline menu only for non-team_member roles
-    if (role !== 'team_member') {
+    // Add Pipeline menu only for admin users
+    if (role === 'admin' || role === 'super_admin') {
       navigation.push({
         name: "Pipeline",
         href: "/prospecting",
