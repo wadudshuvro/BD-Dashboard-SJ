@@ -1,4 +1,4 @@
-import { parseTextWithMentions, type TextSegment } from '@/utils/mentionParser';
+import { RichText } from './RichText';
 
 interface MentionTextProps {
   text: string;
@@ -144,6 +144,8 @@ function processLines(text: string): React.ReactNode[] {
 }
 
 export function MentionText({ text, className = '' }: MentionTextProps) {
+  // Use RichText component which handles both mentions and markdown formatting
+  return <RichText text={text} className={className} />;
   const segments = parseTextWithMentions(text);
 
   return (
