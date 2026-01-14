@@ -94,15 +94,14 @@ export async function fetchNotifications(
   unreadOnly: boolean = false
 ): Promise<Notification[]> {
   try {
-    // Use type assertion
-    let query = (supabase as any)
+    let query = supabase
       .from('user_notifications')
       .select(`
         *,
-        actor:auth.users!actor_id(
+        actor:profiles!actor_id(
           id,
-          user_metadata->>full_name as full_name,
-          user_metadata->>avatar_url as avatar_url
+          full_name,
+          avatar_url
         )
       `)
       .eq('user_id', userId)
