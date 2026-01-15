@@ -77,10 +77,11 @@ export function RichTextEditor({
 
   const editorRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const isComposingRef = useRef(false); // Track if user is typing
   const { toast } = useToast();
 
   // History management for undo/redo
-  const [history, setHistory] = useState<string[]>([html]);
+  const [history, setHistory] = useState<string[]>([value || '']);
   const [historyIndex, setHistoryIndex] = useState(0);
   const [isUpdatingHistory, setIsUpdatingHistory] = useState(false);
 
@@ -91,10 +92,14 @@ export function RichTextEditor({
     }
   }, [html, onChange, isUpdatingHistory]);
 
-  // Sync external value changes
+  // Initialize editor content only once on mount or when value changes externally
   useEffect(() => {
-    if (value !== html && !editorRef.current?.contains(document.activeElement)) {
-      setHtml(value);
+    if (editorRef.current && !isComposingRef.current) {
+      // Only update if editor is not focused (external change)
+      if (value !== html && !editorRef.current.contains(document.activeElement)) {
+        editorRef.current.innerHTML = value;
+        setHtml(value);
+      }
     }
   }, [value]);
 
@@ -116,6 +121,8 @@ export function RichTextEditor({
   const handleInput = () => {
     if (!editorRef.current) return;
 
+    isComposingRef.current = true; // Mark that user is typing
+
     const content = editorRef.current.innerHTML;
     const textContent = editorRef.current.textContent || '';
 
@@ -131,6 +138,11 @@ export function RichTextEditor({
 
     setHtml(content);
     saveToHistory(content);
+
+    // Reset composing flag after a delay
+    setTimeout(() => {
+      isComposingRef.current = false;
+    }, 100);
 
     // Check for @ mention trigger
     const selection = window.getSelection();
@@ -794,23 +806,11 @@ export function RichTextEditor({
             contentEditable={!disabled}
             onInput={handleInput}
             onKeyDown={handleKeyDown}
-            className="min-h-[120px] max-h-[400px] overflow-y-auto p-3 focus:outline-none text-sm prose prose-sm max-w-none"
+            className="min-h-[120px] max-h-[400px] overflow-y-auto p-3 focus:outline-none text-sm prose prose-sm max-w-none rte-editor"
             style={{ fontSize: `${DEFAULT_FONT_SIZE}px` }}
-            dangerouslySetInnerHTML={{ __html: html }}
             data-placeholder={placeholder}
             aria-label="Rich text editor"
           />
-
-          {/* Live Preview */}
-          {html && (
-            <div className="border-t px-3 py-3 bg-muted/10">
-              <p className="text-xs text-muted-foreground mb-2 font-medium">Live Preview:</p>
-              <div
-                className="text-sm prose prose-sm max-w-none"
-                dangerouslySetInnerHTML={{ __html: getSanitizedHtml() }}
-              />
-            </div>
-          )}
 
           {/* Mention Dropdown */}
           {showMentionDropdown && (
@@ -972,17 +972,20 @@ export function RichTextEditor({
 
       {/* Hidden styles for placeholder */}
       <style>{`
-        [contenteditable][data-placeholder]:empty:before {
+        .rte-editor[contenteditable][data-placeholder]:empty:before {
           content: attr(data-placeholder);
           color: #9ca3af;
           pointer-events: none;
-          position: absolute;
+          display: block;
         }
-        [contenteditable] {
+        .rte-editor[contenteditable] {
           caret-color: currentColor;
         }
-        [contenteditable]:focus {
+        .rte-editor[contenteditable]:focus {
           outline: none;
+        }
+        .rte-editor[contenteditable]:empty {
+          min-height: 120px;
         }
       `}</style>
     </div>
