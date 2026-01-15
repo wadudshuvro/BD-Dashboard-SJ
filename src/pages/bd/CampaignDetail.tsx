@@ -36,6 +36,8 @@ import { ContactListControls } from '@/components/bd/ContactListControls';
 import { EmptyContactList } from '@/components/bd/EmptyContactList';
 import { useCampaignContactResearch } from '@/hooks/useCampaignContactResearch';
 import type { QuickActionType } from '@/components/bd/QuickActionsCell';
+import { CampaignStatusSelect } from '@/components/bd/CampaignStatusSelect';
+import type { CampaignStatus } from '@/Api/adminCampaigns';
 import { usePagination } from '@/hooks/usePagination';
 import {
   Pagination,
@@ -96,6 +98,7 @@ export default function CampaignDetail() {
     contacts,
     markCompleted,
     softArchive,
+    updateCampaign,
     refetch,
     isUpdating,
     isLoading,
@@ -333,6 +336,10 @@ export default function CampaignDetail() {
     setPipelineSortOrder(current => current === 'asc' ? 'desc' : 'asc');
   };
 
+  const handleStatusChange = async (newStatus: CampaignStatus) => {
+    await updateCampaign({ campaign: { status: newStatus } });
+  };
+
   // Filter contacts by search query for pipeline view
   const filteredContactsByStatus = useMemo(() => {
     if (!searchQuery && statusFilter.length === 0) return contactByStatus;
@@ -521,7 +528,12 @@ export default function CampaignDetail() {
                     {campaign.campaign_type?.replace('_', ' ')}
                   </Badge>
                 )}
-                <Badge className="capitalize">{campaign.status}</Badge>
+                <CampaignStatusSelect
+                  currentStatus={campaign.status as CampaignStatus}
+                  onStatusChange={handleStatusChange}
+                  disabled={isUpdating}
+                  showBadge={true}
+                />
                 {campaign.ai_agent_id && (
                   <Badge variant="secondary" className="flex items-center gap-1">
                     <Brain className="h-3 w-3" /> AI Enabled
