@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import { formatDistanceToNow } from 'date-fns';
 import { Edit2, Trash2, X, Check } from 'lucide-react';
 import type { TaskComment } from '@/types/comments';
 import { MentionText } from './MentionText';
+import { SafeHtmlContent } from './SafeHtmlContent';
+import { RichTextEditor } from './RichTextEditor';
 import { useAuth } from '@/hooks/useAuth';
 
 interface CommentItemProps {
@@ -19,7 +20,7 @@ interface CommentItemProps {
 export function CommentItem({ comment, onUpdate, onDelete, isUpdating = false, isDeleting = false }: CommentItemProps) {
   const { user } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
-  const [editText, setEditText] = useState('');
+  const [editHtml, setEditHtml] = useState('');
 
   const authorName = comment.author?.full_name || comment.author?.email || 'Unknown User';
   const authorInitials = authorName.substring(0, 2).toUpperCase();
@@ -30,20 +31,30 @@ export function CommentItem({ comment, onUpdate, onDelete, isUpdating = false, i
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
   const canDelete = isOwnComment && createdTime > oneHourAgo;
 
+  // Detect if content is HTML or plain text
+  const isHtmlContent = (text: string): boolean => {
+    return /<[a-z][\s\S]*>/i.test(text);
+  };
+
   const handleStartEdit = () => {
-    // Set the raw text for editing - preserves mention format
-    setEditText(comment.body_text);
+    // Set the content for editing - preserves HTML or plain text
+    setEditHtml(comment.body_text);
     setIsEditing(true);
   };
 
   const handleCancelEdit = () => {
     setIsEditing(false);
-    setEditText('');
+    setEditHtml('');
   };
 
   const handleSaveEdit = () => {
-    if (onUpdate && editText.trim() && editText !== comment.body_text) {
-      onUpdate(comment.id, editText.trim());
+    // Get text content to validate
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = editHtml;
+    const textContent = (tempDiv.textContent || tempDiv.innerText || '').trim();
+
+    if (onUpdate && textContent && editHtml !== comment.body_text) {
+      onUpdate(comment.id, editHtml);
     }
     setIsEditing(false);
   };
@@ -51,14 +62,6 @@ export function CommentItem({ comment, onUpdate, onDelete, isUpdating = false, i
   const handleDelete = () => {
     if (onDelete && canDelete) {
       onDelete(comment.id);
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Escape') {
-      handleCancelEdit();
-    } else if (e.key === 'Enter' && e.ctrlKey) {
-      handleSaveEdit();
     }
   };
 
@@ -117,28 +120,16 @@ export function CommentItem({ comment, onUpdate, onDelete, isUpdating = false, i
 
         {isEditing ? (
           <div className="space-y-2">
-            <div className="border rounded-md bg-muted/30">
-              <Textarea
-                value={editText}
-                onChange={(e) => setEditText(e.target.value)}
-                onKeyDown={handleKeyDown}
-                className="min-h-[80px] resize-none text-sm border-0 bg-muted/30"
-                placeholder="Edit your comment..."
-                disabled={isUpdating}
-                autoFocus
-              />
-              {editText && (
-                <div className="border-t px-3 py-3 bg-white dark:bg-slate-950">
-                  <p className="text-xs text-muted-foreground mb-2 font-medium">Preview:</p>
-                  <div className="text-sm text-foreground whitespace-pre-wrap break-words">
-                    <MentionText text={editText} />
-                  </div>
-                </div>
-              )}
-            </div>
+            <RichTextEditor
+              value={editHtml}
+              onChange={setEditHtml}
+              placeholder="Edit your comment..."
+              disabled={isUpdating}
+              maxLength={4000}
+            />
             <div className="flex items-center justify-between">
               <p className="text-xs text-muted-foreground">
-                Press Ctrl+Enter to save, Esc to cancel
+                Use the toolbar to format text. Press Esc to cancel.
               </p>
               <div className="flex gap-2">
                 <Button
@@ -153,7 +144,7 @@ export function CommentItem({ comment, onUpdate, onDelete, isUpdating = false, i
                 <Button
                   size="sm"
                   onClick={handleSaveEdit}
-                  disabled={isUpdating || !editText.trim() || editText === comment.body_text}
+                  disabled={isUpdating || editHtml === comment.body_text}
                 >
                   <Check className="h-3 w-3 mr-1" />
                   Save
@@ -162,8 +153,14 @@ export function CommentItem({ comment, onUpdate, onDelete, isUpdating = false, i
             </div>
           </div>
         ) : (
-          <div className="text-sm text-foreground whitespace-pre-wrap break-words">
-            <MentionText text={comment.body_text} />
+          <div className="text-sm text-foreground">
+            {isHtmlContent(comment.body_text) ? (
+              <SafeHtmlContent html={comment.body_text} />
+            ) : (
+              <div className="whitespace-pre-wrap break-words">
+                <MentionText text={comment.body_text} />
+              </div>
+            )}
           </div>
         )}
       </div>
