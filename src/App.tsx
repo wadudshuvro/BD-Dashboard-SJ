@@ -70,6 +70,7 @@ const queryClient = new QueryClient();
 const Documentation = lazy(() => import("./pages/admin/Documentation"));
 const FeedbackSubmitPage = lazy(() => import("./pages/feedback/SubmitFeedback"));
 const AdminFeedbackManager = lazy(() => import("./pages/admin/FeedbackManager"));
+const AdminFeedbackDetail = lazy(() => import("./pages/admin/FeedbackDetail"));
 const CampaignImportHistory = lazy(() => import("./pages/bd/CampaignImportHistory"));
 
 // Smart redirect component - send everyone to BD Dashboard
@@ -130,6 +131,10 @@ const App = () => (
               <Route
                 path="feedback"
                 element={<React.Suspense fallback={<div>Loading...</div>}><AdminFeedbackManager /></React.Suspense>}
+              />
+              <Route
+                path="feedback/:id"
+                element={<React.Suspense fallback={<div>Loading...</div>}><AdminFeedbackDetail /></React.Suspense>}
               />
               <Route path="users" element={<UserManagement />} />
               <Route path="users/:userId" element={<UserDetail />} />
