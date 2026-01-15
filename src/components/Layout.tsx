@@ -150,27 +150,29 @@ const Layout = ({ userRole }: LayoutProps) => {
       { name: "My Agents", href: "/bd/my-agents", icon: Zap, current: false },
     ];
 
-    // Add Pipeline menu only for non-team_member roles
-    if (role !== 'team_member') {
-      navigation.push({
-        name: "Pipeline",
-        href: "/prospecting",
-        icon: Target,
-        current: false,
-        subItems: [
-          { name: `Lead${dealCounts?.prospecting ? ` (${dealCounts.prospecting})` : ''}`, href: "/prospecting", icon: UserSearch, current: false },
-          { name: `Estimation${dealCounts?.qualification ? ` (${dealCounts.qualification})` : ''}`, href: "/qualification", icon: ClipboardCheck, current: false },
-          { name: `Discovery${dealCounts?.proposal ? ` (${dealCounts.proposal})` : ''}`, href: "/proposal", icon: FileText, current: false },
-          { name: `Proposal Shared${dealCounts?.negotiation ? ` (${dealCounts.negotiation})` : ''}`, href: "/negotiation", icon: Handshake, current: false },
-          { name: `Clients${clientCount ? ` (${clientCount})` : ''}`, href: "/clients", icon: Building2, current: false },
-        ]
-      });
+    // Add super_admin only menu items (Pipeline, Sequences, Signing Documents)
+    if (role === 'super_admin') {
+      navigation.push(
+        {
+          name: "Pipeline",
+          href: "/prospecting",
+          icon: Target,
+          current: false,
+          subItems: [
+            { name: `Lead${dealCounts?.prospecting ? ` (${dealCounts.prospecting})` : ''}`, href: "/prospecting", icon: UserSearch, current: false },
+            { name: `Estimation${dealCounts?.qualification ? ` (${dealCounts.qualification})` : ''}`, href: "/qualification", icon: ClipboardCheck, current: false },
+            { name: `Discovery${dealCounts?.proposal ? ` (${dealCounts.proposal})` : ''}`, href: "/proposal", icon: FileText, current: false },
+            { name: `Proposal Shared${dealCounts?.negotiation ? ` (${dealCounts.negotiation})` : ''}`, href: "/negotiation", icon: Handshake, current: false },
+            { name: `Clients${clientCount ? ` (${clientCount})` : ''}`, href: "/clients", icon: Building2, current: false },
+          ]
+        },
+        { name: "Sequences", href: "/sequences", icon: Zap, current: false },
+        { name: "Signing Documents", href: "/signing-documents", icon: PenTool, current: false }
+      );
     }
 
     navigation.push(
       { name: `Outreach${campaignCount ? ` (${campaignCount})` : ''}`, href: "/campaigns", icon: Megaphone, current: false },
-      { name: "Sequences", href: "/sequences", icon: Zap, current: false },
-      { name: "Signing Documents", href: "/signing-documents", icon: PenTool, current: false },
       {
         name: "Performance",
         href: "/bd/performance/personal",
