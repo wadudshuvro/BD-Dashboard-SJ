@@ -143,14 +143,15 @@ export function RichTextEditor({
         setMentionTriggerPos(triggerPos);
         setMentionSearchQuery(searchQuery);
 
-        // Calculate dropdown position
-        if (editorRef.current) {
-          const rect = editorRef.current.getBoundingClientRect();
-          setMentionPosition({
-            top: rect.bottom + window.scrollY + 4,
-            left: rect.left + window.scrollX,
-          });
-        }
+        // Calculate dropdown position at cursor
+        const range = selection.getRangeAt(0);
+        const rangeRect = range.getBoundingClientRect();
+
+        // Position dropdown at cursor location (using fixed positioning)
+        setMentionPosition({
+          top: rangeRect.bottom + 4,
+          left: rangeRect.left,
+        });
 
         setShowMentionDropdown(true);
       } else {
