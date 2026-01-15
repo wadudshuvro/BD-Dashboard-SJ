@@ -5,10 +5,33 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useCampaignBySlug } from '@/hooks/useCampaignBySlug';
 import { format } from 'date-fns';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import axiosPrivate from '@/lib/axiosPrivate';
+import { CampaignStatusSelect } from '@/components/bd/CampaignStatusSelect';
+import type { CampaignStatus } from '@/Api/adminCampaigns';
 
 export default function CampaignDetailsPage() {
   const { slug } = useParams<{ slug: string }>();
   const { data, isLoading, error } = useCampaignBySlug(slug || '');
+  const queryClient = useQueryClient();
+
+  const updateMutation = useMutation({
+    mutationFn: async (newStatus: CampaignStatus) => {
+      if (!slug) throw new Error('Campaign slug is required');
+      const { data } = await axiosPrivate.put(`/admin-campaigns/${slug}`, {
+        campaign: { status: newStatus },
+      });
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['campaign-by-slug', slug] });
+      queryClient.invalidateQueries({ queryKey: ['admin-campaigns'] });
+    },
+  });
+
+  const handleStatusChange = async (newStatus: CampaignStatus) => {
+    await updateMutation.mutateAsync(newStatus);
+  };
 
   if (isLoading) {
     return (
@@ -51,9 +74,12 @@ export default function CampaignDetailsPage() {
         <CardHeader>
           <CardTitle className="text-2xl">{campaign.name}</CardTitle>
           <div className="flex gap-2 flex-wrap mt-2">
-            <Badge variant="outline" className="capitalize">
-              {campaign.status}
-            </Badge>
+            <CampaignStatusSelect
+              currentStatus={campaign.status as CampaignStatus}
+              onStatusChange={handleStatusChange}
+              disabled={updateMutation.isPending}
+              showBadge={true}
+            />
             {campaignTypes.map((type) => (
               <Badge key={type} variant="secondary">
                 {type.replace('_', ' ')}
