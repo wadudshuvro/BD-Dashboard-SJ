@@ -2687,13 +2687,16 @@ export type Database = {
           deleted_at: string | null
           description: string | null
           email: string | null
+          feedback_number: number
           id: string
+          module: string | null
           priority: string | null
           reviewed_by: string | null
           status: string
           subject: string
           type: string
           updated_at: string
+          upvote_count: number
         }
         Insert: {
           attachment_url?: string | null
@@ -2702,13 +2705,16 @@ export type Database = {
           deleted_at?: string | null
           description?: string | null
           email?: string | null
+          feedback_number?: number
           id?: string
+          module?: string | null
           priority?: string | null
           reviewed_by?: string | null
           status?: string
           subject: string
           type: string
           updated_at?: string
+          upvote_count?: number
         }
         Update: {
           attachment_url?: string | null
@@ -2717,15 +2723,44 @@ export type Database = {
           deleted_at?: string | null
           description?: string | null
           email?: string | null
+          feedback_number?: number
           id?: string
+          module?: string | null
           priority?: string | null
           reviewed_by?: string | null
           status?: string
           subject?: string
           type?: string
           updated_at?: string
+          upvote_count?: number
         }
         Relationships: []
+      }
+      feedback_upvotes: {
+        Row: {
+          created_at: string
+          feedback_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          feedback_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          feedback_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feedback_upvotes_feedback_id_fkey"
+            columns: ["feedback_id"]
+            isOneToOne: false
+            referencedRelation: "feedback_reports"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       followup_suggestions: {
         Row: {
