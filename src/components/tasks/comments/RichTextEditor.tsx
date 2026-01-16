@@ -77,7 +77,7 @@ export function RichTextEditor({
 
   const editorRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const isComposingRef = useRef(false); // Track if user is typing
+  const isInitializedRef = useRef(false); // Track if editor is initialized
   const { toast } = useToast();
 
   // History management for undo/redo
@@ -85,23 +85,30 @@ export function RichTextEditor({
   const [historyIndex, setHistoryIndex] = useState(0);
   const [isUpdatingHistory, setIsUpdatingHistory] = useState(false);
 
-  // Update parent when content changes
+  // Initialize editor content ONLY once on mount
   useEffect(() => {
-    if (!isUpdatingHistory) {
+    if (editorRef.current && !isInitializedRef.current) {
+      editorRef.current.innerHTML = value || '';
+      isInitializedRef.current = true;
+    }
+  }, []);
+
+  // Handle external clear (when parent sets value to empty)
+  useEffect(() => {
+    if (isInitializedRef.current && value === '' && html !== '') {
+      if (editorRef.current) {
+        editorRef.current.innerHTML = '';
+        setHtml('');
+      }
+    }
+  }, [value, html]);
+
+  // Update parent when content changes (but don't let it loop back)
+  useEffect(() => {
+    if (!isUpdatingHistory && isInitializedRef.current) {
       onChange(html);
     }
   }, [html, onChange, isUpdatingHistory]);
-
-  // Initialize editor content only once on mount or when value changes externally
-  useEffect(() => {
-    if (editorRef.current && !isComposingRef.current) {
-      // Only update if editor is not focused (external change)
-      if (value !== html && !editorRef.current.contains(document.activeElement)) {
-        editorRef.current.innerHTML = value;
-        setHtml(value);
-      }
-    }
-  }, [value]);
 
   // Save to history
   const saveToHistory = useCallback((content: string) => {
@@ -121,8 +128,6 @@ export function RichTextEditor({
   const handleInput = () => {
     if (!editorRef.current) return;
 
-    isComposingRef.current = true; // Mark that user is typing
-
     const content = editorRef.current.innerHTML;
     const textContent = editorRef.current.textContent || '';
 
@@ -138,11 +143,6 @@ export function RichTextEditor({
 
     setHtml(content);
     saveToHistory(content);
-
-    // Reset composing flag after a delay
-    setTimeout(() => {
-      isComposingRef.current = false;
-    }, 100);
 
     // Check for @ mention trigger
     const selection = window.getSelection();
@@ -980,12 +980,19 @@ export function RichTextEditor({
         }
         .rte-editor[contenteditable] {
           caret-color: currentColor;
+          direction: ltr;
+          text-align: left;
+          unicode-bidi: embed;
         }
         .rte-editor[contenteditable]:focus {
           outline: none;
         }
         .rte-editor[contenteditable]:empty {
           min-height: 120px;
+        }
+        .rte-editor[contenteditable] * {
+          direction: ltr;
+          text-align: left;
         }
       `}</style>
     </div>
