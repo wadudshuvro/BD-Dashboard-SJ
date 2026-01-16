@@ -1,11 +1,21 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { FeedbackReport, FeedbackStatus } from "@/features/feedback/api";
 import { FEEDBACK_STATUS_LABELS } from "@/features/feedback/constants";
 import { FeedbackFilters } from "@/components/feedback/FeedbackFilters";
 import { FeedbackListItem } from "@/components/feedback/FeedbackListItem";
+import { usePagination } from "@/hooks/usePagination";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 
 const STATUS_ORDER: FeedbackStatus[] = ["open", "in_review", "resolved", "closed"];
+const ACTIVE_STATUSES: FeedbackStatus[] = ["open", "in_review"];
 
 type TabKey = "bugs" | "features" | "all";
 
@@ -17,6 +27,12 @@ export function FeedbackListSection({ items }: FeedbackListSectionProps) {
   const [tab, setTab] = useState<TabKey>("bugs");
   const [statusFilter, setStatusFilter] = useState<FeedbackStatus | "all">("all");
   const [moduleFilter, setModuleFilter] = useState<string | "all">("all");
+  const pagination = usePagination(10);
+
+  // Reset pagination when filters change
+  useEffect(() => {
+    pagination.reset();
+  }, [tab, statusFilter, moduleFilter]);
 
   const moduleOptions = useMemo(() => {
     const modules = new Set<string>();
@@ -28,40 +44,90 @@ export function FeedbackListSection({ items }: FeedbackListSectionProps) {
     return Array.from(modules).sort();
   }, [items]);
 
+  // Filter items based on tab and filters
+  // Bugs and Features tabs only show active items (open, in_review)
+  // All tab shows everything
   const filteredItems = useMemo(() => {
     return items.filter((item) => {
-      if (tab !== "all" && item.type !== (tab === "bugs" ? "bug" : "feature")) {
+      // Tab-based type filtering
+      if (tab === "bugs" && item.type !== "bug") return false;
+      if (tab === "features" && item.type !== "feature") return false;
+
+      // For Bugs and Features tabs, only show active statuses
+      if (tab !== "all" && !ACTIVE_STATUSES.includes(item.status)) {
         return false;
       }
+
+      // Additional status filter (dropdown)
       if (statusFilter !== "all" && item.status !== statusFilter) {
         return false;
       }
+
+      // Module filter
       if (moduleFilter !== "all" && item.module !== moduleFilter) {
         return false;
       }
+
       return true;
     });
   }, [items, moduleFilter, statusFilter, tab]);
 
+  // Get statuses to display based on current tab
+  const displayStatuses = useMemo(() => {
+    return tab === "all" ? STATUS_ORDER : ACTIVE_STATUSES;
+  }, [tab]);
+
+  // Paginated items
+  const paginatedItems = useMemo(() => {
+    return filteredItems.slice(pagination.from, pagination.to + 1);
+  }, [filteredItems, pagination.from, pagination.to]);
+
   const grouped = useMemo(() => {
     const map = new Map<FeedbackStatus, FeedbackReport[]>();
-    STATUS_ORDER.forEach((status) => map.set(status, []));
-    filteredItems.forEach((item) => {
+    displayStatuses.forEach((status) => map.set(status, []));
+    paginatedItems.forEach((item) => {
       const bucket = map.get(item.status);
       if (bucket) bucket.push(item);
     });
     return map;
-  }, [filteredItems]);
+  }, [paginatedItems, displayStatuses]);
 
+  // Counts for tabs - Bugs/Features show only active items count
   const counts = useMemo(() => {
-    const bugCount = items.filter((item) => item.type === "bug").length;
-    const featureCount = items.filter((item) => item.type === "feature").length;
+    const activeBugs = items.filter(
+      (item) => item.type === "bug" && ACTIVE_STATUSES.includes(item.status)
+    ).length;
+    const activeFeatures = items.filter(
+      (item) => item.type === "feature" && ACTIVE_STATUSES.includes(item.status)
+    ).length;
     return {
-      bugs: bugCount,
-      features: featureCount,
+      bugs: activeBugs,
+      features: activeFeatures,
       all: items.length,
     };
   }, [items]);
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredItems.length / pagination.pageSize);
+  const showingFrom = filteredItems.length > 0 ? pagination.from + 1 : 0;
+  const showingTo = Math.min(pagination.to + 1, filteredItems.length);
+
+  // Generate page numbers to display
+  const pageNumbers = useMemo(() => {
+    const pages: number[] = [];
+    const maxVisible = 5;
+    let start = Math.max(1, pagination.currentPage - Math.floor(maxVisible / 2));
+    let end = Math.min(totalPages, start + maxVisible - 1);
+
+    if (end - start + 1 < maxVisible) {
+      start = Math.max(1, end - maxVisible + 1);
+    }
+
+    for (let i = start; i <= end; i++) {
+      pages.push(i);
+    }
+    return pages;
+  }, [pagination.currentPage, totalPages]);
 
   return (
     <div className="space-y-4">
@@ -82,7 +148,7 @@ export function FeedbackListSection({ items }: FeedbackListSectionProps) {
         </div>
 
         <TabsContent value={tab} className="mt-4 space-y-6">
-          {STATUS_ORDER.map((status) => {
+          {displayStatuses.map((status) => {
             const entries = grouped.get(status) ?? [];
             if (entries.length === 0) return null;
 
@@ -106,6 +172,44 @@ export function FeedbackListSection({ items }: FeedbackListSectionProps) {
           {filteredItems.length === 0 && (
             <div className="rounded-lg border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
               No feedback matches the selected filters.
+            </div>
+          )}
+
+          {/* Pagination */}
+          {filteredItems.length > 0 && (
+            <div className="flex flex-col items-center gap-4 pt-4">
+              <p className="text-sm text-muted-foreground">
+                Showing {showingFrom} to {showingTo} of {filteredItems.length} results
+              </p>
+              {totalPages > 1 && (
+                <Pagination>
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious
+                        onClick={() => pagination.setCurrentPage(Math.max(1, pagination.currentPage - 1))}
+                        className={pagination.currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                      />
+                    </PaginationItem>
+                    {pageNumbers.map((page) => (
+                      <PaginationItem key={page}>
+                        <PaginationLink
+                          onClick={() => pagination.setCurrentPage(page)}
+                          isActive={page === pagination.currentPage}
+                          className="cursor-pointer"
+                        >
+                          {page}
+                        </PaginationLink>
+                      </PaginationItem>
+                    ))}
+                    <PaginationItem>
+                      <PaginationNext
+                        onClick={() => pagination.setCurrentPage(Math.min(totalPages, pagination.currentPage + 1))}
+                        className={pagination.currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              )}
             </div>
           )}
         </TabsContent>
