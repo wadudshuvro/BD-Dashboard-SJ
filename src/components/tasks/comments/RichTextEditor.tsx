@@ -91,26 +91,25 @@ export function RichTextEditor({
 
     // On initial mount, set the content
     if (isInitialMountRef.current) {
-      editorRef.current.innerHTML = value || '';
-      setHtml(value || '');
+      if (value) {
+        editorRef.current.innerHTML = value;
+      }
       isInitialMountRef.current = false;
       return;
     }
 
-    // Handle external clear (when parent explicitly clears)
-    if (value === '' && html !== '') {
+    // Handle external clear (parent explicitly cleared)
+    // Compare with actual DOM content, not state
+    if (value === '' && editorRef.current.innerHTML !== '') {
       editorRef.current.innerHTML = '';
       setHtml('');
       return;
     }
 
-    // Don't sync back if editor is focused (user is editing)
-    if (document.activeElement === editorRef.current) {
-      return;
-    }
-
-    // Sync external updates when editor is not focused
-    if (value !== html) {
+    // For non-empty external updates, only sync if:
+    // 1. Value is different from actual DOM content
+    // 2. Editor is not focused (user is not typing)
+    if (value && value !== editorRef.current.innerHTML && document.activeElement !== editorRef.current) {
       editorRef.current.innerHTML = value;
       setHtml(value);
     }
