@@ -219,8 +219,8 @@ const Layout = ({ userRole }: LayoutProps) => {
 
   if (feedbackEnabled) {
     navigation.push({
-      name: "Submit Feedback",
-      href: "/feedback/submit",
+      name: "Feedback",
+      href: "/feedback",
       icon: MessageSquare,
       current: false,
     });

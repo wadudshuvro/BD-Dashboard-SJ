@@ -70,8 +70,8 @@ const queryClient = new QueryClient();
 // Lazy load Documentation and Feedback pages
 const Documentation = lazy(() => import("./pages/admin/Documentation"));
 const FeedbackSubmitPage = lazy(() => import("./pages/feedback/SubmitFeedback"));
-const AdminFeedbackManager = lazy(() => import("./pages/admin/FeedbackManager"));
-const AdminFeedbackDetail = lazy(() => import("./pages/admin/FeedbackDetail"));
+const FeedbackDashboard = lazy(() => import("./pages/feedback/FeedbackDashboard"));
+const FeedbackDetailPage = lazy(() => import("./pages/feedback/FeedbackDetail"));
 const CampaignImportHistory = lazy(() => import("./pages/bd/CampaignImportHistory"));
 
 // Smart redirect component - send everyone to BD Dashboard
@@ -87,6 +87,11 @@ function DashboardRedirect() {
 function TaskViewRedirect() {
   const { taskId } = useParams<{ taskId: string }>();
   return <Navigate to={`/bd/actions/tasks/${taskId}`} replace />;
+}
+
+function FeedbackAdminRedirect() {
+  const { id } = useParams<{ id: string }>();
+  return <Navigate to={`/feedback/${id}`} replace />;
 }
 
 const App = () => (
@@ -129,14 +134,8 @@ const App = () => (
               </ProtectedRoute>
             }>
               <Route index element={<AdminPanel />} />
-              <Route
-                path="feedback"
-                element={<React.Suspense fallback={<div>Loading...</div>}><AdminFeedbackManager /></React.Suspense>}
-              />
-              <Route
-                path="feedback/:id"
-                element={<React.Suspense fallback={<div>Loading...</div>}><AdminFeedbackDetail /></React.Suspense>}
-              />
+              <Route path="feedback" element={<Navigate to="/feedback" replace />} />
+              <Route path="feedback/:id" element={<FeedbackAdminRedirect />} />
               <Route path="users" element={<UserManagement />} />
               <Route path="users/:userId" element={<UserDetail />} />
               <Route path="integrations" element={<IntegrationManager />} />
@@ -160,8 +159,16 @@ const App = () => (
               </ProtectedRoute>
             }>
               <Route
+                index
+                element={<React.Suspense fallback={<div>Loading...</div>}><FeedbackDashboard /></React.Suspense>}
+              />
+              <Route
                 path="submit"
                 element={<React.Suspense fallback={<div>Loading...</div>}><FeedbackSubmitPage /></React.Suspense>}
+              />
+              <Route
+                path=":id"
+                element={<React.Suspense fallback={<div>Loading...</div>}><FeedbackDetailPage /></React.Suspense>}
               />
             </Route>
 

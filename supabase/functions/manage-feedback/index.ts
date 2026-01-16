@@ -17,6 +17,9 @@ interface FeedbackReportRow {
   description: string | null;
   status: string;
   priority: string | null;
+  module: string | null;
+  feedback_number: number | null;
+  upvote_count: number | null;
   email: string | null;
   attachment_url: string | null;
   created_by: string;
@@ -101,6 +104,47 @@ async function fetchProfileMap(client: any, userIds: string[]) {
   return map;
 }
 
+async function fetchCommentCounts(client: any, feedbackIds: string[]) {
+  if (feedbackIds.length === 0) {
+    return new Map<string, number>();
+  }
+
+  const { data, error } = await client
+    .from("feedback_comments")
+    .select("feedback_id")
+    .in("feedback_id", feedbackIds);
+
+  if (error) {
+    console.error("Failed to fetch comment counts", error);
+    return new Map();
+  }
+
+  const counts = new Map<string, number>();
+  for (const row of data ?? []) {
+    const feedbackId = (row as { feedback_id?: string }).feedback_id;
+    if (!feedbackId) continue;
+    counts.set(feedbackId, (counts.get(feedbackId) ?? 0) + 1);
+  }
+
+  return counts;
+}
+
+async function fetchUpvoteStatus(client: any, feedbackId: string, userId: string) {
+  const { data, error } = await client
+    .from("feedback_upvotes")
+    .select("feedback_id")
+    .eq("feedback_id", feedbackId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Failed to fetch upvote status", error);
+    return false;
+  }
+
+  return !!data;
+}
+
 function parseRoute(req: Request) {
   const url = new URL(req.url);
   const segments = url.pathname.split("/").filter(Boolean);
@@ -117,6 +161,7 @@ async function handleList(client: any, url: URL) {
   const status = url.searchParams.get("status");
   const statuses = url.searchParams.get("statuses"); // Support multiple statuses as comma-separated
   const includeClosed = url.searchParams.get("includeClosed") === "true";
+  const module = url.searchParams.get("module");
   const search = url.searchParams.get("search");
 
   let query = client
@@ -126,6 +171,10 @@ async function handleList(client: any, url: URL) {
 
   if (type) {
     query = query.eq("type", type);
+  }
+
+  if (module) {
+    query = query.eq("module", module);
   }
 
   // Support multiple statuses via comma-separated string
@@ -158,6 +207,7 @@ async function handleList(client: any, url: URL) {
   }
 
   const records = (data ?? []) as unknown as FeedbackReportRow[];
+  const feedbackIds = records.map((record) => record.id);
   const userIds = Array.from(
     new Set([
       ...records.map((record) => record.created_by).filter((value): value is string => Boolean(value)),
@@ -166,11 +216,13 @@ async function handleList(client: any, url: URL) {
   );
 
   const profileMap = await fetchProfileMap(client, userIds);
+  const commentCounts = await fetchCommentCounts(client, feedbackIds);
 
   const items = records.map((record) => ({
     ...record,
     submitted_by_name: profileMap.get(record.created_by ?? "")?.name ?? null,
     reviewed_by_name: profileMap.get(record.reviewed_by ?? "")?.name ?? null,
+    comment_count: commentCounts.get(record.id) ?? 0,
   }));
 
   return new Response(JSON.stringify({ items, total: count ?? records.length }), {
@@ -179,7 +231,7 @@ async function handleList(client: any, url: URL) {
   });
 }
 
-async function handleDetail(client: any, id: string) {
+async function handleDetail(client: any, id: string, userId: string) {
   const { data: feedback, error } = await client
     .from("feedback_reports")
     .select("*")
@@ -274,6 +326,7 @@ async function handleDetail(client: any, id: string) {
     ...report,
     submitted_by_name: profileMap.get(report.created_by ?? "")?.name ?? null,
     reviewed_by_name: profileMap.get(report.reviewed_by ?? "")?.name ?? null,
+    comment_count: commentRows.length,
   };
 
   const mappedComments = commentRows.map((comment) => ({
@@ -282,10 +335,13 @@ async function handleDetail(client: any, id: string) {
     author_email: profileMap.get(comment.user_id ?? "")?.email ?? null,
   }));
 
+  const hasUpvoted = await fetchUpvoteStatus(client, id, userId);
+
   return new Response(
     JSON.stringify({
       feedback: mappedFeedback,
       comments: mappedComments,
+      has_upvoted: hasUpvoted,
       attachment_signed_url: attachmentSignedUrl, // Legacy support
       attachments: attachments.length > 0 ? attachments : undefined, // New multiple attachments
     }),
@@ -410,6 +466,113 @@ async function handlePriority(client: any, id: string, userId: string, body: unk
   });
 }
 
+async function handleModule(client: any, id: string, userId: string, body: unknown) {
+  const module =
+    typeof body === "object" && body !== null && "module" in body
+      ? (body as { module?: unknown }).module
+      : undefined;
+
+  const normalizedModule = typeof module === "string" && module.trim().length > 0 ? module.trim() : null;
+
+  const { data, error } = await client
+    .from("feedback_reports")
+    .update({ module: normalizedModule, reviewed_by: userId })
+    .eq("id", id)
+    .select("*")
+    .single();
+
+  if (error) {
+    console.error("Failed to update module", error);
+    return new Response(JSON.stringify({ message: "Unable to update module" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  return new Response(JSON.stringify(data as unknown as FeedbackReportRow), {
+    status: 200,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+async function updateUpvoteCount(client: any, feedbackId: string) {
+  const { count, error } = await client
+    .from("feedback_upvotes")
+    .select("feedback_id", { count: "exact", head: true })
+    .eq("feedback_id", feedbackId);
+
+  if (error) {
+    console.error("Failed to count feedback upvotes", error);
+    return null;
+  }
+
+  const upvoteCount = count ?? 0;
+  const { error: updateError } = await client
+    .from("feedback_reports")
+    .update({ upvote_count: upvoteCount })
+    .eq("id", feedbackId);
+
+  if (updateError) {
+    console.error("Failed to update upvote count", updateError);
+  }
+
+  return upvoteCount;
+}
+
+async function handleUpvote(client: any, id: string, userId: string, action: "add" | "remove") {
+  const { data: existing, error: existingError } = await client
+    .from("feedback_upvotes")
+    .select("feedback_id")
+    .eq("feedback_id", id)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (existingError) {
+    console.error("Failed to check upvote status", existingError);
+    return new Response(JSON.stringify({ message: "Unable to update upvote" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  if (action === "add" && !existing) {
+    const { error } = await client
+      .from("feedback_upvotes")
+      .insert({ feedback_id: id, user_id: userId });
+
+    if (error) {
+      console.error("Failed to add upvote", error);
+      return new Response(JSON.stringify({ message: "Unable to upvote feedback" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+  }
+
+  if (action === "remove" && existing) {
+    const { error } = await client
+      .from("feedback_upvotes")
+      .delete()
+      .eq("feedback_id", id)
+      .eq("user_id", userId);
+
+    if (error) {
+      console.error("Failed to remove upvote", error);
+      return new Response(JSON.stringify({ message: "Unable to remove upvote" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+  }
+
+  const upvoteCount = await updateUpvoteCount(client, id);
+
+  return new Response(JSON.stringify({ upvote_count: upvoteCount ?? 0 }), {
+    status: 200,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
 async function handleDelete(client: any, id: string, userId: string) {
   const { error } = await client
     .from("feedback_reports")
@@ -514,7 +677,7 @@ serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      return handleDetail(serviceClient, id);
+      return handleDetail(serviceClient, id, user.id);
     }
 
     if (req.method === "POST" && routeSegments[1] === "comment") {
@@ -552,7 +715,7 @@ serve(async (req) => {
     if (req.method === "PUT" && routeSegments.length >= 2 && routeSegments[1] === "priority") {
       console.log("[manage-feedback] Matched priority route for id:", id);
       try {
-        await assertAdmin(serviceClient, user.id);
+        await assertAuthenticated(serviceClient, user.id);
       } catch (error) {
         console.log("[manage-feedback] Auth failed:", error);
         const message = error instanceof Error ? error.message : "Forbidden";
@@ -564,6 +727,42 @@ serve(async (req) => {
       }
       const body = await req.json().catch(() => ({}));
       return handlePriority(serviceClient, id, user.id, body);
+    }
+
+    if (req.method === "PUT" && routeSegments.length >= 2 && routeSegments[1] === "module") {
+      try {
+        await assertAuthenticated(serviceClient, user.id);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Forbidden";
+        const status = message === "Insufficient privileges" ? 403 : 500;
+        return new Response(JSON.stringify({ message }), {
+          status,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const body = await req.json().catch(() => ({}));
+      return handleModule(serviceClient, id, user.id, body);
+    }
+
+    if (routeSegments.length >= 2 && routeSegments[1] === "upvote") {
+      try {
+        await assertAuthenticated(serviceClient, user.id);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Forbidden";
+        const status = message === "Insufficient privileges" ? 403 : 500;
+        return new Response(JSON.stringify({ message }), {
+          status,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      if (req.method === "POST") {
+        return handleUpvote(serviceClient, id, user.id, "add");
+      }
+
+      if (req.method === "DELETE") {
+        return handleUpvote(serviceClient, id, user.id, "remove");
+      }
     }
 
     if (req.method === "DELETE" && routeSegments.length === 1) {
