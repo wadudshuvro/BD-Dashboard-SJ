@@ -154,8 +154,15 @@ export default function TaskViewPage() {
                 </TabsList>
 
                 <TabsContent value="comments" className="mt-0 space-y-4">
+                  {/* Editor at the top */}
+                  <CommentComposer
+                    onSubmit={handleCommentSubmit}
+                    isSubmitting={isCreating}
+                  />
+
+                  {/* Comments list below - with latest first */}
                   <CommentsList
-                    comments={comments}
+                    comments={[...comments].reverse()}
                     isLoading={commentsLoading}
                     error={commentsError}
                     onUpdateComment={handleCommentUpdate}
@@ -163,13 +170,6 @@ export default function TaskViewPage() {
                     isUpdating={isUpdating}
                     isDeleting={isDeleting}
                   />
-
-                  <div className="border-t pt-4">
-                    <CommentComposer
-                      onSubmit={handleCommentSubmit}
-                      isSubmitting={isCreating}
-                    />
-                  </div>
                 </TabsContent>
 
                 <TabsContent value="history" className="mt-0">
