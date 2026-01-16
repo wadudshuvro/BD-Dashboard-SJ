@@ -77,7 +77,7 @@ export function RichTextEditor({
 
   const editorRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const isInitializedRef = useRef(false); // Track if editor is initialized
+  const isInitialMountRef = useRef(true);
   const { toast } = useToast();
 
   // History management for undo/redo
@@ -85,27 +85,40 @@ export function RichTextEditor({
   const [historyIndex, setHistoryIndex] = useState(0);
   const [isUpdatingHistory, setIsUpdatingHistory] = useState(false);
 
-  // Initialize editor content ONLY once on mount
+  // Initialize editor content on mount and sync external changes
   useEffect(() => {
-    if (editorRef.current && !isInitializedRef.current) {
+    if (!editorRef.current) return;
+
+    // On initial mount, set the content
+    if (isInitialMountRef.current) {
       editorRef.current.innerHTML = value || '';
-      isInitializedRef.current = true;
+      setHtml(value || '');
+      isInitialMountRef.current = false;
+      return;
     }
-  }, []);
 
-  // Handle external clear (when parent sets value to empty)
-  useEffect(() => {
-    if (isInitializedRef.current && value === '' && html !== '') {
-      if (editorRef.current) {
-        editorRef.current.innerHTML = '';
-        setHtml('');
-      }
+    // Handle external clear (when parent explicitly clears)
+    if (value === '' && html !== '') {
+      editorRef.current.innerHTML = '';
+      setHtml('');
+      return;
     }
-  }, [value, html]);
 
-  // Update parent when content changes (but don't let it loop back)
+    // Don't sync back if editor is focused (user is editing)
+    if (document.activeElement === editorRef.current) {
+      return;
+    }
+
+    // Sync external updates when editor is not focused
+    if (value !== html) {
+      editorRef.current.innerHTML = value;
+      setHtml(value);
+    }
+  }, [value]);
+
+  // Update parent when content changes
   useEffect(() => {
-    if (!isUpdatingHistory && isInitializedRef.current) {
+    if (!isUpdatingHistory && !isInitialMountRef.current) {
       onChange(html);
     }
   }, [html, onChange, isUpdatingHistory]);
