@@ -147,7 +147,6 @@ const Layout = ({ userRole }: LayoutProps) => {
   const getNavigation = (role: string): NavigationItem[] => {
     const navigation: NavigationItem[] = [
       { name: "BD Dashboard", href: "/bd/dashboard", icon: LayoutDashboard, current: false },
-      { name: "My Agents", href: "/bd/my-agents", icon: Zap, current: false },
     ];
 
     // Add super_admin only menu items (Pipeline, Sequences, Signing Documents)

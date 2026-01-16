@@ -1,7 +1,7 @@
 # Products & Services Catalog
 
 ## Overview
-The Products & Services module provides centralized management of SJ Innovation's service offerings within the Admin Panel. Designed for reusability across white-label platforms (CollabAI SaaS, LeadLift).
+The Products & Services module provides centralized management of SJ Innovation's service offerings within the Admin Panel. Designed for reusability across white-label platforms.
 
 ## Database Schema
 

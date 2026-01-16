@@ -86,8 +86,7 @@ last_activity_by UUID
 ```json
 {
   "n8n_workflow_url": "https://n8n.example.com/workflow/123",
-  "activecollab_project_url": "https://app.activecollab.com/123456",
-  "collabai_agent_url": "https://app.collabai.ai/agents/abc-123"
+  "activecollab_project_url": "https://app.activecollab.com/123456"
 }
 ```
 
