@@ -152,6 +152,38 @@ export const useAllProjectTasks = () => {
   });
 };
 
+export const useDelegatedProjectTasks = () => {
+  return useQuery({
+    queryKey: ['delegated-project-tasks'],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (!user) {
+        console.error('No authenticated user for delegated tasks');
+        return [];
+      }
+
+      const { data, error } = await supabase
+        .from('project_tasks')
+        .select('*')
+        .eq('created_by', user.id)
+        .neq('assigned_to', user.id)
+        .not('assigned_to', 'is', null)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching delegated tasks:', error);
+        throw error;
+      }
+
+      return data as unknown as ProjectTask[];
+    },
+    retry: 2,
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
+  });
+};
+
 export const useCreateProjectTask = () => {
   const queryClient = useQueryClient();
 
@@ -173,6 +205,7 @@ export const useCreateProjectTask = () => {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['project-tasks'] });
       queryClient.invalidateQueries({ queryKey: ['all-project-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['delegated-project-tasks'] });
       toast({
         title: "Task created",
         description: "Project task has been created successfully.",
@@ -220,6 +253,7 @@ export const useUpdateProjectTask = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['project-tasks'] });
       queryClient.invalidateQueries({ queryKey: ['all-project-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['delegated-project-tasks'] });
       toast({
         title: "Task updated",
         description: "Project task has been updated successfully.",
@@ -254,6 +288,7 @@ export const useDeleteProjectTask = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['project-tasks'] });
       queryClient.invalidateQueries({ queryKey: ['all-project-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['delegated-project-tasks'] });
       toast({
         title: "Task deleted",
         description: "Project task has been deleted successfully.",
