@@ -64,6 +64,7 @@ const taskFormSchema = z.object({
   description: z.string().optional(),
   status: z.enum(["todo", "in_progress", "review", "completed", "blocked"]),
   priority: z.enum(["low", "medium", "high", "urgent"]),
+  category: z.enum(["ideas", "discussion", "work", "other"]).default("work"),
   project_id: z.string().optional(),
   assigned_to: z.string().nullable().optional(),
   due_date: z.string().optional(),
@@ -121,6 +122,7 @@ export function TaskForm({ open, onOpenChange, task }: TaskFormProps) {
       description: "",
       status: "todo",
       priority: "medium",
+      category: "work",
       project_id: "",
       assigned_to: null,
       due_date: "",
@@ -161,6 +163,7 @@ export function TaskForm({ open, onOpenChange, task }: TaskFormProps) {
         description: task.description || "",
         status: task.status || "todo",
         priority: task.priority || "medium",
+        category: task.category || "work",
         project_id: task.project_id || "",
         assigned_to: task.assigned_to || null,
         due_date: task.due_date || "",
@@ -180,6 +183,7 @@ export function TaskForm({ open, onOpenChange, task }: TaskFormProps) {
         description: "",
         status: "todo",
         priority: "medium",
+        category: "work",
         project_id: "",
         assigned_to: currentUserId,
         due_date: "",
@@ -210,6 +214,7 @@ export function TaskForm({ open, onOpenChange, task }: TaskFormProps) {
         description: values.description,
         status: values.status,
         priority: values.priority,
+        category: values.category,
         project_id: values.project_id || null,
         assigned_to: values.assigned_to || null,
         due_date: values.due_date || null,
@@ -420,6 +425,30 @@ export function TaskForm({ open, onOpenChange, task }: TaskFormProps) {
                   )}
                 />
               </div>
+
+              <FormField
+                control={form.control}
+                name="category"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Stream</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select stream" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="work">Work</SelectItem>
+                        <SelectItem value="ideas">Ideas</SelectItem>
+                        <SelectItem value="discussion">Discussion</SelectItem>
+                        <SelectItem value="other">Others</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               {/* Assignee Field with All Users */}
               <FormField
