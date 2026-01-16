@@ -77,26 +77,38 @@ export function RichTextEditor({
 
   const editorRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const isInitializedRef = useRef(false); // Track if editor is initialized
   const { toast } = useToast();
 
   // History management for undo/redo
-  const [history, setHistory] = useState<string[]>([html]);
+  const [history, setHistory] = useState<string[]>([value || '']);
   const [historyIndex, setHistoryIndex] = useState(0);
   const [isUpdatingHistory, setIsUpdatingHistory] = useState(false);
 
-  // Update parent when content changes
+  // Initialize editor content ONLY once on mount
   useEffect(() => {
-    if (!isUpdatingHistory) {
+    if (editorRef.current && !isInitializedRef.current) {
+      editorRef.current.innerHTML = value || '';
+      isInitializedRef.current = true;
+    }
+  }, []);
+
+  // Handle external clear (when parent sets value to empty)
+  useEffect(() => {
+    if (isInitializedRef.current && value === '' && html !== '') {
+      if (editorRef.current) {
+        editorRef.current.innerHTML = '';
+        setHtml('');
+      }
+    }
+  }, [value, html]);
+
+  // Update parent when content changes (but don't let it loop back)
+  useEffect(() => {
+    if (!isUpdatingHistory && isInitializedRef.current) {
       onChange(html);
     }
   }, [html, onChange, isUpdatingHistory]);
-
-  // Sync external value changes
-  useEffect(() => {
-    if (value !== html && !editorRef.current?.contains(document.activeElement)) {
-      setHtml(value);
-    }
-  }, [value]);
 
   // Save to history
   const saveToHistory = useCallback((content: string) => {
@@ -143,14 +155,15 @@ export function RichTextEditor({
         setMentionTriggerPos(triggerPos);
         setMentionSearchQuery(searchQuery);
 
-        // Calculate dropdown position
-        if (editorRef.current) {
-          const rect = editorRef.current.getBoundingClientRect();
-          setMentionPosition({
-            top: rect.bottom + window.scrollY + 4,
-            left: rect.left + window.scrollX,
-          });
-        }
+        // Calculate dropdown position at cursor
+        const range = selection.getRangeAt(0);
+        const rangeRect = range.getBoundingClientRect();
+
+        // Position dropdown at cursor location (using fixed positioning)
+        setMentionPosition({
+          top: rangeRect.bottom + 4,
+          left: rangeRect.left,
+        });
 
         setShowMentionDropdown(true);
       } else {
@@ -793,23 +806,17 @@ export function RichTextEditor({
             contentEditable={!disabled}
             onInput={handleInput}
             onKeyDown={handleKeyDown}
-            className="min-h-[120px] max-h-[400px] overflow-y-auto p-3 focus:outline-none text-sm prose prose-sm max-w-none"
-            style={{ fontSize: `${DEFAULT_FONT_SIZE}px` }}
-            dangerouslySetInnerHTML={{ __html: html }}
+            dir="ltr"
+            className="min-h-[120px] max-h-[400px] overflow-y-auto p-3 focus:outline-none text-sm max-w-none rte-editor"
+            style={{
+              fontSize: `${DEFAULT_FONT_SIZE}px`,
+              direction: 'ltr',
+              textAlign: 'left',
+              unicodeBidi: 'embed'
+            }}
             data-placeholder={placeholder}
             aria-label="Rich text editor"
           />
-
-          {/* Live Preview */}
-          {html && (
-            <div className="border-t px-3 py-3 bg-muted/10">
-              <p className="text-xs text-muted-foreground mb-2 font-medium">Live Preview:</p>
-              <div
-                className="text-sm prose prose-sm max-w-none"
-                dangerouslySetInnerHTML={{ __html: getSanitizedHtml() }}
-              />
-            </div>
-          )}
 
           {/* Mention Dropdown */}
           {showMentionDropdown && (
@@ -971,17 +978,33 @@ export function RichTextEditor({
 
       {/* Hidden styles for placeholder */}
       <style>{`
-        [contenteditable][data-placeholder]:empty:before {
+        .rte-editor[contenteditable][data-placeholder]:empty:before {
           content: attr(data-placeholder);
           color: #9ca3af;
           pointer-events: none;
-          position: absolute;
+          display: block;
         }
-        [contenteditable] {
-          caret-color: currentColor;
+        .rte-editor[contenteditable] {
+          caret-color: currentColor !important;
+          direction: ltr !important;
+          text-align: left !important;
+          unicode-bidi: embed !important;
+          writing-mode: horizontal-tb !important;
         }
-        [contenteditable]:focus {
+        .rte-editor[contenteditable]:focus {
           outline: none;
+        }
+        .rte-editor[contenteditable]:empty {
+          min-height: 120px;
+        }
+        .rte-editor[contenteditable] *,
+        .rte-editor[contenteditable] p,
+        .rte-editor[contenteditable] div,
+        .rte-editor[contenteditable] span,
+        .rte-editor[contenteditable] br {
+          direction: ltr !important;
+          text-align: left !important;
+          unicode-bidi: embed !important;
         }
       `}</style>
     </div>

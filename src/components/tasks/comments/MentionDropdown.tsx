@@ -47,8 +47,8 @@ export function MentionDropdown({ searchQuery, onSelect, position }: MentionDrop
   if (isLoading) {
     return (
       <div
-        className="absolute z-50 w-72 bg-popover border rounded-md shadow-md p-2"
-        style={{ top: position.top, left: position.left }}
+        className="fixed z-50 w-72 bg-popover border rounded-md shadow-md p-2"
+        style={{ top: `${position.top}px`, left: `${position.left}px` }}
       >
         <p className="text-sm text-muted-foreground p-2">Loading...</p>
       </div>
@@ -57,8 +57,8 @@ export function MentionDropdown({ searchQuery, onSelect, position }: MentionDrop
 
   return (
     <div
-      className="absolute z-50 w-72 bg-popover border rounded-md shadow-lg overflow-hidden"
-      style={{ top: position.top, left: position.left }}
+      className="fixed z-50 w-72 bg-popover border rounded-md shadow-lg overflow-hidden"
+      style={{ top: `${position.top}px`, left: `${position.left}px` }}
     >
       <Command>
         <CommandList>
