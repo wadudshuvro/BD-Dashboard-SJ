@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,10 +23,11 @@ import type {
   FeedbackReport,
   FeedbackStatus,
 } from "../api";
+import { FEEDBACK_MODULE_OPTIONS } from "../constants";
 
 const STATUS_LABELS: Record<FeedbackStatus, string> = {
   open: "Open",
-  in_review: "In review",
+  in_review: "In Progress",
   resolved: "Resolved",
   closed: "Closed",
 };
@@ -57,9 +59,12 @@ interface FeedbackDetailCardProps {
   legacyAttachmentUrl?: string | null;
   canEditStatus?: boolean;
   canEditPriority?: boolean;
+  canEditModule?: boolean;
   canArchive?: boolean;
+  headerActions?: ReactNode;
   onStatusChange?: (status: FeedbackStatus) => void;
   onPriorityChange?: (priority: FeedbackPriority | null) => void;
+  onModuleChange?: (module: string | null) => void;
   onArchive?: () => void;
   isUpdating?: boolean;
 }
@@ -70,44 +75,59 @@ export function FeedbackDetailCard({
   legacyAttachmentUrl,
   canEditStatus = false,
   canEditPriority = false,
+  canEditModule = false,
   canArchive = false,
+  headerActions,
   onStatusChange,
   onPriorityChange,
+  onModuleChange,
   onArchive,
   isUpdating = false,
 }: FeedbackDetailCardProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex flex-wrap items-center gap-2 text-xl">
-          <Clock className="h-5 w-5" />
-          {feedback.subject}
-          {!canEditStatus && (
-            <Badge variant="outline" className="text-xs">
-              View Only
-            </Badge>
-          )}
-        </CardTitle>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <CardTitle className="flex flex-wrap items-center gap-2 text-xl">
+              <Clock className="h-5 w-5" />
+              {feedback.subject}
+              {!canEditStatus && (
+                <Badge variant="outline" className="text-xs">
+                  View Only
+                </Badge>
+              )}
+            </CardTitle>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <Badge variant={feedback.type === "bug" ? "destructive" : "default"}>
+                {feedback.type === "bug" ? "Bug" : "Feature"}
+              </Badge>
+              <Badge variant="outline" className="text-xs">
+                #{feedback.feedback_number ?? "—"}
+              </Badge>
+              <Badge className={cn("text-xs", STATUS_STYLES[feedback.status])}>
+                {STATUS_LABELS[feedback.status]}
+              </Badge>
+              {feedback.module && (
+                <Badge variant="secondary" className="text-xs">
+                  {feedback.module}
+                </Badge>
+              )}
+              {feedback.priority && (
+                <Badge className={cn("text-xs", PRIORITY_STYLES[feedback.priority])}>
+                  {PRIORITY_LABELS[feedback.priority]}
+                </Badge>
+              )}
+            </div>
+          </div>
+          {headerActions ? <div className="flex shrink-0">{headerActions}</div> : null}
+        </div>
         <CardDescription>
           View submission details, attachment, and workflow status.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
         <div className="space-y-4">
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant={feedback.type === "bug" ? "destructive" : "default"}>
-              {feedback.type === "bug" ? "Bug" : "Feature"}
-            </Badge>
-            <Badge className={cn("text-xs", STATUS_STYLES[feedback.status])}>
-              {STATUS_LABELS[feedback.status]}
-            </Badge>
-            {feedback.priority && (
-              <Badge className={cn("text-xs", PRIORITY_STYLES[feedback.priority])}>
-                {PRIORITY_LABELS[feedback.priority]}
-              </Badge>
-            )}
-          </div>
-
           <div className="grid gap-3 text-sm sm:grid-cols-2">
             <div>
               <p className="text-muted-foreground">Submitted by</p>
@@ -126,6 +146,10 @@ export function FeedbackDetailCard({
                 <p className="font-medium">{feedback.reviewed_by_name}</p>
               </div>
             )}
+            <div>
+              <p className="text-muted-foreground">Module</p>
+              <p className="font-medium">{feedback.module ?? "—"}</p>
+            </div>
             <div>
               <p className="text-muted-foreground">Record ID</p>
               <p className="font-mono text-xs">{feedback.id}</p>
@@ -224,6 +248,34 @@ export function FeedbackDetailCard({
                   <SelectItem value="low">Low</SelectItem>
                   <SelectItem value="medium">Medium</SelectItem>
                   <SelectItem value="high">High</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <p className="text-sm font-semibold">
+                Module
+                {!canEditModule && (
+                  <span className="ml-2 text-xs font-normal text-muted-foreground">
+                    (View only)
+                  </span>
+                )}
+              </p>
+              <Select
+                value={feedback.module ?? "none"}
+                onValueChange={(value) => onModuleChange?.(value === "none" ? null : value)}
+                disabled={!canEditModule || isUpdating}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select module" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Not specified</SelectItem>
+                  {FEEDBACK_MODULE_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

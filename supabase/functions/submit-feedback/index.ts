@@ -24,6 +24,7 @@ interface SubmitFeedbackRequest {
   type?: string;
   subject?: string;
   description?: string;
+  module?: string | null;
   attachmentPath?: string | null; // Legacy single attachment support
   attachmentName?: string | null; // Legacy single attachment support
   attachments?: AttachmentInfo[]; // New multiple attachments support
@@ -170,6 +171,9 @@ serve(async (req) => {
     }
 
     const id = body.id ?? crypto.randomUUID();
+    const module = typeof body.module === "string" && body.module.trim().length > 0
+      ? body.module.trim()
+      : null;
     
     // Insert feedback report
     const { data, error } = await serviceClient
@@ -183,6 +187,7 @@ serve(async (req) => {
         email: user.email ?? "",
         attachment_url: body.attachmentPath ?? null, // Legacy support for single attachment
         created_by: user.id,
+        module,
       })
       .select("id, status")
       .single();

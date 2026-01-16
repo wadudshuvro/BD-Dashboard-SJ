@@ -23,9 +23,7 @@ import {
   Megaphone,
   Bug,
   Sparkles,
-  ClipboardList,
   UserPlus,
-  MessageSquare,
   Package,
   ListChecks,
   Network,
@@ -36,7 +34,6 @@ import { Button } from "@/components/ui/button";
 import { useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
 import logo from "@/assets/logo-sji.png";
-import { useFeatureFlag } from "@/hooks/useFeatureFlag";
 import { useAuth } from "@/hooks/useAuth";
 
 const AdminLayout = () => {
@@ -49,8 +46,6 @@ const AdminLayout = () => {
   const handleReturnToProfile = () => {
     navigate('/my-profile');
   };
-  const { enabled: feedbackEnabled } = useFeatureFlag("feedback_enabled", true);
-
   const navigation = useMemo(() => {
     const sections = [
       {
@@ -92,16 +87,6 @@ const AdminLayout = () => {
       },
     ];
 
-    if (feedbackEnabled) {
-      sections.push({
-        section: "Support",
-        items: [
-          { name: "Feedback Manager", href: "/adminpanel/feedback", icon: ClipboardList, roles: ['super_admin', 'admin'] },
-          { name: "Submit Feedback", href: "/feedback/submit", icon: MessageSquare, roles: ['super_admin', 'admin'] },
-        ],
-      });
-    }
-
     // Filter sections based on user role
     return sections
       .map(section => ({
@@ -111,7 +96,7 @@ const AdminLayout = () => {
         )
       }))
       .filter(section => section.items.length > 0);
-  }, [feedbackEnabled, userRole]);
+  }, [userRole]);
 
   const isActiveRoute = (href: string, exact = false) => {
     const sanitizedHref = href.split("?")[0];

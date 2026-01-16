@@ -6,12 +6,20 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useFeatureFlag } from "@/hooks/useFeatureFlag";
 import { supabase } from "@/integrations/supabase/client";
 import { submitFeedback, type FeedbackType } from "@/features/feedback/api";
+import { FEEDBACK_MODULE_OPTIONS } from "@/features/feedback/constants";
 import { Bug, List, Sparkles, UploadCloud, X } from "lucide-react";
 
 const TYPE_OPTIONS: FeedbackType[] = ["bug", "feature"];
@@ -35,6 +43,7 @@ export default function SubmitFeedback() {
   const [selectedType, setSelectedType] = useState<FeedbackType>(validType);
   const [subject, setSubject] = useState("");
   const [description, setDescription] = useState("");
+  const [module, setModule] = useState<string | null>(null);
   const [attachments, setAttachments] = useState<File[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submittedDate, setSubmittedDate] = useState(() => new Date().toLocaleString());
@@ -195,6 +204,7 @@ export default function SubmitFeedback() {
         type: selectedType,
         subject: subject.trim(),
         description: description.trim() || undefined,
+        module,
         attachments: uploadedAttachments.length > 0 ? uploadedAttachments : undefined,
       });
       
@@ -209,6 +219,7 @@ export default function SubmitFeedback() {
 
       setSubject("");
       setDescription("");
+      setModule(null);
       setAttachments([]);
       setSubmittedDate(new Date().toLocaleString());
     } catch (error) {
@@ -266,6 +277,23 @@ export default function SubmitFeedback() {
                   <Label htmlFor="feedback-date">Submitted on</Label>
                   <Input id="feedback-date" value={submittedDate} readOnly />
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="feedback-module">Module (optional)</Label>
+                <Select value={module ?? "none"} onValueChange={(value) => setModule(value === "none" ? null : value)}>
+                  <SelectTrigger id="feedback-module">
+                    <SelectValue placeholder="Select module" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Not specified</SelectItem>
+                    {FEEDBACK_MODULE_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">
