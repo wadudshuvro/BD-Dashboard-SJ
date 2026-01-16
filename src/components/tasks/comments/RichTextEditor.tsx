@@ -806,8 +806,14 @@ export function RichTextEditor({
             contentEditable={!disabled}
             onInput={handleInput}
             onKeyDown={handleKeyDown}
-            className="min-h-[120px] max-h-[400px] overflow-y-auto p-3 focus:outline-none text-sm prose prose-sm max-w-none rte-editor"
-            style={{ fontSize: `${DEFAULT_FONT_SIZE}px` }}
+            dir="ltr"
+            className="min-h-[120px] max-h-[400px] overflow-y-auto p-3 focus:outline-none text-sm max-w-none rte-editor"
+            style={{
+              fontSize: `${DEFAULT_FONT_SIZE}px`,
+              direction: 'ltr',
+              textAlign: 'left',
+              unicodeBidi: 'embed'
+            }}
             data-placeholder={placeholder}
             aria-label="Rich text editor"
           />
@@ -979,10 +985,11 @@ export function RichTextEditor({
           display: block;
         }
         .rte-editor[contenteditable] {
-          caret-color: currentColor;
-          direction: ltr;
-          text-align: left;
-          unicode-bidi: embed;
+          caret-color: currentColor !important;
+          direction: ltr !important;
+          text-align: left !important;
+          unicode-bidi: embed !important;
+          writing-mode: horizontal-tb !important;
         }
         .rte-editor[contenteditable]:focus {
           outline: none;
@@ -990,9 +997,14 @@ export function RichTextEditor({
         .rte-editor[contenteditable]:empty {
           min-height: 120px;
         }
-        .rte-editor[contenteditable] * {
-          direction: ltr;
-          text-align: left;
+        .rte-editor[contenteditable] *,
+        .rte-editor[contenteditable] p,
+        .rte-editor[contenteditable] div,
+        .rte-editor[contenteditable] span,
+        .rte-editor[contenteditable] br {
+          direction: ltr !important;
+          text-align: left !important;
+          unicode-bidi: embed !important;
         }
       `}</style>
     </div>
