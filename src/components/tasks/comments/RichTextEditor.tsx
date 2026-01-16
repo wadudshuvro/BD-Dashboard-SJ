@@ -172,9 +172,18 @@ export function RichTextEditor({
 
   // Execute formatting command
   const executeCommand = (command: string, value?: string) => {
+    if (!editorRef.current) return;
+
+    // Make sure editor is focused
+    editorRef.current.focus();
+
+    // Execute the command
     document.execCommand(command, false, value);
-    editorRef.current?.focus();
-    handleInput();
+
+    // Update content after command
+    setTimeout(() => {
+      handleInput();
+    }, 0);
   };
 
   // Format text
@@ -188,7 +197,34 @@ export function RichTextEditor({
 
   // Insert list
   const insertList = (ordered: boolean) => {
-    executeCommand(ordered ? 'insertOrderedList' : 'insertUnorderedList');
+    if (!editorRef.current) return;
+
+    // Ensure editor is focused and has a selection
+    editorRef.current.focus();
+
+    // Get or create a selection
+    const selection = window.getSelection();
+    if (!selection) return;
+
+    // If no selection, create one at the end of content
+    if (selection.rangeCount === 0 || !editorRef.current.contains(selection.anchorNode)) {
+      const range = document.createRange();
+      range.selectNodeContents(editorRef.current);
+      range.collapse(false);
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+
+    // Execute list command
+    const command = ordered ? 'insertOrderedList' : 'insertUnorderedList';
+    document.execCommand(command, false);
+
+    // Update content
+    setTimeout(() => {
+      if (editorRef.current) {
+        setHtml(editorRef.current.innerHTML);
+      }
+    }, 0);
   };
 
 
