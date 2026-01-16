@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Plus, Gear, Lightbulb, MessageSquare, Briefcase, MoreHorizontal, Brain, CalendarCheck } from 'lucide-react';
+import { Plus, Settings, Lightbulb, MessageSquare, Briefcase, MoreHorizontal, Brain, CalendarCheck } from 'lucide-react';
 import { TaskCard } from '@/components/tasks/TaskCard';
 import { TaskForm } from '@/components/tasks/TaskForm';
 import { useAllProjectTasks, useDelegatedProjectTasks, ProjectTask } from '@/hooks/useProjectTasks';
@@ -136,7 +136,7 @@ const MyTasksPage = () => {
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" className="gap-2" onClick={() => handleTabClick('streams')}>
-            <Gear className="h-4 w-4" />
+            <Settings className="h-4 w-4" />
             Browse Streams
           </Button>
           <Button className="gap-2" onClick={handleNewTask}>
