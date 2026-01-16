@@ -16,6 +16,7 @@ import NotFound from "./pages/NotFound";
 import Unauthorized from "./pages/Unauthorized";
 import ActionsTasks from "./pages/ActionsTasks";
 import TaskViewPage from "./pages/bd/TaskViewPage";
+import MyTasksPage from "./pages/bd/MyTasksPage";
 import EODSubmission from "./pages/EODSubmission";
 import MyEODSubmissions from "./pages/MyEODSubmissions";
 import UserManagement from "./pages/admin/UserManagement";
@@ -196,6 +197,7 @@ const App = () => (
               
               {/* Actions */}
               <Route path="actions/tasks" element={<ActionsTasks />} />
+              <Route path="actions/my-tasks" element={<MyTasksPage />} />
               <Route path="actions/tasks/:taskId" element={<TaskViewPage />} />
               <Route path="actions/eod" element={<EODSubmission />} />
               <Route path="actions/eod-history" element={<MyEODSubmissions />} />

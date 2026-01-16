@@ -191,6 +191,7 @@ const Layout = ({ userRole }: LayoutProps) => {
         current: false,
         subItems: [
           { name: "Tasks", href: "/bd/actions/tasks", icon: CheckSquare, current: false },
+            { name: "My Tasks", href: "/bd/actions/my-tasks", icon: CheckSquare, current: false },
           { name: "Notifications", href: "/bd/notifications", icon: Bell, current: false },
           { name: "Submit EOD", href: "/bd/actions/eod", icon: Calendar, current: false },
           { name: "My EOD History", href: "/bd/actions/eod-history", icon: History, current: false },
