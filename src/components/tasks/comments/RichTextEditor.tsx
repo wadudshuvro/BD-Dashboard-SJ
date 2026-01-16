@@ -77,7 +77,7 @@ export function RichTextEditor({
 
   const editorRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const isInitializedRef = useRef(false); // Track if editor is initialized
+  const isInitialMountRef = useRef(true);
   const { toast } = useToast();
 
   // History management for undo/redo
@@ -85,27 +85,39 @@ export function RichTextEditor({
   const [historyIndex, setHistoryIndex] = useState(0);
   const [isUpdatingHistory, setIsUpdatingHistory] = useState(false);
 
-  // Initialize editor content ONLY once on mount
+  // Initialize editor content on mount and sync external changes
   useEffect(() => {
-    if (editorRef.current && !isInitializedRef.current) {
-      editorRef.current.innerHTML = value || '';
-      isInitializedRef.current = true;
-    }
-  }, []);
+    if (!editorRef.current) return;
 
-  // Handle external clear (when parent sets value to empty)
-  useEffect(() => {
-    if (isInitializedRef.current && value === '' && html !== '') {
-      if (editorRef.current) {
-        editorRef.current.innerHTML = '';
-        setHtml('');
+    // On initial mount, set the content
+    if (isInitialMountRef.current) {
+      if (value) {
+        editorRef.current.innerHTML = value;
       }
+      isInitialMountRef.current = false;
+      return;
     }
-  }, [value, html]);
 
-  // Update parent when content changes (but don't let it loop back)
+    // Handle external clear (parent explicitly cleared)
+    // Compare with actual DOM content, not state
+    if (value === '' && editorRef.current.innerHTML !== '') {
+      editorRef.current.innerHTML = '';
+      setHtml('');
+      return;
+    }
+
+    // For non-empty external updates, only sync if:
+    // 1. Value is different from actual DOM content
+    // 2. Editor is not focused (user is not typing)
+    if (value && value !== editorRef.current.innerHTML && document.activeElement !== editorRef.current) {
+      editorRef.current.innerHTML = value;
+      setHtml(value);
+    }
+  }, [value]);
+
+  // Update parent when content changes
   useEffect(() => {
-    if (!isUpdatingHistory && isInitializedRef.current) {
+    if (!isUpdatingHistory && !isInitialMountRef.current) {
       onChange(html);
     }
   }, [html, onChange, isUpdatingHistory]);
