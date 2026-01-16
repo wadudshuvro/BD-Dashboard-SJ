@@ -26,7 +26,7 @@ import AdminSettings from "./pages/admin/AdminSettings";
 import EODManagement from "./pages/admin/EODManagement";
 import UserDetail from "./pages/admin/UserDetail";
 import AdminPanel from "./pages/admin/AdminPanel";
-import MyAgentsPage from "./pages/MyAgents";
+
 import UserProfile from "./pages/UserProfile";
 import NicheManagement from "./pages/bd/NicheManagement";
 import CampaignManagement from "./pages/bd/CampaignManagement";
@@ -184,8 +184,8 @@ const App = () => (
               <Route index element={<Navigate to="/bd/dashboard" replace />} />
               <Route path="dashboard" element={<BDDashboard />} />
               
-              {/* My Agents */}
-              <Route path="my-agents" element={<MyAgentsPage />} />
+              {/* Legacy route - redirect to dashboard */}
+              <Route path="my-agents" element={<Navigate to="/bd/dashboard" replace />} />
               
               {/* Redirect old campaign URLs */}
               <Route path="strategy/campaigns" element={<Navigate to="/campaigns" replace />} />

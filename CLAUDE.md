@@ -109,7 +109,6 @@ This document provides comprehensive guidance for AI assistants (like Claude) wo
 │   │   ├── ai/              # AI agent features
 │   │   │   └── agents/      # Agent configuration & history
 │   │   ├── campaign-detail/ # Campaign analytics & insights
-│   │   ├── collabai/        # CollabAI integration
 │   │   ├── feedback/        # User feedback system
 │   │   └── pipeline/        # Pipeline-specific features
 │   │

@@ -290,8 +290,6 @@ All 14 new Control Tower fields are now synced and displayed:
 | `estimate_task_link`        | text   | Documents Card     | Estimate task tracker       |
 | `internal_estimate_doc_link`| text   | Documents Card     | Alt internal estimate       |
 | `pandadoc_proposal_url`     | text   | Documents Card     | PandaDoc proposal           |
-| `collaborative_ai`          | text   | External Links     | CollabAI workspace          |
-| `collaborative_ai_link`     | text   | External Links     | Alt CollabAI link           |
 | `workboard_ai_link`         | text   | External Links     | Workboard AI workspace      |
 | `client_agent_url`          | text   | External Links     | Client agent URL            |
 

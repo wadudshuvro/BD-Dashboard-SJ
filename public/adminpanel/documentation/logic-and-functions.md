@@ -25,10 +25,6 @@ All functions live under `supabase/functions/<name>/index.ts`, import shared COR
 - **File:** `supabase/functions/auth/index.ts`
 - **Purpose:** Token exchange helpers that validate Supabase sessions, return enriched profile/role data, and issue temporary elevated tokens for admin actions.
 
-### Function: collabai-manage
-- **File:** `supabase/functions/collabai-manage/index.ts`
-- **Purpose:** Sync CollabAI agents and chats into Supabase tables (`collabai_agents`, `collabai_chats`, `collabai_integrations`). Handles credential encryption and streaming ingest.
-
 ### Function: create-company-vector-store
 - **File:** `supabase/functions/create-company-vector-store/index.ts`
 - **Purpose:** Upsert a vector store reference into `ai_shared_resources` for a given `ai_agents` record.
