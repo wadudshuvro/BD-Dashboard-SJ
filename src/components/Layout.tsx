@@ -225,6 +225,14 @@ const Layout = ({ userRole }: LayoutProps) => {
     });
   }
 
+  // Add Vision page after Feedback
+  navigation.push({
+    name: "Vision",
+    href: "/vision",
+    icon: Sparkles,
+    current: false,
+  });
+
   const handleLogout = () => {
     logout();
   };
