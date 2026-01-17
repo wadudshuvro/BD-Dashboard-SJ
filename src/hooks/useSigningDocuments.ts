@@ -93,9 +93,24 @@ export const useSigningTemplates = (documentType?: DocumentType) => {
       );
 
       if (error) throw error;
-      if (!data?.ok) throw new Error(data?.error || "Failed to fetch templates");
+      if (!data?.ok) {
+        const errorMessage = data?.error || "Failed to fetch templates";
+        // Check if it's an integration not configured error
+        if (errorMessage.toLowerCase().includes("not configured") || 
+            errorMessage.toLowerCase().includes("integration")) {
+          throw new Error("INTEGRATION_NOT_CONFIGURED");
+        }
+        throw new Error(errorMessage);
+      }
 
       return data.templates as SigningTemplate[];
+    },
+    retry: (failureCount, error) => {
+      // Don't retry if integration is not configured
+      if (error instanceof Error && error.message === "INTEGRATION_NOT_CONFIGURED") {
+        return false;
+      }
+      return failureCount < 3;
     },
   });
 };

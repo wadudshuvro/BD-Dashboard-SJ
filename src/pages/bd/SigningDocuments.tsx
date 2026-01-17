@@ -2,15 +2,25 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { FileText, Shield, Plus, TrendingUp, Clock, CheckCircle, XCircle } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { FileText, Shield, Plus, TrendingUp, Clock, CheckCircle, XCircle, AlertTriangle, Settings } from "lucide-react";
 import { useSigningDocuments, useSigningDocumentStats } from "@/hooks/useSigningDocuments";
+import { usePandaDocIntegration } from "@/hooks/usePandaDocIntegration";
 import { SigningDocumentDialog, SigningDocumentList } from "@/components/signing";
+import { useAuth } from "@/hooks/useAuth";
+import { Link } from "react-router-dom";
 import type { SigningDocumentStatus, DocumentType } from "@/types/signing";
 
 export default function SigningDocuments() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [documentType, setDocumentType] = useState<DocumentType | undefined>();
   const [statusFilter, setStatusFilter] = useState<string>("all");
+
+  const { user } = useAuth();
+  const isAdmin = user?.role === "super_admin" || user?.role === "admin";
+  
+  const { data: integration, isLoading: integrationLoading } = usePandaDocIntegration();
+  const isIntegrationConfigured = integration?.is_active === true;
 
   const { data: documents, isLoading } = useSigningDocuments({
     status: statusFilter !== "all" ? (statusFilter as SigningDocumentStatus) : undefined,
@@ -34,6 +44,29 @@ export default function SigningDocuments() {
 
   return (
     <div className="container mx-auto py-6 space-y-6">
+      {/* Integration Not Configured Banner */}
+      {!integrationLoading && !isIntegrationConfigured && (
+        <Alert variant="destructive" className="border-amber-500 bg-amber-50 dark:bg-amber-950/20">
+          <AlertTriangle className="h-4 w-4 text-amber-600" />
+          <AlertTitle className="text-amber-800 dark:text-amber-200">Document Signing Not Set Up</AlertTitle>
+          <AlertDescription className="text-amber-700 dark:text-amber-300">
+            <p className="mb-2">
+              To create and send SOWs and NDAs, the PandaDoc integration needs to be configured first.
+            </p>
+            {isAdmin ? (
+              <Button asChild variant="outline" size="sm" className="border-amber-600 text-amber-700 hover:bg-amber-100 dark:hover:bg-amber-900/30">
+                <Link to="/adminpanel/integrations">
+                  <Settings className="h-4 w-4 mr-2" />
+                  Go to Integration Manager
+                </Link>
+              </Button>
+            ) : (
+              <p className="text-sm">Please contact an administrator to set up the PandaDoc integration.</p>
+            )}
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -44,11 +77,20 @@ export default function SigningDocuments() {
         </div>
 
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => openDialog("nda")}>
+          <Button 
+            variant="outline" 
+            onClick={() => openDialog("nda")}
+            disabled={!isIntegrationConfigured}
+            title={!isIntegrationConfigured ? "PandaDoc integration not configured" : undefined}
+          >
             <Shield className="h-4 w-4 mr-2" />
             New NDA
           </Button>
-          <Button onClick={() => openDialog("sow")}>
+          <Button 
+            onClick={() => openDialog("sow")}
+            disabled={!isIntegrationConfigured}
+            title={!isIntegrationConfigured ? "PandaDoc integration not configured" : undefined}
+          >
             <FileText className="h-4 w-4 mr-2" />
             New SOW
           </Button>
