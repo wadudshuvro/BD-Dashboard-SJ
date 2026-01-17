@@ -44,6 +44,38 @@ export type Database = {
         }
         Relationships: []
       }
+      agent_views: {
+        Row: {
+          agent_id: string
+          created_at: string
+          id: string
+          user_id: string
+          viewed_at: string
+        }
+        Insert: {
+          agent_id: string
+          created_at?: string
+          id?: string
+          user_id: string
+          viewed_at?: string
+        }
+        Update: {
+          agent_id?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+          viewed_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_views_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "ai_agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_agent_runs: {
         Row: {
           agent_id: string | null
@@ -165,6 +197,7 @@ export type Database = {
       }
       ai_agents: {
         Row: {
+          benefits: Json | null
           category: string | null
           config: Json | null
           created_at: string
@@ -176,6 +209,7 @@ export type Database = {
           is_active: boolean | null
           is_enabled: boolean | null
           last_run_at: string | null
+          min_role_required: Database["public"]["Enums"]["app_role"] | null
           name: string
           output_actions: Json | null
           prompt_template: string | null
@@ -185,8 +219,12 @@ export type Database = {
           system_prompt: string | null
           type: string
           updated_at: string
+          usage_location: string | null
+          usage_route: string | null
+          use_cases: Json | null
         }
         Insert: {
+          benefits?: Json | null
           category?: string | null
           config?: Json | null
           created_at?: string
@@ -198,6 +236,7 @@ export type Database = {
           is_active?: boolean | null
           is_enabled?: boolean | null
           last_run_at?: string | null
+          min_role_required?: Database["public"]["Enums"]["app_role"] | null
           name: string
           output_actions?: Json | null
           prompt_template?: string | null
@@ -207,8 +246,12 @@ export type Database = {
           system_prompt?: string | null
           type: string
           updated_at?: string
+          usage_location?: string | null
+          usage_route?: string | null
+          use_cases?: Json | null
         }
         Update: {
+          benefits?: Json | null
           category?: string | null
           config?: Json | null
           created_at?: string
@@ -220,6 +263,7 @@ export type Database = {
           is_active?: boolean | null
           is_enabled?: boolean | null
           last_run_at?: string | null
+          min_role_required?: Database["public"]["Enums"]["app_role"] | null
           name?: string
           output_actions?: Json | null
           prompt_template?: string | null
@@ -229,6 +273,9 @@ export type Database = {
           system_prompt?: string | null
           type?: string
           updated_at?: string
+          usage_location?: string | null
+          usage_route?: string | null
+          use_cases?: Json | null
         }
         Relationships: []
       }
