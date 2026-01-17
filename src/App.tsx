@@ -67,12 +67,13 @@ import NotificationsPage from "./pages/NotificationsPage";
 
 const queryClient = new QueryClient();
 
-// Lazy load Documentation and Feedback pages
+// Lazy load Documentation, Feedback, and Vision pages
 const Documentation = lazy(() => import("./pages/admin/Documentation"));
 const FeedbackSubmitPage = lazy(() => import("./pages/feedback/SubmitFeedback"));
 const FeedbackDashboard = lazy(() => import("./pages/feedback/FeedbackDashboard"));
 const FeedbackDetailPage = lazy(() => import("./pages/feedback/FeedbackDetail"));
 const CampaignImportHistory = lazy(() => import("./pages/bd/CampaignImportHistory"));
+const Vision = lazy(() => import("./pages/Vision"));
 
 // Smart redirect component - send everyone to BD Dashboard
 function DashboardRedirect() {
@@ -170,6 +171,15 @@ const App = () => (
                 path=":id"
                 element={<React.Suspense fallback={<div>Loading...</div>}><FeedbackDetailPage /></React.Suspense>}
               />
+            </Route>
+
+            {/* Vision Module */}
+            <Route path="/vision" element={
+              <ProtectedRoute requiredMinimumRole="team_member">
+                <Layout />
+              </ProtectedRoute>
+            }>
+              <Route index element={<React.Suspense fallback={<div>Loading...</div>}><Vision /></React.Suspense>} />
             </Route>
 
             {/* Legacy Task Routes */}
