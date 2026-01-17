@@ -1,12 +1,22 @@
+import { useState } from "react";
 import { Bot, Loader2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useAgentList } from "@/hooks/useAgentList";
+import { AgentDetailModal } from "./AgentDetailModal";
+import type { AIAgent } from "@/Api/aiAgents";
 
 const AgentGallery = () => {
   const { data: agents, isLoading } = useAgentList();
+  const [selectedAgent, setSelectedAgent] = useState<AIAgent | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
   
   const activeAgents = agents?.filter(a => a.is_active) ?? [];
+
+  const handleAgentClick = (agent: AIAgent) => {
+    setSelectedAgent(agent);
+    setModalOpen(true);
+  };
 
   return (
     <section>
@@ -32,7 +42,11 @@ const AgentGallery = () => {
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {activeAgents.map((agent) => (
-            <Card key={agent.id} className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
+            <Card 
+              key={agent.id} 
+              className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1 cursor-pointer"
+              onClick={() => handleAgentClick(agent)}
+            >
               <CardContent className="p-5">
                 <div className="flex items-start justify-between mb-3">
                   <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
@@ -53,6 +67,12 @@ const AgentGallery = () => {
           ))}
         </div>
       )}
+
+      <AgentDetailModal 
+        agent={selectedAgent}
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+      />
     </section>
   );
 };
