@@ -3,20 +3,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useAgentList } from "@/hooks/useAgentList";
 
-const agentMissions: Record<string, string> = {
-  "bd-research-analyst": "Analyzes lead research data and provides 10 key insights",
-  "bd-weekly-insights": "Generates weekly BD insights and action items",
-  "client-intelligence-assistant": "Analyzes client data for strategic insights",
-  "client-objection-handler": "Provides evidence-based responses to objections",
-  "deal-pipeline-analyzer": "Identifies bottlenecks and opportunities in pipeline",
-  "deal-status-intelligence": "Analyzes meeting notes for deal status updates",
-  "document-qa-assistant": "Answers questions about deal documents instantly",
-  "lead-auto-enrichment-agent": "Enriches contacts with company data and scores",
-  "linkedin-lead-analyzer": "Analyzes engagement and recommends follow-up",
-  "linkedin-message-generator": "Generates personalized outreach messages",
-  "proposal-gap-analysis": "Compares requirements against proposals",
-};
-
 const AgentGallery = () => {
   const { data: agents, isLoading } = useAgentList();
   
@@ -60,7 +46,7 @@ const AgentGallery = () => {
                   {agent.name}
                 </h3>
                 <p className="text-sm text-muted-foreground line-clamp-2">
-                  {agentMissions[agent.slug || ""] || agent.description || "AI-powered automation"}
+                  {agent.description || "AI-powered automation"}
                 </p>
               </CardContent>
             </Card>
