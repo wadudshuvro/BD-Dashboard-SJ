@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Plus, Settings, Lightbulb, MessageSquare, Briefcase, MoreHorizontal, Brain, CalendarCheck } from 'lucide-react';
@@ -92,6 +93,24 @@ const MyTasksPage = () => {
 
   const delegatedViewTasks = delegatedTasks;
 
+  // Calculate counts for each tab
+  const tabCounts = useMemo(() => ({
+    today: todayTasks.length,
+    week: weekTasks.length,
+    overdue: overdueTasks.length,
+    delegated: delegatedViewTasks.length,
+    all: tasks.length,
+    streams: streamTasks.length,
+  }), [todayTasks.length, weekTasks.length, overdueTasks.length, delegatedViewTasks.length, tasks.length, streamTasks.length]);
+
+  // Calculate counts for each stream category
+  const streamCounts = useMemo(() => ({
+    ideas: tasks.filter((task) => task.category === 'ideas').length,
+    discussion: tasks.filter((task) => task.category === 'discussion').length,
+    work: tasks.filter((task) => task.category === 'work').length,
+    other: tasks.filter((task) => task.category === 'other').length,
+  }), [tasks]);
+
   const activeTasks = useMemo(() => {
     switch (activeTab) {
       case 'today':
@@ -153,9 +172,12 @@ const MyTasksPage = () => {
               <TabsTrigger
                 key={tab.value}
                 value={tab.value}
-                className="rounded-full text-xs px-3 py-1 font-semibold"
+                className="rounded-full text-xs px-3 py-1 font-semibold flex items-center gap-1.5"
               >
                 {tab.label}
+                <Badge variant="secondary" className="ml-0.5 text-xs px-1.5 py-0">
+                  {tabCounts[tab.value]}
+                </Badge>
               </TabsTrigger>
             ))}
           </TabsList>
@@ -175,6 +197,9 @@ const MyTasksPage = () => {
                 >
                   <Icon className="h-4 w-4" />
                   {stream.label}
+                  <Badge variant="secondary" className="ml-1 text-xs px-1.5 py-0">
+                    {streamCounts[stream.value]}
+                  </Badge>
                 </Button>
               );
             })}
