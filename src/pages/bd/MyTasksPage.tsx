@@ -7,7 +7,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Plus, Settings, Lightbulb, MessageSquare, Briefcase, MoreHorizontal, Brain, CalendarCheck } from 'lucide-react';
 import { TaskCard } from '@/components/tasks/TaskCard';
 import { TaskForm } from '@/components/tasks/TaskForm';
-import { useAllProjectTasks, useDelegatedProjectTasks, ProjectTask } from '@/hooks/useProjectTasks';
+import { useMyProjectTasks, useDelegatedProjectTasks, ProjectTask } from '@/hooks/useProjectTasks';
 import { startOfDay, endOfDay, startOfWeek, endOfWeek, isWithinInterval, isBefore } from 'date-fns';
 
 const tabDefinitions = [
@@ -36,7 +36,7 @@ const parseDueDate = (task: ProjectTask) => {
 };
 
 const MyTasksPage = () => {
-  const { data: tasks = [], isLoading, error } = useAllProjectTasks();
+  const { data: tasks = [], isLoading, error } = useMyProjectTasks();
   const { data: delegatedTasks = [], isLoading: delegatedLoading, error: delegatedError } = useDelegatedProjectTasks();
   const [activeTab, setActiveTab] = useState<TabValue>('today');
   const [activeStream, setActiveStream] = useState<StreamValue>('ideas');

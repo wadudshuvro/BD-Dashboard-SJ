@@ -120,9 +120,13 @@ export const useProjectTasks = (projectId?: string) => {
   });
 };
 
-export const useAllProjectTasks = () => {
+/**
+ * Hook to fetch tasks assigned to the current user only
+ * Used for "My Tasks" personal view
+ */
+export const useMyProjectTasks = () => {
   return useQuery({
-    queryKey: ['all-project-tasks'],
+    queryKey: ['my-project-tasks'],
     queryFn: async () => {
       // Get current user
       const { data: { user } } = await supabase.auth.getUser();
@@ -137,6 +141,33 @@ export const useAllProjectTasks = () => {
         .from('project_tasks')
         .select('*')
         .eq('assigned_to', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching user tasks:', error);
+        throw error;
+      }
+
+      return data as unknown as ProjectTask[];
+    },
+    retry: 2,
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
+  });
+};
+
+/**
+ * Hook to fetch ALL project tasks across all users
+ * Used for team-wide task view (e.g., /bd/actions/tasks)
+ */
+export const useAllProjectTasks = () => {
+  return useQuery({
+    queryKey: ['all-project-tasks'],
+    queryFn: async () => {
+      // Fetch ALL tasks without user filter
+      const { data, error } = await supabase
+        .from('project_tasks')
+        .select('*')
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -205,6 +236,7 @@ export const useCreateProjectTask = () => {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['project-tasks'] });
       queryClient.invalidateQueries({ queryKey: ['all-project-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['my-project-tasks'] });
       queryClient.invalidateQueries({ queryKey: ['delegated-project-tasks'] });
       toast({
         title: "Task created",
@@ -253,6 +285,7 @@ export const useUpdateProjectTask = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['project-tasks'] });
       queryClient.invalidateQueries({ queryKey: ['all-project-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['my-project-tasks'] });
       queryClient.invalidateQueries({ queryKey: ['delegated-project-tasks'] });
       toast({
         title: "Task updated",
@@ -288,6 +321,7 @@ export const useDeleteProjectTask = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['project-tasks'] });
       queryClient.invalidateQueries({ queryKey: ['all-project-tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['my-project-tasks'] });
       queryClient.invalidateQueries({ queryKey: ['delegated-project-tasks'] });
       toast({
         title: "Task deleted",
