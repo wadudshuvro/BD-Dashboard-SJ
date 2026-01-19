@@ -94,9 +94,9 @@ export default function ActionsTasks() {
       {/* Header */}
       <div className="flex justify-between items-start">
         <div>
-          <h1 className="text-3xl font-bold">Tasks & EOD</h1>
+          <h1 className="text-3xl font-bold">All Tasks</h1>
           <p className="text-muted-foreground">
-            Manage your tasks and end-of-day submissions
+            View all tasks across the team and manage end-of-day submissions
           </p>
         </div>
         <Button onClick={() => setShowTaskForm(true)}>
