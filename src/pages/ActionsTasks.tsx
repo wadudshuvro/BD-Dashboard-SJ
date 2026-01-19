@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,15 @@ import { TaskCard } from "@/components/tasks/TaskCard";
 import { TaskForm } from "@/components/tasks/TaskForm";
 import { Plus, CheckCircle, Clock, AlertCircle, Calendar, History, Lightbulb, MessageSquare, Briefcase, MoreHorizontal } from "lucide-react";
 import { EmptyTasks } from "@/components/empty-states/EmptyTasks";
+import { usePagination } from '@/hooks/usePagination';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from '@/components/ui/pagination';
 
 type TaskCategory = 'all' | 'ideas' | 'discussion' | 'work' | 'other';
 
@@ -19,6 +28,7 @@ export default function ActionsTasks() {
   const [selectedTask, setSelectedTask] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState<TaskCategory>('all');
   const { data: tasks = [], isLoading, error } = useAllProjectTasks();
+  const pagination = usePagination(10);
 
   const handleEditTask = (task: any) => {
     setSelectedTask(task);
@@ -46,6 +56,38 @@ export default function ActionsTasks() {
       other: tasks.filter(t => t.category === 'other').length,
     };
   }, [tasks]);
+
+  // Reset pagination when category changes
+  useEffect(() => {
+    pagination.reset();
+  }, [selectedCategory]);
+
+  // Paginated tasks
+  const paginatedTasks = useMemo(() => {
+    return filteredTasks.slice(pagination.from, pagination.to + 1);
+  }, [filteredTasks, pagination.from, pagination.to]);
+
+  // Pagination calculations
+  const totalPaginationPages = Math.ceil(filteredTasks.length / pagination.pageSize);
+  const showingFrom = filteredTasks.length > 0 ? pagination.from + 1 : 0;
+  const showingTo = Math.min(pagination.to + 1, filteredTasks.length);
+
+  // Generate page numbers to display
+  const pageNumbers = useMemo(() => {
+    const pages: number[] = [];
+    const maxVisible = 5;
+    let start = Math.max(1, pagination.currentPage - Math.floor(maxVisible / 2));
+    let end = Math.min(totalPaginationPages, start + maxVisible - 1);
+
+    if (end - start + 1 < maxVisible) {
+      start = Math.max(1, end - maxVisible + 1);
+    }
+
+    for (let i = start; i <= end; i++) {
+      pages.push(i);
+    }
+    return pages;
+  }, [pagination.currentPage, totalPaginationPages]);
 
   // Task statistics (for current filter)
   const totalTasks = filteredTasks.length;
@@ -259,11 +301,51 @@ export default function ActionsTasks() {
               </Button>
             </div>
           ) : (
-            <div className="grid gap-4">
-              {filteredTasks.map((task) => (
-                <TaskCard key={task.id} task={task} onEdit={handleEditTask} />
-              ))}
-            </div>
+            <>
+              <div className="grid gap-4">
+                {paginatedTasks.map((task) => (
+                  <TaskCard key={task.id} task={task} onEdit={handleEditTask} />
+                ))}
+              </div>
+
+              {/* Pagination */}
+              {filteredTasks.length > pagination.pageSize && (
+                <div className="flex flex-col items-center gap-4 pt-6">
+                  <p className="text-sm text-muted-foreground">
+                    Showing {showingFrom} to {showingTo} of {filteredTasks.length} tasks
+                  </p>
+                  {totalPaginationPages > 1 && (
+                    <Pagination>
+                      <PaginationContent>
+                        <PaginationItem>
+                          <PaginationPrevious
+                            onClick={() => pagination.setCurrentPage(Math.max(1, pagination.currentPage - 1))}
+                            className={pagination.currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                          />
+                        </PaginationItem>
+                        {pageNumbers.map((page) => (
+                          <PaginationItem key={page}>
+                            <PaginationLink
+                              onClick={() => pagination.setCurrentPage(page)}
+                              isActive={page === pagination.currentPage}
+                              className="cursor-pointer"
+                            >
+                              {page}
+                            </PaginationLink>
+                          </PaginationItem>
+                        ))}
+                        <PaginationItem>
+                          <PaginationNext
+                            onClick={() => pagination.setCurrentPage(Math.min(totalPaginationPages, pagination.currentPage + 1))}
+                            className={pagination.currentPage === totalPaginationPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                          />
+                        </PaginationItem>
+                      </PaginationContent>
+                    </Pagination>
+                  )}
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>
