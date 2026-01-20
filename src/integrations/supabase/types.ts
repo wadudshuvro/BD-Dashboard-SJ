@@ -2522,6 +2522,51 @@ export type Database = {
           },
         ]
       }
+      dhs_submissions: {
+        Row: {
+          calls_made: number | null
+          created_at: string
+          date: string
+          follow_ups_done: number | null
+          id: string
+          meetings_booked: number | null
+          notes: string | null
+          pipeline_updated: boolean | null
+          score: number | null
+          status: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          calls_made?: number | null
+          created_at?: string
+          date: string
+          follow_ups_done?: number | null
+          id?: string
+          meetings_booked?: number | null
+          notes?: string | null
+          pipeline_updated?: boolean | null
+          score?: number | null
+          status?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          calls_made?: number | null
+          created_at?: string
+          date?: string
+          follow_ups_done?: number | null
+          id?: string
+          meetings_booked?: number | null
+          notes?: string | null
+          pipeline_updated?: boolean | null
+          score?: number | null
+          status?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       email_templates: {
         Row: {
           body: string

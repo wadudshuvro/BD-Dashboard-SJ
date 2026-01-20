@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { DHSSubmission, DHSSubmissionFormData, DHSTeamSummary, DHSSubmissionWithUser } from '@/types/dhs';
+import { DHSSubmission, DHSSubmissionFormData, DHSTeamSummary, DHSSubmissionWithUser, DHSStatus } from '@/types/dhs';
 
 export function useDHSSubmissions(userId?: string, date?: Date) {
   const dateStr = date ? date.toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
@@ -152,13 +152,7 @@ export function useAllDHSSubmissions(dateFilter?: string) {
     queryFn: async () => {
       let query = supabase
         .from('dhs_submissions')
-        .select(`
-          *,
-          profiles:user_id (
-            full_name,
-            email
-          )
-        `)
+        .select('*')
         .order('date', { ascending: false });
 
       if (dateFilter === 'today') {
@@ -174,9 +168,49 @@ export function useAllDHSSubmissions(dateFilter?: string) {
         query = query.gte('date', monthAgo.toISOString().split('T')[0]);
       }
 
-      const { data, error } = await query;
-      if (error) throw error;
-      return data as DHSSubmissionWithUser[];
+      const { data: submissions, error: submissionsError } = await query;
+      if (submissionsError) throw submissionsError;
+      
+      if (!submissions || submissions.length === 0) {
+        return [] as DHSSubmissionWithUser[];
+      }
+
+      // Get unique user IDs
+      const userIds = [...new Set(submissions.map(s => s.user_id))];
+      
+      // Fetch profiles for these users
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, full_name, email')
+        .in('id', userIds);
+      
+      if (profilesError) throw profilesError;
+      
+      // Map profiles to submissions
+      const profilesMap = new Map(profiles?.map(p => [p.id, p]) || []);
+      
+      const result: DHSSubmissionWithUser[] = submissions.map(s => ({
+        id: s.id,
+        user_id: s.user_id,
+        date: s.date,
+        follow_ups_done: s.follow_ups_done,
+        calls_made: s.calls_made,
+        meetings_booked: s.meetings_booked,
+        pipeline_updated: s.pipeline_updated,
+        score: s.score ?? undefined,
+        status: s.status as DHSStatus | undefined,
+        notes: s.notes ?? undefined,
+        created_at: s.created_at,
+        updated_at: s.updated_at,
+        profiles: profilesMap.get(s.user_id) 
+          ? { 
+              full_name: profilesMap.get(s.user_id)?.full_name || undefined, 
+              email: profilesMap.get(s.user_id)?.email || '' 
+            }
+          : undefined
+      }));
+      
+      return result;
     },
   });
 }

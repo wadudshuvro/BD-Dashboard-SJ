@@ -94,8 +94,8 @@ export function DHSSubmissionForm() {
         calls_made: values.calls_made,
         meetings_booked: values.meetings_booked,
         pipeline_updated: values.pipeline_updated,
-        score: values.score && values.score !== '' ? Number(values.score) : undefined,
-        status: values.status && values.status !== '' ? (values.status as DHSStatus) : undefined,
+        score: values.score != null && values.score !== ('' as unknown) ? Number(values.score) : undefined,
+        status: values.status != null && values.status !== ('' as unknown) ? (values.status as DHSStatus) : undefined,
         notes: values.notes || undefined,
       };
 
