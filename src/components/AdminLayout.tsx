@@ -64,6 +64,7 @@ const AdminLayout = () => {
         section: "System & Operations",
         items: [
           { name: "System Settings", href: "/adminpanel/settings", icon: Settings, roles: ['super_admin'] },
+          { name: "DHS Management", href: "/adminpanel/dhs-management", icon: TrendingUp, roles: ['super_admin'] },
           { name: "EOD Management", href: "/adminpanel/eod-management", icon: Calendar, roles: ['super_admin'] },
           { name: "SQL Query Executor", href: "/adminpanel/sql-executor", icon: Database, roles: ['super_admin'] },
           { name: "Documentation", href: "/adminpanel/documentation", icon: FileText, roles: ['super_admin', 'admin'] },
