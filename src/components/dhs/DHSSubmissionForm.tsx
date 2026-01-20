@@ -266,14 +266,14 @@ export function DHSSubmissionForm() {
             <div className="space-y-2">
               <Label htmlFor="status">Status (Optional)</Label>
               <Select
-                value={statusValue || ''}
-                onValueChange={(value) => setValue('status', value as any)}
+                value={statusValue || 'none'}
+                onValueChange={(value) => setValue('status', value === 'none' ? undefined : value as any)}
               >
                 <SelectTrigger id="status">
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value="none">None</SelectItem>
                   <SelectItem value="on_track">✅ On Track</SelectItem>
                   <SelectItem value="at_risk">⚠️ At Risk</SelectItem>
                   <SelectItem value="blocked">🚫 Blocked</SelectItem>
