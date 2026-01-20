@@ -29,7 +29,7 @@ import EODManagement from "./pages/admin/EODManagement";
 import DHSManagement from "./pages/admin/DHSManagement";
 import UserDetail from "./pages/admin/UserDetail";
 import AdminPanel from "./pages/admin/AdminPanel";
-import MyAgentsPage from "./pages/MyAgents";
+
 import UserProfile from "./pages/UserProfile";
 import NicheManagement from "./pages/bd/NicheManagement";
 import CampaignManagement from "./pages/bd/CampaignManagement";
@@ -70,12 +70,13 @@ import NotificationsPage from "./pages/NotificationsPage";
 
 const queryClient = new QueryClient();
 
-// Lazy load Documentation and Feedback pages
+// Lazy load Documentation, Feedback, and Vision pages
 const Documentation = lazy(() => import("./pages/admin/Documentation"));
 const FeedbackSubmitPage = lazy(() => import("./pages/feedback/SubmitFeedback"));
-const AdminFeedbackManager = lazy(() => import("./pages/admin/FeedbackManager"));
-const AdminFeedbackDetail = lazy(() => import("./pages/admin/FeedbackDetail"));
+const FeedbackDashboard = lazy(() => import("./pages/feedback/FeedbackDashboard"));
+const FeedbackDetailPage = lazy(() => import("./pages/feedback/FeedbackDetail"));
 const CampaignImportHistory = lazy(() => import("./pages/bd/CampaignImportHistory"));
+const Vision = lazy(() => import("./pages/Vision"));
 
 // Smart redirect component - send everyone to BD Dashboard
 function DashboardRedirect() {
@@ -90,6 +91,11 @@ function DashboardRedirect() {
 function TaskViewRedirect() {
   const { taskId } = useParams<{ taskId: string }>();
   return <Navigate to={`/bd/actions/tasks/${taskId}`} replace />;
+}
+
+function FeedbackAdminRedirect() {
+  const { id } = useParams<{ id: string }>();
+  return <Navigate to={`/feedback/${id}`} replace />;
 }
 
 const App = () => (
@@ -132,14 +138,8 @@ const App = () => (
               </ProtectedRoute>
             }>
               <Route index element={<AdminPanel />} />
-              <Route
-                path="feedback"
-                element={<React.Suspense fallback={<div>Loading...</div>}><AdminFeedbackManager /></React.Suspense>}
-              />
-              <Route
-                path="feedback/:id"
-                element={<React.Suspense fallback={<div>Loading...</div>}><AdminFeedbackDetail /></React.Suspense>}
-              />
+              <Route path="feedback" element={<Navigate to="/feedback" replace />} />
+              <Route path="feedback/:id" element={<FeedbackAdminRedirect />} />
               <Route path="users" element={<UserManagement />} />
               <Route path="users/:userId" element={<UserDetail />} />
               <Route path="integrations" element={<IntegrationManager />} />
@@ -164,9 +164,26 @@ const App = () => (
               </ProtectedRoute>
             }>
               <Route
+                index
+                element={<React.Suspense fallback={<div>Loading...</div>}><FeedbackDashboard /></React.Suspense>}
+              />
+              <Route
                 path="submit"
                 element={<React.Suspense fallback={<div>Loading...</div>}><FeedbackSubmitPage /></React.Suspense>}
               />
+              <Route
+                path=":id"
+                element={<React.Suspense fallback={<div>Loading...</div>}><FeedbackDetailPage /></React.Suspense>}
+              />
+            </Route>
+
+            {/* Vision Module */}
+            <Route path="/vision" element={
+              <ProtectedRoute requiredMinimumRole="team_member">
+                <Layout />
+              </ProtectedRoute>
+            }>
+              <Route index element={<React.Suspense fallback={<div>Loading...</div>}><Vision /></React.Suspense>} />
             </Route>
 
             {/* Legacy Task Routes */}
@@ -188,8 +205,8 @@ const App = () => (
               <Route index element={<Navigate to="/bd/dashboard" replace />} />
               <Route path="dashboard" element={<BDDashboard />} />
               
-              {/* My Agents */}
-              <Route path="my-agents" element={<MyAgentsPage />} />
+              {/* Legacy route - redirect to dashboard */}
+              <Route path="my-agents" element={<Navigate to="/bd/dashboard" replace />} />
               
               {/* Redirect old campaign URLs */}
               <Route path="strategy/campaigns" element={<Navigate to="/campaigns" replace />} />

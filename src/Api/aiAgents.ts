@@ -58,6 +58,8 @@ export interface AgentDetailsPayload {
   schedule_config?: AgentScheduleConfig | null;
 }
 
+export type AppRole = 'super_admin' | 'admin' | 'manager' | 'project_manager' | 'bd_user' | 'team_member' | 'client';
+
 export interface AIAgent {
   id: string;
   name: string;
@@ -76,6 +78,12 @@ export interface AIAgent {
   data_source_config?: AgentDataSourceConfig | null;
   output_actions?: AgentOutputActions | null;
   schedule_config?: AgentScheduleConfig | null;
+  // New fields for usage context
+  usage_location?: string | null;
+  usage_route?: string | null;
+  min_role_required?: AppRole | null;
+  benefits?: string[] | null;
+  use_cases?: string[] | null;
 }
 
 export interface AgentDashboardMetrics {
@@ -125,7 +133,7 @@ export async function listAgents(): Promise<AIAgent[]> {
   const { data, error } = await supabase
     .from("ai_agents")
     .select(
-      "id, name, description, slug, category, type, config, is_active, is_enabled, created_by, created_at, updated_at, system_prompt, prompt_template, data_source_config, output_actions, schedule_config",
+      "id, name, description, slug, category, type, config, is_active, is_enabled, created_by, created_at, updated_at, system_prompt, prompt_template, data_source_config, output_actions, schedule_config, usage_location, usage_route, min_role_required, benefits, use_cases",
     )
     .order("name", { ascending: true });
 
@@ -136,7 +144,38 @@ export async function listAgents(): Promise<AIAgent[]> {
     data_source_config: (agent.data_source_config as AgentDataSourceConfig) || null,
     output_actions: (agent.output_actions as AgentOutputActions) || null,
     schedule_config: (agent.schedule_config as AgentScheduleConfig) || null,
+    benefits: Array.isArray(agent.benefits) ? agent.benefits : [],
+    use_cases: Array.isArray(agent.use_cases) ? agent.use_cases : [],
   }));
+}
+
+export async function recordAgentView(agentId: string, userId: string): Promise<void> {
+  const { error } = await supabase
+    .from("agent_views")
+    .insert({ agent_id: agentId, user_id: userId });
+
+  if (error) {
+    console.error("Failed to record agent view:", error);
+  }
+}
+
+export async function getAgentViewStats(agentId: string): Promise<{ viewCount: number; lastViewedAt: string | null }> {
+  const { data, error, count } = await supabase
+    .from("agent_views")
+    .select("viewed_at", { count: "exact" })
+    .eq("agent_id", agentId)
+    .order("viewed_at", { ascending: false })
+    .limit(1);
+
+  if (error) {
+    console.error("Failed to fetch agent view stats:", error);
+    return { viewCount: 0, lastViewedAt: null };
+  }
+
+  return {
+    viewCount: count ?? 0,
+    lastViewedAt: data?.[0]?.viewed_at ?? null,
+  };
 }
 
 export async function createAgent(payload: AgentDetailsPayload): Promise<AIAgent> {

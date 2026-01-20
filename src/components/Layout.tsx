@@ -147,30 +147,27 @@ const Layout = ({ userRole }: LayoutProps) => {
   const getNavigation = (role: string): NavigationItem[] => {
     const navigation: NavigationItem[] = [
       { name: "BD Dashboard", href: "/bd/dashboard", icon: LayoutDashboard, current: false },
-      { name: "My Agents", href: "/bd/my-agents", icon: Zap, current: false },
     ];
 
-    // Add super_admin only menu items (Pipeline, Sequences, Signing Documents)
+    // ===== BD WORKFLOW SECTION =====
+    // Pipeline - super_admin only
     if (role === 'super_admin') {
-      navigation.push(
-        {
-          name: "Pipeline",
-          href: "/prospecting",
-          icon: Target,
-          current: false,
-          subItems: [
-            { name: `Lead${dealCounts?.prospecting ? ` (${dealCounts.prospecting})` : ''}`, href: "/prospecting", icon: UserSearch, current: false },
-            { name: `Estimation${dealCounts?.qualification ? ` (${dealCounts.qualification})` : ''}`, href: "/qualification", icon: ClipboardCheck, current: false },
-            { name: `Discovery${dealCounts?.proposal ? ` (${dealCounts.proposal})` : ''}`, href: "/proposal", icon: FileText, current: false },
-            { name: `Proposal Shared${dealCounts?.negotiation ? ` (${dealCounts.negotiation})` : ''}`, href: "/negotiation", icon: Handshake, current: false },
-            { name: `Clients${clientCount ? ` (${clientCount})` : ''}`, href: "/clients", icon: Building2, current: false },
-          ]
-        },
-        { name: "Sequences", href: "/sequences", icon: Zap, current: false },
-        { name: "Signing Documents", href: "/signing-documents", icon: PenTool, current: false }
-      );
+      navigation.push({
+        name: "Pipeline",
+        href: "/prospecting",
+        icon: Target,
+        current: false,
+        subItems: [
+          { name: `Lead${dealCounts?.prospecting ? ` (${dealCounts.prospecting})` : ''}`, href: "/prospecting", icon: UserSearch, current: false },
+          { name: `Estimation${dealCounts?.qualification ? ` (${dealCounts.qualification})` : ''}`, href: "/qualification", icon: ClipboardCheck, current: false },
+          { name: `Discovery${dealCounts?.proposal ? ` (${dealCounts.proposal})` : ''}`, href: "/proposal", icon: FileText, current: false },
+          { name: `Proposal Shared${dealCounts?.negotiation ? ` (${dealCounts.negotiation})` : ''}`, href: "/negotiation", icon: Handshake, current: false },
+          { name: `Clients${clientCount ? ` (${clientCount})` : ''}`, href: "/clients", icon: Building2, current: false },
+        ]
+      });
     }
 
+    // Outreach & Performance - available to all
     navigation.push(
       { name: `Outreach${campaignCount ? ` (${campaignCount})` : ''}`, href: "/campaigns", icon: Megaphone, current: false },
       {
@@ -183,22 +180,42 @@ const Layout = ({ userRole }: LayoutProps) => {
           { name: "Meetings & Follow-Ups", href: "/follow-ups", icon: Calendar, current: false },
           { name: "Reports & Exports", href: "/bd/performance/reports", icon: FileDown, current: false },
         ]
-      },
-      {
-        name: "Actions",
-        href: "/bd/actions/tasks",
-        icon: CheckSquare,
+      }
+    );
+
+    // ===== DAILY WORK SECTION =====
+    navigation.push({
+      name: "Daily Work",
+      href: "/bd/actions/my-tasks",
+      icon: CheckSquare,
+      current: false,
+      subItems: [
+        { name: "My Tasks", href: "/bd/actions/my-tasks", icon: CheckSquare, current: false },
+        { name: "All Tasks", href: "/bd/actions/tasks", icon: CheckSquare, current: false },
+        { name: "Submit DHS", href: "/bd/actions/dhs", icon: TrendingUp, current: false },
+        { name: "DHS History", href: "/bd/actions/dhs-history", icon: History, current: false },
+        { name: "Submit EOD", href: "/bd/actions/eod", icon: Calendar, current: false },
+        { name: "EOD History", href: "/bd/actions/eod-history", icon: History, current: false },
+        { name: "Notifications", href: "/bd/notifications", icon: Bell, current: false },
+      ]
+    });
+
+    // ===== TOOLS SECTION (super_admin only) =====
+    if (role === 'super_admin') {
+      navigation.push({
+        name: "Tools",
+        href: "/signing-documents",
+        icon: Wrench,
         current: false,
         subItems: [
-          { name: "Tasks", href: "/bd/actions/tasks", icon: CheckSquare, current: false },
-            { name: "My Tasks", href: "/bd/actions/my-tasks", icon: CheckSquare, current: false },
-          { name: "Notifications", href: "/bd/notifications", icon: Bell, current: false },
-          { name: "Submit DHS", href: "/bd/actions/dhs", icon: TrendingUp, current: false },
-          { name: "My DHS History", href: "/bd/actions/dhs-history", icon: History, current: false },
-          { name: "Submit EOD", href: "/bd/actions/eod", icon: Calendar, current: false },
-          { name: "My EOD History", href: "/bd/actions/eod-history", icon: History, current: false },
+          { name: "Signing Documents", href: "/signing-documents", icon: PenTool, current: false },
+          { name: "Sequences", href: "/sequences", icon: Zap, current: false },
         ]
-      },
+      });
+    }
+
+    // ===== SYSTEM SECTION =====
+    navigation.push(
       { name: "SEPARATOR", href: "", icon: null, current: false, isHeader: true },
       { name: "Settings", href: "/bd/admin/settings", icon: Settings, current: false },
     );
@@ -206,13 +223,11 @@ const Layout = ({ userRole }: LayoutProps) => {
     // Add admin panel for admin and super_admin
     if (role === 'super_admin' || role === 'admin') {
       navigation.push(
-        { name: "SEPARATOR", href: "", icon: null, current: false, isHeader: true },
         { name: "Admin Panel", href: "/adminpanel", icon: Shield, current: false, isAdmin: true }
       );
     }
 
     return navigation;
-      
   };
 
   const { enabled: feedbackEnabled } = useFeatureFlag("feedback_enabled", true);
@@ -221,12 +236,20 @@ const Layout = ({ userRole }: LayoutProps) => {
 
   if (feedbackEnabled) {
     navigation.push({
-      name: "Submit Feedback",
-      href: "/feedback/submit",
+      name: "Feedback",
+      href: "/feedback",
       icon: MessageSquare,
       current: false,
     });
   }
+
+  // Add Vision page after Feedback
+  navigation.push({
+    name: "Vision",
+    href: "/vision",
+    icon: Sparkles,
+    current: false,
+  });
 
   const handleLogout = () => {
     logout();
