@@ -67,6 +67,8 @@ import TestEmailPage from "./pages/TestEmailPage";
 import SigningDocuments from "./pages/bd/SigningDocuments";
 import SigningDocumentDetail from "./pages/bd/SigningDocumentDetail";
 import NotificationsPage from "./pages/NotificationsPage";
+import AccountabilityChart from "./pages/bd/AccountabilityChart";
+import AccountabilityGoalDetail from "./pages/bd/AccountabilityGoalDetail";
 
 const queryClient = new QueryClient();
 
@@ -227,6 +229,10 @@ const App = () => (
 
               {/* Notifications */}
               <Route path="notifications" element={<NotificationsPage />} />
+
+              {/* Accountability Chart */}
+              <Route path="accountability" element={<AccountabilityChart />} />
+              <Route path="accountability/:goalId" element={<AccountabilityGoalDetail />} />
 
               {/* Admin */}
               <Route path="admin/documentation" element={<React.Suspense fallback={<div>Loading...</div>}><Documentation /></React.Suspense>} />
