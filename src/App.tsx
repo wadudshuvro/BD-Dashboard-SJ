@@ -19,11 +19,14 @@ import TaskViewPage from "./pages/bd/TaskViewPage";
 import MyTasksPage from "./pages/bd/MyTasksPage";
 import EODSubmission from "./pages/EODSubmission";
 import MyEODSubmissions from "./pages/MyEODSubmissions";
+import DHSSubmission from "./pages/DHSSubmission";
+import MyDHSSubmissions from "./pages/MyDHSSubmissions";
 import UserManagement from "./pages/admin/UserManagement";
 import IntegrationManager from "./pages/admin/IntegrationManager";
 import PerplexityIntegration from "./pages/admin/PerplexityIntegration";
 import AdminSettings from "./pages/admin/AdminSettings";
 import EODManagement from "./pages/admin/EODManagement";
+import DHSManagement from "./pages/admin/DHSManagement";
 import UserDetail from "./pages/admin/UserDetail";
 import AdminPanel from "./pages/admin/AdminPanel";
 
@@ -145,6 +148,7 @@ const App = () => (
               <Route path="documentation" element={<React.Suspense fallback={<div>Loading...</div>}><Documentation /></React.Suspense>} />
               <Route path="settings" element={<AdminSettings />} />
               <Route path="eod-management" element={<EODManagement />} />
+              <Route path="dhs-management" element={<DHSManagement />} />
               <Route path="pods" element={<PODManagement />} />
               <Route path="ai/agents" element={<LinkedInAgentConfig />} />
               <Route path="strategy/products" element={<ProductManagement />} />
@@ -218,6 +222,8 @@ const App = () => (
               <Route path="actions/tasks/:taskId" element={<TaskViewPage />} />
               <Route path="actions/eod" element={<EODSubmission />} />
               <Route path="actions/eod-history" element={<MyEODSubmissions />} />
+              <Route path="actions/dhs" element={<DHSSubmission />} />
+              <Route path="actions/dhs-history" element={<MyDHSSubmissions />} />
 
               {/* Notifications */}
               <Route path="notifications" element={<NotificationsPage />} />
