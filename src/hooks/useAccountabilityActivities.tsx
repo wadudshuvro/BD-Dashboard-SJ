@@ -45,6 +45,27 @@ export interface UpdateActivityData {
   status?: ActivityStatus;
 }
 
+// Helper to enrich activities with linked tasks
+async function enrichActivitiesWithTasks(activities: any[]): Promise<AccountabilityActivity[]> {
+  if (!activities || activities.length === 0) return [];
+  
+  const taskIds = [...new Set(activities.map(a => a.linked_task_id).filter(Boolean))];
+  
+  if (taskIds.length === 0) return activities as AccountabilityActivity[];
+  
+  const { data: tasks } = await supabase
+    .from('project_tasks')
+    .select('id, title, status')
+    .in('id', taskIds);
+  
+  const taskMap = new Map((tasks || []).map(t => [t.id, t]));
+  
+  return activities.map(activity => ({
+    ...activity,
+    linked_task: activity.linked_task_id ? taskMap.get(activity.linked_task_id) : undefined,
+  })) as AccountabilityActivity[];
+}
+
 // Hook to fetch activities for a rep goal
 export function useActivities(repGoalId: string | undefined) {
   return useQuery({
@@ -52,17 +73,14 @@ export function useActivities(repGoalId: string | undefined) {
     queryFn: async () => {
       if (!repGoalId) return [];
 
-      const { data, error } = await supabase
-        .from('accountability_activities')
-        .select(`
-          *,
-          linked_task:project_tasks(id, title, status)
-        `)
+      const { data, error } = await (supabase
+        .from('accountability_activities' as any)
+        .select('*')
         .eq('rep_goal_id', repGoalId)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false }) as any);
 
       if (error) throw error;
-      return data as AccountabilityActivity[];
+      return enrichActivitiesWithTasks(data || []);
     },
     enabled: !!repGoalId,
   });
@@ -75,17 +93,16 @@ export function useActivity(activityId: string | undefined) {
     queryFn: async () => {
       if (!activityId) return null;
 
-      const { data, error } = await supabase
-        .from('accountability_activities')
-        .select(`
-          *,
-          linked_task:project_tasks(id, title, status)
-        `)
+      const { data, error } = await (supabase
+        .from('accountability_activities' as any)
+        .select('*')
         .eq('id', activityId)
-        .single();
+        .single() as any);
 
       if (error) throw error;
-      return data as AccountabilityActivity;
+      
+      const enriched = await enrichActivitiesWithTasks([data]);
+      return enriched[0] || null;
     },
     enabled: !!activityId,
   });
@@ -97,11 +114,11 @@ export function useCreateActivity() {
 
   return useMutation({
     mutationFn: async (activityData: CreateActivityData) => {
-      const { data, error } = await supabase
-        .from('accountability_activities')
+      const { data, error } = await (supabase
+        .from('accountability_activities' as any)
         .insert(activityData)
         .select()
-        .single();
+        .single() as any);
 
       if (error) throw error;
       return data as AccountabilityActivity;
@@ -123,12 +140,12 @@ export function useUpdateActivity() {
 
   return useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: UpdateActivityData }) => {
-      const { data, error } = await supabase
-        .from('accountability_activities')
+      const { data, error } = await (supabase
+        .from('accountability_activities' as any)
         .update(updates)
         .eq('id', id)
         .select()
-        .single();
+        .single() as any);
 
       if (error) throw error;
       return data as AccountabilityActivity;
@@ -151,12 +168,12 @@ export function useLinkTaskToActivity() {
 
   return useMutation({
     mutationFn: async ({ activityId, taskId }: { activityId: string; taskId: string | null }) => {
-      const { data, error } = await supabase
-        .from('accountability_activities')
+      const { data, error } = await (supabase
+        .from('accountability_activities' as any)
         .update({ linked_task_id: taskId })
         .eq('id', activityId)
         .select()
-        .single();
+        .single() as any);
 
       if (error) throw error;
       return data as AccountabilityActivity;
@@ -179,10 +196,10 @@ export function useDeleteActivity() {
 
   return useMutation({
     mutationFn: async (activityId: string) => {
-      const { error } = await supabase
-        .from('accountability_activities')
+      const { error } = await (supabase
+        .from('accountability_activities' as any)
         .delete()
-        .eq('id', activityId);
+        .eq('id', activityId) as any);
 
       if (error) throw error;
     },
@@ -195,4 +212,3 @@ export function useDeleteActivity() {
     },
   });
 }
-

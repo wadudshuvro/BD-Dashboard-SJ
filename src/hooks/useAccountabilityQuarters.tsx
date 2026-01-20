@@ -35,13 +35,13 @@ export function useQuarters() {
   return useQuery({
     queryKey: ['accountability-quarters'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('accountability_quarters')
+      const { data, error } = await (supabase
+        .from('accountability_quarters' as any)
         .select('*')
-        .order('start_date', { ascending: false });
+        .order('start_date', { ascending: false }) as any);
 
       if (error) throw error;
-      return data as AccountabilityQuarter[];
+      return (data || []) as AccountabilityQuarter[];
     },
   });
 }
@@ -53,11 +53,11 @@ export function useQuarter(quarterId: string | undefined) {
     queryFn: async () => {
       if (!quarterId) return null;
 
-      const { data, error } = await supabase
-        .from('accountability_quarters')
+      const { data, error } = await (supabase
+        .from('accountability_quarters' as any)
         .select('*')
         .eq('id', quarterId)
-        .single();
+        .single() as any);
 
       if (error) throw error;
       return data as AccountabilityQuarter;
@@ -71,15 +71,15 @@ export function useActiveQuarter() {
   return useQuery({
     queryKey: ['accountability-active-quarter'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('accountability_quarters')
+      const { data, error } = await (supabase
+        .from('accountability_quarters' as any)
         .select('*')
         .eq('status', 'active')
         .gte('end_date', new Date().toISOString().split('T')[0])
         .lte('start_date', new Date().toISOString().split('T')[0])
         .order('start_date', { ascending: false })
         .limit(1)
-        .maybeSingle();
+        .maybeSingle() as any);
 
       if (error) throw error;
       return data as AccountabilityQuarter | null;
@@ -93,11 +93,11 @@ export function useCreateQuarter() {
 
   return useMutation({
     mutationFn: async (quarterData: CreateQuarterData) => {
-      const { data, error } = await supabase
-        .from('accountability_quarters')
+      const { data, error } = await (supabase
+        .from('accountability_quarters' as any)
         .insert(quarterData)
         .select()
-        .single();
+        .single() as any);
 
       if (error) throw error;
       return data as AccountabilityQuarter;
@@ -119,12 +119,12 @@ export function useUpdateQuarter() {
 
   return useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: UpdateQuarterData }) => {
-      const { data, error } = await supabase
-        .from('accountability_quarters')
+      const { data, error } = await (supabase
+        .from('accountability_quarters' as any)
         .update(updates)
         .eq('id', id)
         .select()
-        .single();
+        .single() as any);
 
       if (error) throw error;
       return data as AccountabilityQuarter;
@@ -147,10 +147,10 @@ export function useDeleteQuarter() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('accountability_quarters')
+      const { error } = await (supabase
+        .from('accountability_quarters' as any)
         .delete()
-        .eq('id', id);
+        .eq('id', id) as any);
 
       if (error) throw error;
     },
@@ -164,4 +164,3 @@ export function useDeleteQuarter() {
     },
   });
 }
-

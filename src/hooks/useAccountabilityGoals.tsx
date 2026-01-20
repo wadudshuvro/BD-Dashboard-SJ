@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tantml/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -57,11 +57,11 @@ export interface CreateTeamGoalData {
 export interface CreateRepGoalData {
   quarter_id: string;
   team_goal_id?: string;
+  rep_id?: string;
   title: string;
   description?: string;
   target_value: number;
   target_unit: string;
-  rep_id?: string; // Optional, defaults to current user
 }
 
 export interface UpdateRepGoalData {
@@ -69,13 +69,35 @@ export interface UpdateRepGoalData {
   description?: string;
   target_value?: number;
   target_unit?: string;
-  status?: GoalStatus;
   current_value?: number;
+  status?: GoalStatus;
+  approval_status?: GoalApprovalStatus;
 }
 
 export interface ApproveGoalData {
   approval_status: 'approved' | 'rejected';
   rejection_reason?: string;
+}
+
+// Helper function to fetch profiles for rep goals
+async function enrichRepGoalsWithProfiles(goals: any[]): Promise<AccountabilityRepGoal[]> {
+  if (!goals || goals.length === 0) return [];
+  
+  const repIds = [...new Set(goals.map(g => g.rep_id).filter(Boolean))];
+  
+  if (repIds.length === 0) return goals as AccountabilityRepGoal[];
+  
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('id, email, full_name')
+    .in('id', repIds);
+  
+  const profileMap = new Map((profiles || []).map(p => [p.id, p]));
+  
+  return goals.map(goal => ({
+    ...goal,
+    rep: profileMap.get(goal.rep_id) || undefined,
+  })) as AccountabilityRepGoal[];
 }
 
 // Hook to fetch team goals for a quarter
@@ -85,14 +107,14 @@ export function useTeamGoals(quarterId: string | undefined) {
     queryFn: async () => {
       if (!quarterId) return [];
 
-      const { data, error } = await supabase
-        .from('accountability_team_goals')
+      const { data, error } = await (supabase
+        .from('accountability_team_goals' as any)
         .select('*')
         .eq('quarter_id', quarterId)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false }) as any);
 
       if (error) throw error;
-      return data as AccountabilityTeamGoal[];
+      return (data || []) as AccountabilityTeamGoal[];
     },
     enabled: !!quarterId,
   });
@@ -105,11 +127,11 @@ export function useTeamGoal(goalId: string | undefined) {
     queryFn: async () => {
       if (!goalId) return null;
 
-      const { data, error } = await supabase
-        .from('accountability_team_goals')
+      const { data, error } = await (supabase
+        .from('accountability_team_goals' as any)
         .select('*')
         .eq('id', goalId)
-        .single();
+        .single() as any);
 
       if (error) throw error;
       return data as AccountabilityTeamGoal;
@@ -126,22 +148,32 @@ export function useRepGoals(quarterId: string | undefined, repId?: string) {
       if (!quarterId) return [];
 
       let query = supabase
-        .from('accountability_rep_goals')
-        .select(`
-          *,
-          rep:profiles!accountability_rep_goals_rep_id_fkey(id, email, full_name),
-          team_goal:accountability_team_goals(*)
-        `)
+        .from('accountability_rep_goals' as any)
+        .select('*')
         .eq('quarter_id', quarterId);
 
       if (repId) {
         query = query.eq('rep_id', repId);
       }
 
-      const { data, error } = await query.order('created_at', { ascending: false });
+      const { data, error } = await (query.order('created_at', { ascending: false }) as any);
 
       if (error) throw error;
-      return data as AccountabilityRepGoal[];
+      
+      // Fetch team goals and profiles
+      const goalsWithTeamGoals = await Promise.all((data || []).map(async (goal: any) => {
+        if (goal.team_goal_id) {
+          const { data: teamGoal } = await (supabase
+            .from('accountability_team_goals' as any)
+            .select('*')
+            .eq('id', goal.team_goal_id)
+            .single() as any);
+          return { ...goal, team_goal: teamGoal };
+        }
+        return goal;
+      }));
+      
+      return enrichRepGoalsWithProfiles(goalsWithTeamGoals);
     },
     enabled: !!quarterId,
   });
@@ -154,18 +186,27 @@ export function useRepGoal(goalId: string | undefined) {
     queryFn: async () => {
       if (!goalId) return null;
 
-      const { data, error } = await supabase
-        .from('accountability_rep_goals')
-        .select(`
-          *,
-          rep:profiles!accountability_rep_goals_rep_id_fkey(id, email, full_name),
-          team_goal:accountability_team_goals(*)
-        `)
+      const { data, error } = await (supabase
+        .from('accountability_rep_goals' as any)
+        .select('*')
         .eq('id', goalId)
-        .single();
+        .single() as any);
 
       if (error) throw error;
-      return data as AccountabilityRepGoal;
+      
+      // Fetch team goal if linked
+      let enrichedGoal = data;
+      if (data?.team_goal_id) {
+        const { data: teamGoal } = await (supabase
+          .from('accountability_team_goals' as any)
+          .select('*')
+          .eq('id', data.team_goal_id)
+          .single() as any);
+        enrichedGoal = { ...data, team_goal: teamGoal };
+      }
+      
+      const enriched = await enrichRepGoalsWithProfiles([enrichedGoal]);
+      return enriched[0] || null;
     },
     enabled: !!goalId,
   });
@@ -178,19 +219,15 @@ export function usePendingApprovalGoals(quarterId: string | undefined) {
     queryFn: async () => {
       if (!quarterId) return [];
 
-      const { data, error } = await supabase
-        .from('accountability_rep_goals')
-        .select(`
-          *,
-          rep:profiles!accountability_rep_goals_rep_id_fkey(id, email, full_name),
-          team_goal:accountability_team_goals(*)
-        `)
+      const { data, error } = await (supabase
+        .from('accountability_rep_goals' as any)
+        .select('*')
         .eq('quarter_id', quarterId)
         .eq('approval_status', 'pending_approval')
-        .order('created_at', { ascending: true });
+        .order('created_at', { ascending: true }) as any);
 
       if (error) throw error;
-      return data as AccountabilityRepGoal[];
+      return enrichRepGoalsWithProfiles(data || []);
     },
     enabled: !!quarterId,
   });
@@ -202,11 +239,11 @@ export function useCreateTeamGoal() {
 
   return useMutation({
     mutationFn: async (goalData: CreateTeamGoalData) => {
-      const { data, error } = await supabase
-        .from('accountability_team_goals')
+      const { data, error } = await (supabase
+        .from('accountability_team_goals' as any)
         .insert(goalData)
         .select()
-        .single();
+        .single() as any);
 
       if (error) throw error;
       return data as AccountabilityTeamGoal;
@@ -234,11 +271,11 @@ export function useCreateRepGoal() {
         rep_id: goalData.rep_id || user?.id,
       };
 
-      const { data, error } = await supabase
-        .from('accountability_rep_goals')
+      const { data, error } = await (supabase
+        .from('accountability_rep_goals' as any)
         .insert(insertData)
         .select()
-        .single();
+        .single() as any);
 
       if (error) throw error;
       return data as AccountabilityRepGoal;
@@ -259,12 +296,12 @@ export function useUpdateRepGoal() {
 
   return useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: UpdateRepGoalData }) => {
-      const { data, error } = await supabase
-        .from('accountability_rep_goals')
+      const { data, error } = await (supabase
+        .from('accountability_rep_goals' as any)
         .update(updates)
         .eq('id', id)
         .select()
-        .single();
+        .single() as any);
 
       if (error) throw error;
       return data as AccountabilityRepGoal;
@@ -286,12 +323,12 @@ export function useUpdateTeamGoal() {
 
   return useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: Partial<CreateTeamGoalData> }) => {
-      const { data, error } = await supabase
-        .from('accountability_team_goals')
+      const { data, error } = await (supabase
+        .from('accountability_team_goals' as any)
         .update(updates)
         .eq('id', id)
         .select()
-        .single();
+        .single() as any);
 
       if (error) throw error;
       return data as AccountabilityTeamGoal;
@@ -313,12 +350,12 @@ export function useSubmitGoalForApproval() {
 
   return useMutation({
     mutationFn: async (goalId: string) => {
-      const { data, error } = await supabase
-        .from('accountability_rep_goals')
+      const { data, error } = await (supabase
+        .from('accountability_rep_goals' as any)
         .update({ approval_status: 'pending_approval' })
         .eq('id', goalId)
         .select()
-        .single();
+        .single() as any);
 
       if (error) throw error;
       return data as AccountabilityRepGoal;
@@ -353,12 +390,12 @@ export function useApproveGoal() {
         updates.rejection_reason = approvalData.rejection_reason;
       }
 
-      const { data, error } = await supabase
-        .from('accountability_rep_goals')
+      const { data, error } = await (supabase
+        .from('accountability_rep_goals' as any)
         .update(updates)
         .eq('id', goalId)
         .select()
-        .single();
+        .single() as any);
 
       if (error) throw error;
       return data as AccountabilityRepGoal;
@@ -382,10 +419,10 @@ export function useDeleteRepGoal() {
 
   return useMutation({
     mutationFn: async (goalId: string) => {
-      const { error } = await supabase
-        .from('accountability_rep_goals')
+      const { error } = await (supabase
+        .from('accountability_rep_goals' as any)
         .delete()
-        .eq('id', goalId);
+        .eq('id', goalId) as any);
 
       if (error) throw error;
     },
@@ -405,10 +442,10 @@ export function useDeleteTeamGoal() {
 
   return useMutation({
     mutationFn: async (goalId: string) => {
-      const { error } = await supabase
-        .from('accountability_team_goals')
+      const { error } = await (supabase
+        .from('accountability_team_goals' as any)
         .delete()
-        .eq('id', goalId);
+        .eq('id', goalId) as any);
 
       if (error) throw error;
     },
@@ -421,4 +458,3 @@ export function useDeleteTeamGoal() {
     },
   });
 }
-
