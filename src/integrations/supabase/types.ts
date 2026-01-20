@@ -14,6 +14,63 @@ export type Database = {
   }
   public: {
     Tables: {
+      accountability_activities: {
+        Row: {
+          created_at: string
+          current_count: number
+          description: string | null
+          frequency: Database["public"]["Enums"]["activity_frequency"]
+          id: string
+          linked_task_id: string | null
+          rep_goal_id: string
+          status: Database["public"]["Enums"]["activity_status"]
+          target_count: number
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          current_count?: number
+          description?: string | null
+          frequency?: Database["public"]["Enums"]["activity_frequency"]
+          id?: string
+          linked_task_id?: string | null
+          rep_goal_id: string
+          status?: Database["public"]["Enums"]["activity_status"]
+          target_count?: number
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          current_count?: number
+          description?: string | null
+          frequency?: Database["public"]["Enums"]["activity_frequency"]
+          id?: string
+          linked_task_id?: string | null
+          rep_goal_id?: string
+          status?: Database["public"]["Enums"]["activity_status"]
+          target_count?: number
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accountability_activities_linked_task_id_fkey"
+            columns: ["linked_task_id"]
+            isOneToOne: false
+            referencedRelation: "project_tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accountability_activities_rep_goal_id_fkey"
+            columns: ["rep_goal_id"]
+            isOneToOne: false
+            referencedRelation: "accountability_rep_goals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       accountability_chart: {
         Row: {
           created_at: string
@@ -43,6 +100,217 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      accountability_quarters: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          end_date: string
+          id: string
+          name: string
+          start_date: string
+          status: Database["public"]["Enums"]["quarter_status"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          end_date: string
+          id?: string
+          name: string
+          start_date: string
+          status?: Database["public"]["Enums"]["quarter_status"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          end_date?: string
+          id?: string
+          name?: string
+          start_date?: string
+          status?: Database["public"]["Enums"]["quarter_status"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      accountability_rep_goals: {
+        Row: {
+          approval_status: Database["public"]["Enums"]["goal_approval_status"]
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          current_value: number
+          description: string | null
+          id: string
+          quarter_id: string
+          rejection_reason: string | null
+          rep_id: string
+          status: Database["public"]["Enums"]["goal_status"]
+          target_unit: string
+          target_value: number
+          team_goal_id: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          approval_status?: Database["public"]["Enums"]["goal_approval_status"]
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          current_value?: number
+          description?: string | null
+          id?: string
+          quarter_id: string
+          rejection_reason?: string | null
+          rep_id: string
+          status?: Database["public"]["Enums"]["goal_status"]
+          target_unit: string
+          target_value: number
+          team_goal_id?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          approval_status?: Database["public"]["Enums"]["goal_approval_status"]
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          current_value?: number
+          description?: string | null
+          id?: string
+          quarter_id?: string
+          rejection_reason?: string | null
+          rep_id?: string
+          status?: Database["public"]["Enums"]["goal_status"]
+          target_unit?: string
+          target_value?: number
+          team_goal_id?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accountability_rep_goals_quarter_id_fkey"
+            columns: ["quarter_id"]
+            isOneToOne: false
+            referencedRelation: "accountability_quarters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "accountability_rep_goals_team_goal_id_fkey"
+            columns: ["team_goal_id"]
+            isOneToOne: false
+            referencedRelation: "accountability_team_goals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      accountability_team_goals: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          current_value: number
+          description: string | null
+          id: string
+          quarter_id: string
+          status: Database["public"]["Enums"]["goal_status"]
+          target_unit: string
+          target_value: number
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          current_value?: number
+          description?: string | null
+          id?: string
+          quarter_id: string
+          status?: Database["public"]["Enums"]["goal_status"]
+          target_unit: string
+          target_value: number
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          current_value?: number
+          description?: string | null
+          id?: string
+          quarter_id?: string
+          status?: Database["public"]["Enums"]["goal_status"]
+          target_unit?: string
+          target_value?: number
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accountability_team_goals_quarter_id_fkey"
+            columns: ["quarter_id"]
+            isOneToOne: false
+            referencedRelation: "accountability_quarters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      accountability_weekly_updates: {
+        Row: {
+          activity_id: string
+          blockers: string | null
+          created_at: string
+          help_needed: string | null
+          id: string
+          notes: string | null
+          progress_percentage: number
+          progress_value: number
+          status: Database["public"]["Enums"]["goal_status"]
+          submitted_by: string
+          updated_at: string
+          week_end_date: string
+          week_start_date: string
+        }
+        Insert: {
+          activity_id: string
+          blockers?: string | null
+          created_at?: string
+          help_needed?: string | null
+          id?: string
+          notes?: string | null
+          progress_percentage?: number
+          progress_value?: number
+          status?: Database["public"]["Enums"]["goal_status"]
+          submitted_by: string
+          updated_at?: string
+          week_end_date: string
+          week_start_date: string
+        }
+        Update: {
+          activity_id?: string
+          blockers?: string | null
+          created_at?: string
+          help_needed?: string | null
+          id?: string
+          notes?: string | null
+          progress_percentage?: number
+          progress_value?: number
+          status?: Database["public"]["Enums"]["goal_status"]
+          submitted_by?: string
+          updated_at?: string
+          week_end_date?: string
+          week_start_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "accountability_weekly_updates_activity_id_fkey"
+            columns: ["activity_id"]
+            isOneToOne: false
+            referencedRelation: "accountability_activities"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       agent_views: {
         Row: {
@@ -5235,6 +5503,7 @@ export type Database = {
         Returns: string
       }
       generate_slug_numeric: { Args: { base_text: string }; Returns: string }
+      get_current_quarter: { Args: never; Returns: string }
       get_employee_by_ct_id: {
         Args: { ct_id: string }
         Returns: {
@@ -5272,6 +5541,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_manager_or_admin: { Args: never; Returns: boolean }
       mark_all_notifications_as_read: { Args: never; Returns: undefined }
       mark_notification_as_read: {
         Args: { notification_id: string }
@@ -5284,6 +5554,13 @@ export type Database = {
       update_overdue_followups: { Args: never; Returns: undefined }
     }
     Enums: {
+      activity_frequency:
+        | "daily"
+        | "weekly"
+        | "biweekly"
+        | "monthly"
+        | "one_time"
+      activity_status: "active" | "paused" | "completed"
       app_role:
         | "super_admin"
         | "admin"
@@ -5292,6 +5569,13 @@ export type Database = {
         | "team_member"
         | "client"
         | "bd_user"
+      goal_approval_status:
+        | "draft"
+        | "pending_approval"
+        | "approved"
+        | "rejected"
+      goal_status: "on_track" | "at_risk" | "off_track" | "completed"
+      quarter_status: "planning" | "active" | "completed" | "archived"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -5419,6 +5703,14 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      activity_frequency: [
+        "daily",
+        "weekly",
+        "biweekly",
+        "monthly",
+        "one_time",
+      ],
+      activity_status: ["active", "paused", "completed"],
       app_role: [
         "super_admin",
         "admin",
@@ -5428,6 +5720,14 @@ export const Constants = {
         "client",
         "bd_user",
       ],
+      goal_approval_status: [
+        "draft",
+        "pending_approval",
+        "approved",
+        "rejected",
+      ],
+      goal_status: ["on_track", "at_risk", "off_track", "completed"],
+      quarter_status: ["planning", "active", "completed", "archived"],
     },
   },
 } as const

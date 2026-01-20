@@ -47,6 +47,27 @@ export interface UpdateWeeklyUpdateData {
   notes?: string;
 }
 
+// Helper to enrich updates with submitter profiles
+async function enrichUpdatesWithProfiles(updates: any[]): Promise<AccountabilityWeeklyUpdate[]> {
+  if (!updates || updates.length === 0) return [];
+  
+  const userIds = [...new Set(updates.map(u => u.submitted_by).filter(Boolean))];
+  
+  if (userIds.length === 0) return updates as AccountabilityWeeklyUpdate[];
+  
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('id, email, full_name')
+    .in('id', userIds);
+  
+  const profileMap = new Map((profiles || []).map(p => [p.id, p]));
+  
+  return updates.map(update => ({
+    ...update,
+    submitter: profileMap.get(update.submitted_by) || undefined,
+  })) as AccountabilityWeeklyUpdate[];
+}
+
 // Hook to fetch weekly updates for an activity
 export function useWeeklyUpdates(activityId: string | undefined) {
   return useQuery({
@@ -54,17 +75,14 @@ export function useWeeklyUpdates(activityId: string | undefined) {
     queryFn: async () => {
       if (!activityId) return [];
 
-      const { data, error } = await supabase
-        .from('accountability_weekly_updates')
-        .select(`
-          *,
-          submitter:profiles!accountability_weekly_updates_submitted_by_fkey(id, email, full_name)
-        `)
+      const { data, error } = await (supabase
+        .from('accountability_weekly_updates' as any)
+        .select('*')
         .eq('activity_id', activityId)
-        .order('week_start_date', { ascending: false });
+        .order('week_start_date', { ascending: false }) as any);
 
       if (error) throw error;
-      return data as AccountabilityWeeklyUpdate[];
+      return enrichUpdatesWithProfiles(data || []);
     },
     enabled: !!activityId,
   });
@@ -77,17 +95,15 @@ export function useWeeklyUpdate(updateId: string | undefined) {
     queryFn: async () => {
       if (!updateId) return null;
 
-      const { data, error } = await supabase
-        .from('accountability_weekly_updates')
-        .select(`
-          *,
-          submitter:profiles!accountability_weekly_updates_submitted_by_fkey(id, email, full_name)
-        `)
+      const { data, error } = await (supabase
+        .from('accountability_weekly_updates' as any)
+        .select('*')
         .eq('id', updateId)
-        .single();
+        .single() as any);
 
       if (error) throw error;
-      return data as AccountabilityWeeklyUpdate;
+      const enriched = await enrichUpdatesWithProfiles([data]);
+      return enriched[0] || null;
     },
     enabled: !!updateId,
   });
@@ -100,18 +116,18 @@ export function useWeeklyUpdateForWeek(activityId: string | undefined, weekStart
     queryFn: async () => {
       if (!activityId || !weekStartDate) return null;
 
-      const { data, error } = await supabase
-        .from('accountability_weekly_updates')
-        .select(`
-          *,
-          submitter:profiles!accountability_weekly_updates_submitted_by_fkey(id, email, full_name)
-        `)
+      const { data, error } = await (supabase
+        .from('accountability_weekly_updates' as any)
+        .select('*')
         .eq('activity_id', activityId)
         .eq('week_start_date', weekStartDate)
-        .maybeSingle();
+        .maybeSingle() as any);
 
       if (error) throw error;
-      return data as AccountabilityWeeklyUpdate | null;
+      if (!data) return null;
+      
+      const enriched = await enrichUpdatesWithProfiles([data]);
+      return enriched[0] || null;
     },
     enabled: !!activityId && !!weekStartDate,
   });
@@ -130,22 +146,26 @@ export function useCreateWeeklyUpdate() {
         submitted_by: user?.id,
       };
 
-      const { data, error } = await supabase
-        .from('accountability_weekly_updates')
+      const { data, error } = await (supabase
+        .from('accountability_weekly_updates' as any)
         .insert(insertData)
         .select()
-        .single();
+        .single() as any);
 
       if (error) throw error;
 
-      // Update activity current_count
-      const { error: activityError } = await supabase.rpc('increment', {
-        row_id: updateData.activity_id,
-        x: updateData.progress_value,
-      }).eq('id', updateData.activity_id);
-
-      if (activityError) {
-        console.error('Failed to update activity count:', activityError);
+      // Update activity current_count directly
+      const { data: activity } = await (supabase
+        .from('accountability_activities' as any)
+        .select('current_count')
+        .eq('id', updateData.activity_id)
+        .single() as any);
+      
+      if (activity) {
+        await (supabase
+          .from('accountability_activities' as any)
+          .update({ current_count: (activity.current_count || 0) + updateData.progress_value })
+          .eq('id', updateData.activity_id) as any);
       }
 
       return data as AccountabilityWeeklyUpdate;
@@ -169,12 +189,12 @@ export function useUpdateWeeklyUpdate() {
 
   return useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: UpdateWeeklyUpdateData }) => {
-      const { data, error } = await supabase
-        .from('accountability_weekly_updates')
+      const { data, error } = await (supabase
+        .from('accountability_weekly_updates' as any)
         .update(updates)
         .eq('id', id)
         .select()
-        .single();
+        .single() as any);
 
       if (error) throw error;
       return data as AccountabilityWeeklyUpdate;
@@ -197,10 +217,10 @@ export function useDeleteWeeklyUpdate() {
 
   return useMutation({
     mutationFn: async (updateId: string) => {
-      const { error } = await supabase
-        .from('accountability_weekly_updates')
+      const { error } = await (supabase
+        .from('accountability_weekly_updates' as any)
         .delete()
-        .eq('id', updateId);
+        .eq('id', updateId) as any);
 
       if (error) throw error;
     },
@@ -233,4 +253,3 @@ export function getWeekDates(date: Date = new Date()): { start: string; end: str
     end: sunday.toISOString().split('T')[0],
   };
 }
-
