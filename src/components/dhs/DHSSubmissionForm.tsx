@@ -56,8 +56,8 @@ export function DHSSubmissionForm() {
       calls_made: 0,
       meetings_booked: 0,
       pipeline_updated: false,
-      score: '' as any,
-      status: '' as any,
+      score: undefined as any,
+      status: undefined as any,
       notes: '',
     },
   });
@@ -72,8 +72,8 @@ export function DHSSubmissionForm() {
       setValue('calls_made', todaySubmission.calls_made);
       setValue('meetings_booked', todaySubmission.meetings_booked);
       setValue('pipeline_updated', todaySubmission.pipeline_updated);
-      setValue('score', todaySubmission.score as any || '' as any);
-      setValue('status', todaySubmission.status as any || '' as any);
+      setValue('score', todaySubmission.score as any || undefined);
+      setValue('status', todaySubmission.status as any || undefined);
       setValue('notes', todaySubmission.notes || '');
       if (todaySubmission.score) {
         setScoreValue([todaySubmission.score]);
