@@ -214,16 +214,6 @@ async function buildPrompt(
   const dhsSubmissionRate = data.dhs.length > 0 ? (data.dhs.length / (5 * teamSize)) * 100 : 0;
   const eodSubmissionRate = data.eod.length > 0 ? (data.eod.length / (5 * teamSize)) * 100 : 0;
 
-  const avgFollowUps = data.dhs.length > 0 
-    ? data.dhs.reduce((sum: number, d: any) => sum + (d.follow_ups_done || 0), 0) / data.dhs.length 
-    : 0;
-  const avgCalls = data.dhs.length > 0 
-    ? data.dhs.reduce((sum: number, d: any) => sum + (d.calls_made || 0), 0) / data.dhs.length 
-    : 0;
-  const avgMeetings = data.dhs.length > 0 
-    ? data.dhs.reduce((sum: number, d: any) => sum + (d.meetings_booked || 0), 0) / data.dhs.length 
-    : 0;
-
   // Build rep summaries
   const dhsByRep = groupByRep(data.dhs, 'user_id');
   const eodByRep = groupByRep(data.eod, 'user_id');
@@ -239,12 +229,7 @@ async function buildPrompt(
     .replace('{{quarter_progress}}', calculateQuarterProgress(data.quarter))
     .replace('{{weeks_remaining}}', calculateWeeksRemaining(data.quarter))
     .replace('{{dhs_submission_rate}}', dhsSubmissionRate.toFixed(1))
-    .replace('{{avg_follow_ups}}', avgFollowUps.toFixed(1))
-    .replace('{{avg_calls}}', avgCalls.toFixed(1))
-    .replace('{{avg_meetings}}', avgMeetings.toFixed(1))
-    .replace('{{dhs_on_track}}', String(data.dhs.filter((d: any) => d.status === 'on_track').length))
-    .replace('{{dhs_at_risk}}', String(data.dhs.filter((d: any) => d.status === 'at_risk').length))
-    .replace('{{dhs_blocked}}', String(data.dhs.filter((d: any) => d.status === 'blocked').length))
+    .replace('{{dhs_total_entries}}', String(data.dhs.length))
     .replace('{{eod_submission_rate}}', eodSubmissionRate.toFixed(1))
     .replace('{{total_hours}}', data.eod.reduce((sum: number, e: any) => sum + (e.hours_worked || 0), 0).toFixed(1))
     .replace('{{avg_hours_per_rep}}', (data.eod.length > 0 ? data.eod.reduce((sum: number, e: any) => sum + (e.hours_worked || 0), 0) / data.eod.length : 0).toFixed(1))
