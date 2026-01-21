@@ -68,3 +68,9 @@ verify_jwt = false
 
 [functions.exa]
 verify_jwt = true
+
+[functions.bd-manager-weekly-review]
+verify_jwt = false
+
+[functions.scheduled-bd-manager-weekly-review]
+verify_jwt = false
