@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { DHSSubmission, DHSSubmissionFormData, DHSTeamSummary, DHSSubmissionWithUser, DHSStatus } from '@/types/dhs';
+import { DHSSubmission, DHSSubmissionFormData, DHSTeamSummary, DHSSubmissionWithUser } from '@/types/dhs';
 
 export function useDHSSubmissions(userId?: string, date?: Date) {
   const dateStr = date ? date.toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
@@ -88,13 +88,7 @@ export function useSubmitDHS() {
         .insert({
           user_id: user.id,
           date: submission.date,
-          follow_ups_done: submission.follow_ups_done,
-          calls_made: submission.calls_made,
-          meetings_booked: submission.meetings_booked,
-          pipeline_updated: submission.pipeline_updated,
-          score: submission.score || null,
-          status: submission.status || null,
-          notes: submission.notes || null,
+          content: submission.content,
         })
         .select()
         .single();
@@ -107,6 +101,7 @@ export function useSubmitDHS() {
       queryClient.invalidateQueries({ queryKey: ['dhs-history'] });
       queryClient.invalidateQueries({ queryKey: ['dhs-today'] });
       queryClient.invalidateQueries({ queryKey: ['dhs-team-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['dhs-all-submissions'] });
     },
   });
 }
@@ -122,13 +117,7 @@ export function useUpdateDHS() {
       const { data, error } = await supabase
         .from('dhs_submissions')
         .update({
-          follow_ups_done: updates.follow_ups_done,
-          calls_made: updates.calls_made,
-          meetings_booked: updates.meetings_booked,
-          pipeline_updated: updates.pipeline_updated,
-          score: updates.score !== undefined ? updates.score : undefined,
-          status: updates.status !== undefined ? updates.status : undefined,
-          notes: updates.notes !== undefined ? updates.notes : undefined,
+          content: updates.content,
         })
         .eq('id', id)
         .select()
@@ -142,6 +131,7 @@ export function useUpdateDHS() {
       queryClient.invalidateQueries({ queryKey: ['dhs-history'] });
       queryClient.invalidateQueries({ queryKey: ['dhs-today'] });
       queryClient.invalidateQueries({ queryKey: ['dhs-team-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['dhs-all-submissions'] });
     },
   });
 }
@@ -193,19 +183,13 @@ export function useAllDHSSubmissions(dateFilter?: string) {
         id: s.id,
         user_id: s.user_id,
         date: s.date,
-        follow_ups_done: s.follow_ups_done,
-        calls_made: s.calls_made,
-        meetings_booked: s.meetings_booked,
-        pipeline_updated: s.pipeline_updated,
-        score: s.score ?? undefined,
-        status: s.status as DHSStatus | undefined,
-        notes: s.notes ?? undefined,
+        content: s.content,
         created_at: s.created_at,
         updated_at: s.updated_at,
-        profiles: profilesMap.get(s.user_id) 
-          ? { 
-              full_name: profilesMap.get(s.user_id)?.full_name || undefined, 
-              email: profilesMap.get(s.user_id)?.email || '' 
+        profiles: profilesMap.get(s.user_id)
+          ? {
+              full_name: profilesMap.get(s.user_id)?.full_name || undefined,
+              email: profilesMap.get(s.user_id)?.email || ''
             }
           : undefined
       }));
@@ -241,33 +225,10 @@ export function useDHSTeamSummary(date?: Date) {
       const total_submissions = submissionsData.length;
       const submission_rate = totalUsers ? (total_submissions / totalUsers) * 100 : 0;
 
-      // Calculate aggregates
-      const total_follow_ups = submissionsData.reduce((sum, s) => sum + s.follow_ups_done, 0);
-      const total_calls = submissionsData.reduce((sum, s) => sum + s.calls_made, 0);
-      const total_meetings = submissionsData.reduce((sum, s) => sum + s.meetings_booked, 0);
-
-      // Calculate average score (only for submissions with scores)
-      const submissionsWithScore = submissionsData.filter(s => s.score !== null && s.score !== undefined);
-      const average_score = submissionsWithScore.length > 0
-        ? submissionsWithScore.reduce((sum, s) => sum + (s.score || 0), 0) / submissionsWithScore.length
-        : undefined;
-
-      // Status breakdown
-      const status_breakdown = {
-        on_track: submissionsData.filter(s => s.status === 'on_track').length,
-        at_risk: submissionsData.filter(s => s.status === 'at_risk').length,
-        blocked: submissionsData.filter(s => s.status === 'blocked').length,
-      };
-
       const summary: DHSTeamSummary = {
         date: dateStr,
         total_submissions,
         submission_rate,
-        average_score,
-        total_follow_ups,
-        total_calls,
-        total_meetings,
-        status_breakdown,
       };
 
       return summary;
