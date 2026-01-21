@@ -1,6 +1,6 @@
 # CLAUDE.md - AI Assistant Guide for SJ BD Dashboard
 
-**Last Updated**: December 18, 2025
+**Last Updated**: January 21, 2026
 
 This document provides comprehensive guidance for AI assistants (like Claude) working on the SJ BD Dashboard codebase. It covers the codebase structure, development workflows, key conventions, and critical information needed to effectively contribute to this project.
 
@@ -15,10 +15,14 @@ This document provides comprehensive guidance for AI assistants (like Claude) wo
 5. [Development Workflow](#development-workflow)
 6. [Database Schema](#database-schema)
 7. [API & Integrations](#api--integrations)
-8. [Common Tasks](#common-tasks)
-9. [Testing](#testing)
-10. [Deployment](#deployment)
-11. [Troubleshooting](#troubleshooting)
+8. [Key Modules](#key-modules)
+   - [DHS (Daily Head Start)](#dhs-daily-head-start)
+   - [Accountability Chart](#accountability-chart)
+   - [AI Agents](#ai-agents)
+9. [Common Tasks](#common-tasks)
+10. [Testing](#testing)
+11. [Deployment](#deployment)
+12. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -37,6 +41,9 @@ This document provides comprehensive guidance for AI assistants (like Claude) wo
 - **Control Tower Sync**: Bi-directional sync with HubSpot CRM
 - **Analytics & Reporting**: Comprehensive performance tracking and KPI management
 - **Role-Based Access**: Hierarchical permissions (team_member → manager → admin → super_admin)
+- **DHS (Daily Head Start)**: Daily BD health tracking with metrics, scores, and team visibility
+- **Accountability Chart**: Quarterly goal tracking system with approval workflows and progress monitoring
+- **Advanced AI Agents**: Configurable AI agents for LinkedIn messaging, research, lead enrichment, and automated weekly performance reviews
 
 ---
 
@@ -93,16 +100,19 @@ This document provides comprehensive guidance for AI assistants (like Claude) wo
 │   │   ├── ui/               # Shadcn/ui components (48 components)
 │   │   ├── admin/            # Admin-specific components
 │   │   ├── ai/               # AI-related components
+│   │   ├── accountability/   # Accountability chart components (11 components)
 │   │   ├── bd/               # Business development components
 │   │   │   ├── cells/        # Table cell components
 │   │   │   └── sequences/    # Email sequence components
 │   │   ├── contact/          # Contact management components
 │   │   ├── dashboard/        # Dashboard components
+│   │   ├── dhs/              # DHS (Daily Head Start) components
 │   │   ├── documentation/    # Documentation rendering
 │   │   ├── notifications/    # In-app notifications
 │   │   ├── proposals/        # Proposal management
 │   │   ├── signing/          # Document signing
 │   │   ├── tasks/            # Task management
+│   │   ├── vision/           # Vision dashboard & agent gallery
 │   │   └── ...
 │   │
 │   ├── features/             # Feature modules (domain-specific)
@@ -112,12 +122,19 @@ This document provides comprehensive guidance for AI assistants (like Claude) wo
 │   │   ├── feedback/        # User feedback system
 │   │   └── pipeline/        # Pipeline-specific features
 │   │
-│   ├── hooks/               # Custom React hooks (90+ hooks)
+│   ├── hooks/               # Custom React hooks (100+ hooks)
 │   │   ├── useAuth.tsx      # Authentication & authorization
 │   │   ├── useBDCampaigns.tsx  # Campaign management
 │   │   ├── useDeals.tsx     # Deal operations
 │   │   ├── useControlTowerHealth.tsx  # Health monitoring
 │   │   ├── useSequences.tsx # Email sequences
+│   │   ├── useDHSSubmissions.tsx  # DHS submission management
+│   │   ├── useAccountabilityQuarters.tsx  # Quarterly tracking
+│   │   ├── useAccountabilityGoals.tsx  # Goal management
+│   │   ├── useAccountabilityActivities.tsx  # Activity tracking
+│   │   ├── useAccountabilityUpdates.tsx  # Weekly updates
+│   │   ├── useAgentList.tsx  # AI agent management
+│   │   ├── useRunAIAgent.tsx  # Agent execution
 │   │   └── ...
 │   │
 │   ├── integrations/        # External service integrations
@@ -130,11 +147,17 @@ This document provides comprehensive guidance for AI assistants (like Claude) wo
 │   │
 │   ├── pages/               # Page components
 │   │   ├── admin/           # Admin panel pages
+│   │   │   ├── DHSManagement.tsx  # DHS team dashboard
+│   │   │   └── LinkedInAgentConfig.tsx  # AI agent management
 │   │   ├── analytics/       # Analytics pages
 │   │   ├── bd/              # Business development pages
+│   │   │   ├── AccountabilityChart.tsx  # Accountability main page
+│   │   │   ├── AccountabilityGoalDetail.tsx  # Goal detail page
 │   │   │   └── pipeline/    # Pipeline stage pages
+│   │   ├── DHSSubmission.tsx  # Daily DHS submission
+│   │   ├── MyDHSSubmissions.tsx  # DHS history
 │   │   ├── feedback/        # Feedback pages
-│   │   └── my-agents/       # AI agent management
+│   │   └── my-agents/       # AI agent management (deprecated)
 │   │
 │   ├── lib/                 # Shared libraries
 │   │   ├── utils.ts         # Utility functions (cn, etc.)
@@ -142,20 +165,29 @@ This document provides comprehensive guidance for AI assistants (like Claude) wo
 │   │   └── dealStages.ts    # Deal stage constants
 │   │
 │   ├── types/               # TypeScript type definitions
+│   │   ├── dhs.ts           # DHS types
+│   │   └── ...
 │   ├── utils/               # Utility functions
 │   ├── data/                # Static data
 │   ├── App.tsx              # Main app component with routing
 │   └── main.tsx             # Entry point
 │
 ├── supabase/
-│   ├── functions/           # Edge Functions (60+ functions)
+│   ├── functions/           # Edge Functions (65+ functions)
 │   │   ├── admin-campaigns/ # Campaign operations
 │   │   ├── run-ai-agent/   # AI agent execution
 │   │   ├── send-campaign-email/  # Email sending
+│   │   ├── send-dhs-reminder/  # DHS daily reminders
+│   │   ├── bd-manager-weekly-review/  # BD performance analysis
+│   │   ├── scheduled-bd-manager-weekly-review/  # Scheduled BD reviews
 │   │   ├── sync-control-tower-full/  # HubSpot sync
 │   │   ├── pandadoc-manage/  # Document signing
 │   │   └── ...
 │   └── migrations/          # Database migrations
+│       ├── 20260120000000_create_dhs_submissions.sql
+│       ├── 20260121000000_create_accountability_chart.sql
+│       ├── 20260121022452_bd_manager_agent.sql
+│       └── ...
 │
 ├── tests/                   # Test files
 │   ├── CampaignManagement.test.tsx
@@ -414,7 +446,7 @@ EOF
 
 ## Database Schema
 
-### Core Tables (117 total)
+### Core Tables (130+ total)
 
 #### User & Authentication
 - `profiles` - User profile information
@@ -449,8 +481,20 @@ EOF
 - `ai_agents` - AI agent configurations
 - `ai_agent_runs` - Execution history
 - `ai_agent_templates` - Reusable templates
+- `ai_shared_resources` - Vector stores and knowledge artifacts
 - `collabai_agents` - CollabAI integrations
 - `collabai_conversations` - Chat history
+- `bd_weekly_reports` - BD Manager Agent weekly analysis reports
+
+#### DHS (Daily Head Start)
+- `dhs_submissions` - Daily BD health submissions with metrics, scores, and status
+
+#### Accountability Chart
+- `accountability_quarters` - Quarterly time periods
+- `accountability_team_goals` - Manager-set team goals
+- `accountability_rep_goals` - Individual rep goals with approval workflow
+- `accountability_activities` - Trackable activities within goals
+- `accountability_weekly_updates` - Weekly progress updates
 
 #### Integrations
 - `control_tower_sync_log` - Sync logs
@@ -463,6 +507,7 @@ EOF
 ### Key Relationships
 
 ```
+# Campaign & Deal Management
 campaigns (1) ──> (N) campaign_contacts
 campaign_contacts (1) ──> (N) contact_sequence_enrollments
 campaigns (1) ──> (N) campaign_sequences
@@ -472,6 +517,23 @@ deals (1) ──> (N) deal_files
 deals (1) ──> (N) deal_checklist_items
 clients (1) ──> (N) deals
 users (1) ──> (N) deals (assignee)
+
+# DHS System
+users (1) ──> (N) dhs_submissions
+UNIQUE constraint: (user_id, date) - one submission per user per day
+
+# Accountability Chart
+accountability_quarters (1) ──> (N) accountability_team_goals
+accountability_quarters (1) ──> (N) accountability_rep_goals
+accountability_team_goals (1) ──> (N) accountability_rep_goals (optional link)
+accountability_rep_goals (1) ──> (N) accountability_activities
+accountability_activities (1) ──> (N) accountability_weekly_updates
+users (1) ──> (N) accountability_rep_goals (rep_id)
+users (1) ──> (N) accountability_rep_goals (approved_by)
+
+# AI Agents
+ai_agents (1) ──> (N) ai_agent_runs
+users (1) ──> (N) ai_agent_runs (executed_by)
 ```
 
 ### Database Access Patterns
@@ -523,6 +585,9 @@ const mutation = useMutation({
 | `run-ai-agent` | Execute AI agents | `{ agentId, prompt, context }` |
 | `admin-campaigns` | Campaign CRUD | `{ action, data }` |
 | `send-campaign-email` | Send emails | `{ contactId, templateId }` |
+| `send-dhs-reminder` | Send daily DHS reminders | `{}` (cron job) |
+| `bd-manager-weekly-review` | Generate BD performance analysis | `{ week_start_date, week_end_date }` |
+| `scheduled-bd-manager-weekly-review` | Scheduled BD reviews (Monday 9 AM) | `{}` (cron job) |
 | `sync-control-tower-full` | Full HubSpot sync | `{ force }` |
 | `sync-control-tower-deals` | Sync deals | `{ dealIds }` |
 | `pandadoc-manage` | Document operations | `{ action, documentId }` |
@@ -569,6 +634,236 @@ await controlTowerRestApiClient.pushDeal(dealData);
 **Anthropic**: Used for complex reasoning tasks
 
 **Provider Chain**: Edge Functions use a fallback chain (OpenAI → Perplexity → Anthropic)
+
+---
+
+## Key Modules
+
+### DHS (Daily Head Start)
+
+**Purpose**: Daily BD health tracking system for team members to plan their day and track key BD metrics.
+
+**Routes**:
+- `/bd/actions/dhs` - Submit daily DHS
+- `/bd/actions/dhs-history` - View personal history
+- `/adminpanel/dhs-management` - Admin team dashboard (Admins only)
+
+**Database**: `dhs_submissions` table with columns:
+- `user_id`, `date` (unique constraint)
+- `follow_ups_done`, `calls_made`, `meetings_booked`, `pipeline_updated`
+- `score` (1-10), `status` (on_track, at_risk, blocked), `notes`
+
+**Key Features**:
+- Daily submission form with BD metrics
+- Edit capability (current day only)
+- Dual scoring: numeric (1-10) + status dropdown
+- Personal history with date filtering
+- Team dashboard with submission rates and alerts
+- Color-coded visual feedback (red/yellow/green)
+- Automatic daily reminders via edge function
+
+**Components**:
+- `DHSSubmissionForm` - Main submission form
+- `DHSEditDialog` - Edit today's submission
+- `DHSTeamSummary` - Manager dashboard with team metrics
+- `DHSManagement` - Admin management page
+- `MyDHSSubmissions` - Personal history page
+
+**Hooks**:
+- `useDHSSubmissions()` - Fetch submissions
+- `useMyDHSHistory()` - Personal history
+- `useTodayDHSSubmission()` - Check if submitted today
+- `useSubmitDHS()` - Create submission
+- `useUpdateDHS()` - Update submission
+- `useAllDHSSubmissions()` - Admin view
+- `useDHSTeamSummary()` - Aggregate metrics
+
+**Access Control**:
+- All users can view all submissions (transparency)
+- Users can only edit their own current day submissions
+- Admins see team dashboard with filters and alerts
+
+**Edge Functions**:
+- `send-dhs-reminder` - Daily 9 AM reminders for non-submitters
+
+---
+
+### Accountability Chart
+
+**Purpose**: Quarterly goal tracking system with approval workflows and progress monitoring.
+
+**Routes**:
+- `/bd/accountability` - Main accountability page
+- `/bd/accountability/:goalId` - Goal detail with progress tracking
+
+**Database**: 5 tables with hierarchical structure:
+1. `accountability_quarters` - Time periods (Q1 2026, etc.)
+2. `accountability_team_goals` - Manager-set team targets
+3. `accountability_rep_goals` - Individual rep goals with approval workflow
+4. `accountability_activities` - Trackable tasks within goals
+5. `accountability_weekly_updates` - Weekly progress submissions
+
+**Goal Hierarchy**:
+```
+Quarters → Team Goals → Rep Goals → Activities → Weekly Updates
+```
+
+**Approval Workflow**:
+```
+Draft → Pending Approval → Approved/Rejected
+  ↑       (Manager)          ↓
+  └───── (Rep can resubmit if rejected)
+```
+
+**Key Features**:
+- Quarterly planning with active quarter selection
+- Team goals set by managers
+- Rep goals linked to team goals (optional)
+- Approval queue for managers
+- Activity tracking with frequencies (daily, weekly, monthly, etc.)
+- Weekly update submissions with blockers and help needed
+- Automatic progress rollup and status calculation
+- Task linking for integration with project management
+- Real-time notifications for approvals
+
+**Components** (11 total):
+- `QuarterSelector` - Select/create quarters
+- `TeamGoalsList` - Team goals table
+- `RepGoalsList` - Individual goals table
+- `GoalApprovalQueue` - Manager approval interface
+- `GoalForm` - Create/edit goals
+- `GoalStatusBadge` - Visual status indicator
+- `ActivityList` - Activities under goal
+- `ActivityForm` - Create/edit activities
+- `WeeklyUpdateForm` - Submit weekly progress
+- `WeeklyUpdateTimeline` - Progress history
+- `GoalProgressChart` - Visual progress display
+
+**Hooks** (4 files):
+- `useAccountabilityQuarters.tsx` - Quarter management
+- `useAccountabilityGoals.tsx` - Goal CRUD and approvals
+- `useAccountabilityActivities.tsx` - Activity management
+- `useAccountabilityUpdates.tsx` - Weekly updates
+
+**Status Logic**:
+- Completed: progress >= target
+- On Track: progress >= 90% of expected pace
+- At Risk: progress >= 70% of expected pace
+- Off Track: progress < 70% of expected pace
+
+**Access Control**:
+- All users can view all data (transparency)
+- Managers can create quarters and team goals
+- Reps can create and edit their own goals (draft/rejected only)
+- Managers can approve/reject rep goals
+- Goal owners can add activities and weekly updates
+
+---
+
+### AI Agents
+
+**Purpose**: Configurable AI agents for LinkedIn messaging, research, lead enrichment, and automated performance reviews.
+
+**Routes**:
+- `/adminpanel/linkedin-agent-config` - Agent management dashboard
+- `/vision` - Agent gallery and vision dashboard (if enabled)
+
+**Database**: Core tables:
+- `ai_agents` - Agent configurations with provider routing
+- `ai_agent_runs` - Execution history with telemetry
+- `ai_agent_templates` - Reusable templates
+- `ai_shared_resources` - Vector stores and knowledge
+- `bd_weekly_reports` - BD Manager Agent reports
+
+**Agent Types**:
+1. **LinkedIn Message Generator** - Personalized outreach messages
+2. **BD Research Analyst** - Batch contact analysis
+3. **Lead Auto-Enrichment** - Auto-enrich contact data
+4. **BD Weekly Insights** - Weekly performance review
+5. **BD Manager Weekly Review** - Comprehensive team analysis (NEW)
+
+**Agent Configuration Structure**:
+```typescript
+{
+  name, description, slug, type, category;
+  config: {
+    providers: { primary, fallback, research };
+    features: { enableResearch, enableTelemetry };
+  };
+  data_source_config: { tables, documents };
+  output_actions: { create_tasks, send_alerts };
+  schedule_config: { frequency, run_at, timezone };
+  system_prompt, prompt_template;
+}
+```
+
+**Provider Chain**: OpenAI → Perplexity → Anthropic → OpenAI-mini (fallback)
+
+**Key Features**:
+- 7-step agent configuration wizard
+- Provider routing with fallbacks
+- Data source mapping (tables, documents)
+- Output action configuration
+- Scheduled execution
+- Real-time execution history
+- Telemetry tracking
+- Step-by-step interactive runners
+- Batch processing support
+- Integration with campaigns, deals, DHS, EOD, Accountability Chart
+
+**Components**:
+- `AgentConfigModal` - 7-step configuration wizard
+- `AgentRunHistoryPanel` - Execution history
+- `LinkedInMessageGeneratorRunner` - LinkedIn message UI
+- `BDResearchAnalystRunner` - Batch research UI
+- `BDWeeklyInsightsRunner` - Weekly insights UI
+- `LeadEnrichmentAgentRunner` - Enrichment UI
+- `AgentGallery` - Agent gallery display
+- `AgentDetailModal` - Agent details
+
+**Hooks**:
+- `useAgentList()` - Fetch all agents
+- `useSaveAgent()` - Create/update agents
+- `useAgentRunHistory()` - Execution history
+- `useRunAIAgent()` - Execute agents
+- `useAgentTemplates()` - Template list
+- `useAgentDashboardMetrics()` - Performance metrics
+- `useGenerateLinkedInMessage()` - LinkedIn messages
+- `useRunBDAgent()` - BD agent execution
+
+**API Layer** (`src/Api/aiAgents.ts`):
+- `listAgents()`, `createAgent()`, `updateAgentDetails()`
+- `triggerAgentRun()`, `fetchAgentRunHistory()`
+- `fetchAgentDashboardMetrics()`, `listAgentTemplates()`
+
+**Edge Functions**:
+- `run-ai-agent` - Main orchestration (500+ lines)
+- `bd-manager-weekly-review` - Weekly BD analysis (483 lines)
+- `scheduled-bd-manager-weekly-review` - Cron wrapper
+- `auto-enrich-leads` - Lead enrichment
+- `bd-research-batch` - Batch research
+
+**BD Manager Agent** (Latest Addition - Jan 21, 2026):
+- Analyzes 50+ data points per week
+- Integrates DHS, EOD, Accountability Chart, Tasks, Upwork
+- Generates: Executive summaries, rep-by-rep analysis, team metrics
+- Creates WIG agendas with health scores
+- Identifies risk alerts and coaching opportunities
+- Scheduled: Monday 9 AM
+- Output: `bd_weekly_reports` table with structured data
+
+**Access Control**:
+- Admins/Managers can create and configure agents
+- All users can view agent gallery
+- Agent execution depends on agent configuration
+- Run history visible to all (transparency)
+
+**Recent Updates** (Jan 2026):
+- BD Manager Agent production deployment
+- AI gateway URL update
+- Provider telemetry tracking
+- Enhanced governance indexes
+- Vector store support
 
 ---
 
@@ -842,6 +1137,10 @@ npm run build
 - `useDeals()` - Deals
 - `useSequences()` - Email sequences
 - `useControlTowerHealth()` - Sync health
+- `useDHSSubmissions()` - DHS management
+- `useAccountabilityGoals()` - Goal tracking
+- `useAgentList()` - AI agents
+- `useRunAIAgent()` - Agent execution
 
 ### Most Used Components
 - `<Button />` - Buttons
