@@ -750,6 +750,80 @@ export type Database = {
           },
         ]
       }
+      bd_weekly_reports: {
+        Row: {
+          ai_insights: string[] | null
+          coaching_recommendations: Json | null
+          created_at: string | null
+          generated_at: string | null
+          generated_by: string | null
+          id: string
+          quarter: string
+          rep_performance: Json
+          report_status: string | null
+          risk_alerts: string[] | null
+          sent_at: string | null
+          sent_to: string[] | null
+          summary: string
+          team_health_score: number | null
+          team_metrics: Json
+          updated_at: string | null
+          week_end_date: string
+          week_start_date: string
+          wig_agenda: Json
+        }
+        Insert: {
+          ai_insights?: string[] | null
+          coaching_recommendations?: Json | null
+          created_at?: string | null
+          generated_at?: string | null
+          generated_by?: string | null
+          id?: string
+          quarter: string
+          rep_performance: Json
+          report_status?: string | null
+          risk_alerts?: string[] | null
+          sent_at?: string | null
+          sent_to?: string[] | null
+          summary: string
+          team_health_score?: number | null
+          team_metrics: Json
+          updated_at?: string | null
+          week_end_date: string
+          week_start_date: string
+          wig_agenda: Json
+        }
+        Update: {
+          ai_insights?: string[] | null
+          coaching_recommendations?: Json | null
+          created_at?: string | null
+          generated_at?: string | null
+          generated_by?: string | null
+          id?: string
+          quarter?: string
+          rep_performance?: Json
+          report_status?: string | null
+          risk_alerts?: string[] | null
+          sent_at?: string | null
+          sent_to?: string[] | null
+          summary?: string
+          team_health_score?: number | null
+          team_metrics?: Json
+          updated_at?: string | null
+          week_end_date?: string
+          week_start_date?: string
+          wig_agenda?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bd_weekly_reports_generated_by_fkey"
+            columns: ["generated_by"]
+            isOneToOne: false
+            referencedRelation: "ai_agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       brand_integrations: {
         Row: {
           brand_id: string
