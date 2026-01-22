@@ -1847,6 +1847,49 @@ export default function BDManagerReports() {
 
 ---
 
+## Analytics & Reporting Enhancements
+
+- **DHS Pulse Compliance**: Surface a compliance badge (✅/⚠️) driven by the submission rate, expose a rolling heatmap for follow-ups/calls, and annotate stuck reps with blockers pulled directly from the DHS/WIG data so managers can intervene before the week exits.
+- **EOD Workload Radar**: Visualize total hours, challenge density, and task velocity per rep; show variance vs the 95% submission target and highlight any reps whose weekly hours or submissions have dipped for two consecutive days.
+- **Accountability + Tasks Context Cards**: Highlight the percentage of goals on track, surface blocked activities, and call out reps missing weekly updates so the admin page can trigger coaching conversations or reassignments before the quarter slips.
+- **Upwork Pipeline Health**: Report proposals → win ratio, interviews booked, and revenue gaps against weekly targets; surface the Google Sheets notes the BD Manager agent recorded so leadership knows which deals are still in motion.
+- **Agent Chat + Live Insights**: Embed the BD Manager agent runner so admins can ask free-form questions about rep trends, risks, or plans, and immediately see the latest summary, risks, and generated tasks returned by the agent.
+- **Cross-Pillar Snapshot**: Combine DHS, EOD, Upwork, and Accountability in a single “Team Health” widget that includes week-over-week direction arrows, risk badges, and a quick list of the top 3 action items from the AI output.
+
+## Admin Reporting Page Analytics
+
+The refreshed `/admin/bd-reports` page mirrors the BD Manager agent’s four analytics pillars by surfacing the same metrics, thresholds, and comparative signals that drive the weekly AI review:
+
+1. **DHS Pulse Consistency**
+   - Submission rate vs. the 100% compliance goal, with follow-ups, calls, and meetings per rep summarized next to the percentage so managers can spot lags.
+   - Weekly trend (improving/steady/declining) derived from the last two DHS scores and a “gap to target” callout that quantifies how far the team is from perfect coverage.
+   - Context note that the data originates from the agent’s aggregated `dhs_submissions` pull and the same follow-up/call/meeting averages reported in each prompt.
+
+2. **EOD Signal & Workload**
+   - Submission rate compared to the 95% threshold, total hours logged, and completed tasks for the week, all in one card for quick workload health checks.
+   - “Gap to target” text and week-over-week trend track whether coverage is slipping, while the card’s body flags hours fluctuations and challenge density sourced from `eod_submissions`.
+   - Integrates the challenges narrative from the edge function so reps whose text fields include repeated blockers stand out immediately.
+
+3. **Accountability & Tasks Progress**
+   - Goal progress percentage vs. the 80% on-track benchmark, progress snippets for three prioritized goals, and linked WIG agenda notes that mention blocked activities or missing weekly updates.
+   - Displays contextual coaching focus items (from `wig_agenda.progress_vs_goals`) and keeps the BD Manager agent’s action items visible so managers can correlate the AI’s recommendations with current OKRs.
+   - Shows whether activities are trending toward completion and highlights when reps skip updates, matching the same fields the edge function reads from `accountability_rep_goals`, `accountability_activities`, and `accountability_weekly_updates`.
+
+4. **Upwork Pipeline Health**
+   - Proposals, wins, and a win-rate percentage that mirror the structures the edge function builds when it aggregates the Google Sheets JSON (the same data stored inside `bd_weekly_reports.team_metrics` for easy access).
+   - “Gap to the weekly proposals target” plus a short note reminding managers that this data comes from the agent’s Upwork pull, so they can see pipeline throughput alongside DHS/EOD signals.
+   - Pointed context on interviews booked or revenue gaps (when those fields are available) and a trend arrow that references the `week_over_week_comparison` values saved in the report.
+
+### Live Agent Chat
+
+The bottom of the page keeps the `AIAgentRunner` component wired to the `bd-manager-weekly-review` agent so admins can:
+
+- Ask ad-hoc questions about a rep, trend, or risk while seeing the latest executive summary and coaching recommendations the agent generated for that week.
+- Replay prior AI responses (executive summary, risks, coaching actions) without leaving the analytics page, ensuring insight requests stay anchored to the same data the cards display.
+- Trigger new runs if they need a fresh interpretation of the DHS/EOD/Accountability/Upwork signals, maintaining a live conversation loop with the agent the moment new data arrives.
+
+---
+
 ## Implementation Steps
 
 ### Phase 1: Database & Agent Setup (Week 1)

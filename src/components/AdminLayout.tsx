@@ -79,6 +79,12 @@ const AdminLayout = () => {
         ],
       },
       {
+        section: "BD Intelligence",
+        items: [
+          { name: "BD Manager Reports", href: "/adminpanel/bd-reports", icon: BarChart3, roles: ['super_admin', 'admin'] },
+        ],
+      },
+      {
         section: "Strategy & Growth",
         items: [
           { name: "Products & Services", href: "/adminpanel/strategy/products", icon: Package, roles: ['super_admin'] },
