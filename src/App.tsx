@@ -30,7 +30,6 @@ import DHSManagement from "./pages/admin/DHSManagement";
 import UserDetail from "./pages/admin/UserDetail";
 import AdminPanel from "./pages/admin/AdminPanel";
 import BDManagerReports from "./pages/admin/BDManagerReports";
-import BDManagerReports from "./pages/admin/BDManagerReports";
 
 import UserProfile from "./pages/UserProfile";
 import NicheManagement from "./pages/bd/NicheManagement";
