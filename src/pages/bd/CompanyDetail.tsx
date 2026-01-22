@@ -342,7 +342,7 @@ export default function CompanyDetail() {
                         </TableCell>
                         <TableCell className="text-right">
                           <Button variant="ghost" size="sm" asChild>
-                            <Link to={`/campaigns/${contact.bd_campaigns?.slug}/contacts/${contact.slug}`}>
+                            <Link to={`/campaigns/${contact.bd_campaigns?.slug}/contacts/${contact.slug}`} target="_blank" rel="noopener noreferrer">
                               View Details
                             </Link>
                           </Button>
