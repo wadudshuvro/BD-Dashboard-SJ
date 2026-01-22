@@ -223,6 +223,7 @@ export default function CampaignDetail() {
           c.contact_name.toLowerCase().includes(query) ||
           c.contact_company?.toLowerCase().includes(query) ||
           c.contact_title?.toLowerCase().includes(query) ||
+          c.contact_email?.toLowerCase().includes(query) ||
           c.linkedin_headline?.toLowerCase().includes(query) ||
           c.current_employer?.toLowerCase().includes(query) ||
           c.current_position_title?.toLowerCase().includes(query)
@@ -358,6 +359,7 @@ export default function CampaignDetail() {
             c.contact_name.toLowerCase().includes(query) ||
             c.contact_company?.toLowerCase().includes(query) ||
             c.contact_title?.toLowerCase().includes(query) ||
+            c.contact_email?.toLowerCase().includes(query) ||
             c.linkedin_headline?.toLowerCase().includes(query) ||
             c.current_employer?.toLowerCase().includes(query) ||
             c.current_position_title?.toLowerCase().includes(query)
