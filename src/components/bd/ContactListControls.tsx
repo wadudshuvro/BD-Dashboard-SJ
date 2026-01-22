@@ -85,10 +85,10 @@ export function ContactListControls({
     <div className="space-y-3">
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
         {/* Left: Search */}
-        <div className="relative w-full sm:w-auto sm:min-w-[300px]">
+        <div className="relative w-full sm:flex-1 sm:min-w-[320px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search contacts by name, company, or title..."
+            placeholder="Search contacts by name, company, title, or email"
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
             className="pl-9"

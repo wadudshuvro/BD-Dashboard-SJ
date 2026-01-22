@@ -27,6 +27,7 @@ interface Campaign {
 interface CampaignContact {
   id: string;
   contact_name: string;
+  contact_email?: string | null;
   contact_company: string | null;
   contact_title: string | null;
   contact_linkedin_url: string | null;
@@ -121,7 +122,7 @@ export function LinkedInMessageGeneratorRunner() {
       
       const { data, error } = await supabase
         .from('campaign_contacts')
-        .select('id, contact_name, contact_company, contact_title, contact_linkedin_url, campaign_id, status')
+        .select('id, contact_name, contact_email, contact_company, contact_title, contact_linkedin_url, campaign_id, status')
         .eq('campaign_id', selectedCampaignId)
         .in('status', ['identified', 'researched', 'qualified'])
         .order('contact_name');
@@ -146,7 +147,8 @@ export function LinkedInMessageGeneratorRunner() {
     return contacts.filter(c => 
       c.contact_name.toLowerCase().includes(query) ||
       c.contact_company?.toLowerCase().includes(query) ||
-      c.contact_title?.toLowerCase().includes(query)
+      c.contact_title?.toLowerCase().includes(query) ||
+      c.contact_email?.toLowerCase().includes(query)
     );
   }, [contacts, contactSearchQuery]);
 
@@ -324,7 +326,7 @@ export function LinkedInMessageGeneratorRunner() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search contacts by name, company, or title..."
+              placeholder="Search contacts by name, company, title, or email"
               value={contactSearchQuery}
               onChange={(e) => setContactSearchQuery(e.target.value)}
               className="pl-10"
