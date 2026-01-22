@@ -16,7 +16,7 @@ import {
 const AgentRunRequestSchema = z.object({
   agent_id: z.string().uuid().optional(),
   agent_type: z.string().optional(),
-  target: z.enum(["deal", "client", "client_intelligence"]).optional(),
+  target: z.enum(["deal", "client", "client_intelligence", "bd_manager_chat"]).optional(),
   client_id: z.string().uuid().optional(),
   question: z.string().optional(),
   mode: z.enum(["quick", "deep"]).optional(),
@@ -395,6 +395,102 @@ const linkedInMessageToolSchema = {
         "send_timing_suggestion",
         "follow_up_strategy"
       ]
+    }
+  }
+};
+
+// Tool calling schema for BD Manager Chat analysis
+const bdManagerChatToolSchema = {
+  type: "function" as const,
+  function: {
+    name: "provide_bd_manager_insights",
+    description: "Provide BD team performance insights and coaching recommendations based on weekly data",
+    parameters: {
+      type: "object",
+      properties: {
+        summary: {
+          type: "string",
+          description: "2-3 sentence executive summary directly answering the manager's question. Be specific with rep names, percentages, and dates."
+        },
+        rep_insights: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              rep_name: { type: "string", description: "Full name of the team member" },
+              status: { type: "string", enum: ["excelling", "on_track", "at_risk", "off_track"], description: "Current performance status" },
+              highlights: { type: "array", items: { type: "string" }, description: "2-4 specific observations about their performance" },
+              metrics: {
+                type: "object",
+                properties: {
+                  dhs_rate: { type: "number", description: "DHS submission rate percentage (0-100)" },
+                  eod_rate: { type: "number", description: "EOD submission rate percentage (0-100)" },
+                  goal_progress: { type: "number", description: "Goal completion percentage (0-100)" }
+                }
+              }
+            },
+            required: ["rep_name", "status", "highlights"]
+          },
+          description: "Individual rep performance insights when relevant to the question"
+        },
+        metrics_analysis: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              metric: { type: "string", description: "Name of the metric" },
+              value: { type: "string", description: "Current value with unit" },
+              trend: { type: "string", enum: ["up", "down", "stable"], description: "Trend direction" },
+              insight: { type: "string", description: "Brief insight about this metric" },
+              change_percent: { type: "number", description: "Percentage change from previous period" }
+            },
+            required: ["metric", "value", "trend", "insight"]
+          },
+          description: "Key metrics analysis when relevant"
+        },
+        action_items: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              action: { type: "string", description: "Specific action - start with a verb" },
+              priority: { type: "string", enum: ["high", "medium", "low"] },
+              owner: { type: "string", description: "Suggested owner (Manager, specific rep name, or role)" },
+              timeline: { type: "string", description: "Specific timeline (Today, This week, Monday, etc.)" },
+              context: { type: "string", description: "Why this action is important" }
+            },
+            required: ["action", "priority", "owner", "timeline"]
+          },
+          description: "Recommended actions for the manager"
+        },
+        wig_highlights: {
+          type: "array",
+          items: { type: "string" },
+          description: "Key items for WIG meeting agenda if relevant"
+        },
+        sources_cited: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              type: { type: "string", enum: ["dhs", "eod", "accountability", "tasks", "weekly_report"] },
+              name: { type: "string", description: "Name or description of the source" },
+              relevance: { type: "string", description: "How this source informed the analysis" }
+            },
+            required: ["type", "name", "relevance"]
+          }
+        },
+        data_quality: {
+          type: "object",
+          properties: {
+            coverage_score: { type: "number", description: "0-100 score of data completeness" },
+            missing_data: { type: "array", items: { type: "string" }, description: "What data is missing" },
+            data_freshness: { type: "string", description: "How recent the data is" }
+          },
+          required: ["coverage_score", "missing_data", "data_freshness"]
+        }
+      },
+      required: ["summary", "action_items", "data_quality"]
     }
   }
 };
@@ -1211,6 +1307,195 @@ serve(async (req) => {
         mode,
         input_context: inputContext,
       };
+    } else if (target === "bd_manager_chat") {
+      // BD Manager Chat - gather team performance context
+      const question = payload.question || "Provide a general overview of team performance";
+      const mode = payload.mode || "quick";
+      const weekStartDate = (incomingExecutionContext as any)?.week_start_date;
+      
+      console.log('🔄 BD Manager Chat - gathering team performance context');
+      
+      // Fetch or create a default BD Manager agent config
+      const { data: bdAgent, error: agentError } = await client
+        .from("ai_agents")
+        .select("*, config, prompt_template")
+        .eq("slug", "bd-manager-weekly-review")
+        .single();
+      
+      if (agentError || !bdAgent) {
+        // Create a fallback agent configuration
+        agent = {
+          id: "bd-manager-chat-fallback",
+          name: "BD Manager Chat",
+          category: "bd_management",
+          system_prompt: `You are a BD Team Performance Analyst. You help managers understand team performance, identify coaching opportunities, and prepare for WIG meetings.
+
+Your role is to:
+- Analyze DHS (Daily Health Score) and EOD (End of Day) submission patterns
+- Track individual rep performance against quarterly goals
+- Identify at-risk team members who need support
+- Provide actionable coaching recommendations
+- Summarize key metrics and trends
+
+Be specific with names, numbers, and dates. Focus on actionable insights.`,
+          config: { providers: { primary: { provider: "lovable", model: "google/gemini-2.5-flash" } } },
+        };
+        agentId = "bd-manager-chat-fallback";
+      } else {
+        agent = bdAgent as unknown as DatabaseAgent;
+        agentId = bdAgent.id;
+      }
+      
+      // Calculate date ranges
+      const now = new Date();
+      const weekStart = weekStartDate ? new Date(weekStartDate) : new Date(now.setDate(now.getDate() - now.getDay() + 1));
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekEnd.getDate() + 6);
+      const weekStartStr = weekStart.toISOString().split('T')[0];
+      const weekEndStr = weekEnd.toISOString().split('T')[0];
+      
+      // Fetch team performance data in parallel
+      const [
+        dhsData,
+        eodData,
+        activeQuarter,
+        tasksData,
+        latestReport,
+        profilesData,
+      ] = await Promise.all([
+        client.from("dhs_submissions")
+          .select("*, profiles:user_id (id, full_name, email)")
+          .gte("date", weekStartStr)
+          .lte("date", weekEndStr),
+        client.from("eod_submissions")
+          .select("*, profiles:user_id (id, full_name, email)")
+          .gte("date", weekStartStr)
+          .lte("date", weekEndStr),
+        client.from("accountability_quarters")
+          .select("*")
+          .eq("status", "active")
+          .single(),
+        client.from("project_tasks")
+          .select("*, profiles:assigned_to (id, full_name)")
+          .eq("status", "completed")
+          .gte("completed_at", weekStartStr)
+          .lte("completed_at", weekEndStr),
+        client.from("bd_weekly_reports")
+          .select("*")
+          .eq("week_start_date", weekStartStr)
+          .maybeSingle(),
+        client.from("profiles")
+          .select("id, full_name, email")
+          .limit(50),
+      ]);
+      
+      // Fetch accountability goals if we have an active quarter
+      let repGoals: any[] = [];
+      let weeklyUpdates: any[] = [];
+      if (activeQuarter.data) {
+        const [goalsResult, updatesResult] = await Promise.all([
+          client.from("accountability_rep_goals")
+            .select("*, profiles:rep_id (id, full_name, email)")
+            .eq("quarter_id", activeQuarter.data.id)
+            .eq("approval_status", "approved"),
+          client.from("accountability_weekly_updates")
+            .select("*, accountability_activities (title)")
+            .gte("week_start_date", weekStartStr)
+            .lte("week_end_date", weekEndStr),
+        ]);
+        repGoals = goalsResult.data || [];
+        weeklyUpdates = updatesResult.data || [];
+      }
+      
+      // Calculate team metrics
+      const profiles = profilesData.data || [];
+      const teamSize = profiles.length || 1;
+      const dhsCount = dhsData.data?.length || 0;
+      const eodCount = eodData.data?.length || 0;
+      const dhsSubmissionRate = Math.round((dhsCount / (5 * teamSize)) * 100);
+      const eodSubmissionRate = Math.round((eodCount / (5 * teamSize)) * 100);
+      
+      // Group data by rep for individual analysis
+      const dhsByRep: Record<string, any[]> = {};
+      const eodByRep: Record<string, any[]> = {};
+      
+      (dhsData.data || []).forEach((d: any) => {
+        const repName = d.profiles?.full_name || 'Unknown';
+        if (!dhsByRep[repName]) dhsByRep[repName] = [];
+        dhsByRep[repName].push(d);
+      });
+      
+      (eodData.data || []).forEach((e: any) => {
+        const repName = e.profiles?.full_name || 'Unknown';
+        if (!eodByRep[repName]) eodByRep[repName] = [];
+        eodByRep[repName].push(e);
+      });
+      
+      // Build context for the AI
+      inputContext = {
+        question,
+        mode,
+        week_context: {
+          week_start: weekStartStr,
+          week_end: weekEndStr,
+          quarter: activeQuarter.data?.name || "N/A",
+        },
+        team_metrics: {
+          team_size: teamSize,
+          dhs_submissions: dhsCount,
+          dhs_submission_rate: dhsSubmissionRate,
+          eod_submissions: eodCount,
+          eod_submission_rate: eodSubmissionRate,
+          total_hours_logged: (eodData.data || []).reduce((sum: number, e: any) => sum + (e.hours_worked || 0), 0),
+          tasks_completed: tasksData.data?.length || 0,
+        },
+        rep_breakdown: Object.entries(dhsByRep).map(([name, dhs]) => ({
+          name,
+          dhs_count: dhs.length,
+          eod_count: eodByRep[name]?.length || 0,
+          avg_score: dhs.reduce((sum: number, d: any) => sum + (d.overall_score || 0), 0) / (dhs.length || 1),
+        })),
+        accountability_goals: repGoals.map(g => ({
+          rep_name: g.profiles?.full_name || 'Unknown',
+          goal_title: g.title,
+          target: g.target_value,
+          current: g.current_value,
+          progress_percent: Math.round((g.current_value / g.target_value) * 100),
+          status: g.status,
+        })),
+        weekly_updates: weeklyUpdates,
+        latest_report: latestReport.data ? {
+          summary: latestReport.data.summary,
+          team_health_score: latestReport.data.team_health_score,
+          risk_alerts: latestReport.data.risk_alerts,
+        } : null,
+        analysis_hints: mode === "deep" ? [
+          "Analyze individual rep trends over time",
+          "Identify coaching opportunities",
+          "Compare against quarterly pacing",
+          "Look for patterns in low performers",
+          "Suggest specific 1-on-1 talking points"
+        ] : [
+          "Focus on the specific question asked",
+          "Highlight top concerns",
+          "Keep recommendations actionable"
+        ],
+      };
+      
+      executionContext = {
+        ...executionContext,
+        question,
+        mode,
+        week_start_date: weekStartStr,
+        input_context: inputContext,
+      };
+      
+      console.log('✅ BD Manager Chat context gathered:', {
+        team_size: teamSize,
+        dhs_count: dhsCount,
+        eod_count: eodCount,
+        goals_count: repGoals.length,
+      });
     } else if (target === "client") {
       if (!clientId) {
         throw new Error("client_id is required when target is 'client'");
@@ -1659,6 +1944,119 @@ serve(async (req) => {
         }
       } else {
         console.warn('⚠️ LOVABLE_API_KEY not found for Client Intelligence, falling back to provider chain');
+      }
+    }
+
+    // Check if this is BD Manager Chat - use tool calling with Lovable AI Gateway
+    const isBDManagerChat = target === "bd_manager_chat";
+
+    if (isBDManagerChat && !parsedResponse) {
+      const lovableKey = Deno.env.get('LOVABLE_API_KEY');
+      
+      if (lovableKey) {
+        const startTime = Date.now();
+        try {
+          console.log('🔄 Using Lovable AI Gateway for BD Manager Chat analysis');
+          
+          // Build enhanced messages with conversation history if provided
+          const bdMessages = [...messages];
+          
+          // Include conversation history for multi-turn support
+          if (payload.conversation_history && payload.conversation_history.length > 0) {
+            const systemMsg = bdMessages.shift()!;
+            const currentUserMsg = bdMessages.pop()!;
+            
+            bdMessages.push(systemMsg);
+            for (const historyMsg of payload.conversation_history) {
+              bdMessages.push({
+                role: historyMsg.role as 'user' | 'assistant',
+                content: typeof historyMsg.content === 'string' 
+                  ? historyMsg.content 
+                  : JSON.stringify(historyMsg.content)
+              });
+            }
+            bdMessages.push(currentUserMsg);
+          }
+          
+          const toolCallResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${lovableKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: 'google/gemini-2.5-flash',
+              messages: bdMessages,
+              tools: [bdManagerChatToolSchema],
+              tool_choice: { type: "function", function: { name: "provide_bd_manager_insights" } },
+            }),
+          });
+
+          const toolCallResult = await toolCallResponse.json();
+          const latencyMs = Date.now() - startTime;
+          
+          if (!toolCallResponse.ok) {
+            console.error('Lovable AI Gateway error:', toolCallResult);
+            throw new Error(toolCallResult.error?.message || 'Lovable AI Gateway request failed');
+          }
+          
+          telemetry.push({
+            provider: 'lovable' as any,
+            model: 'google/gemini-2.5-flash',
+            latencyMs,
+            tokenUsage: {
+              promptTokens: toolCallResult.usage?.prompt_tokens,
+              completionTokens: toolCallResult.usage?.completion_tokens,
+              totalTokens: toolCallResult.usage?.total_tokens,
+            },
+          });
+          rawOutputs.push(toolCallResult);
+
+          const toolCall = toolCallResult.choices?.[0]?.message?.tool_calls?.[0];
+          if (toolCall && toolCall.function.name === "provide_bd_manager_insights") {
+            const bdData = JSON.parse(toolCall.function.arguments);
+            
+            // Handle empty data gracefully
+            const dataQuality = bdData.data_quality || { coverage_score: 0, missing_data: ["No data available"], data_freshness: "Unknown" };
+            
+            if (dataQuality.coverage_score < 20) {
+              bdData.summary = bdData.summary || "Limited data available for this week. Consider generating a weekly report first to populate the data.";
+              bdData.action_items = bdData.action_items || [
+                { action: "Generate weekly BD report", priority: "high", owner: "Manager", timeline: "Today", context: "Reports populate the data needed for analysis" },
+                { action: "Ensure team submits DHS entries daily", priority: "high", owner: "Manager", timeline: "This week", context: "DHS data drives performance insights" }
+              ];
+            }
+            
+            // Return structured BD Manager response
+            parsedResponse = {
+              summary: bdData.summary || "Analysis completed",
+              findings: bdData.rep_insights?.map((r: any) => `${r.rep_name}: ${r.status}`) || [],
+              recommendations: bdData.action_items?.map((a: any) => a.action) || [],
+              action_items: bdData.action_items || [],
+              metrics: {
+                total_items_analyzed: (inputContext as any)?.team_metrics?.team_size || 0,
+                high_priority_issues: bdData.action_items?.filter((a: any) => a.priority === 'high').length || 0,
+                anomalies_found: bdData.rep_insights?.filter((r: any) => r.status === 'at_risk' || r.status === 'off_track').length || 0
+              },
+              confidence_score: dataQuality.coverage_score >= 50 ? 0.9 : 0.6,
+              structured_output: bdData
+            };
+            
+            console.log('✅ BD Manager Chat analysis completed with tool calling');
+          } else {
+            console.warn('⚠️ BD Manager Chat tool call did not return expected format, falling back to standard flow');
+          }
+        } catch (toolError) {
+          console.error('BD Manager Chat tool calling failed, falling back to standard provider chain:', toolError);
+          telemetry.push({
+            provider: 'lovable' as any,
+            model: 'google/gemini-2.5-flash',
+            latencyMs: Date.now() - startTime,
+            error: { message: toolError instanceof Error ? toolError.message : 'Tool calling failed' },
+          });
+        }
+      } else {
+        console.warn('⚠️ LOVABLE_API_KEY not found for BD Manager Chat, falling back to provider chain');
       }
     }
 

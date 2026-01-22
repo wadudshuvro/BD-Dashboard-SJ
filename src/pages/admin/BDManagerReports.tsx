@@ -4,10 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Activity, CalendarDays, ClipboardList, ShieldCheck, TrendingUp } from "lucide-react";
-import { AIAgentRunner } from "@/components/ai/AIAgentRunner";
+import { Loader2, Activity, CalendarDays, ClipboardList, ShieldCheck, TrendingUp, Bot, Calendar } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { BDManagerChatMessages } from "@/components/bd/BDManagerChatMessages";
+import { BDManagerChatInput } from "@/components/bd/BDManagerChatInput";
+import { QuickBDInsightCards } from "@/components/bd/QuickBDInsightCards";
+import { useRunBDManagerChat, type BDChatMessage } from "@/hooks/useRunBDManagerChat";
 
 type TeamMetrics = {
   dhs_submission_rate?: number;
@@ -84,6 +87,44 @@ export default function BDManagerReports() {
   const { toast } = useToast();
   const [selectedWeek, setSelectedWeek] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [chatMessages, setChatMessages] = useState<BDChatMessage[]>([]);
+  
+  const { askQuestion, isLoading: isChatLoading, error: chatError } = useRunBDManagerChat({
+    weekStartDate: selectedWeek || undefined,
+  });
+
+  const handleAskQuestion = async (question: string, mode: "quick" | "deep") => {
+    // Add user message immediately
+    const userMessage: BDChatMessage = {
+      role: "user",
+      content: question,
+      timestamp: new Date(),
+    };
+    setChatMessages((prev) => [...prev, userMessage]);
+
+    // Get AI response
+    const response = await askQuestion(question, chatMessages, mode);
+    
+    if (response) {
+      const assistantMessage: BDChatMessage = {
+        role: "assistant",
+        content: response.summary,
+        timestamp: new Date(),
+        structuredData: response,
+      };
+      setChatMessages((prev) => [...prev, assistantMessage]);
+    } else if (chatError) {
+      toast({
+        title: "Error",
+        description: chatError,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleQuickInsight = (question: string) => {
+    handleAskQuestion(question, "quick");
+  };
 
   const reportsQuery = useQuery({
     queryKey: ["bd-weekly-reports"],
@@ -312,16 +353,32 @@ export default function BDManagerReports() {
               </p>
             </div>
             <div className="w-56">
-              <Select value={selectedWeek ?? ""} onValueChange={(value) => setSelectedWeek(value || null)}>
+              <Select 
+                value={selectedWeek ?? ""} 
+                onValueChange={(value) => setSelectedWeek(value || null)}
+                disabled={!reportsQuery.data?.length}
+              >
                 <SelectTrigger>
-                  <SelectValue placeholder={reportsQuery.isLoading ? "Loading…" : "Select a week…"} />
+                  <SelectValue placeholder={
+                    reportsQuery.isLoading 
+                      ? "Loading…" 
+                      : reportsQuery.data?.length 
+                        ? "Select a week…" 
+                        : "No reports yet"
+                  } />
                 </SelectTrigger>
                 <SelectContent>
-                  {reportsQuery.data?.map((report) => (
-                    <SelectItem key={report.id} value={report.week_start_date}>
-                      Week of {report.week_start_date}
+                  {reportsQuery.data?.length ? (
+                    reportsQuery.data.map((report) => (
+                      <SelectItem key={report.id} value={report.week_start_date}>
+                        Week of {report.week_start_date}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="empty" disabled>
+                      No reports available
                     </SelectItem>
-                  ))}
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -660,31 +717,36 @@ export default function BDManagerReports() {
         </Card>
       )}
 
-      {agentQuery.isLoading ? (
-        <Card className="p-6">
-          <div className="flex items-center justify-center gap-3">
-            <Loader2 className="h-5 w-5 animate-spin" />
-            <p className="text-sm text-muted-foreground">Loading BD Manager agent...</p>
-          </div>
-        </Card>
-      ) : agentQuery.data ? (
-        <Card>
-          <CardHeader className="p-4">
+      <Card className="flex flex-col h-[500px]">
+        <CardHeader className="p-4 border-b shrink-0">
+          <div className="flex items-center gap-2">
+            <Bot className="h-5 w-5 text-primary" />
             <CardTitle className="text-lg font-semibold">Chat with BD Manager Agent</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Ask for on-demand insights about any rep or team trend, then review the freshest AI summary.
-            </p>
-          </CardHeader>
-          <CardContent className="p-4">
-            <AIAgentRunner
-              agentId={agentQuery.data.id}
-              agentName={agentQuery.data.name}
-              agentDescription={agentQuery.data.description}
-              category={agentQuery.data.category || "bd_performance"}
-            />
-          </CardContent>
-        </Card>
-      ) : null}
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Ask questions about team performance, individual reps, or get coaching recommendations.
+          </p>
+          {selectedWeek && (
+            <Badge variant="outline" className="w-fit mt-2">
+              <Calendar className="h-3 w-3 mr-1" />
+              Context: Week of {selectedWeek}
+            </Badge>
+          )}
+        </CardHeader>
+        
+        <div className="flex-1 flex flex-col min-h-0">
+          {chatMessages.length === 0 ? (
+            <div className="flex-1 flex flex-col">
+              <BDManagerChatMessages messages={[]} weekContext={selectedWeek || undefined} />
+              <QuickBDInsightCards onSelectQuestion={handleQuickInsight} />
+            </div>
+          ) : (
+            <BDManagerChatMessages messages={chatMessages} weekContext={selectedWeek || undefined} />
+          )}
+        </div>
+        
+        <BDManagerChatInput onAsk={handleAskQuestion} isLoading={isChatLoading} />
+      </Card>
     </section>
   );
 }
