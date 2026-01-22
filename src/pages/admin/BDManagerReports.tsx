@@ -96,7 +96,19 @@ export default function BDManagerReports() {
         .limit(20);
 
       if (error) throw error;
-      return data as BDWeeklyReport[];
+      return (data ?? []).map((row) => ({
+        id: row.id,
+        week_start_date: row.week_start_date,
+        week_end_date: row.week_end_date,
+        summary: row.summary ?? undefined,
+        team_health_score: row.team_health_score ?? undefined,
+        rep_performance: Array.isArray(row.rep_performance) ? row.rep_performance as BDWeeklyReport["rep_performance"] : undefined,
+        team_metrics: (row.team_metrics as TeamMetrics) ?? undefined,
+        wig_agenda: (row.wig_agenda as WigAgenda) ?? undefined,
+        risk_alerts: row.risk_alerts ?? undefined,
+        coaching_recommendations: Array.isArray(row.coaching_recommendations) ? row.coaching_recommendations as CoachingRecommendation[] : undefined,
+        ai_insights: row.ai_insights ?? undefined,
+      })) as BDWeeklyReport[];
     },
     staleTime: 1000 * 60 * 5,
   });
@@ -113,7 +125,20 @@ export default function BDManagerReports() {
         .single();
 
       if (error) throw error;
-      return data as BDWeeklyReport;
+      if (!data) return null;
+      return {
+        id: data.id,
+        week_start_date: data.week_start_date,
+        week_end_date: data.week_end_date,
+        summary: data.summary ?? undefined,
+        team_health_score: data.team_health_score ?? undefined,
+        rep_performance: Array.isArray(data.rep_performance) ? data.rep_performance as BDWeeklyReport["rep_performance"] : undefined,
+        team_metrics: (data.team_metrics as TeamMetrics) ?? undefined,
+        wig_agenda: (data.wig_agenda as WigAgenda) ?? undefined,
+        risk_alerts: data.risk_alerts ?? undefined,
+        coaching_recommendations: Array.isArray(data.coaching_recommendations) ? data.coaching_recommendations as CoachingRecommendation[] : undefined,
+        ai_insights: data.ai_insights ?? undefined,
+      } as BDWeeklyReport;
     },
     enabled: !!selectedWeek,
   });
@@ -155,7 +180,7 @@ export default function BDManagerReports() {
 
   const formatPercent = (value?: number, fallback = "—") => (value ?? value === 0 ? `${value.toFixed(1)}%` : fallback);
   const formatNumber = (value?: number, fallback = "—") => (value ?? value === 0 ? value.toLocaleString() : fallback);
-  const getTrendLabel = (trend?: string) => (trend ? trend.replaceAll("_", " ") : "steady");
+  const getTrendLabel = (trend?: string) => (trend ? trend.replace(/_/g, " ") : "steady");
 
   const handleGenerateReport = async () => {
     if (!selectedWeek || isGenerating) return;
