@@ -19,7 +19,7 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.admin-campaigns]
-verify_jwt = true
+verify_jwt = false
 
 [functions.sync-control-tower-full]
 verify_jwt = true

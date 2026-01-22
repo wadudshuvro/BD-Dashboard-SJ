@@ -277,12 +277,24 @@ async function createUserClient(req: Request): Promise<SupabaseClient> {
   });
 }
 
-async function requireUser(client: SupabaseClient) {
-  const { data, error } = await client.auth.getUser();
-  if (error || !data?.user) {
+async function requireUser(client: SupabaseClient, authHeader: string | null) {
+  if (!authHeader?.startsWith('Bearer ')) {
     throw new Error("Unauthorized");
   }
-  return data.user;
+  
+  const token = authHeader.replace('Bearer ', '');
+  const { data, error } = await client.auth.getClaims(token);
+  
+  if (error || !data?.claims) {
+    throw new Error("Unauthorized");
+  }
+  
+  // Return a user-like object with the claims
+  return {
+    id: data.claims.sub as string,
+    email: data.claims.email as string | undefined,
+    role: data.claims.role as string | undefined,
+  };
 }
 
 async function checkUserRole(serviceClient: SupabaseClient, userId: string): Promise<string | null> {
@@ -950,9 +962,11 @@ serve(async (req) => {
   }
 
   try {
+    const authHeader = req.headers.get('Authorization');
+    
     // Use user client for authentication
     const userClient = await createUserClient(req);
-    const user = await requireUser(userClient);
+    const user = await requireUser(userClient, authHeader);
     
     // Use service role client for database operations (bypasses RLS)
     const serviceClient = await createSupabaseClient(req);
