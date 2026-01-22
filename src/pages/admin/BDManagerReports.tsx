@@ -178,8 +178,8 @@ export default function BDManagerReports() {
     return insights;
   }, [selectedReport]);
 
-  const formatPercent = (value?: number, fallback = "—") => (value ?? value === 0 ? `${value.toFixed(1)}%` : fallback);
-  const formatNumber = (value?: number, fallback = "—") => (value ?? value === 0 ? value.toLocaleString() : fallback);
+  const formatPercent = (value?: number, fallback = "—") => (value != null ? `${value.toFixed(1)}%` : fallback);
+  const formatNumber = (value?: number, fallback = "—") => (value != null ? value.toLocaleString() : fallback);
   const getTrendLabel = (trend?: string) => (trend ? trend.replace(/_/g, " ") : "steady");
 
   const handleGenerateReport = async () => {
@@ -226,6 +226,50 @@ export default function BDManagerReports() {
     ? `Week of ${selectedReport.week_start_date} → ${selectedReport.week_end_date}`
     : "Select a week to view details";
 
+  if (reportsQuery.isLoading) {
+    return (
+      <section className="space-y-6">
+        <header>
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">BD Intelligence</p>
+          <h1 className="text-3xl font-bold">BD Manager Weekly Reports</h1>
+        </header>
+        <Card className="flex items-center justify-center p-12">
+          <div className="flex flex-col items-center gap-3">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-sm text-muted-foreground">Loading reports...</p>
+          </div>
+        </Card>
+      </section>
+    );
+  }
+
+  if (reportsQuery.error) {
+    return (
+      <section className="space-y-6">
+        <header>
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">BD Intelligence</p>
+          <h1 className="text-3xl font-bold">BD Manager Weekly Reports</h1>
+        </header>
+        <Card className="p-6">
+          <div className="flex flex-col items-center gap-3 text-center">
+            <div className="rounded-full bg-destructive/10 p-3">
+              <Activity className="h-6 w-6 text-destructive" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-lg">Failed to load reports</h3>
+              <p className="text-sm text-muted-foreground mt-1">
+                {reportsQuery.error.message || "Unable to fetch BD weekly reports. Please try again."}
+              </p>
+            </div>
+            <Button onClick={() => reportsQuery.refetch()} className="mt-2">
+              Try Again
+            </Button>
+          </div>
+        </Card>
+      </section>
+    );
+  }
+
   return (
     <section className="space-y-6">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -259,40 +303,51 @@ export default function BDManagerReports() {
       </header>
 
       <Card>
-        <CardHeader className="flex items-center justify-between gap-4 p-4">
-          <div>
-            <CardTitle className="text-lg font-semibold">Select report week</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Pick the week you want to drill into. Reports stay available for review once published.
-            </p>
-          </div>
-          <div className="w-56">
-            <Select value={selectedWeek ?? ""} onValueChange={(value) => setSelectedWeek(value || null)}>
-              <SelectTrigger>
-                <SelectValue placeholder={reportsQuery.isLoading ? "Loading…" : "Select a week…"} />
-              </SelectTrigger>
-              <SelectContent>
-                {reportsQuery.data?.map((report) => (
-                  <SelectItem key={report.id} value={report.week_start_date}>
-                    Week of {report.week_start_date}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        <CardHeader className="p-4">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <CardTitle className="text-lg font-semibold">Select report week</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Pick the week you want to drill into. Reports stay available for review once published.
+              </p>
+            </div>
+            <div className="w-56">
+              <Select value={selectedWeek ?? ""} onValueChange={(value) => setSelectedWeek(value || null)}>
+                <SelectTrigger>
+                  <SelectValue placeholder={reportsQuery.isLoading ? "Loading…" : "Select a week…"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {reportsQuery.data?.map((report) => (
+                    <SelectItem key={report.id} value={report.week_start_date}>
+                      Week of {report.week_start_date}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardHeader>
       </Card>
 
-      {selectedReport ? (
+      {reportQuery.isLoading ? (
+        <Card className="flex items-center justify-center p-12">
+          <div className="flex flex-col items-center gap-3">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-sm text-muted-foreground">Loading report details...</p>
+          </div>
+        </Card>
+      ) : selectedReport ? (
         <>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <Card className="space-y-3">
-              <CardHeader className="flex items-center justify-between gap-2 p-4">
-                <div className="flex items-center gap-2">
-                  <Activity className="h-5 w-5 text-blue-500" />
-                  <CardTitle className="text-base font-semibold">DHS Consistency</CardTitle>
+            <Card>
+              <CardHeader className="p-4">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <Activity className="h-5 w-5 text-blue-500" />
+                    <CardTitle className="text-base font-semibold">DHS Consistency</CardTitle>
+                  </div>
+                  <Badge variant="outline">Target: 100%</Badge>
                 </div>
-                <Badge variant="outline">Target: 100%</Badge>
               </CardHeader>
               <CardContent className="space-y-3 p-4">
                 <div className="flex items-baseline justify-between">
@@ -323,13 +378,15 @@ export default function BDManagerReports() {
               </CardContent>
             </Card>
 
-            <Card className="space-y-3">
-              <CardHeader className="flex items-center justify-between gap-2 p-4">
-                <div className="flex items-center gap-2">
-                  <CalendarDays className="h-5 w-5 text-emerald-500" />
-                  <CardTitle className="text-base font-semibold">EOD Signal</CardTitle>
+            <Card>
+              <CardHeader className="p-4">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <CalendarDays className="h-5 w-5 text-emerald-500" />
+                    <CardTitle className="text-base font-semibold">EOD Signal</CardTitle>
+                  </div>
+                  <Badge variant="outline">Target: 95%</Badge>
                 </div>
-                <Badge variant="outline">Target: 95%</Badge>
               </CardHeader>
               <CardContent className="space-y-3 p-4">
                 <div className="flex items-baseline justify-between">
@@ -356,13 +413,15 @@ export default function BDManagerReports() {
               </CardContent>
             </Card>
 
-            <Card className="space-y-3">
-              <CardHeader className="flex items-center justify-between gap-2 p-4">
-                <div className="flex items-center gap-2">
-                  <ShieldCheck className="h-5 w-5 text-violet-500" />
-                  <CardTitle className="text-base font-semibold">Accountability</CardTitle>
+            <Card>
+              <CardHeader className="p-4">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="h-5 w-5 text-violet-500" />
+                    <CardTitle className="text-base font-semibold">Accountability</CardTitle>
+                  </div>
+                  <Badge variant="outline">Goals</Badge>
                 </div>
-                <Badge variant="outline">Goals</Badge>
               </CardHeader>
               <CardContent className="space-y-3 p-4">
                 <div className="flex items-baseline justify-between">
@@ -393,13 +452,15 @@ export default function BDManagerReports() {
               </CardContent>
             </Card>
 
-            <Card className="space-y-3">
-              <CardHeader className="flex items-center justify-between gap-2 p-4">
-                <div className="flex items-center gap-2">
-                  <ClipboardList className="h-5 w-5 text-orange-500" />
-                  <CardTitle className="text-base font-semibold">Upwork & Pipeline</CardTitle>
+            <Card>
+              <CardHeader className="p-4">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <ClipboardList className="h-5 w-5 text-orange-500" />
+                    <CardTitle className="text-base font-semibold">Upwork & Pipeline</CardTitle>
+                  </div>
+                  <Badge variant="outline">Sales Ops</Badge>
                 </div>
-                <Badge variant="outline">Sales Ops</Badge>
               </CardHeader>
               <CardContent className="space-y-3 p-4">
                 <div className="grid grid-cols-2 gap-4 text-sm">
@@ -430,15 +491,76 @@ export default function BDManagerReports() {
             </Card>
           </div>
 
+          {selectedReport?.wig_agenda && (selectedReport.wig_agenda.wins?.length || selectedReport.wig_agenda.action_items?.length) ? (
+            <div className="grid gap-4 md:grid-cols-2">
+              {selectedReport.wig_agenda.wins?.length ? (
+                <Card>
+                  <CardHeader className="p-4">
+                    <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                      <TrendingUp className="h-5 w-5 text-green-500" />
+                      Weekly Wins
+                    </CardTitle>
+                    <p className="text-sm text-muted-foreground">
+                      Key accomplishments from this week
+                    </p>
+                  </CardHeader>
+                  <CardContent className="p-4">
+                    <ul className="space-y-2 text-sm">
+                      {selectedReport.wig_agenda.wins.map((win, idx) => (
+                        <li key={idx} className="flex items-start gap-2">
+                          <span className="text-green-500 font-bold mt-0.5">✓</span>
+                          <span>{win}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </CardContent>
+                </Card>
+              ) : null}
+
+              {selectedReport.wig_agenda.action_items?.length ? (
+                <Card>
+                  <CardHeader className="p-4">
+                    <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                      <ClipboardList className="h-5 w-5 text-blue-500" />
+                      Action Items
+                    </CardTitle>
+                    <p className="text-sm text-muted-foreground">
+                      Priority tasks and next steps
+                    </p>
+                  </CardHeader>
+                  <CardContent className="p-4">
+                    <div className="space-y-3">
+                      {selectedReport.wig_agenda.action_items.slice(0, 5).map((item, idx) => (
+                        <div key={idx} className="rounded-md bg-muted p-3 text-sm">
+                          <div className="font-medium">{item.task}</div>
+                          <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                            <span>{item.owner}</span>
+                            <span>•</span>
+                            <span>{item.deadline}</span>
+                          </div>
+                          {item.success_criteria && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Success: {item.success_criteria}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : null}
+            </div>
+          ) : null}
+
           <div className="grid gap-4 lg:grid-cols-3">
-            <Card className="lg:col-span-2 space-y-4">
+            <Card className="lg:col-span-2">
               <CardHeader className="p-4">
                 <CardTitle className="text-lg font-semibold">Executive Summary</CardTitle>
                 <p className="text-sm text-muted-foreground">
                   {selectedReport.summary || "No executive summary available yet."}
                 </p>
               </CardHeader>
-              <CardContent className="space-y-3 p-4">
+              <CardContent className="space-y-4 p-4">
                 {summaryPillars.length ? (
                   <ul className="space-y-2 text-sm">
                     {summaryPillars.map((insight, idx) => (
@@ -486,7 +608,7 @@ export default function BDManagerReports() {
               </CardContent>
             </Card>
 
-            <Card className="space-y-3">
+            <Card>
               <CardHeader className="p-4">
                 <CardTitle className="text-lg font-semibold">Rep Health Snapshot</CardTitle>
                 <p className="text-sm text-muted-foreground">
@@ -504,16 +626,49 @@ export default function BDManagerReports() {
             </Card>
           </div>
         </>
+      ) : !reportsQuery.data || reportsQuery.data.length === 0 ? (
+        <Card className="p-12">
+          <div className="flex flex-col items-center gap-4 text-center">
+            <div className="rounded-full bg-primary/10 p-4">
+              <ClipboardList className="h-8 w-8 text-primary" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-lg">No reports available yet</h3>
+              <p className="text-sm text-muted-foreground mt-2 max-w-md">
+                The BD Manager agent hasn't generated any weekly reports yet. Reports are automatically generated every Monday at 9 AM, or you can trigger one manually.
+              </p>
+            </div>
+            {agentQuery.data && (
+              <Button onClick={handleGenerateReport} disabled={isGenerating} className="mt-2">
+                {isGenerating ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Generating...
+                  </>
+                ) : (
+                  "Generate First Report"
+                )}
+              </Button>
+            )}
+          </div>
+        </Card>
       ) : (
-        <Card className="px-4 py-6">
-          <p className="text-sm text-muted-foreground">
-            Select a published week once the BD Manager agent has generated a report to unlock all analytics.
+        <Card className="p-6">
+          <p className="text-sm text-muted-foreground text-center">
+            Select a published week from the dropdown above to view detailed analytics.
           </p>
         </Card>
       )}
 
-      {agentQuery.data && (
-        <Card className="space-y-4">
+      {agentQuery.isLoading ? (
+        <Card className="p-6">
+          <div className="flex items-center justify-center gap-3">
+            <Loader2 className="h-5 w-5 animate-spin" />
+            <p className="text-sm text-muted-foreground">Loading BD Manager agent...</p>
+          </div>
+        </Card>
+      ) : agentQuery.data ? (
+        <Card>
           <CardHeader className="p-4">
             <CardTitle className="text-lg font-semibold">Chat with BD Manager Agent</CardTitle>
             <p className="text-sm text-muted-foreground">
@@ -529,7 +684,7 @@ export default function BDManagerReports() {
             />
           </CardContent>
         </Card>
-      )}
+      ) : null}
     </section>
   );
 }
