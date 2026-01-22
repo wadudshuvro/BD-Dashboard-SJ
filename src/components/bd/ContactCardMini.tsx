@@ -38,7 +38,7 @@ export function ContactCardMini({ contact, campaignSlug }: ContactCardMiniProps)
   const progress = statusToProgress[contact.status];
 
   return (
-    <Link to={`/campaigns/${campaignSlug}/contacts/${contact.slug}`}>
+    <Link to={`/campaigns/${campaignSlug}/contacts/${contact.slug}`} target="_blank" rel="noopener noreferrer">
       <Card className="hover:border-primary/50 transition-colors cursor-pointer">
         <CardContent className="pt-4 space-y-3">
           <div>

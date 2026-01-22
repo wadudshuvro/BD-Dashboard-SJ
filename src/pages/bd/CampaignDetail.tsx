@@ -265,7 +265,7 @@ export default function CampaignDetail() {
 
     switch (action) {
       case 'view':
-        navigate(`/campaigns/${campaign?.slug}/contacts/${contact.slug}`);
+        window.open(`/campaigns/${campaign?.slug}/contacts/${contact.slug}`, '_blank', 'noopener,noreferrer');
         break;
 
       case 'research':
@@ -296,7 +296,7 @@ export default function CampaignDetail() {
         if (contact.contact_linkedin_url) {
           window.open(`${contact.contact_linkedin_url}/detail/recent-activity/`, '_blank');
         } else {
-          navigate(`/campaigns/${campaign?.slug}/contacts/${contact.slug}`);
+          window.open(`/campaigns/${campaign?.slug}/contacts/${contact.slug}`, '_blank', 'noopener,noreferrer');
         }
         break;
 
@@ -320,11 +320,11 @@ export default function CampaignDetail() {
         break;
 
       case 'followup':
-        navigate(`/campaigns/${campaign?.slug}/contacts/${contact.slug}`);
+        window.open(`/campaigns/${campaign?.slug}/contacts/${contact.slug}`, '_blank', 'noopener,noreferrer');
         break;
 
       default:
-        navigate(`/campaigns/${campaign?.slug}/contacts/${contact.slug}`);
+        window.open(`/campaigns/${campaign?.slug}/contacts/${contact.slug}`, '_blank', 'noopener,noreferrer');
     }
   };
 
@@ -819,7 +819,7 @@ export default function CampaignDetail() {
                                 stageContacts.map((contact) => (
                                   <button
                                     key={contact.id}
-                                    onClick={() => navigate(`/campaigns/${campaign.slug}/contacts/${contact.slug}`)}
+                                    onClick={() => window.open(`/campaigns/${campaign.slug}/contacts/${contact.slug}`, '_blank', 'noopener,noreferrer')}
                                     className="w-full rounded-md border bg-card p-2.5 text-left hover:bg-accent hover:shadow-md hover:border-primary/20 transition-all duration-200"
                                   >
                                     <div className="flex items-start gap-2.5">

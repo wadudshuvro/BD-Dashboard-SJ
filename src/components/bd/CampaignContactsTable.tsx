@@ -213,9 +213,7 @@ export function CampaignContactsTable({
                 key={contact.id}
                 className="cursor-pointer hover:bg-muted/50"
                 onClick={() => {
-                  if (onNavigate) {
-                    onNavigate(contact.slug);
-                  }
+                  window.open(`/campaigns/${campaignSlug}/contacts/${contact.slug}`, '_blank', 'noopener,noreferrer');
                 }}
               >
                 <TableCell className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
