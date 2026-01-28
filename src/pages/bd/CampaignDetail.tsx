@@ -26,6 +26,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useCampaignDetail } from '@/hooks/useCampaignDetail';
 import type { CampaignContactStatus } from '@/hooks/useCampaignDetail';
+import { useCampaignEmailsSent } from '@/hooks/useCampaignEmailStats';
 import { useExaIntegration } from '@/hooks/useExaIntegration';
 import { useUserPermissions } from '@/hooks/useUserPermissions';
 import { CampaignLeadImportDialog } from '@/components/bd/CampaignLeadImportDialog';
@@ -107,6 +108,7 @@ export default function CampaignDetail() {
   } = useCampaignDetail(slug);
   const { runCampaignResearch, isRunningResearch } = useExaIntegration();
   const { hasPermission } = useUserPermissions();
+  const { data: emailsSentCount = 0 } = useCampaignEmailsSent(campaign?.id);
   const { mutateAsync: runContactResearch } = useCampaignContactResearch();
   const [leadImportDialogOpen, setLeadImportDialogOpen] = useState(false);
   const [googleSheetImportDialogOpen, setGoogleSheetImportDialogOpen] = useState(false);
@@ -546,7 +548,7 @@ export default function CampaignDetail() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
+          <div className="grid gap-4 md:grid-cols-4 lg:grid-cols-7">
             <MetricCard
               label="Total Contacts"
               value={totalContactsCount}
@@ -564,6 +566,12 @@ export default function CampaignDetail() {
               value={connectedCount}
               icon={Linkedin}
               iconColor="text-blue-700"
+            />
+            <MetricCard
+              label="Emails Sent"
+              value={emailsSentCount}
+              icon={Mail}
+              iconColor="text-orange-500"
             />
             <MetricCard
               label="Responses"

@@ -2,6 +2,7 @@ import { useMemo, useState, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   Layers,
+  Mail,
   MessageCircle,
   Phone,
   Plus,
@@ -38,6 +39,7 @@ import type { TargetNiche } from '@/hooks/useTargetNiches';
 import { useCampaignOwners } from '@/hooks/useCampaignOwners';
 import { CampaignDialog } from '@/components/bd/CampaignDialog';
 import { CampaignAnalyticsDashboard } from '@/components/bd/CampaignAnalyticsDashboard';
+import { useTotalEmailsSent } from '@/hooks/useCampaignEmailStats';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
@@ -72,6 +74,7 @@ export default function CampaignManagement() {
   );
   const { niches } = useTargetNiches();
   const { data: campaignOwners = [] } = useCampaignOwners();
+  const { data: totalEmailsSent = 0 } = useTotalEmailsSent();
   
   const errorMessage = error instanceof Error && error.message ? error.message : null;
   const totalPages = Math.ceil(total / pagination.pageSize);
@@ -120,6 +123,11 @@ export default function CampaignManagement() {
       title: 'Contacts Reached',
       value: aggregateStats.totalContacts,
       icon: Users,
+    },
+    {
+      title: 'Emails Sent',
+      value: totalEmailsSent,
+      icon: Mail,
     },
     {
       title: 'Total Responses',
@@ -242,7 +250,7 @@ export default function CampaignManagement() {
             </TabsList>
 
             <TabsContent value="campaigns" className="space-y-6">
-              <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-6">
+              <div className="grid gap-4 md:grid-cols-4 xl:grid-cols-7">
                 {metrics.map((metric) => (
                   <Card key={metric.title}>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
