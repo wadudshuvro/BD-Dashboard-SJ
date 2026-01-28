@@ -10,6 +10,7 @@ import {
   Users,
   Pencil,
   History as HistoryIcon,
+  User,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { usePagination } from '@/hooks/usePagination';
@@ -34,9 +35,11 @@ import { useBDCampaigns } from '@/hooks/useBDCampaigns';
 import type { BDCampaign } from '@/hooks/useBDCampaigns';
 import { useTargetNiches } from '@/hooks/useTargetNiches';
 import type { TargetNiche } from '@/hooks/useTargetNiches';
+import { useCampaignOwners } from '@/hooks/useCampaignOwners';
 import { CampaignDialog } from '@/components/bd/CampaignDialog';
 import { CampaignAnalyticsDashboard } from '@/components/bd/CampaignAnalyticsDashboard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 type AggregateStats = {
   totalContacts: number;
@@ -50,22 +53,25 @@ export default function CampaignManagement() {
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [ownerFilter, setOwnerFilter] = useState('all');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCampaign, setEditingCampaign] = useState<BDCampaign | null>(null);
-  
+
   // Only apply search when empty or 3+ characters
-  const effectiveSearchQuery = searchQuery.length === 0 || searchQuery.length >= 3 
-    ? searchQuery 
+  const effectiveSearchQuery = searchQuery.length === 0 || searchQuery.length >= 3
+    ? searchQuery
     : undefined;
-  
+
   const { campaigns, total, isLoading, error } = useBDCampaigns(
     undefined,
     pagination.currentPage,
     pagination.pageSize,
     effectiveSearchQuery,
-    statusFilter
+    statusFilter,
+    ownerFilter
   );
   const { niches } = useTargetNiches();
+  const { data: campaignOwners = [] } = useCampaignOwners();
   
   const errorMessage = error instanceof Error && error.message ? error.message : null;
   const totalPages = Math.ceil(total / pagination.pageSize);
@@ -73,7 +79,7 @@ export default function CampaignManagement() {
   // Reset to page 1 when search or filter changes
   useEffect(() => {
     pagination.reset();
-  }, [effectiveSearchQuery, statusFilter]);
+  }, [effectiveSearchQuery, statusFilter, ownerFilter]);
 
   const handleRetry = () => {
     if (pagination.currentPage !== 1) {
@@ -279,14 +285,27 @@ export default function CampaignManagement() {
                     <SelectItem value="completed">Completed</SelectItem>
                   </SelectContent>
                 </Select>
+                <Select value={ownerFilter} onValueChange={setOwnerFilter}>
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue placeholder="Filter by Owner" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Owners</SelectItem>
+                    {campaignOwners.map((owner) => (
+                      <SelectItem key={owner.id} value={owner.id}>
+                        {owner.full_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-6">
                 {campaigns.length === 0 ? (
                   <div className="text-center py-12">
                     <p className="text-muted-foreground">
-                      {searchQuery || statusFilter !== 'all' 
-                        ? 'No campaigns found matching your search criteria.' 
+                      {searchQuery || statusFilter !== 'all' || ownerFilter !== 'all'
+                        ? 'No campaigns found matching your search criteria.'
                         : 'No campaigns yet. Create your first campaign to get started.'}
                     </p>
                   </div>
@@ -396,6 +415,19 @@ function CampaignCard({ campaign, niches, onEdit }: { campaign: BDCampaign; nich
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
+        {campaign.owner && (
+          <div className="flex items-center gap-2 text-sm">
+            <Avatar className="h-6 w-6">
+              <AvatarImage src={campaign.owner.avatar_url || undefined} alt={campaign.owner.full_name || 'Owner'} />
+              <AvatarFallback className="text-xs">
+                {campaign.owner.full_name?.charAt(0)?.toUpperCase() || <User className="h-3 w-3" />}
+              </AvatarFallback>
+            </Avatar>
+            <span className="text-muted-foreground">Owner:</span>
+            <span className="font-medium truncate">{campaign.owner.full_name || campaign.owner.email}</span>
+          </div>
+        )}
+
         <div className="space-y-2">
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Progress</span>

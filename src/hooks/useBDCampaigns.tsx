@@ -69,26 +69,28 @@ function buildOptimisticCampaign(id: string, payload: CampaignPayload): Campaign
 }
 
 export const useBDCampaigns = (
-  nicheId?: string, 
-  page: number = 1, 
+  nicheId?: string,
+  page: number = 1,
   limit: number = 12,
   search?: string,
-  status?: string
+  status?: string,
+  ownerId?: string
 ) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const queryKey = ['admin-campaigns', { nicheId, page, limit, search, status }];
+  const queryKey = ['admin-campaigns', { nicheId, page, limit, search, status, ownerId }];
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey,
     queryFn: async () => {
-      const response = await listCampaigns({ 
-        nicheId, 
-        page, 
+      const response = await listCampaigns({
+        nicheId,
+        page,
         pageSize: limit,
         search: search || undefined,
-        status: status && status !== 'all' ? status as any : undefined
+        status: status && status !== 'all' ? status as any : undefined,
+        ownerId: ownerId && ownerId !== 'all' ? ownerId : undefined
       });
       return response;
     },
