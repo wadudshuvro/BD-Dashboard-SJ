@@ -142,7 +142,7 @@ export function TaskCard({ task, onEdit }: TaskCardProps) {
             {task.priority}
           </Badge>
           {campaign && (
-            <Badge variant="secondary" className="bg-purple-100 text-purple-800">
+            <Badge variant="secondary" className="bg-purple-100 text-purple-800 max-w-[200px] truncate">
               Campaign: {campaign.name}
             </Badge>
           )}
@@ -150,20 +150,20 @@ export function TaskCard({ task, onEdit }: TaskCardProps) {
 
         {/* Labels */}
         {task.labels && task.labels.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-1.5 overflow-hidden">
             {task.labels.map((label) => (
               <Badge
                 key={label.id}
                 variant="secondary"
-                style={{ 
-                  backgroundColor: `${label.color}20`, 
+                style={{
+                  backgroundColor: `${label.color}20`,
                   color: label.color,
-                  borderColor: label.color 
+                  borderColor: label.color
                 }}
-                className="text-xs border flex items-center gap-1"
+                className="text-xs border flex items-center gap-1 max-w-[150px]"
               >
-                <Tag className="h-2.5 w-2.5" />
-                {label.name}
+                <Tag className="h-2.5 w-2.5 flex-shrink-0" />
+                <span className="truncate">{label.name}</span>
               </Badge>
             ))}
           </div>

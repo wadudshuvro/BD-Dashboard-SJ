@@ -90,8 +90,8 @@ export function TaskDetailsPanel({ task, onEdit, onDelete }: TaskDetailsPanelPro
           <CardHeader>
             <CardTitle className="text-sm">Description</CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-sm whitespace-pre-wrap">{task.description}</p>
+          <CardContent className="overflow-hidden">
+            <p className="text-sm whitespace-pre-wrap break-words overflow-wrap-anywhere">{task.description}</p>
           </CardContent>
         </Card>
       )}
@@ -156,18 +156,18 @@ export function TaskDetailsPanel({ task, onEdit, onDelete }: TaskDetailsPanelPro
           <CardHeader>
             <CardTitle className="text-sm">Labels</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="overflow-hidden">
             <div className="flex flex-wrap gap-2">
               {task.labels.map((label: any) => (
                 <Badge
                   key={label.id}
                   variant="secondary"
-                  style={{ 
-                    backgroundColor: `${label.color}20`, 
+                  style={{
+                    backgroundColor: `${label.color}20`,
                     color: label.color,
-                    borderColor: label.color 
+                    borderColor: label.color
                   }}
-                  className="border"
+                  className="border max-w-full truncate"
                 >
                   {label.name}
                 </Badge>

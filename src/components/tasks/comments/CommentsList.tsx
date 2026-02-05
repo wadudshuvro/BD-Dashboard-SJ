@@ -68,7 +68,7 @@ export function CommentsList({ comments, isLoading, error, onUpdateComment, onDe
   }
 
   return (
-    <div className="divide-y max-w-full">
+    <div className="divide-y max-w-full overflow-hidden">
       {comments.map((comment) => (
         <CommentItem
           key={comment.id}

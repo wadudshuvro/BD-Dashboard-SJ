@@ -38,7 +38,7 @@ export function SafeHtmlContent({ html, className = '' }: SafeHtmlContentProps) 
 
   return (
     <div
-      className={`prose prose-sm max-w-none ${className}`}
+      className={`prose prose-sm max-w-none break-words overflow-hidden [overflow-wrap:anywhere] [word-break:break-word] ${className}`}
       dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
     />
   );
