@@ -35,22 +35,62 @@ export default function UserSettings() {
 
   async function loadUserProfile() {
     if (!user) return;
-    
+
     setIsLoadingProfile(true);
     try {
+      // Try to load from users table
       const { data, error } = await supabase
         .from('users')
         .select('first_name, last_name, title')
         .eq('id', user.id)
-        .single();
-      
+        .maybeSingle();
+
       if (error) throw error;
-      
+
       if (data) {
         setProfileData({
           firstName: data.first_name || '',
           lastName: data.last_name || '',
           title: data.title || ''
+        });
+      } else {
+        // Users record doesn't exist - try to create it from profiles data
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('full_name, email')
+          .eq('id', user.id)
+          .maybeSingle();
+
+        // Parse first/last name from full_name or email
+        let firstName = '';
+        let lastName = '';
+
+        if (profileData?.full_name) {
+          const nameParts = profileData.full_name.trim().split(' ');
+          firstName = nameParts[0] || '';
+          lastName = nameParts.slice(1).join(' ') || '';
+        }
+
+        // Create the users record
+        const { error: insertError } = await supabase
+          .from('users')
+          .insert({
+            id: user.id,
+            email: user.email,
+            first_name: firstName,
+            last_name: lastName,
+            status: 'active'
+          });
+
+        if (insertError) {
+          console.warn('Failed to auto-create users record:', insertError);
+        }
+
+        // Set profile data with parsed values
+        setProfileData({
+          firstName,
+          lastName,
+          title: ''
         });
       }
     } catch (error) {
@@ -90,19 +130,24 @@ export default function UserSettings() {
 
   async function saveProfileInformation() {
     if (!user) return;
-    
+
     setIsSavingProfile(true);
     try {
+      // Use upsert to handle both insert and update cases
       const { error: usersError } = await supabase
         .from('users')
-        .update({
+        .upsert({
+          id: user.id,
+          email: user.email,
           first_name: profileData.firstName,
           last_name: profileData.lastName,
           title: profileData.title,
+          status: 'active',
           updated_at: new Date().toISOString()
-        })
-        .eq('id', user.id);
-      
+        }, {
+          onConflict: 'id'
+        });
+
       if (usersError) throw usersError;
       
       const fullName = `${profileData.firstName} ${profileData.lastName}`.trim();

@@ -66,18 +66,18 @@ export default function Signup() {
 
       if (signUpError) throw signUpError;
 
-      // Verify profile creation (retry up to 3 times)
+      // Verify profile creation and create users table record (retry up to 3 times)
       if (data.user) {
         let profileExists = false;
         for (let attempt = 0; attempt < 3; attempt++) {
           await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1s between attempts
-          
+
           const { data: profile } = await supabase
             .from('profiles')
             .select('id')
             .eq('id', data.user.id)
             .maybeSingle();
-          
+
           if (profile) {
             profileExists = true;
             break;
@@ -88,6 +88,22 @@ export default function Signup() {
           throw new Error(
             'Account created but profile setup incomplete. Please contact support or try signing in.'
           );
+        }
+
+        // Create users table record for extended profile data
+        const { error: usersError } = await supabase
+          .from('users')
+          .insert({
+            id: data.user.id,
+            email: email,
+            first_name: firstName.trim(),
+            last_name: lastName.trim(),
+            status: 'active'
+          });
+
+        if (usersError) {
+          // Log but don't fail signup - users record can be created later
+          console.warn('Failed to create users table record:', usersError);
         }
       }
 
