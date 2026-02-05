@@ -40,18 +40,24 @@ export function TaskLabelsField({ form }: TaskLabelsFieldProps) {
   };
 
   const handleCreateLabel = async () => {
+    // Capture value immediately before any async operations
     const trimmedValue = searchValue.trim();
     if (!trimmedValue) return;
-    
+
+    // Clear search value immediately to prevent double-creation
+    const valueToCreate = trimmedValue;
+    setSearchValue("");
+
     try {
-      const newLabel = await createLabelAsync(trimmedValue);
+      const newLabel = await createLabelAsync(valueToCreate);
       if (newLabel) {
         const currentIds = form.getValues("label_ids") || [];
         form.setValue("label_ids", [...currentIds, newLabel.id]);
-        setSearchValue("");
       }
     } catch (error) {
       console.error("Failed to create label:", error);
+      // Restore search value on error so user can retry
+      setSearchValue(valueToCreate);
     }
   };
 
@@ -74,13 +80,13 @@ export function TaskLabelsField({ form }: TaskLabelsFieldProps) {
                   key={label.id}
                   variant="secondary"
                   style={{ backgroundColor: `${label.color}20`, color: label.color, borderColor: label.color }}
-                  className="border"
+                  className="border max-w-[200px]"
                 >
-                  {label.name}
+                  <span className="truncate">{label.name}</span>
                   <button
                     type="button"
                     onClick={() => handleRemoveLabel(label.id)}
-                    className="ml-1 hover:text-destructive"
+                    className="ml-1 hover:text-destructive flex-shrink-0"
                   >
                     <X className="h-3 w-3" />
                   </button>
@@ -120,8 +126,9 @@ export function TaskLabelsField({ form }: TaskLabelsFieldProps) {
                   {showCreateOption && (
                     <CommandGroup>
                       <CommandItem
+                        value={`__create_new_label__${searchValue}`}
                         onSelect={handleCreateLabel}
-                        className="text-primary"
+                        className="text-primary cursor-pointer"
                       >
                         <Plus className="mr-2 h-4 w-4" />
                         Create "{searchValue}"
@@ -147,7 +154,7 @@ export function TaskLabelsField({ form }: TaskLabelsFieldProps) {
                         <Badge
                           variant="secondary"
                           style={{ backgroundColor: `${label.color}20`, color: label.color }}
-                          className="text-xs"
+                          className="text-xs max-w-[180px] truncate"
                         >
                           {label.name}
                         </Badge>

@@ -153,11 +153,11 @@ export function CommentItem({ comment, onUpdate, onDelete, isUpdating = false, i
             </div>
           </div>
         ) : (
-          <div className="text-sm text-foreground">
+          <div className="text-sm text-foreground overflow-hidden">
             {isHtmlContent(comment.body_text) ? (
               <SafeHtmlContent html={comment.body_text} />
             ) : (
-              <div className="whitespace-pre-wrap break-words">
+              <div className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
                 <MentionText text={comment.body_text} />
               </div>
             )}
