@@ -62,6 +62,8 @@ export interface CampaignSummary {
   actual_contacts_reached: number | null;
   responses_received: number | null;
   meetings_booked: number | null;
+  emails_sent?: number | null;
+  linkedin_requests_sent?: number | null;
   deals_generated: number | null;
   campaign_objective?: string | null;
   owned_by: string | null;

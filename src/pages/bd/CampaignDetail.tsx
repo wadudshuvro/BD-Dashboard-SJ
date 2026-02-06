@@ -26,7 +26,6 @@ import { useToast } from '@/components/ui/use-toast';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useCampaignDetail } from '@/hooks/useCampaignDetail';
 import type { CampaignContactStatus } from '@/hooks/useCampaignDetail';
-import { useCampaignEmailsSent } from '@/hooks/useCampaignEmailStats';
 import { useExaIntegration } from '@/hooks/useExaIntegration';
 import { useUserPermissions } from '@/hooks/useUserPermissions';
 import { CampaignLeadImportDialog } from '@/components/bd/CampaignLeadImportDialog';
@@ -108,7 +107,7 @@ export default function CampaignDetail() {
   } = useCampaignDetail(slug);
   const { runCampaignResearch, isRunningResearch } = useExaIntegration();
   const { hasPermission } = useUserPermissions();
-  const { data: emailsSentCount = 0 } = useCampaignEmailsSent(campaign?.id);
+  const emailsSentCount = campaign?.emails_sent ?? 0;
   const { mutateAsync: runContactResearch } = useCampaignContactResearch();
   const [leadImportDialogOpen, setLeadImportDialogOpen] = useState(false);
   const [googleSheetImportDialogOpen, setGoogleSheetImportDialogOpen] = useState(false);
@@ -148,8 +147,10 @@ export default function CampaignDetail() {
   const meetingsBooked = contactByStatus.meeting_booked?.length || 0;
   const respondedCount = contactByStatus.responded?.length || 0;
   
-  const acceptanceRate = linkedinStats.requests_sent
-    ? Math.round(((linkedinStats.connections_accepted || 0) / linkedinStats.requests_sent) * 100)
+  const linkedinRequestsSent = campaign?.linkedin_requests_sent ?? 0;
+  const linkedinRequestsTotal = linkedinRequestsSent || linkedinStats.requests_sent || 0;
+  const acceptanceRate = linkedinRequestsTotal
+    ? Math.round(((linkedinStats.connections_accepted || 0) / linkedinRequestsTotal) * 100)
     : 0;
   
   // Response total: use dynamic count from contacts + any external stats

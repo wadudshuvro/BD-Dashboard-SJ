@@ -97,6 +97,7 @@ export function LinkedInMessageCard({
       messageId: message.id,
       variantSent: variantName,
       contactId: message.contact_id,
+      messageType: message.message_type,
     });
   };
 

@@ -164,6 +164,12 @@ export default function CampaignContactDetail() {
   const handleStatusChange = (newStatus: string) => {
     if (!contact) return;
     const updates: any = { status: newStatus };
+    const now = new Date().toISOString();
+
+    if (newStatus === 'contacted_linkedin') {
+      updates.linkedin_request_sent_at = now;
+      updates.last_activity_at = now;
+    }
 
     // If changing to contacted_linkedin or contacted_social status, include social platform in metadata
     if (newStatus === 'contacted_linkedin' || newStatus === 'contacted_social') {
