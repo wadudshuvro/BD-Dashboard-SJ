@@ -3999,6 +3999,39 @@ export type Database = {
         }
         Relationships: []
       }
+      project_task_labels: {
+        Row: {
+          created_at: string | null
+          label_id: string
+          task_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          label_id: string
+          task_id: string
+        }
+        Update: {
+          created_at?: string | null
+          label_id?: string
+          task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_task_labels_label_id_fkey"
+            columns: ["label_id"]
+            isOneToOne: false
+            referencedRelation: "task_labels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_task_labels_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "project_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_tasks: {
         Row: {
           active_collab_link: string | null
@@ -4926,6 +4959,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      task_labels: {
+        Row: {
+          color: string
+          created_at: string | null
+          created_by: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          color: string
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          name: string
+        }
+        Update: {
+          color?: string
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          name?: string
+        }
+        Relationships: []
       }
       tasks: {
         Row: {
