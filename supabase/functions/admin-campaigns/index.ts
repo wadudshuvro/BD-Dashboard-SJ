@@ -151,6 +151,8 @@ interface HydratedCampaign {
   actual_contacts_reached: number | null;
   responses_received: number | null;
   meetings_booked: number | null;
+  emails_sent?: number | null;
+  linkedin_requests_sent?: number | null;
   deals_generated: number | null;
   owned_by: string | null;
   created_by: string | null;
@@ -464,11 +466,13 @@ async function calculateCampaignStats(
   connected: number;
   responded: number;
   meetings_booked: number;
+  emails_sent: number;
+  linkedin_requests_sent: number;
 }> {
   try {
     const { data: contacts, error } = await client
       .from("campaign_contacts")
-      .select("status")
+      .select("id, status")
       .eq("campaign_id", campaignId);
 
     if (error || !contacts) {
@@ -478,16 +482,54 @@ async function calculateCampaignStats(
         connected: 0,
         responded: 0,
         meetings_booked: 0,
+        emails_sent: 0,
+        linkedin_requests_sent: 0,
       };
     }
 
+    const contactIds = contacts.map((contact) => contact.id).filter(Boolean);
+
     const stats = {
       total_contacts: contacts.length,
-      researched: contacts.filter((c: { status: string }) => c.status === 'researched').length,
-      connected: contacts.filter((c: { status: string }) => c.status === 'connected').length,
-      responded: contacts.filter((c: { status: string }) => c.status === 'responded').length,
-      meetings_booked: contacts.filter((c: { status: string }) => c.status === 'meeting_booked').length,
+      researched: contacts.filter((c: { status: string }) => c.status === "researched").length,
+      connected: contacts.filter((c: { status: string }) => c.status === "connected").length,
+      responded: contacts.filter((c: { status: string }) => c.status === "responded").length,
+      meetings_booked: contacts.filter((c: { status: string }) => c.status === "meeting_booked").length,
+      emails_sent: 0,
+      linkedin_requests_sent: 0,
     };
+
+    const { count: directEmailsCount, error: directEmailsError } = await client
+      .from("campaign_emails")
+      .select("id", { count: "exact", head: true })
+      .eq("campaign_id", campaignId)
+      .not("sent_at", "is", null);
+
+    if (!directEmailsError) {
+      stats.emails_sent += directEmailsCount ?? 0;
+    }
+
+    if (contactIds.length > 0) {
+      const { data: enrollments, error: enrollmentsError } = await client
+        .from("contact_sequence_enrollments")
+        .select("total_sent")
+        .in("contact_id", contactIds);
+
+      if (!enrollmentsError && enrollments) {
+        stats.emails_sent += enrollments.reduce((sum, enrollment) => sum + (enrollment.total_sent ?? 0), 0);
+      }
+    }
+
+    const { count: linkedinRequestsCount, error: linkedinRequestsError } = await client
+      .from("campaign_contact_linkedin_messages")
+      .select("id", { count: "exact", head: true })
+      .eq("campaign_id", campaignId)
+      .eq("message_type", "connection_request")
+      .not("sent_at", "is", null);
+
+    if (!linkedinRequestsError) {
+      stats.linkedin_requests_sent = linkedinRequestsCount ?? 0;
+    }
 
     return stats;
   } catch (error) {
@@ -498,6 +540,8 @@ async function calculateCampaignStats(
       connected: 0,
       responded: 0,
       meetings_booked: 0,
+      emails_sent: 0,
+      linkedin_requests_sent: 0,
     };
   }
 }
@@ -522,6 +566,9 @@ async function hydrateCampaigns(
   return baseCampaigns.map((campaign, index) => {
     const brandIds = campaignBrandsMap.get(campaign.id) || [];
     const stats = allStats[index];
+    const ghlStats = (campaign.ghl_stats ?? null) as Record<string, unknown> | null;
+    const ghlEmailsSent = ghlStats && typeof ghlStats.emails_sent === "number" ? ghlStats.emails_sent : 0;
+    const totalEmailsSent = stats.emails_sent + ghlEmailsSent;
     
     return {
       ...campaign,
@@ -529,6 +576,8 @@ async function hydrateCampaigns(
       actual_contacts_reached: stats.total_contacts,
       responses_received: stats.responded,
       meetings_booked: stats.meetings_booked,
+      emails_sent: totalEmailsSent,
+      linkedin_requests_sent: stats.linkedin_requests_sent,
       // Keep target_contacts_count as is - this is the goal
       brand_ids: brandIds,
       brands: brandIds.map(id => brandMap.get(id)).filter((b): b is BrandRow => !!b),

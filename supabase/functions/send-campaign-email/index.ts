@@ -144,6 +144,8 @@ serve(async (req) => {
       newStatus = 'contacted_email';
     }
 
+    const sentAt = new Date().toISOString();
+
     // Log activity to status history
     await supabase
       .from('campaign_contact_status_history')
@@ -162,7 +164,17 @@ serve(async (req) => {
         .from('campaign_contacts')
         .update({
           status: newStatus,
-          last_status_change_at: new Date().toISOString()
+          last_status_change_at: sentAt,
+          email_sent_at: sentAt,
+          last_activity_at: sentAt,
+        })
+        .eq('id', contactId);
+    } else {
+      await supabase
+        .from('campaign_contacts')
+        .update({
+          email_sent_at: sentAt,
+          last_activity_at: sentAt,
         })
         .eq('id', contactId);
     }

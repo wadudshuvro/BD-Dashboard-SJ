@@ -6,6 +6,7 @@ interface MarkAsSentParams {
   messageId: string;
   variantSent: string;
   contactId: string;
+  messageType?: string;
 }
 
 interface LogResponseParams {
@@ -30,7 +31,7 @@ export function useMarkMessageAsSent() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ messageId, variantSent, contactId }: MarkAsSentParams) => {
+    mutationFn: async ({ messageId, variantSent, contactId, messageType }: MarkAsSentParams) => {
       // Update the message as sent
       const { error: messageError } = await supabase
         .from('campaign_contact_linkedin_messages')
@@ -42,13 +43,21 @@ export function useMarkMessageAsSent() {
 
       if (messageError) throw messageError;
 
+      const now = new Date().toISOString();
+      const contactUpdates: Record<string, string> = {
+        status: 'messaged',
+        updated_at: now,
+        last_activity_at: now,
+      };
+
+      if (messageType === 'connection_request') {
+        contactUpdates.linkedin_request_sent_at = now;
+      }
+
       // Update contact status to "messaged"
       const { error: contactError } = await supabase
         .from('campaign_contacts')
-        .update({
-          status: 'messaged',
-          updated_at: new Date().toISOString(),
-        })
+        .update(contactUpdates)
         .eq('id', contactId);
 
       if (contactError) throw contactError;

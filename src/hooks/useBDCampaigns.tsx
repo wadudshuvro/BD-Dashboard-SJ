@@ -55,6 +55,8 @@ function buildOptimisticCampaign(id: string, payload: CampaignPayload): Campaign
     actual_contacts_reached: payload.actual_contacts_reached ?? null,
     responses_received: payload.responses_received ?? null,
     meetings_booked: payload.meetings_booked ?? null,
+    emails_sent: 0,
+    linkedin_requests_sent: 0,
     deals_generated: payload.deals_generated ?? null,
     owned_by: payload.owned_by ?? null,
     created_by: payload.created_by ?? null,
