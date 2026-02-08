@@ -18,6 +18,24 @@ interface ProfileRow {
   email: string | null;
 }
 
+const activityWeights: Record<string, number> = {
+  login: 1,
+  session_restore: 0,
+  deal_created: 5,
+  deal_updated: 2,
+  campaign_created: 4,
+  campaign_updated: 2,
+  task_created: 3,
+  task_completed: 4,
+  ai_agent_run: 3,
+  dhs_submitted: 4,
+  dhs_updated: 2,
+  accountability_goal_created: 4,
+  accountability_goal_updated: 2,
+  accountability_activity_created: 3,
+  accountability_update_submitted: 4,
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -82,7 +100,7 @@ serve(async (req) => {
     const activityBreakdown: Record<string, number> = {};
     const userStats = new Map<
       string,
-      { activityCount: number; loginCount: number; lastActivityAt: string }
+      { activityCount: number; loginCount: number; lastActivityAt: string; activityScore: number }
     >();
     const activeUsers1d = new Set<string>();
     const activeUsers7d = new Set<string>();
@@ -94,12 +112,14 @@ serve(async (req) => {
         activityCount: 0,
         loginCount: 0,
         lastActivityAt: log.created_at,
+        activityScore: 0,
       };
 
       userStat.activityCount += 1;
       if (log.action === "login") {
         userStat.loginCount += 1;
       }
+      userStat.activityScore += activityWeights[log.action] ?? 1;
       if (createdAt > new Date(userStat.lastActivityAt)) {
         userStat.lastActivityAt = log.created_at;
       }
@@ -146,9 +166,10 @@ serve(async (req) => {
           activityCount: stats.activityCount,
           loginCount: stats.loginCount,
           lastActivityAt: stats.lastActivityAt,
+          activityScore: stats.activityScore,
         };
       })
-      .sort((a, b) => b.activityCount - a.activityCount || b.loginCount - a.loginCount)
+      .sort((a, b) => b.activityScore - a.activityScore || b.activityCount - a.activityCount)
       .slice(0, 10);
 
     const teamMembers = includeAllUsers
@@ -160,6 +181,7 @@ serve(async (req) => {
             activityCount: stats?.activityCount || 0,
             loginCount: stats?.loginCount || 0,
             lastActivityAt: stats?.lastActivityAt || null,
+            activityScore: stats?.activityScore || 0,
           };
         })
       : undefined;

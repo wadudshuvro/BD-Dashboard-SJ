@@ -19,6 +19,7 @@ export interface ActivityLeaderboardEntry {
   activityCount: number;
   loginCount: number;
   lastActivityAt: string;
+  activityScore: number;
 }
 
 export interface ActivityTeamMemberEntry {
@@ -27,6 +28,7 @@ export interface ActivityTeamMemberEntry {
   activityCount: number;
   loginCount: number;
   lastActivityAt: string | null;
+  activityScore: number;
 }
 
 export interface RecentActivityEntry {
