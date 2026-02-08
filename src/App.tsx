@@ -31,6 +31,8 @@ import UserDetail from "./pages/admin/UserDetail";
 import AdminPanel from "./pages/admin/AdminPanel";
 import BDManagerReports from "./pages/admin/BDManagerReports";
 import UsageAnalytics from "./pages/admin/UsageAnalytics";
+import UsageAnalyticsTeam from "./pages/admin/UsageAnalyticsTeam";
+import UsageAnalyticsMemberDetail from "./pages/admin/UsageAnalyticsMemberDetail";
 
 import UserProfile from "./pages/UserProfile";
 import NicheManagement from "./pages/bd/NicheManagement";
@@ -157,6 +159,8 @@ const App = () => (
               <Route path="ai/agents" element={<LinkedInAgentConfig />} />
               <Route path="bd-reports" element={<BDManagerReports />} />
               <Route path="usage-analytics" element={<UsageAnalytics />} />
+              <Route path="usage-analytics/members" element={<UsageAnalyticsTeam />} />
+              <Route path="usage-analytics/members/:userId" element={<UsageAnalyticsMemberDetail />} />
               <Route path="strategy/products" element={<ProductManagement />} />
               <Route path="strategy/niches" element={<NicheManagement />} />
               <Route path="strategy/checklist-templates" element={<ChecklistTemplateManager />} />
