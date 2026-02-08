@@ -30,6 +30,7 @@ import DHSManagement from "./pages/admin/DHSManagement";
 import UserDetail from "./pages/admin/UserDetail";
 import AdminPanel from "./pages/admin/AdminPanel";
 import BDManagerReports from "./pages/admin/BDManagerReports";
+import UsageAnalytics from "./pages/admin/UsageAnalytics";
 
 import UserProfile from "./pages/UserProfile";
 import NicheManagement from "./pages/bd/NicheManagement";
@@ -155,6 +156,7 @@ const App = () => (
               <Route path="pods" element={<PODManagement />} />
               <Route path="ai/agents" element={<LinkedInAgentConfig />} />
               <Route path="bd-reports" element={<BDManagerReports />} />
+              <Route path="usage-analytics" element={<UsageAnalytics />} />
               <Route path="strategy/products" element={<ProductManagement />} />
               <Route path="strategy/niches" element={<NicheManagement />} />
               <Route path="strategy/checklist-templates" element={<ChecklistTemplateManager />} />

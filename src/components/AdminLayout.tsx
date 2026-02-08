@@ -81,6 +81,7 @@ const AdminLayout = () => {
       {
         section: "BD Intelligence",
         items: [
+          { name: "Usage Analytics", href: "/adminpanel/usage-analytics", icon: BarChart3, roles: ['super_admin', 'admin'] },
           { name: "BD Manager Reports", href: "/adminpanel/bd-reports", icon: BarChart3, roles: ['super_admin', 'admin'] },
         ],
       },

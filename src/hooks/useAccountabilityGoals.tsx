@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useAuth } from '@/hooks/useAuth';
+import { logUserActivity } from '@/services/userActivityService';
 
 // Types
 export type GoalStatus = 'on_track' | 'at_risk' | 'off_track' | 'completed';
@@ -236,6 +238,7 @@ export function usePendingApprovalGoals(quarterId: string | undefined) {
 // Hook to create a team goal
 export function useCreateTeamGoal() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   return useMutation({
     mutationFn: async (goalData: CreateTeamGoalData) => {
@@ -251,6 +254,14 @@ export function useCreateTeamGoal() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['accountability-team-goals', data.quarter_id] });
       toast.success('Team goal created successfully');
+      if (user?.id) {
+        void logUserActivity({
+          userId: user.id,
+          action: 'accountability_goal_created',
+          resourceType: 'accountability_team_goal',
+          resourceId: data.id,
+        });
+      }
     },
     onError: (error: Error) => {
       toast.error(`Failed to create team goal: ${error.message}`);
@@ -261,6 +272,7 @@ export function useCreateTeamGoal() {
 // Hook to create a rep goal
 export function useCreateRepGoal() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   return useMutation({
     mutationFn: async (goalData: CreateRepGoalData) => {
@@ -283,6 +295,14 @@ export function useCreateRepGoal() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['accountability-rep-goals', data.quarter_id] });
       toast.success('Goal created successfully');
+      if (user?.id) {
+        void logUserActivity({
+          userId: user.id,
+          action: 'accountability_goal_created',
+          resourceType: 'accountability_rep_goal',
+          resourceId: data.id,
+        });
+      }
     },
     onError: (error: Error) => {
       toast.error(`Failed to create goal: ${error.message}`);
@@ -293,6 +313,7 @@ export function useCreateRepGoal() {
 // Hook to update a rep goal
 export function useUpdateRepGoal() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   return useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: UpdateRepGoalData }) => {
@@ -310,6 +331,14 @@ export function useUpdateRepGoal() {
       queryClient.invalidateQueries({ queryKey: ['accountability-rep-goals', data.quarter_id] });
       queryClient.invalidateQueries({ queryKey: ['accountability-rep-goal', data.id] });
       toast.success('Goal updated successfully');
+      if (user?.id) {
+        void logUserActivity({
+          userId: user.id,
+          action: 'accountability_goal_updated',
+          resourceType: 'accountability_rep_goal',
+          resourceId: data.id,
+        });
+      }
     },
     onError: (error: Error) => {
       toast.error(`Failed to update goal: ${error.message}`);
@@ -320,6 +349,7 @@ export function useUpdateRepGoal() {
 // Hook to update a team goal
 export function useUpdateTeamGoal() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   return useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: Partial<CreateTeamGoalData> }) => {
@@ -337,6 +367,14 @@ export function useUpdateTeamGoal() {
       queryClient.invalidateQueries({ queryKey: ['accountability-team-goals', data.quarter_id] });
       queryClient.invalidateQueries({ queryKey: ['accountability-team-goal', data.id] });
       toast.success('Team goal updated successfully');
+      if (user?.id) {
+        void logUserActivity({
+          userId: user.id,
+          action: 'accountability_goal_updated',
+          resourceType: 'accountability_team_goal',
+          resourceId: data.id,
+        });
+      }
     },
     onError: (error: Error) => {
       toast.error(`Failed to update team goal: ${error.message}`);
