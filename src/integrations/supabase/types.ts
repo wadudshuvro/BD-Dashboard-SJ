@@ -3976,6 +3976,9 @@ export type Database = {
           email: string
           full_name: string | null
           id: string
+          last_login: string | null
+          last_seen: string | null
+          login_count: number | null
           notification_preferences: Json | null
           updated_at: string
         }
@@ -3985,6 +3988,9 @@ export type Database = {
           email: string
           full_name?: string | null
           id: string
+          last_login?: string | null
+          last_seen?: string | null
+          login_count?: number | null
           notification_preferences?: Json | null
           updated_at?: string
         }
@@ -3994,6 +4000,9 @@ export type Database = {
           email?: string
           full_name?: string | null
           id?: string
+          last_login?: string | null
+          last_seen?: string | null
+          login_count?: number | null
           notification_preferences?: Json | null
           updated_at?: string
         }
@@ -5093,6 +5102,42 @@ export type Database = {
           serial_number?: number
           type_of_work?: string
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_activity_log: {
+        Row: {
+          action: string
+          created_at: string
+          id: string
+          ip_address: string | null
+          metadata: Json | null
+          resource_id: string | null
+          resource_type: string | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          metadata?: Json | null
+          resource_id?: string | null
+          resource_type?: string | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          metadata?: Json | null
+          resource_id?: string | null
+          resource_type?: string | null
+          user_agent?: string | null
           user_id?: string
         }
         Relationships: []
