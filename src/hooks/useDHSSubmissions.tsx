@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { DHSSubmission, DHSSubmissionFormData, DHSTeamSummary, DHSSubmissionWithUser } from '@/types/dhs';
+import { logUserActivity } from '@/services/userActivityService';
 
 export function useDHSSubmissions(userId?: string, date?: Date) {
   const dateStr = date ? date.toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
@@ -96,12 +97,21 @@ export function useSubmitDHS() {
       if (error) throw error;
       return data as DHSSubmission;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['dhs-submissions'] });
       queryClient.invalidateQueries({ queryKey: ['dhs-history'] });
       queryClient.invalidateQueries({ queryKey: ['dhs-today'] });
       queryClient.invalidateQueries({ queryKey: ['dhs-team-summary'] });
       queryClient.invalidateQueries({ queryKey: ['dhs-all-submissions'] });
+      if (data?.user_id) {
+        void logUserActivity({
+          userId: data.user_id,
+          action: 'dhs_submitted',
+          resourceType: 'dhs_submission',
+          resourceId: data.id,
+          metadata: { date: data.date },
+        });
+      }
     },
   });
 }
@@ -126,12 +136,21 @@ export function useUpdateDHS() {
       if (error) throw error;
       return data as DHSSubmission;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['dhs-submissions'] });
       queryClient.invalidateQueries({ queryKey: ['dhs-history'] });
       queryClient.invalidateQueries({ queryKey: ['dhs-today'] });
       queryClient.invalidateQueries({ queryKey: ['dhs-team-summary'] });
       queryClient.invalidateQueries({ queryKey: ['dhs-all-submissions'] });
+      if (data?.user_id) {
+        void logUserActivity({
+          userId: data.user_id,
+          action: 'dhs_updated',
+          resourceType: 'dhs_submission',
+          resourceId: data.id,
+          metadata: { date: data.date },
+        });
+      }
     },
   });
 }

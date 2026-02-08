@@ -1,7 +1,8 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { User as SupabaseUser, Session } from '@supabase/supabase-js';
+import { logUserActivity, updateUserPresence } from '@/services/userActivityService';
 
 type UserRole = 'super_admin' | 'admin' | 'manager' | 'project_manager' | 'bd_user' | 'team_member';
 
@@ -30,6 +31,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [isInitialized, setIsInitialized] = useState(false);
+  const lastTrackedSessionRef = useRef<string | null>(null);
 
   // Role hierarchy for permission checking (normalized to backend app_role enum)
   const roleHierarchy: Record<UserRole, number> = {
@@ -145,6 +147,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(session);
 
       if (session?.user) {
+        if (event === 'SIGNED_IN') {
+          if (lastTrackedSessionRef.current !== session.access_token) {
+            lastTrackedSessionRef.current = session.access_token;
+            logUserActivity({ userId: session.user.id, action: 'login' });
+            updateUserPresence(session.user.id, { isLogin: true });
+          }
+        }
+
+        if (event === 'INITIAL_SESSION') {
+          if (lastTrackedSessionRef.current !== session.access_token) {
+            lastTrackedSessionRef.current = session.access_token;
+            logUserActivity({ userId: session.user.id, action: 'session_restore' });
+            updateUserPresence(session.user.id);
+          }
+        }
+
         // Defer Supabase calls to avoid deadlocks
         setTimeout(() => {
           fetchUserProfile(session.user).then((profile) => {
@@ -174,6 +192,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(session);
 
       if (session?.user) {
+        if (lastTrackedSessionRef.current !== session.access_token) {
+          lastTrackedSessionRef.current = session.access_token;
+          logUserActivity({ userId: session.user.id, action: 'session_restore' });
+          updateUserPresence(session.user.id);
+        }
+
         fetchUserProfile(session.user).then((profile) => {
           if (!mounted) return;
           
@@ -216,6 +240,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
+    if (session?.user) {
+      logUserActivity({ userId: session.user.id, action: 'logout' });
+    }
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);

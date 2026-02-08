@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
 import {
   listCampaigns,
   createCampaign as createCampaignApi,
@@ -11,6 +12,7 @@ import {
   type CampaignPayload,
   type CampaignCreateOptions,
 } from '@/Api/adminCampaigns';
+import { logUserActivity } from '@/services/userActivityService';
 
 export type BDCampaign = CampaignSummary;
 
@@ -80,6 +82,7 @@ export const useBDCampaigns = (
 ) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   const queryKey = ['admin-campaigns', { nicheId, page, limit, search, status, ownerId }];
 
@@ -133,6 +136,14 @@ export const useBDCampaigns = (
         title: 'Success',
         description: 'Campaign created successfully',
       });
+      if (user?.id) {
+        void logUserActivity({
+          userId: user.id,
+          action: 'campaign_created',
+          resourceType: 'campaign',
+          resourceId: campaign.id,
+        });
+      }
     },
     onError: (error: Error, _variables, context) => {
       if (context?.previous) {
@@ -181,6 +192,14 @@ export const useBDCampaigns = (
         title: 'Success',
         description: 'Campaign updated successfully',
       });
+      if (user?.id) {
+        void logUserActivity({
+          userId: user.id,
+          action: 'campaign_updated',
+          resourceType: 'campaign',
+          resourceId: campaign.id,
+        });
+      }
     },
     onError: (error: Error, _variables, context) => {
       if (context?.previous) {

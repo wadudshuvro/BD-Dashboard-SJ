@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/use-toast';
+import { useAuth } from '@/hooks/useAuth';
+import { logUserActivity } from '@/services/userActivityService';
 
 export interface TaskLabel {
   id: string;
@@ -217,6 +219,7 @@ export const useDelegatedProjectTasks = () => {
 
 export const useCreateProjectTask = () => {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   return useMutation({
     mutationFn: async (taskData: CreateProjectTaskData) => {
@@ -238,6 +241,15 @@ export const useCreateProjectTask = () => {
       queryClient.invalidateQueries({ queryKey: ['all-project-tasks'] });
       queryClient.invalidateQueries({ queryKey: ['my-project-tasks'] });
       queryClient.invalidateQueries({ queryKey: ['delegated-project-tasks'] });
+      if (user?.id && data?.id) {
+        void logUserActivity({
+          userId: user.id,
+          action: 'task_created',
+          resourceType: 'task',
+          resourceId: data.id,
+          metadata: { project_id: data.project_id },
+        });
+      }
       toast({
         title: "Task created",
         description: "Project task has been created successfully.",
@@ -256,6 +268,7 @@ export const useCreateProjectTask = () => {
 
 export const useUpdateProjectTask = () => {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   return useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: UpdateProjectTaskData }) => {
@@ -282,11 +295,20 @@ export const useUpdateProjectTask = () => {
 
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['project-tasks'] });
       queryClient.invalidateQueries({ queryKey: ['all-project-tasks'] });
       queryClient.invalidateQueries({ queryKey: ['my-project-tasks'] });
       queryClient.invalidateQueries({ queryKey: ['delegated-project-tasks'] });
+      if (user?.id && data?.id && variables?.updates?.status === 'completed') {
+        void logUserActivity({
+          userId: user.id,
+          action: 'task_completed',
+          resourceType: 'task',
+          resourceId: data.id,
+          metadata: { project_id: data.project_id },
+        });
+      }
       toast({
         title: "Task updated",
         description: "Project task has been updated successfully.",

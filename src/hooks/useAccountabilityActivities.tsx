@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useAuth } from '@/hooks/useAuth';
+import { logUserActivity } from '@/services/userActivityService';
 
 // Types
 export type ActivityFrequency = 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'one_time';
@@ -111,6 +113,7 @@ export function useActivity(activityId: string | undefined) {
 // Hook to create an activity
 export function useCreateActivity() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   return useMutation({
     mutationFn: async (activityData: CreateActivityData) => {
@@ -127,6 +130,14 @@ export function useCreateActivity() {
       queryClient.invalidateQueries({ queryKey: ['accountability-activities', data.rep_goal_id] });
       queryClient.invalidateQueries({ queryKey: ['accountability-rep-goal', data.rep_goal_id] });
       toast.success('Activity created successfully');
+      if (user?.id) {
+        void logUserActivity({
+          userId: user.id,
+          action: 'accountability_activity_created',
+          resourceType: 'accountability_activity',
+          resourceId: data.id,
+        });
+      }
     },
     onError: (error: Error) => {
       toast.error(`Failed to create activity: ${error.message}`);

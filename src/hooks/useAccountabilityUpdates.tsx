@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { GoalStatus } from './useAccountabilityGoals';
+import { logUserActivity } from '@/services/userActivityService';
 
 // Types
 export interface AccountabilityWeeklyUpdate {
@@ -176,6 +177,14 @@ export function useCreateWeeklyUpdate() {
       queryClient.invalidateQueries({ queryKey: ['accountability-activities'] });
       queryClient.invalidateQueries({ queryKey: ['accountability-rep-goals'] });
       toast.success('Weekly update submitted successfully');
+      if (data?.submitted_by) {
+        void logUserActivity({
+          userId: data.submitted_by,
+          action: 'accountability_update_submitted',
+          resourceType: 'accountability_weekly_update',
+          resourceId: data.id,
+        });
+      }
     },
     onError: (error: Error) => {
       toast.error(`Failed to submit weekly update: ${error.message}`);

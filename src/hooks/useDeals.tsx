@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
 import { DEAL_STAGES, DEAL_STATUSES, DealStage, DealStatus } from '@/lib/dealStages';
+import { logUserActivity } from '@/services/userActivityService';
 
 export interface DealFile {
   id: string;
@@ -305,6 +306,13 @@ export function useDeals(options: UseDealsOptions = {}): UseDealsReturn {
 
     if (error) throw error;
 
+    void logUserActivity({
+      userId: user.id,
+      action: 'deal_created',
+      resourceType: 'deal',
+      resourceId: data.id,
+    });
+
     toast.success('Deal created successfully');
     await fetchDeals();
     return data as Deal;
@@ -349,6 +357,13 @@ export function useDeals(options: UseDealsOptions = {}): UseDealsReturn {
       .single();
 
     if (error) throw error;
+
+    void logUserActivity({
+      userId: user.id,
+      action: 'deal_updated',
+      resourceType: 'deal',
+      resourceId: data.id,
+    });
 
     // Auto-push to Control Tower if deal is synced
     if (data.synced_from_control_tower && data.control_tower_id) {
