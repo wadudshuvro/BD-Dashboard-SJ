@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
@@ -50,6 +51,9 @@ export default function UsageAnalytics() {
               <SelectItem value="90d">Last 90 days</SelectItem>
             </SelectContent>
           </Select>
+          <Button variant="outline" asChild>
+            <Link to="/adminpanel/usage-analytics/members">View Team Stats</Link>
+          </Button>
           <Button onClick={handleSendLowUsage} disabled={sendLowUsageNotifications.isPending}>
             <BellRing className="mr-2 h-4 w-4" />
             {sendLowUsageNotifications.isPending ? 'Sending...' : 'Send Low Usage Reminder'}

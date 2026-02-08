@@ -31,6 +31,8 @@ serve(async (req) => {
     const url = new URL(req.url);
     const period = url.searchParams.get("period") || "30d";
     const recentLimit = Number(url.searchParams.get("recentLimit") || 20);
+    const userIdFilter = url.searchParams.get("userId");
+    const includeAllUsers = url.searchParams.get("includeAllUsers") === "true";
 
     const endDate = new Date();
     const periodStart = new Date(endDate);
@@ -58,12 +60,18 @@ serve(async (req) => {
     const thirtyDayStart = new Date(endDate);
     thirtyDayStart.setDate(thirtyDayStart.getDate() - 30);
 
-    const { data: activityLogs, error: activityError } = await supabase
+    let activityQuery = supabase
       .from("user_activity_log")
       .select("id, user_id, action, resource_type, resource_id, metadata, created_at")
       .gte("created_at", periodStart.toISOString())
       .lte("created_at", endDate.toISOString())
       .order("created_at", { ascending: false });
+
+    if (userIdFilter) {
+      activityQuery = activityQuery.eq("user_id", userIdFilter);
+    }
+
+    const { data: activityLogs, error: activityError } = await activityQuery;
 
     if (activityError) {
       throw activityError;
@@ -106,7 +114,17 @@ serve(async (req) => {
 
     const userIds = Array.from(userStats.keys());
     let profileMap = new Map<string, ProfileRow>();
-    if (userIds.length > 0) {
+    if (includeAllUsers) {
+      const { data: profiles, error: profileError } = await supabase
+        .from("profiles")
+        .select("id, full_name, email");
+
+      if (profileError) {
+        throw profileError;
+      }
+
+      profileMap = new Map((profiles || []).map((profile: ProfileRow) => [profile.id, profile]));
+    } else if (userIds.length > 0) {
       const { data: profiles, error: profileError } = await supabase
         .from("profiles")
         .select("id, full_name, email")
@@ -133,6 +151,19 @@ serve(async (req) => {
       .sort((a, b) => b.activityCount - a.activityCount || b.loginCount - a.loginCount)
       .slice(0, 10);
 
+    const teamMembers = includeAllUsers
+      ? Array.from(profileMap.entries()).map(([profileId, profile]) => {
+          const stats = userStats.get(profileId);
+          return {
+            userId: profileId,
+            userName: profile?.full_name || profile?.email || "Unknown User",
+            activityCount: stats?.activityCount || 0,
+            loginCount: stats?.loginCount || 0,
+            lastActivityAt: stats?.lastActivityAt || null,
+          };
+        })
+      : undefined;
+
     const recentActivity = logs.slice(0, recentLimit).map((log) => {
       const profile = profileMap.get(log.user_id);
       return {
@@ -146,6 +177,7 @@ serve(async (req) => {
       };
     });
 
+    const member = userIdFilter ? profileMap.get(userIdFilter) || null : null;
     const response = {
       summary: {
         activeUsers: {
@@ -161,6 +193,8 @@ serve(async (req) => {
       activityBreakdown,
       leaderboard,
       recentActivity,
+      member,
+      teamMembers,
     };
 
     return new Response(JSON.stringify(response), {
