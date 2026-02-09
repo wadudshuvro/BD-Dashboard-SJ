@@ -19,4 +19,5 @@ No new environment variables required. Functions use:
 
 ## Verification
 - Call `user-activity-stats` from the admin UI.
+- Confirm Team Stats list shows activity scores and search works.
 - Trigger `notify-low-usage` from the admin UI button and verify notifications are created.

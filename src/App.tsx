@@ -33,6 +33,7 @@ import BDManagerReports from "./pages/admin/BDManagerReports";
 import UsageAnalytics from "./pages/admin/UsageAnalytics";
 import UsageAnalyticsTeam from "./pages/admin/UsageAnalyticsTeam";
 import UsageAnalyticsMemberDetail from "./pages/admin/UsageAnalyticsMemberDetail";
+import AnalyticsApiConsumers from "./pages/admin/AnalyticsApiConsumers";
 
 import UserProfile from "./pages/UserProfile";
 import NicheManagement from "./pages/bd/NicheManagement";
@@ -161,6 +162,7 @@ const App = () => (
               <Route path="usage-analytics" element={<UsageAnalytics />} />
               <Route path="usage-analytics/members" element={<UsageAnalyticsTeam />} />
               <Route path="usage-analytics/members/:userId" element={<UsageAnalyticsMemberDetail />} />
+              <Route path="analytics-api-consumers" element={<AnalyticsApiConsumers />} />
               <Route path="strategy/products" element={<ProductManagement />} />
               <Route path="strategy/niches" element={<NicheManagement />} />
               <Route path="strategy/checklist-templates" element={<ChecklistTemplateManager />} />
