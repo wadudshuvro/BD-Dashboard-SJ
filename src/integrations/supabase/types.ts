@@ -610,36 +610,6 @@ export type Database = {
         }
         Relationships: []
       }
-      analytics_data: {
-        Row: {
-          created_at: string | null
-          dimensions: Json | null
-          id: string
-          metric_name: string
-          metric_value: number
-          recorded_at: string
-          source: string
-        }
-        Insert: {
-          created_at?: string | null
-          dimensions?: Json | null
-          id?: string
-          metric_name: string
-          metric_value: number
-          recorded_at?: string
-          source: string
-        }
-        Update: {
-          created_at?: string | null
-          dimensions?: Json | null
-          id?: string
-          metric_name?: string
-          metric_value?: number
-          recorded_at?: string
-          source?: string
-        }
-        Relationships: []
-      }
       analytics_api_consumers: {
         Row: {
           allowed_periods: string[]
@@ -688,6 +658,36 @@ export type Database = {
           updated_at?: string
           webhook_secret?: string | null
           webhook_url?: string | null
+        }
+        Relationships: []
+      }
+      analytics_data: {
+        Row: {
+          created_at: string | null
+          dimensions: Json | null
+          id: string
+          metric_name: string
+          metric_value: number
+          recorded_at: string
+          source: string
+        }
+        Insert: {
+          created_at?: string | null
+          dimensions?: Json | null
+          id?: string
+          metric_name: string
+          metric_value: number
+          recorded_at?: string
+          source: string
+        }
+        Update: {
+          created_at?: string | null
+          dimensions?: Json | null
+          id?: string
+          metric_name?: string
+          metric_value?: number
+          recorded_at?: string
+          source?: string
         }
         Relationships: []
       }
