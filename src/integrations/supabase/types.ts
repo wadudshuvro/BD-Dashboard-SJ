@@ -640,6 +640,57 @@ export type Database = {
         }
         Relationships: []
       }
+      analytics_api_consumers: {
+        Row: {
+          allowed_periods: string[]
+          api_secret_hash: string
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          last_push_at: string | null
+          last_push_status: string | null
+          name: string
+          push_enabled: boolean
+          push_frequency: string
+          updated_at: string
+          webhook_secret: string | null
+          webhook_url: string | null
+        }
+        Insert: {
+          allowed_periods?: string[]
+          api_secret_hash: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          last_push_at?: string | null
+          last_push_status?: string | null
+          name: string
+          push_enabled?: boolean
+          push_frequency?: string
+          updated_at?: string
+          webhook_secret?: string | null
+          webhook_url?: string | null
+        }
+        Update: {
+          allowed_periods?: string[]
+          api_secret_hash?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          last_push_at?: string | null
+          last_push_status?: string | null
+          name?: string
+          push_enabled?: boolean
+          push_frequency?: string
+          updated_at?: string
+          webhook_secret?: string | null
+          webhook_url?: string | null
+        }
+        Relationships: []
+      }
       auth_sync_errors: {
         Row: {
           created_at: string

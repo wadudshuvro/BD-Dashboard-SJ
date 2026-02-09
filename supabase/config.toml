@@ -74,3 +74,9 @@ verify_jwt = false
 
 [functions.scheduled-bd-manager-weekly-review]
 verify_jwt = false
+
+[functions.external-analytics-api]
+verify_jwt = false
+
+[functions.push-analytics-to-consumers]
+verify_jwt = false
