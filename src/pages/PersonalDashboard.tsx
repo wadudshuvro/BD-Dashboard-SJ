@@ -6,9 +6,11 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { CheckCircle, Clock, Calendar, TrendingUp, Target, Zap, User, Award, AlertCircle, Plus, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useNavigate } from "react-router-dom";
 
 export default function PersonalDashboard() {
   const { user: authUser } = useAuth();
+  const navigate = useNavigate();
   
   const loading = false;
   const error = null;
@@ -262,7 +264,11 @@ export default function PersonalDashboard() {
                 </div>
               </div>
             ))}
-            <Button variant="outline" className="w-full">
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => navigate('/bd/actions/my-tasks')}
+            >
               View All Tasks
             </Button>
           </CardContent>
@@ -295,7 +301,11 @@ export default function PersonalDashboard() {
                 </Badge>
               </div>
             ))}
-            <Button variant="outline" className="w-full">
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => navigate('/bd/actions/my-tasks')}
+            >
               View Calendar
             </Button>
           </CardContent>
@@ -309,15 +319,27 @@ export default function PersonalDashboard() {
         </CardHeader>
         <CardContent>
           <div className="grid gap-2 md:grid-cols-3">
-            <Button variant="outline" className="justify-start">
+            <Button
+              variant="outline"
+              className="justify-start"
+              onClick={() => navigate('/bd/actions/tasks')}
+            >
               <Plus className="h-4 w-4 mr-2" />
               Create New Task
             </Button>
-            <Button variant="outline" className="justify-start">
+            <Button
+              variant="outline"
+              className="justify-start"
+              onClick={() => navigate('/bd/actions/my-tasks')}
+            >
               <Calendar className="h-4 w-4 mr-2" />
               View Calendar
             </Button>
-            <Button variant="outline" className="justify-start">
+            <Button
+              variant="outline"
+              className="justify-start"
+              onClick={() => navigate('/my-profile')}
+            >
               <User className="h-4 w-4 mr-2" />
               Update Profile
             </Button>
