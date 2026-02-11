@@ -184,14 +184,22 @@ $$ LANGUAGE SQL SECURITY DEFINER STABLE;
 CREATE OR REPLACE FUNCTION public.update_goal_progress_from_activities()
 RETURNS TRIGGER AS $$
 DECLARE
+  activity_id UUID;
   rep_goal_record RECORD;
   team_goal_id_var UUID;
 BEGIN
+  -- Determine which activity we're dealing with based on the trigger source table
+  IF TG_TABLE_NAME = 'accountability_activities' THEN
+    activity_id := NEW.id;
+  ELSE
+    activity_id := NEW.activity_id;
+  END IF;
+
   -- Get the rep goal for this activity
   SELECT rep_goal_id, team_goal_id INTO rep_goal_record
   FROM public.accountability_activities a
   JOIN public.accountability_rep_goals rg ON rg.id = a.rep_goal_id
-  WHERE a.id = COALESCE(NEW.activity_id, NEW.id);
+  WHERE a.id = activity_id;
   
   -- Update rep goal current_value by summing all activities' current_count
   UPDATE public.accountability_rep_goals
