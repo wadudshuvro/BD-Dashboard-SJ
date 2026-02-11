@@ -162,7 +162,7 @@ export default function ActionsTasks() {
             </div>
           </CardHeader>
           <CardContent>
-            <Button className="w-full" onClick={() => navigate('/actions/eod')}>
+            <Button className="w-full" onClick={() => navigate('/bd/actions/eod')}>
               <Calendar className="mr-2 h-4 w-4" />
               Submit EOD
             </Button>
@@ -182,7 +182,7 @@ export default function ActionsTasks() {
             </div>
           </CardHeader>
           <CardContent>
-            <Button variant="outline" className="w-full" onClick={() => navigate('/actions/eod-history')}>
+            <Button variant="outline" className="w-full" onClick={() => navigate('/bd/actions/eod-history')}>
               <History className="mr-2 h-4 w-4" />
               View History
             </Button>
