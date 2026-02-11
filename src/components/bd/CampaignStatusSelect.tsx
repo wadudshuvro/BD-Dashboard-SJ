@@ -78,12 +78,9 @@ export function CampaignStatusSelect({
           <SelectContent>
             {Object.entries(STATUS_CONFIG).map(([status, config]) => (
               <SelectItem key={status} value={status}>
-                <div className="flex items-center gap-2">
-                  {status === currentStatus && <Check className="h-4 w-4" />}
-                  <Badge variant={config.variant} className="capitalize">
-                    {config.label}
-                  </Badge>
-                </div>
+                <Badge variant={config.variant} className="capitalize">
+                  {config.label}
+                </Badge>
               </SelectItem>
             ))}
           </SelectContent>
