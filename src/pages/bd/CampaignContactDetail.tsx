@@ -207,34 +207,79 @@ export default function CampaignContactDetail() {
 
   const handleStageToggle = async (stage: CampaignContactStatus) => {
     if (!contact) return;
-    
+
     // Get current completed stages (including auto-initialized ones)
     const currentCompleted = completedStages;
     const isCurrentlyCompleted = currentCompleted.includes(stage);
-    
-    // Toggle the stage - add if not present, remove if present
-    const updatedCompleted = isCurrentlyCompleted
-      ? currentCompleted.filter((s: string) => s !== stage)
-      : [...currentCompleted, stage];
-    
-    // Update metadata in database
-    const existingMetadata = (contact.metadata as Record<string, unknown>) || {};
-    
-    updateMutation.mutate({
-      contactId: contact.id,
-      updates: {
-        metadata: {
-          ...existingMetadata,
-          completed_stages: updatedCompleted
-        }
+
+    // Handle Won/Lost stages - they are mutually exclusive
+    if (stage === 'won' || stage === 'close_lost') {
+      const otherTerminalStage = stage === 'won' ? 'close_lost' : 'won';
+      const hasOtherTerminal = currentCompleted.includes(otherTerminalStage);
+
+      let updatedCompleted: CampaignContactStatus[];
+
+      if (isCurrentlyCompleted) {
+        // Clicking the same stage twice deselects it
+        updatedCompleted = currentCompleted.filter((s: string) => s !== stage);
+      } else if (hasOtherTerminal) {
+        // Switch from one terminal stage to the other
+        updatedCompleted = currentCompleted
+          .filter((s: string) => s !== otherTerminalStage)
+          .concat(stage);
+      } else {
+        // Add the stage
+        updatedCompleted = [...currentCompleted, stage];
       }
-    });
-    
-    toast.success(
-      isCurrentlyCompleted 
-        ? `Stage unmarked as completed` 
-        : `Stage marked as completed`
-    );
+
+      // Update metadata in database
+      const existingMetadata = (contact.metadata as Record<string, unknown>) || {};
+
+      updateMutation.mutate({
+        contactId: contact.id,
+        updates: {
+          metadata: {
+            ...existingMetadata,
+            completed_stages: updatedCompleted
+          }
+        }
+      });
+
+      let message = '';
+      if (isCurrentlyCompleted) {
+        message = `${stage === 'won' ? 'Won' : 'Lost'} status removed`;
+      } else if (hasOtherTerminal) {
+        message = `Switched from ${otherTerminalStage === 'won' ? 'Won' : 'Lost'} to ${stage === 'won' ? 'Won' : 'Lost'}`;
+      } else {
+        message = `Marked as ${stage === 'won' ? 'Won' : 'Lost'}`;
+      }
+
+      toast.success(message);
+    } else {
+      // For non-terminal stages, use simple toggle
+      const updatedCompleted = isCurrentlyCompleted
+        ? currentCompleted.filter((s: string) => s !== stage)
+        : [...currentCompleted, stage];
+
+      // Update metadata in database
+      const existingMetadata = (contact.metadata as Record<string, unknown>) || {};
+
+      updateMutation.mutate({
+        contactId: contact.id,
+        updates: {
+          metadata: {
+            ...existingMetadata,
+            completed_stages: updatedCompleted
+          }
+        }
+      });
+
+      toast.success(
+        isCurrentlyCompleted
+          ? `Stage unmarked as completed`
+          : `Stage marked as completed`
+      );
+    }
   };
 
   // Inline editing handlers
