@@ -46,17 +46,24 @@ export function FeedbackListItem({ item }: FeedbackListItemProps) {
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
-        <div className="flex items-center gap-4">
-          <span className="inline-flex items-center gap-1">
-            <ThumbsUp className="h-3.5 w-3.5" />
-            {item.upvote_count ?? 0}
-          </span>
-          <span className="inline-flex items-center gap-1">
-            <MessageSquare className="h-3.5 w-3.5" />
-            {item.comment_count ?? 0}
-          </span>
+        <div className="flex flex-col gap-2 flex-1">
+          <div className="flex items-center gap-4">
+            <span className="inline-flex items-center gap-1">
+              <ThumbsUp className="h-3.5 w-3.5" />
+              {item.upvote_count ?? 0}
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <MessageSquare className="h-3.5 w-3.5" />
+              {item.comment_count ?? 0}
+            </span>
+          </div>
+          {(item.submitted_by_name || item.email) && (
+            <span className="text-xs">
+              Submitted by: <span className="font-medium">{item.submitted_by_name || item.email}</span>
+            </span>
+          )}
         </div>
-        <span>{new Date(item.created_at).toLocaleDateString()}</span>
+        <span className="whitespace-nowrap">{new Date(item.created_at).toLocaleDateString()}</span>
       </div>
     </Link>
   );
