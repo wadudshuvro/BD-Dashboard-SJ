@@ -18,20 +18,25 @@ export function CampaignAssociationField({ form }: CampaignAssociationFieldProps
   
   const isCampaignAssociated = form.watch("is_campaign_associated");
   
-  // Fetch campaigns with search - only show active campaigns, not completed ones
+  // Fetch campaigns with search - show planning, active, and paused campaigns
   const effectiveSearchQuery = searchQuery.length >= 3 ? searchQuery : undefined;
   const { campaigns, isLoading } = useBDCampaigns(
     undefined,
     1,
     50,
     effectiveSearchQuery,
-    'active'
+    undefined
+  );
+
+  // Filter campaigns to only include Planning, Active, and Paused statuses
+  const allowedStatusCampaigns = campaigns.filter(c =>
+    ['planning', 'active', 'paused'].includes(c.status)
   );
 
   const selectedCampaign = useMemo(() => {
     const campaignId = form.getValues("campaign_id");
-    return campaigns.find(c => c.id === campaignId);
-  }, [campaigns, form.watch("campaign_id")]);
+    return allowedStatusCampaigns.find(c => c.id === campaignId);
+  }, [allowedStatusCampaigns, form.watch("campaign_id")]);
 
   return (
     <div className="space-y-4">
@@ -112,7 +117,7 @@ export function CampaignAssociationField({ form }: CampaignAssociationFieldProps
                         {isLoading ? "Loading campaigns..." : "No campaigns found."}
                       </CommandEmpty>
                       <CommandGroup>
-                        {campaigns.map((campaign) => (
+                        {allowedStatusCampaigns.map((campaign) => (
                           <CommandItem
                             key={campaign.id}
                             value={campaign.name}
