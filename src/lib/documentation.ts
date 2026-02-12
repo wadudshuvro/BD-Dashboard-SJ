@@ -139,6 +139,41 @@ export const documentationIndex: DocCategory[] = [
     ]
   },
   {
+    id: "accountability",
+    title: "Accountability Chart",
+    icon: ClipboardCheck,
+    description: "Quarterly goal setting, progress tracking, and team accountability module documentation.",
+    items: [
+      {
+        id: "accountability-user-guide",
+        title: "User Guide & Workflows",
+        description: "Complete guide for team members and reps on setting goals, tracking activities, and submitting progress updates. Includes role-based user flows.",
+        category: "accountability",
+        file: "accountability-chart-user-guide.md",
+        tags: ["accountability", "goals", "progress", "workflow", "user-guide"],
+        lastUpdated: "2026-02-12"
+      },
+      {
+        id: "accountability-admin-guide",
+        title: "Admin & Configuration Guide",
+        description: "Manager and admin documentation for managing quarters, team goals, approval workflows, data auditing, and system configuration.",
+        category: "accountability",
+        file: "accountability-chart-admin-guide.md",
+        tags: ["accountability", "admin", "management", "configuration", "approval"],
+        lastUpdated: "2026-02-12"
+      },
+      {
+        id: "accountability-api-reference",
+        title: "API & Technical Reference",
+        description: "Developer documentation for React hooks, database operations, TypeScript types, error handling, and code examples.",
+        category: "accountability",
+        file: "accountability-chart-api-reference.md",
+        tags: ["accountability", "api", "technical", "hooks", "database"],
+        lastUpdated: "2026-02-12"
+      }
+    ]
+  },
+  {
     id: "integrations",
     title: "Integrations & Modules",
     icon: Plug,

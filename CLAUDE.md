@@ -341,6 +341,199 @@ ALL tables have Row Level Security enabled. Common patterns:
 
 ---
 
+## Accountability Chart Module
+
+### Overview
+The **Accountability Chart** is a comprehensive goal-tracking system enabling teams to set quarterly objectives, track progress through measurable daily/weekly/monthly activities, and maintain transparency across the organization through automatic progress aggregation and status calculation.
+
+**Access**: `/bd/accountability` (Business Development → Accountability Chart)
+
+### Key Features
+- **Hierarchical Goal Structure**: Team-level targets with individual rep goals aligned to them
+- **Goal Approval Workflow**: Draft → Pending Approval → Approved/Rejected with manager oversight
+- **Flexible Activity Tracking**: Break goals into measurable activities with multiple frequencies (daily, weekly, bi-weekly, monthly, one-time)
+- **Weekly Progress Submissions**: Reps submit weekly updates capturing progress, blockers, and support needs
+- **Automatic Progress Aggregation**: System automatically rolls up activity progress → rep goals → team goals via triggers
+- **Intelligent Status Calculation**: Auto-determines goal status (On Track/At Risk/Off Track/Completed) based on progress ratio vs. time elapsed
+- **Full Transparency**: Everyone sees team goals and progress; rep goals are visible to all with role-based permissions
+- **Manager Dashboard**: Full control of quarters, team goals, rep approvals, and visibility of team progress
+
+### Database Schema
+
+#### Tables (5 core tables)
+| Table | Purpose | Rows |
+|-------|---------|------|
+| `accountability_quarters` | Quarterly periods (planning/active/completed/archived) | ~4-8 per year |
+| `accountability_team_goals` | Manager-set team targets for quarter | ~10-20 per quarter |
+| `accountability_rep_goals` | Individual goals with approval workflow | ~100-200 per quarter |
+| `accountability_activities` | Measurable daily/weekly/monthly actions | ~300-500 per quarter |
+| `accountability_weekly_updates` | Weekly progress submissions with blockers | ~1000+ per quarter |
+
+#### Enums
+- `quarter_status`: planning, active, completed, archived
+- `goal_status`: on_track, at_risk, off_track, completed
+- `goal_approval_status`: draft, pending_approval, approved, rejected
+- `activity_frequency`: daily, weekly, biweekly, monthly, one_time
+- `activity_status`: active, paused, completed
+
+### React Components (11 files, 2,067 lines)
+
+| Component | Lines | Purpose |
+|-----------|-------|---------|
+| **Pages** | - | - |
+| `AccountabilityChart.tsx` | ~200 | Main dashboard with tabs for quarters, team goals, progress, approvals, my goals |
+| `AccountabilityGoalDetail.tsx` | ~250 | Detail view for individual goals with activities and weekly update timeline |
+| **Forms & Dialogs** | - | - |
+| `GoalForm.tsx` | 178 | Reusable form for creating/editing team and rep goals |
+| `ActivityForm.tsx` | 218 | Dialog form for creating/editing activities with frequency options |
+| `WeeklyUpdateForm.tsx` | 232 | Dialog form for submitting weekly progress with blockers/help tracking |
+| **Lists & Displays** | - | - |
+| `TeamGoalsList.tsx` | 222 | Table display of team goals with progress and manager actions |
+| `RepGoalsList.tsx` | 320 | Filtered list of rep goals with approval status indicators |
+| `ActivityList.tsx` | 215 | Activity list for a goal with inline progress tracking |
+| **Specialized UI** | - | - |
+| `GoalApprovalQueue.tsx` | 234 | Manager-only interface for approving/rejecting pending rep goals |
+| `GoalProgressChart.tsx` | 93 | Visual progress display (current/target/remaining) with percentage |
+| `WeeklyUpdateTimeline.tsx` | 132 | Historical timeline of weekly updates with status indicators |
+| `GoalStatusBadge.tsx` | 53 | Color-coded badge for goal status (On Track/At Risk/Off Track/Completed) |
+| `QuarterSelector.tsx` | 170 | Dropdown selector with create new quarter dialog |
+
+### Custom Hooks (5 files, 1,275 lines)
+
+| Hook | Exports | Purpose |
+|------|---------|---------|
+| `useAccountabilityQuarters.tsx` | 6 hooks | Quarters CRUD (useQuarters, useQuarter, useActiveQuarter, useCreateQuarter, useUpdateQuarter, useDeleteQuarter) |
+| `useAccountabilityGoals.tsx` | 13 hooks | Team & rep goal operations with approval workflow (useTeamGoals, useRepGoals, usePendingApprovalGoals, useCreateRepGoal, useApproveGoal, etc.) |
+| `useAccountabilityActivities.tsx` | 6 hooks | Activity management (useActivities, useActivity, useCreateActivity, useUpdateActivity, useLinkTaskToActivity, useDeleteActivity) |
+| `useAccountabilityUpdates.tsx` | 7 hooks + 1 utility | Weekly update submissions (useWeeklyUpdates, useWeeklyUpdate, useWeeklyUpdateForWeek, useCreateWeeklyUpdate, etc.) + getWeekDates() helper |
+| `useAccountabilityChart.tsx` | 1 hook | Legacy hook (may be deprecated) |
+
+**All hooks use TanStack Query** with:
+- Profile enrichment (user names, emails)
+- Team goal joining for rep goals
+- Task linking for activities
+- Activity type filters
+- User activity logging integration
+- Query key invalidation patterns
+
+### Row Level Security (RLS)
+
+All 5 tables have RLS policies enforcing:
+- **Quarters**: View (all authenticated users), Manage (managers only)
+- **Team Goals**: View (all users), Manage (managers only)
+- **Rep Goals**: View (all users), Create/Edit (own goals or managers), Approve (managers only)
+- **Activities**: View (all users), Manage (goal owner or managers)
+- **Weekly Updates**: View (all users), Submit (activity owner or managers), Edit (submitter or managers)
+
+### Database Functions & Triggers
+
+| Item | Type | Purpose |
+|------|------|---------|
+| `is_manager_or_admin()` | Function | RLS helper to check user role |
+| `update_goal_progress_from_activities()` | Function | Aggregates activity counts to rep goal, then to team goal |
+| `calculate_goal_status()` | Function | Determines status based on progress ratio vs. time elapsed |
+| 11 triggers | Triggers | Auto-update timestamps, calculate progress, determine status on changes |
+
+### Progress Calculation Logic
+
+**Automatic Aggregation** (bottom-up):
+```
+Weekly Update (progress_value)
+  ↓ [SUM for all weeks]
+Activity current_count
+  ↓ [SUM for all activities]
+Rep Goal current_value
+  ↓ [SUM for approved rep goals linked to team goal]
+Team Goal current_value
+```
+
+**Automatic Status Calculation**:
+| Progress Ratio | Status | Notes |
+|---|---|---|
+| ≥ 90% | On Track | Exceeding or matching expected progress |
+| 70-89% | At Risk | Below expected but recoverable |
+| < 70% | Off Track | Significantly behind |
+| ≥ 100% | Completed | Goal achieved |
+
+Example: Goal at 50% progress with 50% of quarter elapsed = On Track (50% ≥ 90% × 50%)
+
+### Goal Approval Workflow
+
+```
+Rep Creates Goal
+  ↓ [Status: Draft]
+  ├─ Rep can edit/delete freely
+  └─ Only rep can access
+
+Rep Submits for Approval
+  ↓ [Status: Pending Approval]
+  ├─ Manager is notified
+  ├─ Rep cannot edit (RLS blocked)
+  └─ Appears in Approvals queue
+
+Manager Reviews → Approve
+  ↓ [Status: Approved]
+  ├─ Rep is notified
+  ├─ Rep can add activities
+  └─ Progress tracking enabled
+
+Manager Reviews → Reject
+  ↓ [Status: Draft (reverted)]
+  ├─ Rejection reason stored
+  ├─ Rep is notified with reason
+  └─ Rep can edit and resubmit
+```
+
+### User Roles & Permissions
+
+| Action | Team Member | Manager | Admin | Super Admin |
+|--------|-------------|---------|-------|------------|
+| View quarters | ✓ | ✓ | ✓ | ✓ |
+| Create/manage quarters | ✗ | ✓ | ✓ | ✓ |
+| View all goals | ✓ | ✓ | ✓ | ✓ |
+| Create own rep goals | ✓ | ✓ | ✓ | ✓ |
+| Edit own draft goals | ✓ | ✓ | ✓ | ✓ |
+| Submit for approval | ✓ | ✓ | ✓ | ✓ |
+| Create team goals | ✗ | ✓ | ✓ | ✓ |
+| Manage rep goals (any) | ✗ | ✓ | ✓ | ✓ |
+| Approve/reject goals | ✗ | ✓ | ✓ | ✓ |
+| Create/manage activities | ✓ (own) | ✓ (any) | ✓ | ✓ |
+| Submit weekly updates | ✓ (own) | ✓ (any) | ✓ | ✓ |
+
+### Integration with Other Modules
+
+- **AI Agents**: `run-ai-agent`, `bd-manager-weekly-review` Edge Functions fetch accountability goals/updates as agent context
+- **Task Management**: Activities can link to `project_tasks` via `linked_task_id`
+- **Notifications**: Goal approval/rejection decisions and status changes trigger notifications to users
+- **User Activity Logging**: All goal/activity/update operations are logged to `user_activity_log`
+
+### Key User Flows
+
+**Rep Creating & Tracking a Goal**:
+1. Navigate to `/bd/accountability` → "My Goals" tab
+2. Create goal (Draft) → Define activities → Submit for approval
+3. Manager approves → Rep adds weekly updates
+4. System auto-calculates progress and status
+5. Rep reviews dashboard showing On Track/At Risk status
+
+**Manager Setting Team Goals & Monitoring**:
+1. Create quarter → Create team goals
+2. Review rep goal submissions in "Approvals" tab
+3. Approve/reject with feedback
+4. Monitor team progress in "Team Progress" tab
+5. View weekly updates to identify blockers and support needs
+
+### Documentation
+
+Comprehensive documentation available in admin panel:
+- **User Guide**: Goal setting, approval workflow, activity tracking, weekly updates, FAQs
+- **Admin Guide**: Quarter management, team goal setup, approval workflows, data auditing, troubleshooting
+- **API Reference**: React hooks, database operations, TypeScript types, error handling, code examples
+
+Access via: **Admin Panel → Documentation → Accountability Chart**
+
+---
+
 ## Current State
 
 ### Complete ✅
