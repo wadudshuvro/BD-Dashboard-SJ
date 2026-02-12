@@ -428,6 +428,80 @@ serve(async (req) => {
     }
 
     if (method === 'POST') {
+      // Parse body once for all POST actions
+      const body = await req.json();
+
+      // PASSWORD RESET ACTION (must be checked before user-creation logic)
+      if (body.action === 'resetPassword') {
+        const { userId: targetUserId, newPassword } = body;
+
+        if (!targetUserId) {
+          return new Response(
+            JSON.stringify({ error: 'userId is required for password reset' }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+          )
+        }
+
+        if (!newPassword || newPassword.length < 8) {
+          return new Response(
+            JSON.stringify({ error: 'Password must be at least 8 characters long' }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+          )
+        }
+
+        try {
+          // Verify target user exists
+          const { data: authUser, error: authCheckError } =
+            await supabaseClient.auth.admin.getUserById(targetUserId)
+
+          if (authCheckError || !authUser?.user) {
+            return new Response(
+              JSON.stringify({ error: 'User not found in authentication system' }),
+              { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
+            )
+          }
+
+          // Update password
+          const { error: updateError } =
+            await supabaseClient.auth.admin.updateUserById(targetUserId, { password: newPassword })
+
+          if (updateError) {
+            console.error('Supabase Auth password update failed:', { userId: targetUserId, error: updateError.message })
+            return new Response(
+              JSON.stringify({ error: `Password reset failed: ${updateError.message}` }),
+              { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+            )
+          }
+
+          // Audit log
+          try {
+            await supabaseClient.from('user_activity_log').insert({
+              user_id: user.id,
+              action: 'admin_password_reset',
+              resource_type: 'user',
+              resource_id: targetUserId,
+              metadata: { admin_id: user.id, target_user_id: targetUserId, action_type: 'password_reset' }
+            })
+          } catch (logError) {
+            console.warn('Failed to log password reset action:', logError)
+          }
+
+          console.log(`[admin-users] Password reset for user ${targetUserId} by admin ${user.id}`)
+
+          return new Response(
+            JSON.stringify({ success: true, message: 'Password reset successfully' }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+          )
+        } catch (resetError: any) {
+          const message = resetError instanceof Error ? resetError.message : 'Password reset failed'
+          console.error('[admin-users] Password reset error:', { userId: targetUserId, error: message })
+          return new Response(
+            JSON.stringify({ error: message }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+          )
+        }
+      }
+
       // Create new user
       const {
         email,
@@ -439,7 +513,7 @@ serve(async (req) => {
         title = null,
         department = null,
         brandAssignments = [],
-      } = await req.json() as CreateUserRequest
+      } = body as CreateUserRequest
 
       console.log('Creating user:', email, 'with role:', role)
 
@@ -765,125 +839,7 @@ serve(async (req) => {
         }
       }
 
-      // PASSWORD RESET ACTION
-      if (action === 'resetPassword') {
-        if (!userId) {
-          return new Response(
-            JSON.stringify({ error: 'userId is required for password reset' }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
-          )
-        }
-        try {
-          const { newPassword } = await req.json() as { newPassword: string }
-
-          // Validate password strength
-          if (!newPassword || newPassword.length < 8) {
-            return new Response(
-              JSON.stringify({
-                error: 'Password must be at least 8 characters long'
-              }),
-              {
-                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-                status: 400
-              }
-            )
-          }
-
-          // Verify target user exists in authentication system
-          const { data: authUser, error: authCheckError } =
-            await supabaseClient.auth.admin.getUserById(userId)
-
-          if (authCheckError || !authUser?.user) {
-            return new Response(
-              JSON.stringify({
-                error: `User not found in authentication system`
-              }),
-              {
-                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-                status: 404
-              }
-            )
-          }
-
-          // Update password in Supabase Auth
-          const { error: updateError } =
-            await supabaseClient.auth.admin.updateUserById(userId, {
-              password: newPassword
-            })
-
-          if (updateError) {
-            console.error('Supabase Auth password update failed:', {
-              userId,
-              error: updateError.message,
-              code: updateError.code
-            })
-
-            return new Response(
-              JSON.stringify({
-                error: `Password reset failed: ${updateError.message}`
-              }),
-              {
-                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-                status: 400
-              }
-            )
-          }
-
-          // Log password reset action for audit trail
-          try {
-            await supabaseClient
-              .from('user_activity_log')
-              .insert({
-                user_id: user.id,
-                action: 'admin_password_reset',
-                resource_type: 'user',
-                resource_id: userId,
-                metadata: {
-                  admin_id: user.id,
-                  target_user_id: userId,
-                  action_type: 'password_reset'
-                }
-              })
-          } catch (logError) {
-            console.warn('Failed to log password reset action:', logError)
-            // Non-fatal: don't fail the entire operation
-          }
-
-          console.log(
-            `[admin-users] Password reset for user ${userId} by admin ${user.id}`
-          )
-
-          return new Response(
-            JSON.stringify({
-              success: true,
-              message: 'Password reset successfully'
-            }),
-            {
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-              status: 200
-            }
-          )
-
-        } catch (resetError: any) {
-          const message = resetError instanceof Error
-            ? resetError.message
-            : 'Password reset failed'
-
-          console.error('[admin-users] Password reset error:', {
-            userId,
-            error: message,
-            stack: resetError?.stack
-          })
-
-          return new Response(
-            JSON.stringify({ error: message }),
-            {
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-              status: 500
-            }
-          )
-        }
-      }
+      // PASSWORD RESET ACTION removed from PUT — now handled in POST handler above
 
       if (!userId || userId === 'admin-users') {
         return new Response(
