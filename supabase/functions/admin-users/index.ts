@@ -767,6 +767,12 @@ serve(async (req) => {
 
       // PASSWORD RESET ACTION
       if (action === 'resetPassword') {
+        if (!userId) {
+          return new Response(
+            JSON.stringify({ error: 'userId is required for password reset' }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+          )
+        }
         try {
           const { newPassword } = await req.json() as { newPassword: string }
 
