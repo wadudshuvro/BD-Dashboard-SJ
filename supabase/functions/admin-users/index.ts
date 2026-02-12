@@ -765,12 +765,126 @@ serve(async (req) => {
         }
       }
 
+      // PASSWORD RESET ACTION
+      if (action === 'resetPassword') {
+        try {
+          const { newPassword } = await req.json() as { newPassword: string }
+
+          // Validate password strength
+          if (!newPassword || newPassword.length < 8) {
+            return new Response(
+              JSON.stringify({
+                error: 'Password must be at least 8 characters long'
+              }),
+              {
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                status: 400
+              }
+            )
+          }
+
+          // Verify target user exists in authentication system
+          const { data: authUser, error: authCheckError } =
+            await supabaseClient.auth.admin.getUserById(userId)
+
+          if (authCheckError || !authUser?.user) {
+            return new Response(
+              JSON.stringify({
+                error: `User not found in authentication system`
+              }),
+              {
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                status: 404
+              }
+            )
+          }
+
+          // Update password in Supabase Auth
+          const { error: updateError } =
+            await supabaseClient.auth.admin.updateUserById(userId, {
+              password: newPassword
+            })
+
+          if (updateError) {
+            console.error('Supabase Auth password update failed:', {
+              userId,
+              error: updateError.message,
+              code: updateError.code
+            })
+
+            return new Response(
+              JSON.stringify({
+                error: `Password reset failed: ${updateError.message}`
+              }),
+              {
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                status: 400
+              }
+            )
+          }
+
+          // Log password reset action for audit trail
+          try {
+            await supabaseClient
+              .from('user_activity_log')
+              .insert({
+                user_id: user.id,
+                action: 'admin_password_reset',
+                resource_type: 'user',
+                resource_id: userId,
+                metadata: {
+                  admin_id: user.id,
+                  target_user_id: userId,
+                  action_type: 'password_reset'
+                }
+              })
+          } catch (logError) {
+            console.warn('Failed to log password reset action:', logError)
+            // Non-fatal: don't fail the entire operation
+          }
+
+          console.log(
+            `[admin-users] Password reset for user ${userId} by admin ${user.id}`
+          )
+
+          return new Response(
+            JSON.stringify({
+              success: true,
+              message: 'Password reset successfully'
+            }),
+            {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              status: 200
+            }
+          )
+
+        } catch (resetError: any) {
+          const message = resetError instanceof Error
+            ? resetError.message
+            : 'Password reset failed'
+
+          console.error('[admin-users] Password reset error:', {
+            userId,
+            error: message,
+            stack: resetError?.stack
+          })
+
+          return new Response(
+            JSON.stringify({ error: message }),
+            {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              status: 500
+            }
+          )
+        }
+      }
+
       if (!userId || userId === 'admin-users') {
         return new Response(
           JSON.stringify({ error: 'User ID required for update' }),
           {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 400 
+            status: 400
           }
         )
       }

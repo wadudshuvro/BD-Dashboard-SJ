@@ -314,6 +314,47 @@ export function useAdminUsers() {
     }
   }, [toast]);
 
+  const resetUserPassword = useCallback(async (userId: string, newPassword: string): Promise<void> => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error('Not authenticated');
+      }
+
+      const { error: functionError } = await supabase.functions.invoke(
+        'admin-users',
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: {
+            userId,
+            action: 'resetPassword',
+            newPassword,
+          },
+        }
+      );
+
+      if (functionError) throw functionError;
+
+      toast({
+        title: "Success",
+        description: "Password reset successfully. User can now log in with the new password.",
+      });
+    } catch (error: any) {
+      console.error('Error resetting password:', error);
+
+      const errorMessage = error?.message || "Failed to reset password";
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+      throw error;
+    }
+  }, [toast]);
+
   return {
     users,
     loading,
@@ -326,5 +367,6 @@ export function useAdminUsers() {
     deleteUser,
     getUserById,
     validateUser,
+    resetUserPassword,
   };
 }
