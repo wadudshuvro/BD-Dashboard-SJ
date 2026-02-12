@@ -21,7 +21,7 @@ _Last Updated: 2025-02-18_
 | `src/components/` | Shared UI primitives (cards, tables, dialogs) plus reusable widgets such as AI runners, analytics cards, and admin forms. |
 | `src/features/` | Domain-specific modules grouped by feature (admin management, BD tooling, video studio, AI agents) with colocated hooks/services. |
 | `src/pages/` | Route-level screens (`/adminpanel`, BD dashboards, AI tooling pages, Gemini studio, reporting views). |
-| `src/hooks/` | React Query hooks and custom logic (`usePods`, `useTargetNiches`, `useControlTowerConfig`, `useSyncControlTowerDeals`). |
+| `src/hooks/` | React Query hooks and custom logic (`usePods`, `useTargetNiches`, `useControlTowerConfig`, `useSyncControlTowerDeals`, `useAccountabilityGoals`). |
 | `src/lib/` | Shared utilities including Supabase documentation index, Axios client factory, and helper utilities. |
 | `src/integrations/supabase/` | Supabase client factory and generated types for typed PostgREST access. |
 | `supabase/functions/` | Deno edge functions powering admin CRUD, CRM integrations, AI orchestration, analytics ingestion, and feedback loops. |
