@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Search, Plus, Filter, MoreHorizontal, Trash2, Shield, UserCheck, UserX, Calendar, AlertCircle, RefreshCw } from 'lucide-react';
+import { Search, Plus, Filter, MoreHorizontal, Trash2, Shield, UserCheck, UserX, Calendar, AlertCircle, RefreshCw, Lock } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
 import { Label } from '@/components/ui/label';
 import { UserPermissionDialog } from '@/components/admin/UserPermissionDialog';
+import { PasswordResetDialog } from '@/components/admin/PasswordResetDialog';
 import { PageInstructions } from '@/components/admin/PageInstructions';
 import { useAdminUsers, type AdminUser, type BrandAssignment, type CreateUserData } from '@/hooks/useAdminUsers';
 import { useToast } from '@/hooks/use-toast';
@@ -37,7 +38,7 @@ interface NewUserForm {
 }
 
 const UserManagement = () => {
-  const { users: rawUsers, loading, total, stats, error, fetchUsers, createUser, updateUser, deleteUser } = useAdminUsers();
+  const { users: rawUsers, loading, total, stats, error, fetchUsers, createUser, updateUser, deleteUser, resetUserPassword } = useAdminUsers();
   // Brand assignments removed
   const brands: any[] = [];
   const brandsLoading = false;
@@ -47,6 +48,8 @@ const UserManagement = () => {
   const [viewMode, setViewMode] = useState<"cards" | "table">("table");
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isPermissionDialogOpen, setIsPermissionDialogOpen] = useState(false);
+  const [isPasswordResetDialogOpen, setIsPasswordResetDialogOpen] = useState(false);
+  const [selectedUserForPasswordReset, setSelectedUserForPasswordReset] = useState<User | null>(null);
   const pagination = usePagination(12);
   const { toast } = useToast();
 
@@ -257,6 +260,15 @@ const UserManagement = () => {
       });
     } catch (error) {
       // Error is handled by the hook
+    }
+  };
+
+  const handleResetPassword = async (userId: string, newPassword: string) => {
+    try {
+      await resetUserPassword(userId, newPassword);
+      setIsPasswordResetDialogOpen(false);
+    } catch (error) {
+      console.error('Failed to reset password:', error);
     }
   };
 
@@ -688,7 +700,17 @@ const UserManagement = () => {
                             </>
                           )}
                         </DropdownMenuItem>
-                        <DropdownMenuItem 
+                        <DropdownMenuItem
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedUserForPasswordReset(user);
+                            setIsPasswordResetDialogOpen(true);
+                          }}
+                        >
+                          <Lock className="mr-2 h-4 w-4" />
+                          Reset Password
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
                           onClick={(e) => {
                             e.stopPropagation();
                             handleDeleteUser(user.id);
@@ -757,7 +779,16 @@ const UserManagement = () => {
                           </>
                         )}
                       </DropdownMenuItem>
-                      <DropdownMenuItem 
+                      <DropdownMenuItem
+                        onClick={() => {
+                          setSelectedUserForPasswordReset(user);
+                          setIsPasswordResetDialogOpen(true);
+                        }}
+                      >
+                        <Lock className="mr-2 h-4 w-4" />
+                        Reset Password
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
                         onClick={() => handleDeleteUser(user.id)}
                         className="text-destructive"
                       >
@@ -900,6 +931,18 @@ const UserManagement = () => {
           onSave={handleSavePermissions}
         />
       )}
+
+      {/* Password Reset Dialog */}
+      <PasswordResetDialog
+        user={selectedUserForPasswordReset}
+        isOpen={isPasswordResetDialogOpen}
+        onClose={() => {
+          setIsPasswordResetDialogOpen(false);
+          setSelectedUserForPasswordReset(null);
+        }}
+        onResetPassword={handleResetPassword}
+        users={users}
+      />
     </div>
   );
 };
