@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -58,6 +58,22 @@ export function GoalForm({
       team_goal_id: undefined,
     }
   );
+
+  useEffect(() => {
+    if (open) {
+      if (initialData) {
+        setFormData(initialData);
+      } else {
+        setFormData({
+          title: '',
+          description: '',
+          target_value: 0,
+          target_unit: '',
+          team_goal_id: undefined,
+        });
+      }
+    }
+  }, [open, initialData]);
 
   const handleSubmit = () => {
     onSubmit(formData);
