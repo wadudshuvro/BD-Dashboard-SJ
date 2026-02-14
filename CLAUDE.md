@@ -1,6 +1,6 @@
 # CLAUDE.md - SJ BD Dashboard
 
-**Last Updated**: February 12, 2026
+**Last Updated**: February 13, 2026
 
 ---
 
@@ -569,23 +569,33 @@ Access via: **Admin Panel → Documentation → Accountability Chart**
 
 ## Agent & Skill Registry
 
-### Agents (`.claude/agents/`)
+See `.claude/agents.md` for auto-delegation rules and multi-agent workflows.
 
-| Agent | Purpose | Tools |
-|-------|---------|-------|
-| **react-frontend-dev** | React/TypeScript specialist with complete knowledge of all 75 pages, 150+ components, 111 hooks, 50+ routes, UI patterns, and form/table/dialog patterns | Read, Write, Edit, Bash, Glob, Grep |
-| **supabase-backend-dev** | Supabase specialist with complete knowledge of 92+ tables, 71 Edge Functions, all RLS policies, migration patterns, and hook→table mapping | Read, Write, Edit, Bash, Glob, Grep |
-| **code-reviewer** | READ-ONLY code quality enforcer. Checks TypeScript strictness, React patterns, RLS policies, error handling, security, performance. Does not modify code. | Read, Grep, Glob |
-| **debugger** | Bug investigation specialist with project-specific error patterns, key files to check per domain, Supabase error code reference, and systematic 7-step methodology | Read, Edit, Bash, Glob, Grep |
-| **documentation-engineer** | Specs-first documentation specialist. Creates feature specs, implementation guides (for Lovable handoff), maintains CLAUDE.md, tracks module status | Read, Write, Edit, Glob, Grep |
+### Agents (`.claude/agents/`) — 10 total
 
-### Skills (`.claude/skills/`)
+| # | Agent | Purpose | Tools | Mode |
+|---|-------|---------|-------|------|
+| 1 | **react-frontend-dev** | React/TypeScript specialist — 75 pages, 242 components, 83 hooks, 50+ routes, UI patterns | Read, Write, Edit, Bash, Glob, Grep | Builder |
+| 2 | **supabase-backend-dev** | Supabase specialist — 92+ tables, 68 Edge Functions, RLS policies, migrations, hook→table mapping | Read, Write, Edit, Bash, Glob, Grep | Builder |
+| 3 | **code-reviewer** | READ-ONLY code quality enforcer — TypeScript strictness, React patterns, RLS, security, performance | Read, Grep, Glob | Read-only |
+| 4 | **debugger** | Bug investigation — project-specific error patterns, Supabase error codes, systematic 7-step methodology | Read, Edit, Bash, Glob, Grep | Investigator |
+| 5 | **documentation-engineer** | Specs-first documentation — feature specs, implementation guides, Lovable handoffs, CLAUDE.md maintenance | Read, Write, Edit, Glob, Grep | Writer |
+| 6 | **performance-engineer** | Performance optimization — slow pages, slow queries, bundle size, re-renders, memory leaks | Read, Edit, Bash, Glob, Grep | Optimizer |
+| 7 | **refactoring-specialist** | Safe code restructuring — tech debt, component splitting, hook extraction, zero behavior change | Read, Write, Edit, Bash, Glob, Grep | Builder |
+| 8 | **security-auditor** | READ-ONLY security scanning — RLS audit, auth flows, XSS, secrets, dependency vulnerabilities | Read, Grep, Glob | Read-only |
+| 9 | **typescript-pro** | Type safety — zero `any` tolerance, generics, Supabase type integration, strict mode migration | Read, Write, Edit, Glob, Grep | Builder |
+| 10 | **test-automator** | Test creation — unit tests, component tests, hook tests, Edge Function tests, RLS policy tests | Read, Write, Edit, Bash, Glob, Grep | Builder |
 
-| Skill | Purpose |
-|-------|---------|
-| **sj-code-standards** | SJ Innovation coding standards. Apply to ALL code changes. Covers TypeScript, React, naming, error handling, database, security, git conventions. |
-| **sj-bug-fix-workflow** | 8-step bug fix process: Reproduce → Isolate → Read Error → Root Cause → Failing Test → Fix → Verify → Document. No shortcuts. |
-| **sj-bd-dashboard-architecture** | Full architecture reference with data flow diagrams, module status, integration map, scheduled jobs, and deployment info. Load for architectural decisions. |
+### Skills (`.claude/skills/`) — 6 total
+
+| Skill | Purpose | When to Use |
+|-------|---------|-------------|
+| **sj-code-standards** | SJ Innovation coding standards — TypeScript, React, naming, error handling, database, security, git | ALL code changes |
+| **sj-bug-fix-workflow** | 8-step bug fix process — Reproduce → Isolate → Read Error → Root Cause → Failing Test → Fix → Verify → Document | ALL bug fixes |
+| **sj-bd-dashboard-architecture** | Full architecture reference — data flows, module status, integration map, scheduled jobs, deployment | Architectural decisions |
+| **supabase-patterns** | Supabase patterns — table creation, RLS policies, Edge Function templates, migration conventions, hook patterns | ALL database work |
+| **specs-first-workflow** | Specs-first development — spec template, Lovable handoff guide, status indicators, documentation locations | BEFORE new features |
+| **bd-crm-domain** | BD & CRM domain knowledge — pipeline stages, campaign lifecycle, team accountability, integration context, terminology | Domain understanding |
 
 ---
 
@@ -640,6 +650,20 @@ const { mutate } = useMutation({
 
 ## Rules
 
+### Session Rules
+- Read `.claude/agents.md` for agent delegation rules
+- Follow **sj-code-standards** for ALL code changes
+- Follow **sj-bug-fix-workflow** for ALL bug fixes
+- Follow **specs-first-workflow** before ANY new feature
+- Follow **supabase-patterns** for ALL database work
+- Load **sj-bd-dashboard-architecture** for architectural decisions
+- Load **bd-crm-domain** for domain understanding
+- Run **code-reviewer** before suggesting any PR or merge
+- Run **security-auditor** before deploying sensitive features
+- Create/update docs for any feature work
+- Never skip specs
+
+### Code Rules
 1. **Always follow sj-code-standards** for ALL code changes — TypeScript strict, no `any`, explicit return types, Zod validation, error handling.
 2. **Always follow sj-bug-fix-workflow** for ALL bug fixes — 8 steps, no shortcuts.
 3. **Run code-reviewer before suggesting any PR** — Check TypeScript, RLS, error handling, security.
@@ -647,11 +671,13 @@ const { mutate } = useMutation({
 5. **Update CLAUDE.md when architecture changes** — New tables, hooks, pages, or Edge Functions must be documented here.
 6. **Never skip documentation** — Every feature needs a spec. Every implementation needs a guide.
 7. **Never use Supabase client directly in components** — Always go through custom hooks in `src/hooks/`.
-8. **All tables must have RLS policies** — No exceptions.
+8. **All tables must have RLS policies** — No exceptions. Follow supabase-patterns skill.
 9. **Handle loading, error, and empty states** — Every data display needs all three.
-10. **Components under 200 lines** — Decompose if larger.
+10. **Components under 200 lines** — Decompose if larger. Use refactoring-specialist agent.
 11. **Forms use React Hook Form + Zod** — No unvalidated form submissions.
 12. **Dev server runs on port 8080** — `npm run dev`
+13. **Run security-auditor for sensitive features** — Auth, payments, PII, integrations.
+14. **Run test-automator for regression tests** — Every bug fix needs a test. Every new feature needs coverage.
 
 ---
 
