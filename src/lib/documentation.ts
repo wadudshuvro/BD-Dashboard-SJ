@@ -215,6 +215,16 @@ export const documentationIndex: DocCategory[] = [
         tags: ["exa", "research", "ai", "integration"],
         lastUpdated: "2025-10-22"
       }
+      ,
+      {
+        id: "analytics-api",
+        title: "Analytics API (Usage Export)",
+        description: "Expose daily/weekly/monthly usage stats to external projects via shared-secret API + optional webhook push.",
+        category: "integrations",
+        file: "analytics-api.md",
+        tags: ["analytics", "api", "usage", "export", "webhook", "supabase", "edge functions"],
+        lastUpdated: "2026-02-10"
+      }
     ]
   }
 ];
