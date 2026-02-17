@@ -85,6 +85,7 @@ The receiver should verify this header before accepting the payload.
 | `date` | No | `YYYY-MM-DD` | Reference date; defaults to “now” |
 | `page` | No | integer >= 1 | Default `1` |
 | `page_size` | No | 1–200 | Default `50` |
+| `email` | No | email OR comma-separated OR repeated param | Filters to specific users by email (case-insensitive) |
 
 ### Period windows
 
@@ -110,6 +111,24 @@ Important notes:
 
 ```bash
 curl -X GET "https://<project-ref>.supabase.co/functions/v1/external-analytics-api?period=weekly&page=1&page_size=50" \
+  -H "x-api-secret: <YOUR_SECRET>" \
+  -H "Content-Type: application/json"
+```
+
+### Example curl (filter by email)
+
+Single email:
+
+```bash
+curl -X GET "https://<project-ref>.supabase.co/functions/v1/external-analytics-api?period=weekly&email=paresh@sjinnovation.com" \
+  -H "x-api-secret: <YOUR_SECRET>" \
+  -H "Content-Type: application/json"
+```
+
+Multiple emails (comma-separated):
+
+```bash
+curl -X GET "https://<project-ref>.supabase.co/functions/v1/external-analytics-api?period=weekly&email=paresh@sjinnovation.com,jane@sjinnovation.com" \
   -H "x-api-secret: <YOUR_SECRET>" \
   -H "Content-Type: application/json"
 ```

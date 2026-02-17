@@ -49,6 +49,29 @@ function parsePageSize(value: string | null, fallback: number): number {
   return Math.min(n, 200);
 }
 
+function isLikelyEmail(value: string): boolean {
+  // Keep permissive: basic sanity check only.
+  return value.includes("@");
+}
+
+function parseEmailFilter(url: URL): string[] | null {
+  const rawValues = url.searchParams.getAll("email");
+  if (rawValues.length === 0) return null;
+
+  const candidates: string[] = [];
+  for (const raw of rawValues) {
+    for (const part of raw.split(",")) {
+      const normalized = part.trim().toLowerCase();
+      if (!normalized) continue;
+      if (!isLikelyEmail(normalized)) continue;
+      candidates.push(normalized);
+    }
+  }
+
+  const deduped = Array.from(new Set(candidates));
+  return deduped.length > 0 ? deduped : null;
+}
+
 function computeDateRange(period: AnalyticsPeriod, end: Date) {
   const endDate = end;
   const endMs = endDate.getTime();
@@ -106,11 +129,12 @@ serve(async (req) => {
 
     const page = parsePositiveInt(url.searchParams.get("page"), 1);
     const pageSize = parsePageSize(url.searchParams.get("page_size"), 50);
+    const emailFilter = parseEmailFilter(url);
 
     const { periodStart, periodEnd } = computeDateRange(period, endDate);
 
     console.log(
-      `[external-analytics-api] consumer=${consumer.name} period=${period} page=${page} page_size=${pageSize}`,
+      `[external-analytics-api] consumer=${consumer.name} period=${period} page=${page} page_size=${pageSize} email_filter_count=${emailFilter?.length ?? 0}`,
     );
 
     const result = await aggregateUserAnalytics(supabase, {
@@ -119,6 +143,7 @@ serve(async (req) => {
       periodEnd,
       page,
       pageSize,
+      emailFilter,
     });
 
     return jsonResponse(result);

@@ -26,6 +26,7 @@ export interface AggregateOptions {
   periodEnd: Date;
   page?: number;
   pageSize?: number;
+  emailFilter?: string[] | null;
 }
 
 export interface AggregatedUserStats {
@@ -102,7 +103,6 @@ export async function aggregateUserAnalytics(
   }
 
   const logs = (activityLogs || []) as ActivityRow[];
-  const totalEvents = logs.length;
 
   const activityByUser = new Map<
     string,
@@ -115,7 +115,6 @@ export async function aggregateUserAnalytics(
     }
   >();
 
-  let totalLogins = 0;
   for (const log of logs) {
     const current = activityByUser.get(log.user_id) || {
       activityCount: 0,
@@ -131,7 +130,6 @@ export async function aggregateUserAnalytics(
 
     if (log.action === "login") {
       current.loginCount += 1;
-      totalLogins += 1;
     }
 
     if (!current.lastActiveAt || new Date(log.created_at) > new Date(current.lastActiveAt)) {
@@ -180,25 +178,38 @@ export async function aggregateUserAnalytics(
     });
   }
 
-  allEntries.sort((a, b) => {
+  let filteredEntries = allEntries;
+  if (Array.isArray(options.emailFilter) && options.emailFilter.length > 0) {
+    const normalizedSet = new Set(
+      options.emailFilter
+        .map((e) => e.trim().toLowerCase())
+        .filter((e) => e.length > 0),
+    );
+    filteredEntries = allEntries.filter((e) => normalizedSet.has(e.emailKey.trim().toLowerCase()));
+  }
+
+  filteredEntries.sort((a, b) => {
     if (b.stats.activity_score !== a.stats.activity_score) {
       return b.stats.activity_score - a.stats.activity_score;
     }
     return b.stats.activity_count - a.stats.activity_count;
   });
 
-  const totalUsers = allEntries.length;
+  const totalUsers = filteredEntries.length;
   const page = normalizePage(options.page, 1);
   const pageSize = options.pageSize === undefined ? totalUsers || 1 : normalizePageSize(options.pageSize, 50);
   const totalPages = Math.max(1, Math.ceil(totalUsers / pageSize));
 
   const startIndex = (page - 1) * pageSize;
-  const pageEntries = allEntries.slice(startIndex, startIndex + pageSize);
+  const pageEntries = filteredEntries.slice(startIndex, startIndex + pageSize);
 
   const users: Record<string, AggregatedUserStats> = {};
   for (const entry of pageEntries) {
     users[entry.emailKey] = entry.stats;
   }
+
+  const summaryTotalEvents = filteredEntries.reduce((sum, e) => sum + e.stats.activity_count, 0);
+  const summaryTotalLogins = filteredEntries.reduce((sum, e) => sum + e.stats.login_count, 0);
 
   return {
     meta: {
@@ -212,9 +223,9 @@ export async function aggregateUserAnalytics(
       generated_at: generatedAt.toISOString(),
     },
     summary: {
-      active_users: activityByUser.size,
-      total_events: totalEvents,
-      total_logins: totalLogins,
+      active_users: totalUsers,
+      total_events: summaryTotalEvents,
+      total_logins: summaryTotalLogins,
     },
     users,
   };
