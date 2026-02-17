@@ -80,3 +80,6 @@ verify_jwt = false
 
 [functions.push-analytics-to-consumers]
 verify_jwt = false
+
+[functions.analytics]
+verify_jwt = false

@@ -150,11 +150,11 @@ serve(async (req) => {
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error occurred";
 
-    if (message.includes("Missing x-api-secret")) {
-      return unauthorized("Missing x-api-secret header");
+    if (message.includes("Missing API key")) {
+      return unauthorized("Missing Authorization: Bearer <apiKey>");
     }
-    if (message.includes("Invalid API secret")) {
-      return unauthorized("Invalid API secret");
+    if (message.includes("Invalid API key")) {
+      return unauthorized("Invalid API key");
     }
 
     console.error("[external-analytics-api] Error:", error);
