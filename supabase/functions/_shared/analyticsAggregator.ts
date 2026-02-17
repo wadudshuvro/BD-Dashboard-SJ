@@ -35,7 +35,9 @@ export interface AggregatedUserStats {
   activity_score: number;
   activity_count: number;
   login_count: number;
+  last_login_at: string | null;
   last_active_at: string | null;
+  inactive_for_seconds: number | null;
   activity_breakdown: Record<string, number>;
 }
 
@@ -111,6 +113,7 @@ export async function aggregateUserAnalytics(
       loginCount: number;
       activityScore: number;
       lastActiveAt: string | null;
+      lastLoginAt: string | null;
       breakdown: Record<string, number>;
     }
   >();
@@ -121,6 +124,7 @@ export async function aggregateUserAnalytics(
       loginCount: 0,
       activityScore: 0,
       lastActiveAt: log.created_at ?? null,
+      lastLoginAt: null,
       breakdown: {} as Record<string, number>,
     };
 
@@ -130,6 +134,9 @@ export async function aggregateUserAnalytics(
 
     if (log.action === "login") {
       current.loginCount += 1;
+      if (!current.lastLoginAt || new Date(log.created_at) > new Date(current.lastLoginAt)) {
+        current.lastLoginAt = log.created_at;
+      }
     }
 
     if (!current.lastActiveAt || new Date(log.created_at) > new Date(current.lastActiveAt)) {
@@ -157,12 +164,18 @@ export async function aggregateUserAnalytics(
 
   const profileById = new Map(profiles.map((p) => [p.id, p]));
 
+  const periodEndMs = options.periodEnd.getTime();
   const allEntries: Array<{ emailKey: string; stats: AggregatedUserStats }> = [];
   for (const [userId, stats] of activityByUser.entries()) {
     const profile = profileById.get(userId);
     const email = profile?.email?.trim() || "";
     const name = (profile?.full_name || profile?.email || "Unknown User")?.toString();
     const emailKey = email || `unknown-${userId}`;
+    const lastActiveMs = stats.lastActiveAt ? new Date(stats.lastActiveAt).getTime() : null;
+    const inactiveForSeconds =
+      lastActiveMs !== null && Number.isFinite(lastActiveMs)
+        ? Math.max(0, Math.floor((periodEndMs - lastActiveMs) / 1000))
+        : null;
 
     allEntries.push({
       emailKey,
@@ -172,7 +185,9 @@ export async function aggregateUserAnalytics(
         activity_score: stats.activityScore,
         activity_count: stats.activityCount,
         login_count: stats.loginCount,
+        last_login_at: stats.lastLoginAt,
         last_active_at: stats.lastActiveAt,
+        inactive_for_seconds: inactiveForSeconds,
         activity_breakdown: stats.breakdown,
       },
     });
