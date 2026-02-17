@@ -19,6 +19,13 @@ export interface AnalyticsApiConsumer {
 
 const encoder = new TextEncoder();
 
+function getBearerToken(authorizationHeader: string | null): string | null {
+  if (!authorizationHeader) return null;
+  const match = authorizationHeader.match(/^Bearer\s+(.+)$/i);
+  const token = match?.[1]?.trim();
+  return token && token.length > 0 ? token : null;
+}
+
 function toHex(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);
   let out = "";
@@ -55,10 +62,13 @@ export async function validateApiSecret(
   req: Request,
   supabase: SupabaseClient,
 ): Promise<AnalyticsApiConsumer> {
-  const secret = req.headers.get("x-api-secret");
-  if (!secret) {
-    throw new Error("Missing x-api-secret header");
-  }
+  // Preferred: Authorization: Bearer <apiKey>
+  const bearer = getBearerToken(req.headers.get("authorization"));
+  // Backward-compatible fallback for existing consumers.
+  const legacy = req.headers.get("x-api-secret");
+  const secret = bearer ?? legacy;
+
+  if (!secret) throw new Error("Missing API key");
 
   const apiSecretHash = await hashSecret(secret);
 
@@ -74,7 +84,7 @@ export async function validateApiSecret(
   }
 
   if (!data) {
-    throw new Error("Invalid API secret");
+    throw new Error("Invalid API key");
   }
 
   return data as AnalyticsApiConsumer;

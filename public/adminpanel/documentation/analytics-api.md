@@ -37,8 +37,9 @@ It creates:
 
 ## Edge functions to deploy
 
-This module adds two edge functions:
+This module adds these edge functions:
 
+0. `analytics` (Control Tower contract)
 1. `external-analytics-api` (Pull API)
 2. `push-analytics-to-consumers` (Push API / webhook delivery)
 
@@ -56,7 +57,8 @@ Reason: These endpoints use **shared-secret authentication** (not user JWTs) and
 
 External callers must send:
 
-- Header: `x-api-secret: <plaintext-secret>`
+- Preferred header: `Authorization: Bearer <plaintext-secret>`
+- Legacy header (still accepted): `x-api-secret: <plaintext-secret>`
 
 Implementation detail:
 
@@ -70,6 +72,41 @@ When pushing to a consumer webhook, the request includes:
 - Header: `x-webhook-secret: <consumer.webhook_secret>`
 
 The receiver should verify this header before accepting the payload.
+
+## Control Tower contract: `analytics`
+
+These endpoints match the expected main Control Tower contract.
+
+### Health / ping
+
+`GET /functions/v1/analytics/ping` (or `GET /functions/v1/analytics/health`)
+
+Returns `200` when the API is reachable.
+
+Example:
+
+```bash
+curl -X GET "https://<project-ref>.supabase.co/functions/v1/analytics/ping" \
+  -H "Authorization: Bearer <YOUR_SECRET>"
+```
+
+### User analytics by email
+
+`GET /functions/v1/analytics/users/:email`
+
+Returns:
+
+```json
+{ "summary": {}, "details": {}, "lastActiveAt": "..." }
+```
+
+Example:
+
+```bash
+curl -X GET "https://<project-ref>.supabase.co/functions/v1/analytics/users/paresh%40sjinnovation.com" \
+  -H "Authorization: Bearer <YOUR_SECRET>" \
+  -H "Content-Type: application/json"
+```
 
 ## Pull API: `external-analytics-api`
 
@@ -117,7 +154,7 @@ Important notes:
 
 ```bash
 curl -X GET "https://<project-ref>.supabase.co/functions/v1/external-analytics-api?period=weekly&page=1&page_size=50" \
-  -H "x-api-secret: <YOUR_SECRET>" \
+  -H "Authorization: Bearer <YOUR_SECRET>" \
   -H "Content-Type: application/json"
 ```
 
@@ -127,7 +164,7 @@ Single email:
 
 ```bash
 curl -X GET "https://<project-ref>.supabase.co/functions/v1/external-analytics-api?period=weekly&email=paresh@sjinnovation.com" \
-  -H "x-api-secret: <YOUR_SECRET>" \
+  -H "Authorization: Bearer <YOUR_SECRET>" \
   -H "Content-Type: application/json"
 ```
 
@@ -135,13 +172,13 @@ Multiple emails (comma-separated):
 
 ```bash
 curl -X GET "https://<project-ref>.supabase.co/functions/v1/external-analytics-api?period=weekly&email=paresh@sjinnovation.com,jane@sjinnovation.com" \
-  -H "x-api-secret: <YOUR_SECRET>" \
+  -H "Authorization: Bearer <YOUR_SECRET>" \
   -H "Content-Type: application/json"
 ```
 
 ### Errors (common)
 
-- `401`: missing/invalid `x-api-secret`
+- `401`: missing/invalid API key (`Authorization: Bearer ...` preferred; `x-api-secret` legacy accepted)
 - `403`: consumer not allowed to request that `period`
 - `400`: invalid parameters
 
