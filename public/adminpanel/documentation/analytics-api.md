@@ -102,6 +102,12 @@ Top-level response:
 - `summary`: totals
 - `users`: **object keyed by email**
 
+Per-user fields (values are within the requested period window):
+
+- `last_active_at`: most recent activity timestamp (any action)
+- `last_login_at`: most recent login timestamp (action=`login`)
+- `inactive_for_seconds`: seconds since `last_active_at`, calculated relative to `meta.period_end` (null if unknown)
+
 Important notes:
 
 - If a user has no email in `profiles.email`, they appear as `unknown-<user_id>` keys.
