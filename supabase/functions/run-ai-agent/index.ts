@@ -16,10 +16,12 @@ import {
 const AgentRunRequestSchema = z.object({
   agent_id: z.string().uuid().optional(),
   agent_type: z.string().optional(),
-  target: z.enum(["deal", "client", "client_intelligence", "bd_manager_chat"]).optional(),
+  target: z.enum(["deal", "client", "client_intelligence", "bd_manager_chat", "chat"]).optional(),
   client_id: z.string().uuid().optional(),
   question: z.string().optional(),
   mode: z.enum(["quick", "deep"]).optional(),
+  input: z.string().optional(),
+  conversation_id: z.string().uuid().optional(),
   execution_context: z.object({
     timeframe: z.string().optional(),
     filters: z.record(z.any()).optional(),
@@ -1197,10 +1199,107 @@ serve(async (req) => {
       agent_type: agentType,
       target: payloadTarget,
       client_id: clientId,
+      input: chatInput,
+      conversation_id: conversationId,
       execution_context: incomingExecutionContext,
       file_ids: fileIds,
       user_context: userContext,
     } = payload;
+
+    if (payloadTarget === "chat" && payloadAgentId && chatInput && typeof chatInput === "string") {
+      const serviceClient = createClient(
+        Deno.env.get("SUPABASE_URL") ?? "",
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      );
+      const { data: chatAgent, error: agentErr } = await serviceClient
+        .from("ai_agents")
+        .select("id, system_prompt, prompt_template, memory_enabled, config")
+        .eq("id", payloadAgentId)
+        .single();
+      if (agentErr || !chatAgent) {
+        return new Response(JSON.stringify({ error: "Agent not found" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const systemPrompt = (chatAgent.system_prompt || chatAgent.prompt_template || "You are a helpful assistant.").trim();
+      let additionalPrompt = "";
+      if (userId) {
+        const { data: pers } = await serviceClient
+          .from("user_agent_personalizations")
+          .select("additional_prompt")
+          .eq("user_id", userId)
+          .eq("agent_id", chatAgent.id)
+          .eq("is_enabled", true)
+          .maybeSingle();
+        if (pers?.additional_prompt) additionalPrompt = "\n\n" + pers.additional_prompt;
+      }
+      const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
+        { role: "system", content: systemPrompt + additionalPrompt },
+      ];
+      if (chatAgent.memory_enabled && conversationId) {
+        const { data: history } = await serviceClient
+          .from("agent_messages")
+          .select("role, content")
+          .eq("conversation_id", conversationId)
+          .in("role", ["user", "assistant"])
+          .order("created_at", { ascending: true })
+          .limit(20);
+        for (const m of history || []) {
+          if (m.role === "user" || m.role === "assistant") {
+            messages.push({ role: m.role, content: m.content || "" });
+          }
+        }
+      }
+      messages.push({ role: "user", content: chatInput.trim() });
+      const openaiKey = Deno.env.get("OPENAI_API_KEY");
+      const model = "gpt-4o-mini";
+      const startTime = Date.now();
+      const chatBody = {
+        model,
+        messages: messages.map((m) => ({ role: m.role, content: m.content })),
+        temperature: 0.7,
+        max_tokens: 2048,
+      };
+      const chatRes = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${openaiKey}`,
+        },
+        body: JSON.stringify(chatBody),
+      });
+      const latencyMs = Date.now() - startTime;
+      if (!chatRes.ok) {
+        const errText = await chatRes.text();
+        return new Response(
+          JSON.stringify({ error: "Chat completion failed", details: errText }),
+          { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+      const chatData = await chatRes.json();
+      const output = chatData.choices?.[0]?.message?.content ?? "";
+      const tokenUsage = chatData.usage ?? {};
+      const runRecord = {
+        agent_id: chatAgent.id,
+        executed_by: userId,
+        status: "completed",
+        input: { text: chatInput },
+        output: { text: output },
+        provider_chain: { provider: "openai", model, latency_ms: latencyMs, token_usage: tokenUsage },
+      };
+      const { data: runRow } = await serviceClient.from("ai_agent_runs").insert(runRecord).select("id").single();
+      return new Response(
+        JSON.stringify({
+          run_id: runRow?.id ?? null,
+          status: "completed",
+          output,
+          token_usage: tokenUsage,
+          latency_ms: latencyMs,
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
 
     const target = payloadTarget ?? "deal";
     let executionContext: Record<string, unknown> = { ...(incomingExecutionContext ?? {}) };
