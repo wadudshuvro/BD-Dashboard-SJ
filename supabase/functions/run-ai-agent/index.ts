@@ -1223,17 +1223,7 @@ serve(async (req) => {
         });
       }
       const systemPrompt = (chatAgent.system_prompt || chatAgent.prompt_template || "You are a helpful assistant.").trim();
-      let additionalPrompt = "";
-      if (userId) {
-        const { data: pers } = await serviceClient
-          .from("user_agent_personalizations")
-          .select("additional_prompt")
-          .eq("user_id", userId)
-          .eq("agent_id", chatAgent.id)
-          .eq("is_enabled", true)
-          .maybeSingle();
-        if (pers?.additional_prompt) additionalPrompt = "\n\n" + pers.additional_prompt;
-      }
+      const additionalPrompt = "";
 
       // Memory retrieval (if memory_enabled)
       let memoryContext = "";
