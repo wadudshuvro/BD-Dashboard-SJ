@@ -73,6 +73,7 @@ export default function AIChat() {
     try {
       const result = await sendMessage.mutateAsync(text);
       setInput("");
+      setIsNewChat(false);
       if (result.conversationId && result.conversationId !== activeConvId) {
         setActiveConvId(result.conversationId);
         navigate(`/adminpanel/ai/chat?agent=${agentId}&conversation=${result.conversationId}`, { replace: true });
