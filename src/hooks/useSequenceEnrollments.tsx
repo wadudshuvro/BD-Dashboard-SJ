@@ -72,7 +72,7 @@ export function useSequenceEnrollments(filters?: EnrollmentFilters) {
 
   // Realtime subscription with debouncing
   useEffect(() => {
-    let debounceTimer: NodeJS.Timeout;
+    let debounceTimer: ReturnType<typeof setTimeout>;
 
     // Clean up existing subscription
     if (subscriptionRef.current) {
