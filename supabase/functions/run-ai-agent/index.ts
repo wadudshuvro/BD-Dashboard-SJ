@@ -1211,6 +1211,8 @@ serve(async (req) => {
         Deno.env.get("SUPABASE_URL") ?? "",
         Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
       );
+
+      // Step 1: Fetch agent config
       const { data: chatAgent, error: agentErr } = await serviceClient
         .from("ai_agents")
         .select("id, system_prompt, prompt_template, memory_enabled, config")
@@ -1223,53 +1225,68 @@ serve(async (req) => {
         });
       }
       const systemPrompt = (chatAgent.system_prompt || chatAgent.prompt_template || "You are a helpful assistant.").trim();
-      const additionalPrompt = "";
 
-      // Memory retrieval (if memory_enabled)
-      let memoryContext = "";
-      if (chatAgent.memory_enabled && userId) {
-        try {
-          const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
-          const memRes = await fetch(`${supabaseUrl}/functions/v1/retrieve-agent-memories`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
-            },
-            body: JSON.stringify({
-              agent_id: chatAgent.id,
-              user_id: userId,
-              query: chatInput,
-              max_results: 5,
-            }),
-          });
-          if (memRes.ok) {
-            const memData = await memRes.json();
-            if (memData.memoryContext) memoryContext = "\n\n" + memData.memoryContext;
-          }
-        } catch (e) {
-          console.error("Memory retrieval failed (non-blocking):", e);
-        }
-      }
+      // Step 2: Parallelize memory retrieval + conversation history fetch
+      const memoryPromise = (chatAgent.memory_enabled && userId && conversationId)
+        ? (async () => {
+            try {
+              // Skip memory for very short conversations (< 3 messages)
+              if (conversationId) {
+                const { count } = await serviceClient
+                  .from("agent_messages")
+                  .select("id", { count: "exact", head: true })
+                  .eq("conversation_id", conversationId);
+                if ((count ?? 0) < 3) return "";
+              }
+              const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+              const memRes = await fetch(`${supabaseUrl}/functions/v1/retrieve-agent-memories`, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+                },
+                body: JSON.stringify({
+                  agent_id: chatAgent.id,
+                  user_id: userId,
+                  query: chatInput,
+                  max_results: 5,
+                }),
+              });
+              if (memRes.ok) {
+                const memData = await memRes.json();
+                if (memData.memoryContext) return "\n\n" + memData.memoryContext;
+              }
+            } catch (e) {
+              console.error("Memory retrieval failed (non-blocking):", e);
+            }
+            return "";
+          })()
+        : Promise.resolve("");
 
+      const historyPromise = conversationId
+        ? serviceClient
+            .from("agent_messages")
+            .select("role, content")
+            .eq("conversation_id", conversationId)
+            .in("role", ["user", "assistant"])
+            .order("created_at", { ascending: true })
+            .limit(20)
+        : Promise.resolve({ data: [] as any[] });
+
+      const [memoryContext, historyResult] = await Promise.all([memoryPromise, historyPromise]);
+
+      // Step 3: Build messages array
       const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
-        { role: "system", content: systemPrompt + additionalPrompt + memoryContext },
+        { role: "system", content: systemPrompt + memoryContext },
       ];
-      if (conversationId) {
-        const { data: history } = await serviceClient
-          .from("agent_messages")
-          .select("role, content")
-          .eq("conversation_id", conversationId)
-          .in("role", ["user", "assistant"])
-          .order("created_at", { ascending: true })
-          .limit(20);
-        for (const m of history || []) {
-          if (m.role === "user" || m.role === "assistant") {
-            messages.push({ role: m.role, content: m.content || "" });
-          }
+      for (const m of (historyResult as any).data || []) {
+        if (m.role === "user" || m.role === "assistant") {
+          messages.push({ role: m.role, content: m.content || "" });
         }
       }
       messages.push({ role: "user", content: chatInput.trim() });
+
+      // Step 4: Call AI
       const lovableKey = Deno.env.get("LOVABLE_API_KEY");
       if (!lovableKey) {
         return new Response(
@@ -1279,17 +1296,16 @@ serve(async (req) => {
       }
       const model = "google/gemini-2.5-flash";
       const startTime = Date.now();
-      const chatBody = {
-        model,
-        messages: messages.map((m) => ({ role: m.role, content: m.content })),
-      };
       const chatRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${lovableKey}`,
         },
-        body: JSON.stringify(chatBody),
+        body: JSON.stringify({
+          model,
+          messages: messages.map((m) => ({ role: m.role, content: m.content })),
+        }),
       });
       const latencyMs = Date.now() - startTime;
       if (!chatRes.ok) {
@@ -1302,19 +1318,19 @@ serve(async (req) => {
       const chatData = await chatRes.json();
       const output = chatData.choices?.[0]?.message?.content ?? "";
       const tokenUsage = chatData.usage ?? {};
-      const runRecord = {
+
+      // Step 5: Fire-and-forget: persist run record + extract memories (non-blocking)
+      const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+      serviceClient.from("ai_agent_runs").insert({
         agent_id: chatAgent.id,
         executed_by: userId,
         status: "completed",
         input: { text: chatInput },
         output: { text: output },
         provider_chain: { provider: "lovable", model, latency_ms: latencyMs, token_usage: tokenUsage },
-      };
-      const { data: runRow } = await serviceClient.from("ai_agent_runs").insert(runRecord).select("id").single();
+      }).then(() => {}).catch((e: any) => console.error("Run record insert failed:", e));
 
-      // Fire-and-forget: extract memories if enabled
       if (chatAgent.memory_enabled && userId && conversationId) {
-        const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
         fetch(`${supabaseUrl}/functions/v1/extract-agent-memories`, {
           method: "POST",
           headers: {
@@ -1331,7 +1347,7 @@ serve(async (req) => {
 
       return new Response(
         JSON.stringify({
-          run_id: runRow?.id ?? null,
+          run_id: null,
           status: "completed",
           output,
           token_usage: tokenUsage,

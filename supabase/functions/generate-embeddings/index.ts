@@ -48,45 +48,10 @@ serve(async (req) => {
   }
 });
 
-async function generateEmbeddingFromText(text: string, apiKey: string): Promise<number[]> {
-  // Use Lovable AI to extract key concepts, then create a semantic fingerprint
-  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: "google/gemini-2.5-flash-lite",
-      messages: [
-        {
-          role: "system",
-          content: `You are a text embedding generator. Given input text, output ONLY a JSON array of exactly 1536 floating point numbers between -1 and 1. These numbers should represent the semantic meaning of the text. Similar texts should produce similar number arrays. Do not include any explanation, just the raw JSON array.`,
-        },
-        { role: "user", content: text.slice(0, 2000) },
-      ],
-      temperature: 0,
-    }),
-  });
-
-  if (!response.ok) {
-    // Fallback: generate deterministic hash-based embedding
-    return hashBasedEmbedding(text);
-  }
-
-  const data = await response.json();
-  const content = data.choices?.[0]?.message?.content?.trim() || "";
-
-  try {
-    // Try to parse the JSON array
-    const parsed = JSON.parse(content);
-    if (Array.isArray(parsed) && parsed.length === 1536) {
-      return parsed.map((n: number) => Math.max(-1, Math.min(1, Number(n) || 0)));
-    }
-  } catch {
-    // fallback
-  }
-
+async function generateEmbeddingFromText(text: string, _apiKey: string): Promise<number[]> {
+  // Use fast hash-based embedding directly instead of calling LLM
+  // The LLM approach (asking a model to output 1536 numbers) adds 5-15s latency
+  // and produces unreliable results. Hash-based is deterministic and instant.
   return hashBasedEmbedding(text);
 }
 

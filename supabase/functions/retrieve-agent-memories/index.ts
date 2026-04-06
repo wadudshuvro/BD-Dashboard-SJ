@@ -34,52 +34,11 @@ serve(async (req) => {
 
     const allMemories: MemoryResult[] = [];
 
-    // Strategy 1: Semantic search if query is provided
-    if (query) {
-      try {
-        const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-        const embResponse = await fetch(`${supabaseUrl}/functions/v1/generate-embeddings`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
-          },
-          body: JSON.stringify({ text: query }),
-        });
+    // Strategy 1: Semantic search DISABLED for performance
+    // The generate-embeddings function uses an LLM to fake embeddings which adds 5-15s latency.
+    // Relying on recency-based retrieval only until a proper embeddings API is available.
 
-        if (embResponse.ok) {
-          const embData = await embResponse.json();
-          const embedding = embData.embeddings?.[0];
-
-          if (embedding) {
-            const { data: semanticResults } = await supabase.rpc("get_relevant_memories", {
-              p_agent_id: agent_id,
-              p_user_id: user_id,
-              p_embedding: JSON.stringify(embedding),
-              p_match_count: max_results,
-              p_match_threshold: 0.3,
-            });
-
-            if (semanticResults) {
-              for (const r of semanticResults) {
-                allMemories.push({
-                  id: r.id,
-                  content: r.content,
-                  memory_category: r.memory_category,
-                  memory_type: r.memory_type,
-                  importance_score: r.importance_score,
-                  similarity: r.similarity,
-                });
-              }
-            }
-          }
-        }
-      } catch (e) {
-        console.error("Semantic search failed, falling back to recent:", e);
-      }
-    }
-
-    // Strategy 2: Recent memories (fallback/supplement)
+    // Strategy 2: Recent memories (primary)
     const { data: recentMemories } = await supabase
       .from("agent_memories")
       .select("id, content, memory_category, memory_type, importance_score, created_at")
