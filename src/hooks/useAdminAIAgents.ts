@@ -19,7 +19,7 @@ export interface AdminAIAgent {
   config: Record<string, unknown> | null;
   is_active: boolean | null;
   is_enabled: boolean | null;
-  memory_enabled: boolean | null;
+  memory_enabled?: boolean | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;

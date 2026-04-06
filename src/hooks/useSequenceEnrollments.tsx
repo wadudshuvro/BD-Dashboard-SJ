@@ -72,7 +72,7 @@ export function useSequenceEnrollments(filters?: EnrollmentFilters) {
 
   // Realtime subscription with debouncing
   useEffect(() => {
-    let debounceTimer: NodeJS.Timeout;
+    let debounceTimer: ReturnType<typeof setTimeout>;
 
     // Clean up existing subscription
     if (subscriptionRef.current) {
@@ -164,7 +164,7 @@ export function useSequenceMetrics(sequenceId?: string) {
 
   // Realtime subscription for metrics
   useEffect(() => {
-    let debounceTimer: NodeJS.Timeout;
+    let debounceTimer: ReturnType<typeof setTimeout>;
 
     if (subscriptionRef.current) {
       supabase.removeChannel(subscriptionRef.current);

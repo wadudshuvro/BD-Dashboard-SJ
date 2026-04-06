@@ -76,9 +76,9 @@ export function useCreateAgentConversation(agentId: string | null) {
       if (error) throw error;
       return data as AgentConversation;
     },
-    onSuccess: (_, __, context) => {
-      if (context?.agentId) {
-        queryClient.invalidateQueries({ queryKey: AGENT_CHAT_KEYS.conversations(context.agentId) });
+    onSuccess: () => {
+      if (agentId) {
+        queryClient.invalidateQueries({ queryKey: AGENT_CHAT_KEYS.conversations(agentId) });
       }
     },
   });
