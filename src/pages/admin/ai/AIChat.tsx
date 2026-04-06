@@ -84,6 +84,7 @@ export default function AIChat() {
 
   const handleNewChat = () => {
     setActiveConvId(null);
+    setIsNewChat(true);
     navigate(`/adminpanel/ai/chat?agent=${agentId}`, { replace: true });
   };
 
