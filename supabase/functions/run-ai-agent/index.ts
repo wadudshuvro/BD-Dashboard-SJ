@@ -1290,7 +1290,7 @@ serve(async (req) => {
         status: "completed",
         input: { text: chatInput },
         output: { text: output },
-        provider_chain: { provider: "openai", model, latency_ms: latencyMs, token_usage: tokenUsage },
+        provider_chain: { provider: "lovable", model, latency_ms: latencyMs, token_usage: tokenUsage },
       };
       const { data: runRow } = await serviceClient.from("ai_agent_runs").insert(runRecord).select("id").single();
       return new Response(
