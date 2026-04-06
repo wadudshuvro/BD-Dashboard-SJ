@@ -136,3 +136,25 @@ export function useSendAgentMessage(agentId: string, conversationId: string | nu
     },
   });
 }
+
+export function useDeleteAgentConversation(agentId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (conversationId: string) => {
+      // Delete messages first, then conversation
+      const { error: msgErr } = await supabase
+        .from("agent_messages")
+        .delete()
+        .eq("conversation_id", conversationId);
+      if (msgErr) throw msgErr;
+      const { error: convErr } = await supabase
+        .from("agent_conversations")
+        .delete()
+        .eq("id", conversationId);
+      if (convErr) throw convErr;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: AGENT_CHAT_KEYS.conversations(agentId) });
+    },
+  });
+}

@@ -317,8 +317,11 @@ export type Database = {
           agent_id: string
           created_at: string
           id: string
+          is_archived: boolean | null
+          is_pinned: boolean | null
           last_message_at: string | null
           message_count: number
+          summary: string | null
           title: string | null
           updated_at: string
           user_id: string
@@ -327,8 +330,11 @@ export type Database = {
           agent_id: string
           created_at?: string
           id?: string
+          is_archived?: boolean | null
+          is_pinned?: boolean | null
           last_message_at?: string | null
           message_count?: number
+          summary?: string | null
           title?: string | null
           updated_at?: string
           user_id: string
@@ -337,8 +343,11 @@ export type Database = {
           agent_id?: string
           created_at?: string
           id?: string
+          is_archived?: boolean | null
+          is_pinned?: boolean | null
           last_message_at?: string | null
           message_count?: number
+          summary?: string | null
           title?: string | null
           updated_at?: string
           user_id?: string
@@ -353,27 +362,117 @@ export type Database = {
           },
         ]
       }
+      agent_memories: {
+        Row: {
+          access_count: number | null
+          agent_id: string
+          consolidated: boolean | null
+          content: string
+          created_at: string
+          embedding: string | null
+          id: string
+          importance_score: number | null
+          is_active: boolean | null
+          last_accessed_at: string | null
+          memory_category: string
+          memory_type: string
+          source_id: string | null
+          source_type: string | null
+          summary: string | null
+          superseded_by: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_count?: number | null
+          agent_id: string
+          consolidated?: boolean | null
+          content: string
+          created_at?: string
+          embedding?: string | null
+          id?: string
+          importance_score?: number | null
+          is_active?: boolean | null
+          last_accessed_at?: string | null
+          memory_category?: string
+          memory_type?: string
+          source_id?: string | null
+          source_type?: string | null
+          summary?: string | null
+          superseded_by?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_count?: number | null
+          agent_id?: string
+          consolidated?: boolean | null
+          content?: string
+          created_at?: string
+          embedding?: string | null
+          id?: string
+          importance_score?: number | null
+          is_active?: boolean | null
+          last_accessed_at?: string | null
+          memory_category?: string
+          memory_type?: string
+          source_id?: string | null
+          source_type?: string | null
+          summary?: string | null
+          superseded_by?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_memories_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "ai_agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_memories_superseded_by_fkey"
+            columns: ["superseded_by"]
+            isOneToOne: false
+            referencedRelation: "agent_memories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       agent_messages: {
         Row: {
           content: string
           conversation_id: string
           created_at: string
           id: string
+          latency_ms: number | null
+          model_used: string | null
           role: string
+          tokens_input: number | null
+          tokens_output: number | null
         }
         Insert: {
           content: string
           conversation_id: string
           created_at?: string
           id?: string
+          latency_ms?: number | null
+          model_used?: string | null
           role: string
+          tokens_input?: number | null
+          tokens_output?: number | null
         }
         Update: {
           content?: string
           conversation_id?: string
           created_at?: string
           id?: string
+          latency_ms?: number | null
+          model_used?: string | null
           role?: string
+          tokens_input?: number | null
+          tokens_output?: number | null
         }
         Relationships: [
           {
@@ -5760,6 +5859,10 @@ export type Database = {
       }
       cleanup_old_sync_logs: { Args: never; Returns: undefined }
       clear_all_sync_logs: { Args: never; Returns: undefined }
+      consolidate_short_term_memories: {
+        Args: { p_agent_id: string; p_days_old?: number; p_user_id: string }
+        Returns: number
+      }
       execute_raw_sql: { Args: { query_text: string }; Returns: Json }
       fix_orphaned_users: {
         Args: never
@@ -5797,6 +5900,23 @@ export type Database = {
           phone: string
         }[]
       }
+      get_relevant_memories: {
+        Args: {
+          p_agent_id: string
+          p_embedding: string
+          p_match_count?: number
+          p_match_threshold?: number
+          p_user_id: string
+        }
+        Returns: {
+          content: string
+          id: string
+          importance_score: number
+          memory_category: string
+          memory_type: string
+          similarity: number
+        }[]
+      }
       get_sync_health_summary: { Args: never; Returns: Json }
       get_unmapped_deal_owners: {
         Args: never
@@ -5826,11 +5946,24 @@ export type Database = {
         }
         Returns: boolean
       }
+      increment_memory_access: {
+        Args: { p_memory_ids: string[] }
+        Returns: undefined
+      }
       is_manager_or_admin: { Args: never; Returns: boolean }
       mark_all_notifications_as_read: { Args: never; Returns: undefined }
       mark_notification_as_read: {
         Args: { notification_id: string }
         Returns: undefined
+      }
+      prune_short_term_memories: {
+        Args: {
+          p_agent_id: string
+          p_days_old?: number
+          p_importance_threshold?: number
+          p_user_id: string
+        }
+        Returns: number
       }
       update_campaign_financials: {
         Args: { p_campaign_id: string }

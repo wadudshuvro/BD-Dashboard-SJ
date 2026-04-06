@@ -1234,10 +1234,38 @@ serve(async (req) => {
           .maybeSingle();
         if (pers?.additional_prompt) additionalPrompt = "\n\n" + pers.additional_prompt;
       }
+
+      // Memory retrieval (if memory_enabled)
+      let memoryContext = "";
+      if (chatAgent.memory_enabled && userId) {
+        try {
+          const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+          const memRes = await fetch(`${supabaseUrl}/functions/v1/retrieve-agent-memories`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+            },
+            body: JSON.stringify({
+              agent_id: chatAgent.id,
+              user_id: userId,
+              query: chatInput,
+              max_results: 5,
+            }),
+          });
+          if (memRes.ok) {
+            const memData = await memRes.json();
+            if (memData.memoryContext) memoryContext = "\n\n" + memData.memoryContext;
+          }
+        } catch (e) {
+          console.error("Memory retrieval failed (non-blocking):", e);
+        }
+      }
+
       const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
-        { role: "system", content: systemPrompt + additionalPrompt },
+        { role: "system", content: systemPrompt + additionalPrompt + memoryContext },
       ];
-      if (chatAgent.memory_enabled && conversationId) {
+      if (conversationId) {
         const { data: history } = await serviceClient
           .from("agent_messages")
           .select("role, content")
@@ -1293,6 +1321,24 @@ serve(async (req) => {
         provider_chain: { provider: "lovable", model, latency_ms: latencyMs, token_usage: tokenUsage },
       };
       const { data: runRow } = await serviceClient.from("ai_agent_runs").insert(runRecord).select("id").single();
+
+      // Fire-and-forget: extract memories if enabled
+      if (chatAgent.memory_enabled && userId && conversationId) {
+        const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+        fetch(`${supabaseUrl}/functions/v1/extract-agent-memories`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+          },
+          body: JSON.stringify({
+            agent_id: chatAgent.id,
+            user_id: userId,
+            conversation_id: conversationId,
+          }),
+        }).catch((e) => console.error("Memory extraction fire-and-forget failed:", e));
+      }
+
       return new Response(
         JSON.stringify({
           run_id: runRow?.id ?? null,
