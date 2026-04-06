@@ -52,10 +52,16 @@ export default function AIChat() {
   const { toast } = useToast();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  const [isNewChat, setIsNewChat] = useState(false);
+
   useEffect(() => {
-    if (convIdParam) setActiveConvId(convIdParam);
-    else if (conversations.length > 0 && !activeConvId) setActiveConvId(conversations[0].id);
-  }, [convIdParam, conversations, activeConvId]);
+    if (convIdParam) {
+      setActiveConvId(convIdParam);
+      setIsNewChat(false);
+    } else if (!isNewChat && conversations.length > 0 && !activeConvId) {
+      setActiveConvId(conversations[0].id);
+    }
+  }, [convIdParam, conversations, activeConvId, isNewChat]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -67,6 +73,7 @@ export default function AIChat() {
     try {
       const result = await sendMessage.mutateAsync(text);
       setInput("");
+      setIsNewChat(false);
       if (result.conversationId && result.conversationId !== activeConvId) {
         setActiveConvId(result.conversationId);
         navigate(`/adminpanel/ai/chat?agent=${agentId}&conversation=${result.conversationId}`, { replace: true });
@@ -78,6 +85,7 @@ export default function AIChat() {
 
   const handleNewChat = () => {
     setActiveConvId(null);
+    setIsNewChat(true);
     navigate(`/adminpanel/ai/chat?agent=${agentId}`, { replace: true });
   };
 
@@ -166,21 +174,30 @@ export default function AIChat() {
               </div>
             ) : (
               conversations.map((conv) => (
-                <button
+                <div
                   key={conv.id}
                   onClick={() => handleSelectConversation(conv.id)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => e.key === "Enter" && handleSelectConversation(conv.id)}
                   className={cn(
-                    "w-full text-left p-2.5 rounded-md transition-colors group relative",
+                    "w-full text-left p-2.5 rounded-md transition-colors group relative cursor-pointer",
                     "hover:bg-accent/50",
                     activeConvId === conv.id
-                      ? "bg-accent text-accent-foreground"
+                      ? "bg-primary/10 text-primary border border-primary/30"
                       : "text-foreground"
                   )}
                 >
                   <div className="flex items-start gap-2">
-                    <MessageSquare className="h-3.5 w-3.5 mt-0.5 shrink-0 text-muted-foreground" />
+                    <MessageSquare className={cn(
+                      "h-3.5 w-3.5 mt-0.5 shrink-0",
+                      activeConvId === conv.id ? "text-primary" : "text-muted-foreground"
+                    )} />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">
+                      <p className={cn(
+                        "text-sm font-medium truncate",
+                        activeConvId === conv.id && "text-primary"
+                      )}>
                         {conv.title || `Chat ${conv.message_count}`}
                       </p>
                       <div className="flex items-center gap-1.5 mt-1">
@@ -199,7 +216,7 @@ export default function AIChat() {
                   >
                     <Trash2 className="h-3 w-3" />
                   </button>
-                </button>
+                </div>
               ))
             )}
           </div>
