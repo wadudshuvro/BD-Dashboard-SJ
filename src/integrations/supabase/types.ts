@@ -312,6 +312,79 @@ export type Database = {
           },
         ]
       }
+      agent_conversations: {
+        Row: {
+          agent_id: string
+          created_at: string
+          id: string
+          last_message_at: string | null
+          message_count: number
+          title: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          agent_id: string
+          created_at?: string
+          id?: string
+          last_message_at?: string | null
+          message_count?: number
+          title?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          agent_id?: string
+          created_at?: string
+          id?: string
+          last_message_at?: string | null
+          message_count?: number
+          title?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_conversations_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "ai_agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_messages: {
+        Row: {
+          content: string
+          conversation_id: string
+          created_at: string
+          id: string
+          role: string
+        }
+        Insert: {
+          content: string
+          conversation_id: string
+          created_at?: string
+          id?: string
+          role: string
+        }
+        Update: {
+          content?: string
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "agent_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       agent_views: {
         Row: {
           agent_id: string
@@ -477,6 +550,7 @@ export type Database = {
           is_active: boolean | null
           is_enabled: boolean | null
           last_run_at: string | null
+          memory_enabled: boolean | null
           min_role_required: Database["public"]["Enums"]["app_role"] | null
           name: string
           output_actions: Json | null
@@ -504,6 +578,7 @@ export type Database = {
           is_active?: boolean | null
           is_enabled?: boolean | null
           last_run_at?: string | null
+          memory_enabled?: boolean | null
           min_role_required?: Database["public"]["Enums"]["app_role"] | null
           name: string
           output_actions?: Json | null
@@ -531,6 +606,7 @@ export type Database = {
           is_active?: boolean | null
           is_enabled?: boolean | null
           last_run_at?: string | null
+          memory_enabled?: boolean | null
           min_role_required?: Database["public"]["Enums"]["app_role"] | null
           name?: string
           output_actions?: Json | null
