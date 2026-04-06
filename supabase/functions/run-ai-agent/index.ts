@@ -1781,33 +1781,36 @@ Be specific with names, numbers, and dates. Focus on actionable insights.`,
     const rawOutputs: unknown[] = [];
     let parsedResponse: AgentResponse | null = null;
 
-    // Handle document_qa type with direct OpenAI call (no structured output needed)
+    // Handle document_qa type with Lovable AI Gateway (no structured output needed)
     if (agentType === 'document_qa') {
-      const openaiKey = Deno.env.get('OPENAI_API_KEY');
+      const lovableKey = Deno.env.get('LOVABLE_API_KEY');
       
-      if (openaiKey) {
+      if (lovableKey) {
         const startTime = Date.now();
         try {
-          const qaResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+          const qaResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
             method: 'POST',
             headers: {
-              'Authorization': `Bearer ${openaiKey}`,
+              'Authorization': `Bearer ${lovableKey}`,
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              model: 'gpt-4o',
+              model: 'google/gemini-2.5-flash',
               messages,
-              temperature: 0.3,
-              max_tokens: 2000,
             }),
           });
 
           const qaResult = await qaResponse.json();
           const latencyMs = Date.now() - startTime;
+
+          if (!qaResponse.ok) {
+            console.error('Lovable AI Gateway error:', qaResult);
+            throw new Error(qaResult.error?.message || 'Lovable AI Gateway request failed');
+          }
           
           telemetry.push({
-            provider: 'openai',
-            model: 'gpt-4o',
+            provider: 'lovable' as any,
+            model: 'google/gemini-2.5-flash',
             latencyMs,
             tokenUsage: {
               promptTokens: qaResult.usage?.prompt_tokens,
@@ -1819,7 +1822,6 @@ Be specific with names, numbers, and dates. Focus on actionable insights.`,
 
           const answer = qaResult.choices?.[0]?.message?.content;
           if (answer) {
-            // For Q&A, return answer directly without persisting as run
             return new Response(
               JSON.stringify({
                 success: true,
