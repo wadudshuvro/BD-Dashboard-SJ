@@ -1843,33 +1843,37 @@ Be specific with names, numbers, and dates. Focus on actionable insights.`,
     const isBDAnalysis = contactData && agent.category === 'research';
 
     if (isBDAnalysis) {
-      // Use OpenAI with tool calling for BD analysis
-      const openaiKey = Deno.env.get('OPENAI_API_KEY');
+      // Use Lovable AI Gateway with tool calling for BD analysis
+      const lovableKey = Deno.env.get('LOVABLE_API_KEY');
       
-      if (openaiKey) {
+      if (lovableKey) {
         const startTime = Date.now();
         try {
-          const toolCallResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+          const toolCallResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
             method: 'POST',
             headers: {
-              'Authorization': `Bearer ${openaiKey}`,
+              'Authorization': `Bearer ${lovableKey}`,
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              model: 'gpt-4o-mini',
+              model: 'google/gemini-2.5-flash',
               messages,
               tools: [bdAnalysisToolSchema],
               tool_choice: { type: "function", function: { name: "provide_lead_analysis" } },
-              temperature: 0.3,
             }),
           });
 
           const toolCallResult = await toolCallResponse.json();
           const latencyMs = Date.now() - startTime;
+
+          if (!toolCallResponse.ok) {
+            console.error('Lovable AI Gateway error:', toolCallResult);
+            throw new Error(toolCallResult.error?.message || 'Lovable AI Gateway request failed');
+          }
           
           telemetry.push({
-            provider: 'openai',
-            model: 'gpt-4o-mini',
+            provider: 'lovable' as any,
+            model: 'google/gemini-2.5-flash',
             latencyMs,
             tokenUsage: {
               promptTokens: toolCallResult.usage?.prompt_tokens,
@@ -1883,7 +1887,6 @@ Be specific with names, numbers, and dates. Focus on actionable insights.`,
           if (toolCall && toolCall.function.name === "provide_lead_analysis") {
             const analysisData = JSON.parse(toolCall.function.arguments);
             
-            // Ensure all required fields with defaults
             parsedResponse = {
               summary: analysisData.summary || "Analysis completed",
               findings: Array.isArray(analysisData.findings) ? analysisData.findings : [],
@@ -1910,7 +1913,7 @@ Be specific with names, numbers, and dates. Focus on actionable insights.`,
               }
             };
             
-            console.log('✅ BD Analysis completed with tool calling');
+            console.log('✅ BD Analysis completed with tool calling via Lovable AI');
           } else {
             console.warn('⚠️ Tool call did not return expected format, falling back to standard flow');
           }
@@ -1918,8 +1921,8 @@ Be specific with names, numbers, and dates. Focus on actionable insights.`,
           console.error('Tool calling failed, falling back to standard provider chain:', toolError);
           const latencyMs = Date.now() - startTime;
           telemetry.push({
-            provider: 'openai',
-            model: 'gpt-4o-mini',
+            provider: 'lovable' as any,
+            model: 'google/gemini-2.5-flash',
             latencyMs,
             error: { message: toolError instanceof Error ? toolError.message : 'Tool calling failed' },
           });
