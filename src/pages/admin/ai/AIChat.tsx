@@ -52,10 +52,16 @@ export default function AIChat() {
   const { toast } = useToast();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  const [isNewChat, setIsNewChat] = useState(false);
+
   useEffect(() => {
-    if (convIdParam) setActiveConvId(convIdParam);
-    else if (conversations.length > 0 && !activeConvId) setActiveConvId(conversations[0].id);
-  }, [convIdParam, conversations, activeConvId]);
+    if (convIdParam) {
+      setActiveConvId(convIdParam);
+      setIsNewChat(false);
+    } else if (!isNewChat && conversations.length > 0 && !activeConvId) {
+      setActiveConvId(conversations[0].id);
+    }
+  }, [convIdParam, conversations, activeConvId, isNewChat]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
