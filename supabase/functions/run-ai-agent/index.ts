@@ -1252,20 +1252,24 @@ serve(async (req) => {
         }
       }
       messages.push({ role: "user", content: chatInput.trim() });
-      const openaiKey = Deno.env.get("OPENAI_API_KEY");
-      const model = "gpt-4o-mini";
+      const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+      if (!lovableKey) {
+        return new Response(
+          JSON.stringify({ error: "Missing LOVABLE_API_KEY" }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+      const model = "google/gemini-2.5-flash";
       const startTime = Date.now();
       const chatBody = {
         model,
         messages: messages.map((m) => ({ role: m.role, content: m.content })),
-        temperature: 0.7,
-        max_tokens: 2048,
       };
-      const chatRes = await fetch("https://api.openai.com/v1/chat/completions", {
+      const chatRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${openaiKey}`,
+          "Authorization": `Bearer ${lovableKey}`,
         },
         body: JSON.stringify(chatBody),
       });
