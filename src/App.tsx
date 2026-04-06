@@ -59,6 +59,9 @@ import FollowUps from "./pages/bd/FollowUps";
 import UserSettings from "./pages/bd/UserSettings";
 import AutomationSettings from "./pages/admin/AutomationSettings";
 import LinkedInAgentConfig from "./pages/admin/LinkedInAgentConfig";
+import LLMConfig from "./pages/admin/ai/LLMConfig";
+import AgentManagement from "./pages/admin/ai/AgentManagement";
+import AIChat from "./pages/admin/ai/AIChat";
 import DealDetail from "./pages/bd/DealDetail";
 import DealFiles from "./pages/bd/DealFiles";
 import ClientDetail from "./pages/bd/ClientDetail";
@@ -158,6 +161,9 @@ const App = () => (
               <Route path="eod-management" element={<EODManagement />} />
               <Route path="dhs-management" element={<DHSManagement />} />
               <Route path="pods" element={<PODManagement />} />
+              <Route path="ai/llm-config" element={<LLMConfig />} />
+              <Route path="ai/agent-management" element={<AgentManagement />} />
+              <Route path="ai/chat" element={<AIChat />} />
               <Route path="ai/agents" element={<LinkedInAgentConfig />} />
               <Route path="bd-reports" element={<BDManagerReports />} />
               <Route path="usage-analytics" element={<UsageAnalytics />} />

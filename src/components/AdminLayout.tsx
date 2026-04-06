@@ -75,7 +75,9 @@ const AdminLayout = () => {
       {
         section: "AI Operations",
         items: [
-          { name: "AI Agents", href: "/adminpanel/ai/agents", icon: Bot, roles: ['super_admin'] },
+          { name: "LLM Config", href: "/adminpanel/ai/llm-config", icon: Settings, roles: ['super_admin', 'admin'] },
+          { name: "Agent Management", href: "/adminpanel/ai/agent-management", icon: Sparkles, roles: ['super_admin', 'admin'] },
+          { name: "AI Agents", href: "/adminpanel/ai/agents", icon: Bot, roles: ['super_admin', 'admin'] },
         ],
       },
       {
