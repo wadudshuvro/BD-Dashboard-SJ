@@ -174,21 +174,30 @@ export default function AIChat() {
               </div>
             ) : (
               conversations.map((conv) => (
-                <button
+                <div
                   key={conv.id}
                   onClick={() => handleSelectConversation(conv.id)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => e.key === "Enter" && handleSelectConversation(conv.id)}
                   className={cn(
-                    "w-full text-left p-2.5 rounded-md transition-colors group relative",
+                    "w-full text-left p-2.5 rounded-md transition-colors group relative cursor-pointer",
                     "hover:bg-accent/50",
                     activeConvId === conv.id
-                      ? "bg-accent text-accent-foreground"
+                      ? "bg-primary/10 text-primary border border-primary/30"
                       : "text-foreground"
                   )}
                 >
                   <div className="flex items-start gap-2">
-                    <MessageSquare className="h-3.5 w-3.5 mt-0.5 shrink-0 text-muted-foreground" />
+                    <MessageSquare className={cn(
+                      "h-3.5 w-3.5 mt-0.5 shrink-0",
+                      activeConvId === conv.id ? "text-primary" : "text-muted-foreground"
+                    )} />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">
+                      <p className={cn(
+                        "text-sm font-medium truncate",
+                        activeConvId === conv.id && "text-primary"
+                      )}>
                         {conv.title || `Chat ${conv.message_count}`}
                       </p>
                       <div className="flex items-center gap-1.5 mt-1">
@@ -207,7 +216,7 @@ export default function AIChat() {
                   >
                     <Trash2 className="h-3 w-3" />
                   </button>
-                </button>
+                </div>
               ))
             )}
           </div>
