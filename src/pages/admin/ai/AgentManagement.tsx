@@ -200,6 +200,16 @@ function AgentFormDialog({
   const [isEnabled, setIsEnabled] = useState(agent?.is_enabled ?? true);
   const [memoryEnabled, setMemoryEnabled] = useState(agent?.memory_enabled ?? false);
 
+  useEffect(() => {
+    setName(agent?.name ?? "");
+    setSlug(agent?.slug ?? "");
+    setDescription(agent?.description ?? "");
+    setCategory(agent?.category ?? "general");
+    setSystemPrompt(agent?.system_prompt ?? agent?.prompt_template ?? "");
+    setIsEnabled(agent?.is_enabled ?? true);
+    setMemoryEnabled(agent?.memory_enabled ?? false);
+  }, [agent]);
+
   const createAgent = useCreateAdminAgent();
   const updateAgent = useUpdateAdminAgent();
   const { toast } = useToast();
