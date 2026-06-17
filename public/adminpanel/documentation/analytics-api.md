@@ -1,13 +1,14 @@
 # Analytics API (Usage Export)
 
-_Last Updated: 2026-02-10_
+_Last Updated: 2026-06-17_
 
 ## What this module does
 
-This module lets you **share user usage analytics** (Daily / Weekly / Monthly / All) with other projects in two ways:
+This module lets you **share user usage analytics** with other projects in three ways:
 
-- **Pull**: External projects call your API endpoint and receive **email-keyed per-user stats**.
-- **Push**: Your system can **POST the same stats** to registered consumer webhooks (with retries + delivery status tracking).
+- **Main CT Adoption Stats Export** (`analytics` edge function) — per-user `AdoptionStatsPayload` for SJ Main Control Tower adoption reports.
+- **Pull** (`external-analytics-api`) — email-keyed per-user stats by period (daily / weekly / monthly / all).
+- **Push** (`push-analytics-to-consumers`) — POST the same stats to registered consumer webhooks (with retries + delivery status tracking).
 
 ## Where to configure (Admin UI)
 
@@ -58,6 +59,7 @@ Reason: These endpoints use **shared-secret authentication** (not user JWTs) and
 External callers must send:
 
 - Preferred header: `Authorization: Bearer <plaintext-secret>`
+- Main CT header (also accepted): `x-api-key: <plaintext-secret>`
 - Legacy header (still accepted): `x-api-secret: <plaintext-secret>`
 
 Implementation detail:
@@ -73,39 +75,77 @@ When pushing to a consumer webhook, the request includes:
 
 The receiver should verify this header before accepting the payload.
 
-## Control Tower contract: `analytics`
+## Control Tower Adoption Stats Export: `analytics`
 
-These endpoints match the expected main Control Tower contract.
+Implements **CONTROL-TOWER-ADOPTION-STATS-EXPORT-API.md v1.0.0** for Main CT registration at `/admin/control-towers`.
+
+**Register this base URL in Main CT:**
+
+`https://<project-ref>.supabase.co/functions/v1/analytics`
+
+Issue a read-only API key from **Admin → Analytics API Consumers** (`/adminpanel/analytics-api-consumers`).
+
+### Endpoints
+
+| Endpoint | Purpose |
+| --- | --- |
+| `GET /functions/v1/analytics/ping` | Liveness check (preferred) |
+| `GET /functions/v1/analytics/health` | Liveness check (fallback) |
+| `GET /functions/v1/analytics/users/:email` | Per-user adoption stats (`AdoptionStatsPayload`) |
 
 ### Health / ping
 
-`GET /functions/v1/analytics/ping` (or `GET /functions/v1/analytics/health`)
-
-Returns `200` when the API is reachable.
-
-Example:
+Returns `200` with `{ "ok": true, "service": "bd-control-tower-analytics" }` when the API key is valid.
 
 ```bash
 curl -X GET "https://<project-ref>.supabase.co/functions/v1/analytics/ping" \
   -H "Authorization: Bearer <YOUR_SECRET>"
 ```
 
-### User analytics by email
+### User adoption stats by email
 
-`GET /functions/v1/analytics/users/:email`
+`GET /functions/v1/analytics/users/:email` — email must be lowercase, trimmed work email.
 
-Returns:
+Returns **404** if the user is unknown to BD CT. Returns **200** with `AdoptionStatsPayload`:
 
 ```json
-{ "summary": {}, "details": {}, "lastActiveAt": "..." }
+{
+  "lastActiveAt": "2026-06-15T09:15:00Z",
+  "summary": {
+    "controlTowerName": "BD Control Tower",
+    "controlTowerVersion": "1.0.0",
+    "employeeEmail": "jane.doe@sjinnovation.com",
+    "department": "Sales/Marketing",
+    "logins": { "d7": 4, "d30": 18, "d60": 32, "d90": 45 },
+    "pageViews": { "d7": 0, "d30": 0, "d60": 0, "d90": 0 },
+    "actions": { "d7": 8, "d30": 35, "d60": 62, "d90": 88 },
+    "modules": [
+      { "name": "Business Opportunities", "pageViews": 0, "actions": 20, "lastUsedAt": "2026-06-15T09:10:00Z" },
+      { "name": "Contacts", "pageViews": 0, "actions": 10, "lastUsedAt": "2026-06-14T14:00:00Z" }
+    ],
+    "managerCompliance": {
+      "isManager": true,
+      "weeklyTaskUpdate": true,
+      "lastTaskUpdateAt": "2026-06-14T16:30:00Z"
+    }
+  },
+  "details": {
+    "recentLogins": ["2026-06-15T09:00:00Z"],
+    "topActions": [{ "name": "deal_created", "count": 3 }]
+  }
+}
 ```
+
+**BD modules reported:** `Business Opportunities`, `Contacts`, `Clients`, `BD:Lead Follow-Up`, `Actions`, `Dashboard`, `CollabAI`.
+
+**Data sources:** `user_activity_log`, `profiles`, `employees`, `user_roles`, `project_tasks`.
 
 Example:
 
 ```bash
-curl -X GET "https://<project-ref>.supabase.co/functions/v1/analytics/users/paresh%40sjinnovation.com" \
+curl -X GET "https://<project-ref>.supabase.co/functions/v1/analytics/users/jane.doe%40sjinnovation.com" \
   -H "Authorization: Bearer <YOUR_SECRET>" \
-  -H "Content-Type: application/json"
+  -H "Accept: application/json"
 ```
 
 ## Pull API: `external-analytics-api`

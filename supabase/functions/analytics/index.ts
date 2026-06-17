@@ -1,8 +1,23 @@
+/**
+ * BD Control Tower — Adoption Stats Export API
+ * GET /analytics/ping | /analytics/health
+ * GET /analytics/users/{email}
+ *
+ * Register API URL in Main CT: https://<project-ref>.supabase.co/functions/v1/analytics
+ * Spec: CONTROL-TOWER-ADOPTION-STATS-EXPORT-API.md v1.0.0
+ */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 import { validateApiSecret } from "../_shared/externalApiAuth.ts";
-import { aggregateUserAnalytics, type AnalyticsPeriod } from "../_shared/analyticsAggregator.ts";
+import {
+  computeBdAdoptionMetrics,
+  findProfileByEmail,
+  isBdUserManager,
+} from "../_shared/bd-adoption-metrics.ts";
+import { toAdoptionStatsPayload } from "../_shared/ct-adoption-schema.ts";
+
+const SERVICE_NAME = "bd-control-tower-analytics";
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -12,43 +27,19 @@ function jsonResponse(body: unknown, status = 200) {
 }
 
 function badRequest(message: string) {
-  return jsonResponse({ error: message }, 400);
+  return jsonResponse({ error: "bad_request", message }, 400);
 }
 
 function notFound(message: string) {
-  return jsonResponse({ error: message }, 404);
+  return jsonResponse({ error: "not_found", message }, 404);
 }
 
 function unauthorized(message: string) {
-  return jsonResponse({ error: message }, 401);
+  return jsonResponse({ error: "unauthorized", message }, 401);
 }
 
 function isLikelyEmail(value: string): boolean {
-  // Keep permissive: basic sanity check only.
   return value.includes("@");
-}
-
-function computeDateRange(period: AnalyticsPeriod, end: Date) {
-  const endDate = end;
-  const endMs = endDate.getTime();
-  let startMs = endMs;
-
-  switch (period) {
-    case "daily":
-      startMs = endMs - 24 * 60 * 60 * 1000;
-      break;
-    case "weekly":
-      startMs = endMs - 7 * 24 * 60 * 60 * 1000;
-      break;
-    case "monthly":
-      startMs = endMs - 30 * 24 * 60 * 60 * 1000;
-      break;
-    case "all":
-      startMs = endMs - 90 * 24 * 60 * 60 * 1000;
-      break;
-  }
-
-  return { periodStart: new Date(startMs), periodEnd: endDate };
 }
 
 function routeSegmentsForFunction(url: URL, functionName: string): string[] {
@@ -63,7 +54,7 @@ serve(async (req) => {
   }
 
   if (req.method !== "GET") {
-    return jsonResponse({ error: "Method not allowed" }, 405);
+    return jsonResponse({ error: "method_not_allowed", message: "GET only" }, 405);
   }
 
   try {
@@ -71,65 +62,53 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Require API key for all routes (ping/health included).
-    await validateApiSecret(req, supabase);
-
     const url = new URL(req.url);
     const route = routeSegmentsForFunction(url, "analytics");
 
-    // GET /analytics or GET /analytics/ping or GET /analytics/health
+    // GET /analytics, /analytics/ping, /analytics/health
     if (route.length === 0 || route[0] === "ping" || route[0] === "health") {
-      return jsonResponse({ ok: true }, 200);
+      await validateApiSecret(req, supabase);
+      return jsonResponse({ ok: true, service: SERVICE_NAME }, 200);
     }
+
+    await validateApiSecret(req, supabase);
 
     // GET /analytics/users/:email
     if (route[0] === "users") {
       const rawEmail = route[1];
-      if (!rawEmail) return badRequest("Missing user email in path. Expected /analytics/users/:email");
+      if (!rawEmail) {
+        return badRequest("Missing user email in path. Expected /analytics/users/:email");
+      }
 
       const email = decodeURIComponent(rawEmail).trim().toLowerCase();
-      if (!email || !isLikelyEmail(email)) return badRequest("Invalid email in path.");
+      if (!email || !isLikelyEmail(email)) {
+        return badRequest("Invalid email in path.");
+      }
 
-      const period: AnalyticsPeriod = "all";
-      const endDate = new Date();
-      const { periodStart, periodEnd } = computeDateRange(period, endDate);
+      const profile = await findProfileByEmail(supabase, email);
+      if (!profile) {
+        return notFound("User not found");
+      }
 
-      const result = await aggregateUserAnalytics(supabase, {
-        period,
-        periodStart,
-        periodEnd,
-        page: 1,
-        pageSize: 1,
-        emailFilter: [email],
-      });
+      const isManager = await isBdUserManager(supabase, profile.id);
+      const metrics = await computeBdAdoptionMetrics(supabase, profile, { email, isManager });
+      const payload = toAdoptionStatsPayload(metrics);
 
-      const stats = Object.values(result.users)[0] ?? null;
-      if (!stats) return notFound("No analytics found for that user in the selected window.");
-
-      return jsonResponse(
-        {
-          summary: {
-            activityScore: stats.activity_score,
-            activityCount: stats.activity_count,
-            loginCount: stats.login_count,
+      if (!payload) {
+        return jsonResponse(
+          {
+            lastActiveAt: profile.created_at ?? new Date().toISOString(),
+            summary: metrics.summary,
+            details: metrics.details,
           },
-          details: {
-            name: stats.name,
-            email: stats.email,
-            activityScore: stats.activity_score,
-            activityCount: stats.activity_count,
-            loginCount: stats.login_count,
-            lastLoginAt: stats.last_login_at,
-            inactiveForSeconds: stats.inactive_for_seconds,
-            activityBreakdown: stats.activity_breakdown,
-          },
-          lastActiveAt: stats.last_active_at,
-        },
-        200,
-      );
+          200,
+        );
+      }
+
+      return jsonResponse(payload, 200);
     }
 
-    return jsonResponse({ error: "Not Found" }, 404);
+    return jsonResponse({ error: "not_found", message: "Route not found" }, 404);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error occurred";
 
@@ -141,7 +120,6 @@ serve(async (req) => {
     }
 
     console.error("[analytics] Error:", error);
-    return jsonResponse({ error: message }, 500);
+    return jsonResponse({ error: "server_error", message }, 500);
   }
 });
-
