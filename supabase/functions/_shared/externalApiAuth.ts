@@ -64,9 +64,11 @@ export async function validateApiSecret(
 ): Promise<AnalyticsApiConsumer> {
   // Preferred: Authorization: Bearer <apiKey>
   const bearer = getBearerToken(req.headers.get("authorization"));
+  // Main CT contract: x-api-key header
+  const apiKeyHeader = req.headers.get("x-api-key");
   // Backward-compatible fallback for existing consumers.
   const legacy = req.headers.get("x-api-secret");
-  const secret = bearer ?? legacy;
+  const secret = bearer ?? apiKeyHeader ?? legacy;
 
   if (!secret) throw new Error("Missing API key");
 
