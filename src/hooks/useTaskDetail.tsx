@@ -8,20 +8,29 @@ export const useTaskDetail = (taskId?: string) => {
     queryFn: async () => {
       if (!taskId) return null;
 
-      // Fetch the task with basic relations
+      // Fetch task — avoid bd_campaigns join (table may not exist on hackathon/minimal DB)
       const { data, error } = await supabase
         .from('project_tasks')
-        .select(`
-          *,
-          campaign:bd_campaigns(
-            id,
-            name
-          )
-        `)
+        .select('*')
         .eq('id', taskId)
         .single();
 
       if (error) throw error;
+
+      // Optional campaign name when full schema is available
+      let campaign: { id: string; name: string } | null = null;
+      if (data.campaign_id) {
+        try {
+          const { data: campaignData } = await supabase
+            .from('bd_campaigns')
+            .select('id, name')
+            .eq('id', data.campaign_id)
+            .maybeSingle();
+          campaign = campaignData ?? null;
+        } catch {
+          // bd_campaigns not present on minimal/hackathon database
+        }
+      }
 
       // Fetch labels separately using type assertion
       let labels: any[] = [];
@@ -55,6 +64,7 @@ export const useTaskDetail = (taskId?: string) => {
       // Transform and return
       const transformedTask = {
         ...data,
+        campaign,
         labels,
         attachments,
       };

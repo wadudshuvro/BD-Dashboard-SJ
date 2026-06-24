@@ -9,7 +9,8 @@
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "bun test"
+    "test": "bun test",
+    "hackathon:deploy": "powershell -ExecutionPolicy Bypass -File scripts/hackathon-deploy-all.ps1"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

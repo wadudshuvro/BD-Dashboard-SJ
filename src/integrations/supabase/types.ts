@@ -5154,6 +5154,71 @@ export type Database = {
           },
         ]
       }
+      task_triage_results: {
+        Row: {
+          client_status_update: string
+          created_at: string
+          created_by: string | null
+          follow_up_subtasks: Json
+          id: string
+          raw_ai_response: Json | null
+          reasoning: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          suggested_assignee_id: string | null
+          suggested_category: string | null
+          suggested_next_action: string
+          suggested_priority: string
+          task_id: string
+          updated_at: string
+        }
+        Insert: {
+          client_status_update: string
+          created_at?: string
+          created_by?: string | null
+          follow_up_subtasks?: Json
+          id?: string
+          raw_ai_response?: Json | null
+          reasoning: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          suggested_assignee_id?: string | null
+          suggested_category?: string | null
+          suggested_next_action: string
+          suggested_priority: string
+          task_id: string
+          updated_at?: string
+        }
+        Update: {
+          client_status_update?: string
+          created_at?: string
+          created_by?: string | null
+          follow_up_subtasks?: Json
+          id?: string
+          raw_ai_response?: Json | null
+          reasoning?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          suggested_assignee_id?: string | null
+          suggested_category?: string | null
+          suggested_next_action?: string
+          suggested_priority?: string
+          task_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_triage_results_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "project_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       task_history: {
         Row: {
           action_type: string

@@ -11,6 +11,7 @@ import { useTaskComments } from '@/hooks/useTaskComments';
 import { useTaskHistory } from '@/hooks/useTaskHistory';
 import { useDeleteProjectTask } from '@/hooks/useProjectTasks';
 import { TaskDetailsPanel } from '@/components/tasks/TaskDetailsPanel';
+import { TaskTriagePanel } from '@/components/tasks/TaskTriagePanel';
 import { CommentsList } from '@/components/tasks/comments/CommentsList';
 import { CommentComposer } from '@/components/tasks/comments/CommentComposer';
 import { HistoryTimeline } from '@/components/tasks/history/HistoryTimeline';
@@ -127,6 +128,8 @@ export default function TaskViewPage() {
       <div className="grid lg:grid-cols-2 gap-6">
         {/* Left Column - Task Details & History */}
         <div className="space-y-6">
+          <TaskTriagePanel taskId={task.id} taskTitle={task.title} />
+
           <TaskDetailsPanel
             task={task}
             onEdit={() => setShowEditForm(true)}

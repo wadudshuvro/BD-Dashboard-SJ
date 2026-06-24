@@ -78,6 +78,7 @@ import SigningDocumentDetail from "./pages/bd/SigningDocumentDetail";
 import NotificationsPage from "./pages/NotificationsPage";
 import AccountabilityChart from "./pages/bd/AccountabilityChart";
 import AccountabilityGoalDetail from "./pages/bd/AccountabilityGoalDetail";
+import AITaskTriagePage from "./pages/bd/AITaskTriagePage";
 
 const queryClient = new QueryClient();
 
@@ -239,6 +240,7 @@ const App = () => (
               <Route path="actions/tasks" element={<ActionsTasks />} />
               <Route path="actions/my-tasks" element={<MyTasksPage />} />
               <Route path="actions/tasks/:taskId" element={<TaskViewPage />} />
+              <Route path="ai-task-triage" element={<AITaskTriagePage />} />
               <Route path="actions/eod" element={<EODSubmission />} />
               <Route path="actions/eod-history" element={<MyEODSubmissions />} />
               <Route path="actions/dhs" element={<DHSSubmission />} />

@@ -3,7 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { toast } from "sonner";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Dialog,
@@ -33,6 +33,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from "@/hooks/useAuth";
+import { HACKATHON_DEMO_PROJECT_ID } from "@/hooks/useTaskTriage";
 import { useBDTeamMembers } from "@/hooks/useBDTeamMembers";
 import { useTaskLabelAssociations } from "@/hooks/useTaskLabels";
 import { useTaskAttachments } from "@/hooks/useTaskAttachments";
@@ -65,7 +66,7 @@ const taskFormSchema = z.object({
   status: z.enum(["todo", "in_progress", "review", "completed", "blocked"]),
   priority: z.enum(["low", "medium", "high", "urgent"]),
   category: z.enum(["ideas", "discussion", "work", "other"]).default("work"),
-  project_id: z.string().optional(),
+  project_id: z.string().min(1, "Project is required"),
   assigned_to: z.string().nullable().optional(),
   due_date: z.string().optional(),
   estimated_hours: z.string().optional(),
@@ -115,6 +116,21 @@ export function TaskForm({ open, onOpenChange, task }: TaskFormProps) {
   const { associateLabelsAsync } = useTaskLabelAssociations(task?.id);
   const { uploadAttachmentAsync } = useTaskAttachments(task?.id);
 
+  const { data: projects = [], isLoading: isLoadingProjects } = useQuery({
+    queryKey: ["task-form-projects"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("projects")
+        .select("id, name")
+        .order("name", { ascending: true });
+
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: open,
+    staleTime: 60000,
+  });
+
   const form = useForm<TaskFormValues>({
     resolver: zodResolver(taskFormSchema),
     defaultValues: {
@@ -123,7 +139,7 @@ export function TaskForm({ open, onOpenChange, task }: TaskFormProps) {
       status: "todo",
       priority: "medium",
       category: "work",
-      project_id: "",
+      project_id: HACKATHON_DEMO_PROJECT_ID,
       assigned_to: null,
       due_date: "",
       estimated_hours: "",
@@ -164,7 +180,7 @@ export function TaskForm({ open, onOpenChange, task }: TaskFormProps) {
         status: task.status || "todo",
         priority: task.priority || "medium",
         category: task.category || "work",
-        project_id: task.project_id || "",
+        project_id: task.project_id || HACKATHON_DEMO_PROJECT_ID,
         assigned_to: task.assigned_to || null,
         due_date: task.due_date || "",
         estimated_hours: task.estimated_hours?.toString() || "",
@@ -184,7 +200,7 @@ export function TaskForm({ open, onOpenChange, task }: TaskFormProps) {
         status: "todo",
         priority: "medium",
         category: "work",
-        project_id: "",
+        project_id: HACKATHON_DEMO_PROJECT_ID,
         assigned_to: currentUserId,
         due_date: "",
         estimated_hours: "",
@@ -199,6 +215,21 @@ export function TaskForm({ open, onOpenChange, task }: TaskFormProps) {
       setAttachmentFiles([]);
     }
   }, [open, task, form, currentUserId]);
+
+  useEffect(() => {
+    if (!open || task || projects.length === 0) return;
+
+    const currentProjectId = form.getValues("project_id");
+    if (currentProjectId) return;
+
+    const defaultProjectId = projects.some((p) => p.id === HACKATHON_DEMO_PROJECT_ID)
+      ? HACKATHON_DEMO_PROJECT_ID
+      : projects[0]?.id;
+
+    if (defaultProjectId) {
+      form.setValue("project_id", defaultProjectId);
+    }
+  }, [open, task, projects, form]);
 
   const onSubmit = async (values: TaskFormValues) => {
     // Prevent submit if attachments are being uploaded
@@ -215,7 +246,7 @@ export function TaskForm({ open, onOpenChange, task }: TaskFormProps) {
         status: values.status,
         priority: values.priority,
         category: values.category,
-        project_id: values.project_id || null,
+        project_id: values.project_id || HACKATHON_DEMO_PROJECT_ID,
         assigned_to: values.assigned_to || null,
         due_date: values.due_date || null,
         estimated_hours: values.estimated_hours ? parseFloat(values.estimated_hours) : null,
@@ -428,10 +459,53 @@ export function TaskForm({ open, onOpenChange, task }: TaskFormProps) {
 
               <FormField
                 control={form.control}
+                name="project_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Project <span className="text-destructive">*</span></FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      value={field.value}
+                      disabled={isLoadingProjects}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue
+                            placeholder={
+                              isLoadingProjects ? "Loading projects..." : "Select project"
+                            }
+                          />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {isLoadingProjects ? (
+                          <SelectItem value="loading" disabled>
+                            Loading projects...
+                          </SelectItem>
+                        ) : projects.length === 0 ? (
+                          <SelectItem value="empty" disabled>
+                            No projects found
+                          </SelectItem>
+                        ) : (
+                          projects.map((project) => (
+                            <SelectItem key={project.id} value={project.id}>
+                              {project.name}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
                 name="category"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Stream</FormLabel>
+                    <FormLabel>Category</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>

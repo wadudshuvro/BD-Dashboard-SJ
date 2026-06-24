@@ -39,6 +39,7 @@ import type { LucideIcon } from "lucide-react";
 import { useState } from "react";
 import ProfileDropdown from "./ProfileDropdown";
 import { NotificationBadge } from "./notifications/NotificationBadge";
+import { SidebarNewBadge } from "@/components/ui/sidebar-new-badge";
 import logo from "@/assets/logo-sji.png";
 import { useFeatureFlag } from "@/hooks/useFeatureFlag";
 
@@ -116,6 +117,8 @@ interface NavigationItem {
   current: boolean;
   isHeader?: boolean;
   isAdmin?: boolean;
+  isNew?: boolean;
+  isFeatured?: boolean;
   subItems?: NavigationItem[];
 }
 
@@ -182,6 +185,15 @@ const Layout = ({ userRole }: LayoutProps) => {
         ]
       }
     );
+
+    navigation.push({
+      name: "AI Task Triage",
+      href: "/bd/ai-task-triage",
+      icon: Bot,
+      current: false,
+      isNew: true,
+      isFeatured: true,
+    });
 
     // ===== DAILY WORK SECTION =====
     navigation.push({
@@ -335,26 +347,34 @@ const Layout = ({ userRole }: LayoutProps) => {
                 );
               }
               
-              // Special styling for Admin Panel
+              // Special styling for Admin Panel and featured AI items
               const isAdminPanel = item.isAdmin;
+              const isFeatured = item.isFeatured;
+              const showFeaturedPulse =
+                isFeatured && !localStorage.getItem("ai-triage-seen");
               
               return (
                 <NavLink
                   key={item.name}
                   to={item.href}
                   className={({ isActive }) => `
-                    flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-smooth
+                    relative flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-smooth
                     ${isActive 
                       ? isAdminPanel 
                         ? 'bg-gradient-to-r from-red-500 to-orange-500 text-white shadow-lg shadow-red-500/25' 
-                        : 'bg-gradient-primary text-white shadow-md'
+                        : isFeatured
+                          ? 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-lg shadow-violet-500/25'
+                          : 'bg-gradient-primary text-white shadow-md'
                       : isAdminPanel
                         ? 'text-red-500 hover:text-white hover:bg-gradient-to-r hover:from-red-500 hover:to-orange-500 hover:shadow-md hover:shadow-red-500/25 border border-red-200 dark:border-red-800'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'
+                        : isFeatured
+                          ? `text-violet-700 dark:text-violet-300 hover:text-white hover:bg-gradient-to-r hover:from-violet-600 hover:to-indigo-600 hover:shadow-md hover:shadow-violet-500/25 border border-violet-200 dark:border-violet-800 ${showFeaturedPulse ? 'animate-pulse' : ''}`
+                          : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'
                     }
                   `}
                 >
-                  <item.icon className={`mr-3 h-5 w-5 ${isAdminPanel && !location.pathname.includes(item.href) ? 'text-red-500' : ''}`} />
+                  {item.isNew && <SidebarNewBadge />}
+                  <item.icon className={`mr-3 h-5 w-5 ${isAdminPanel && !location.pathname.includes(item.href) ? 'text-red-500' : isFeatured && !location.pathname.startsWith(item.href) ? 'text-violet-600' : ''}`} />
                   {item.name}
                 </NavLink>
               );
@@ -395,6 +415,10 @@ const Layout = ({ userRole }: LayoutProps) => {
             <div className="flex items-center gap-4">
               <h2 className="text-sm text-muted-foreground">
                 {(() => {
+                  if (location.pathname.startsWith("/bd/ai-task-triage")) {
+                    return "AI Task Triage";
+                  }
+
                   const currentItem = navigation.find(item => 
                     item.href && item.href !== "" && location.pathname.startsWith(item.href) && item.name !== "SEPARATOR"
                   );
