@@ -58,7 +58,10 @@ export function useTasksWithTriageStatus() {
         .select("id, task_id, status, created_at")
         .order("created_at", { ascending: false });
 
-      if (triageError) throw triageError;
+      // Graceful fallback when hackathon table isn't migrated yet (e.g. wrong Supabase project)
+      if (triageError) {
+        console.warn("task_triage_results unavailable:", triageError.message);
+      }
 
       const latestByTask = new Map<string, { id: string; status: string }>();
       for (const result of triageResults ?? []) {
@@ -117,7 +120,10 @@ export function useRecentTriageResults(limit = 5) {
         .order("created_at", { ascending: false })
         .limit(limit);
 
-      if (error) throw error;
+      if (error) {
+        console.warn("recent triage results unavailable:", error.message);
+        return [];
+      }
       return data ?? [];
     },
     staleTime: 15000,

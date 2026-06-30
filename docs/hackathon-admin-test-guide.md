@@ -78,10 +78,37 @@ Try **"Invoice question - wrong amount"** for a different priority/category.
 
 ## Developer checklist (before sharing this link)
 
-- [ ] `npx supabase db push` completed on personal project `oxvfbrxoooindyrqvjgk`
+- [ ] Minimal schema applied on personal project `oxvfbrxoooindyrqvjgk` (`scripts/hackathon-minimal-schema.sql`)
+- [ ] `scripts/hackathon-patch-project-tasks-columns.sql` run in SQL Editor
 - [ ] `scripts/post-migration-hackathon-bootstrap.sql` run in SQL Editor
 - [ ] `test@example.com` user created (auto-confirmed)
-- [ ] `npx supabase functions deploy triage-project-task`
+- [ ] `npx supabase functions deploy triage-project-task --project-ref oxvfbrxoooindyrqvjgk`
+- [ ] **Vercel env vars** set (see below) — then **Redeploy**
+- [ ] Supabase → Authentication → URL Configuration → add your Vercel URL
+
+### Vercel environment variables (required)
+
+In Vercel → Project → Settings → Environment Variables, set **Production**:
+
+| Variable | Value |
+|----------|--------|
+| `VITE_SUPABASE_URL` | `https://oxvfbrxoooindyrqvjgk.supabase.co` |
+| `VITE_SUPABASE_ANON_KEY` | Your personal project anon key |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | Same as anon key |
+| `VITE_SUPABASE_PROJECT_ID` | `oxvfbrxoooindyrqvjgk` |
+| `VITE_API_BASE_URL` | `https://oxvfbrxoooindyrqvjgk.supabase.co/functions/v1` |
+| `VITE_DEMO_LOGIN_EMAIL` | `test@example.com` |
+| `VITE_DEMO_LOGIN_PASSWORD` | `TestPassword123!` |
+
+**Important:** Do **not** use the team `.env` values (`qzzvcqoletuummdsbbio`). The hackathon demo tasks live only on your **personal** Supabase project.
+
+After changing env vars: Vercel → Deployments → **Redeploy** (env vars are baked in at build time).
+
+### Demo hub URL (after deploy)
+
+```
+https://YOUR-VERCEL-URL.vercel.app/bd/ai-task-triage
+```
 - [ ] `LOVABLE_API_KEY` set in Supabase Edge Function secrets
 - [ ] Vercel env: `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY`
 - [ ] Tested full flow on Vercel URL (not only localhost)

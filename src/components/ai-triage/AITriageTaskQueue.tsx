@@ -70,9 +70,14 @@ export function AITriageTaskQueue({ selectedTaskId, onSelectTask }: AITriageTask
           </>
         )}
         {error && (
-          <div className="flex items-center gap-2 text-sm text-destructive p-3 rounded-md bg-destructive/10">
-            <AlertCircle className="h-4 w-4" />
-            Failed to load tasks
+          <div className="flex items-start gap-2 text-sm text-destructive p-3 rounded-md bg-destructive/10">
+            <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-medium">Failed to load tasks</p>
+              <p className="text-xs mt-1 opacity-90">
+                {(error as Error).message || "Check Vercel env vars point to your hackathon Supabase project."}
+              </p>
+            </div>
           </div>
         )}
         {!isLoading && tasks.length === 0 && (
