@@ -108,14 +108,16 @@ export function TaskTriageWorkspace({
   };
 
   const handleApprove = () => {
-    if (!triageResult || !taskId || !resolvedProjectId) return;
+    if (!triageResult || !taskId) return;
 
-    const selected = subtasks.filter((_, i) => selectedSubtasks[i]);
+    const selected = resolvedProjectId
+      ? subtasks.filter((_, i) => selectedSubtasks[i])
+      : [];
 
     approveTriage.mutate({
       triageId: triageResult.id,
       taskId,
-      projectId: resolvedProjectId,
+      projectId: resolvedProjectId ?? null,
       priority,
       assigneeId: assigneeId || null,
       category,
@@ -149,18 +151,6 @@ export function TaskTriageWorkspace({
     );
   }
 
-  if (!resolvedProjectId) {
-    return (
-      <div className="flex flex-col items-center justify-center rounded-xl border border-amber-200 bg-amber-50/50 p-12 text-center min-h-[320px]">
-        <Bot className="h-12 w-12 text-amber-600 mb-4" />
-        <h3 className="text-lg font-semibold mb-2">Task has no project</h3>
-        <p className="text-sm text-muted-foreground max-w-sm">
-          This task is not linked to a project, so triage cannot create follow-up subtasks. Link it to a project or use a demo task from the hackathon seed.
-        </p>
-      </div>
-    );
-  }
-
   if (isLoading) {
     return (
       <div className="space-y-4 rounded-xl border p-6">
@@ -172,6 +162,11 @@ export function TaskTriageWorkspace({
 
   return (
     <div className={variant === "embedded" ? "rounded-xl border bg-card p-6 shadow-sm" : ""}>
+      {!resolvedProjectId && (
+        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          No project linked — you can still run triage and update this task. Follow-up subtasks will not be created until the task is assigned to a project.
+        </div>
+      )}
       <div className="flex items-center justify-between gap-2 mb-4">
         <div>
           <h3 className="flex items-center gap-2 font-semibold">
@@ -286,11 +281,17 @@ export function TaskTriageWorkspace({
             {subtasks.length > 0 && (
               <div className="space-y-2">
                 <Label>Follow-up subtasks</Label>
+                {!resolvedProjectId && (
+                  <p className="text-xs text-amber-700">
+                    AI suggestions only — subtasks will not be created until this task is linked to a project.
+                  </p>
+                )}
                 <div className="space-y-2">
                   {subtasks.map((subtask, index) => (
                     <label key={index} className="flex items-start gap-2 text-sm rounded-md border p-2">
                       <Checkbox
                         checked={selectedSubtasks[index] ?? true}
+                        disabled={!resolvedProjectId}
                         onCheckedChange={(checked) =>
                           setSelectedSubtasks((prev) => ({ ...prev, [index]: !!checked }))
                         }

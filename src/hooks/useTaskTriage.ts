@@ -18,7 +18,7 @@ export interface FollowUpSubtask {
 export interface ApproveTriagePayload {
   triageId: string;
   taskId: string;
-  projectId: string;
+  projectId: string | null;
   priority: TriagePriority;
   assigneeId: string | null;
   category: TriageCategory | null;
@@ -68,7 +68,7 @@ export type TriageQueueStatus = "needs_triage" | "pending_review" | "triaged";
 
 export interface TaskWithTriageStatus {
   id: string;
-  project_id: string;
+  project_id: string | null;
   title: string;
   description?: string;
   priority: string;
@@ -125,6 +125,10 @@ export function useTasksWithTriageStatus() {
         const aDemo = a.project_id === HACKATHON_DEMO_PROJECT_ID ? 0 : 1;
         const bDemo = b.project_id === HACKATHON_DEMO_PROJECT_ID ? 0 : 1;
         if (aDemo !== bDemo) return aDemo - bDemo;
+
+        const aHasProject = a.project_id ? 0 : 1;
+        const bHasProject = b.project_id ? 0 : 1;
+        if (aHasProject !== bHasProject) return aHasProject - bHasProject;
 
         const order: Record<TriageQueueStatus, number> = {
           needs_triage: 0,
@@ -253,7 +257,7 @@ export function useApproveTaskTriage() {
 
       if (taskError) throw taskError;
 
-      if (payload.followUpSubtasks.length > 0) {
+      if (payload.projectId && payload.followUpSubtasks.length > 0) {
         const subtasks = payload.followUpSubtasks.map((subtask) => {
           const dueDate = new Date();
           dueDate.setDate(dueDate.getDate() + subtask.due_in_days);
@@ -300,7 +304,9 @@ export function useApproveTaskTriage() {
       queryClient.invalidateQueries({ queryKey: ["recent-triage-results"] });
       toast({
         title: "Triage applied",
-        description: "Task updated and follow-up subtasks created.",
+        description: payload.projectId
+          ? "Task updated and follow-up subtasks created."
+          : "Task updated. Follow-up subtasks were skipped (no project linked).",
       });
     },
     onError: (error: Error) => {
