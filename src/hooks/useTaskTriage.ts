@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { buildDemoTriage } from "@/utils/buildDemoTriage";
 import type { Database } from "@/integrations/supabase/types";
 
 type TaskTriageResult = Database["public"]["Tables"]["task_triage_results"]["Row"];
@@ -61,7 +62,66 @@ async function getFunctionInvokeErrorMessage(error: unknown, data: unknown): Pro
     }
   }
 
-  return "Edge Function request failed. Deploy triage-project-task to this Supabase project.";
+  return "Edge Function request failed. Deploy triage-project-task to this Supabase project, or ensure VITE_SUPABASE_URL matches your hackathon project (oxvfbrxoooindyrqvjgk).";
+}
+
+function isFunctionUnreachableError(message: string): boolean {
+  const lower = message.toLowerCase();
+  return (
+    lower.includes("failed to fetch") ||
+    lower.includes("networkerror") ||
+    lower.includes("edge function failed") ||
+    lower.includes("deploy triage-project-task")
+  );
+}
+
+async function runClientDemoTriage(taskId: string, userId: string): Promise<TaskTriageResult> {
+  const { data: task, error: taskError } = await supabase
+    .from("project_tasks")
+    .select("title, description")
+    .eq("id", taskId)
+    .single();
+
+  if (taskError) throw taskError;
+
+  const { data: profiles } = await supabase
+    .from("profiles")
+    .select("id, email, full_name")
+    .order("full_name")
+    .limit(20);
+
+  const demo = buildDemoTriage(task, profiles ?? null);
+  const matchedProfile = (profiles ?? []).find(
+    (p) => p.email?.toLowerCase() === demo.suggested_assignee_email.toLowerCase()
+  );
+
+  const { data: result, error: insertError } = await supabase
+    .from("task_triage_results")
+    .insert({
+      task_id: taskId,
+      suggested_priority: demo.suggested_priority,
+      suggested_assignee_id: matchedProfile?.id ?? userId,
+      suggested_category: demo.suggested_category,
+      suggested_next_action: demo.suggested_next_action,
+      reasoning: demo.reasoning,
+      client_status_update: demo.client_status_update,
+      follow_up_subtasks: demo.follow_up_subtasks,
+      status: "pending",
+      created_by: userId,
+      raw_ai_response: { mode: "client_demo_fallback" },
+    })
+    .select()
+    .single();
+
+  if (insertError) {
+    throw new Error(
+      insertError.message.includes("task_triage_results")
+        ? "task_triage_results table missing on this Supabase project. Use hackathon DB (oxvfbrxoooindyrqvjgk) or run the migration SQL."
+        : insertError.message
+    );
+  }
+
+  return result;
 }
 
 export type TriageQueueStatus = "needs_triage" | "pending_review" | "triaged";
@@ -204,28 +264,56 @@ export function useTaskTriageResult(taskId?: string) {
 
 export function useRunTaskTriage() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   return useMutation({
     mutationFn: async (taskId: string): Promise<TaskTriageResult> => {
-      const { data, error } = await supabase.functions.invoke("triage-project-task", {
-        body: { task_id: taskId },
-      });
+      let data: unknown;
+      let error: unknown;
+
+      try {
+        const response = await supabase.functions.invoke("triage-project-task", {
+          body: { task_id: taskId },
+        });
+        data = response.data;
+        error = response.error;
+      } catch (invokeError) {
+        const message = invokeError instanceof Error ? invokeError.message : String(invokeError);
+        if (isFunctionUnreachableError(message) && user?.id) {
+          return runClientDemoTriage(taskId, user.id);
+        }
+        throw invokeError instanceof Error ? invokeError : new Error(message);
+      }
 
       if (error) {
-        throw new Error(await getFunctionInvokeErrorMessage(error, data));
+        const message = await getFunctionInvokeErrorMessage(error, data);
+        if (isFunctionUnreachableError(message) && user?.id) {
+          return runClientDemoTriage(taskId, user.id);
+        }
+        throw new Error(message);
       }
-      if (data?.error) throw new Error(data.error as string);
-      if (!data?.result) throw new Error("Triage returned no result");
+      if (data && typeof data === "object" && "error" in data && typeof (data as { error: unknown }).error === "string") {
+        throw new Error((data as { error: string }).error);
+      }
+      if (!data || typeof data !== "object" || !("result" in data)) {
+        throw new Error("Triage returned no result");
+      }
 
-      return data.result as TaskTriageResult;
+      return (data as { result: TaskTriageResult }).result;
     },
-    onSuccess: (_data, taskId) => {
+    onSuccess: (data, taskId) => {
       queryClient.invalidateQueries({ queryKey: ["task-triage", taskId] });
       queryClient.invalidateQueries({ queryKey: ["tasks-with-triage-status"] });
       queryClient.invalidateQueries({ queryKey: ["recent-triage-results"] });
+      const usedFallback =
+        data.raw_ai_response &&
+        typeof data.raw_ai_response === "object" &&
+        (data.raw_ai_response as { mode?: string }).mode === "client_demo_fallback";
       toast({
         title: "Triage complete",
-        description: "AI recommendations are ready for your review.",
+        description: usedFallback
+          ? "Demo recommendations ready (Edge Function unreachable — used client fallback)."
+          : "AI recommendations are ready for your review.",
       });
     },
     onError: (error: Error) => {
