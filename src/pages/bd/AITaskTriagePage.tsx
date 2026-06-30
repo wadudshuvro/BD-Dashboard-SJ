@@ -11,11 +11,16 @@ import { TaskTriageWorkspace } from "@/components/ai-triage/TaskTriageWorkspace"
 import {
   HACKATHON_DEMO_PROJECT_ID,
   HACKATHON_DEMO_TASK_ID,
+  HACKATHON_SUPABASE_PROJECT_REF,
   useTasksWithTriageStatus,
   useTriageHubStats,
   type TaskWithTriageStatus,
 } from "@/hooks/useTaskTriage";
-import { Bot, CheckCircle2, ListTodo, Sparkles } from "lucide-react";
+import { Bot, CheckCircle2, ListTodo, Sparkles, AlertTriangle } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL ?? "";
+const isHackathonDatabase = SUPABASE_URL.includes(HACKATHON_SUPABASE_PROJECT_REF);
 
 export default function AITaskTriagePage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -73,6 +78,21 @@ export default function AITaskTriagePage() {
 
   return (
     <div className="py-8 space-y-8 max-w-7xl mx-auto">
+      {!isHackathonDatabase && (
+        <Alert variant="destructive" className="border-amber-300 bg-amber-50 text-amber-950">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Wrong Supabase database for hackathon demo</AlertTitle>
+          <AlertDescription>
+            This deploy is not connected to project <strong>{HACKATHON_SUPABASE_PROJECT_REF}</strong>.
+            In Vercel → Settings → Environment Variables, set{" "}
+            <code className="text-xs">VITE_SUPABASE_URL</code> to{" "}
+            <code className="text-xs">https://{HACKATHON_SUPABASE_PROJECT_REF}.supabase.co</code>{" "}
+            and your personal anon key, then <strong>Redeploy</strong>. Triage needs the{" "}
+            <code className="text-xs">task_triage_results</code> table on that project.
+          </AlertDescription>
+        </Alert>
+      )}
+
       <AITriageHero onTryDemo={handleTryDemo} onScrollToHowItWorks={scrollToHowItWorks} />
 
       <div ref={howItWorksRef}>

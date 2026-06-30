@@ -28,6 +28,7 @@ export interface ApproveTriagePayload {
 
 export const HACKATHON_DEMO_PROJECT_ID = "a0000002-0000-4000-8000-000000000002";
 export const HACKATHON_DEMO_TASK_ID = "a0000011-0000-4000-8000-000000000011";
+export const HACKATHON_SUPABASE_PROJECT_REF = "oxvfbrxoooindyrqvjgk";
 
 async function getFunctionInvokeErrorMessage(error: unknown, data: unknown): Promise<string> {
   if (data && typeof data === "object" && data !== null) {
@@ -116,7 +117,7 @@ async function runClientDemoTriage(taskId: string, userId: string): Promise<Task
   if (insertError) {
     throw new Error(
       insertError.message.includes("task_triage_results")
-        ? "task_triage_results table missing on this Supabase project. Use hackathon DB (oxvfbrxoooindyrqvjgk) or run the migration SQL."
+        ? `task_triage_results table missing on this Supabase project. Point Vercel env vars to hackathon DB (${HACKATHON_SUPABASE_PROJECT_REF}) or run scripts/hackathon-task-triage-table-only.sql in SQL Editor.`
         : insertError.message
     );
   }
