@@ -12,9 +12,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import logo from "@/assets/logo-sji-login.png";
 
+const DEMO_LOGIN_EMAIL = import.meta.env.VITE_DEMO_LOGIN_EMAIL ?? "";
+const DEMO_LOGIN_PASSWORD = import.meta.env.VITE_DEMO_LOGIN_PASSWORD ?? "";
+const IS_DEMO_LOGIN_PREFILLED = Boolean(DEMO_LOGIN_EMAIL && DEMO_LOGIN_PASSWORD);
+
 export default function Login() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState(DEMO_LOGIN_EMAIL);
+  const [password, setPassword] = useState(DEMO_LOGIN_PASSWORD);
   const [error, setError] = useState("");
   const [resetEmail, setResetEmail] = useState("");
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
@@ -101,7 +105,9 @@ export default function Login() {
           <CardHeader>
             <CardTitle className="text-2xl text-center">Sign In</CardTitle>
             <CardDescription className="text-center">
-              Enter your credentials to access your account
+              {IS_DEMO_LOGIN_PREFILLED
+                ? "Demo credentials are pre-filled — click Sign In"
+                : "Enter your credentials to access your account"}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -129,6 +135,14 @@ export default function Login() {
                 />
               </div>
               
+              {IS_DEMO_LOGIN_PREFILLED && (
+                <Alert className="border-violet-200 bg-violet-50 text-violet-900">
+                  <AlertDescription>
+                    Hackathon demo login — judges can click <strong>Sign In</strong> with no typing.
+                  </AlertDescription>
+                </Alert>
+              )}
+
               {error && (
                 <Alert variant="destructive">
                   <AlertDescription>{error}</AlertDescription>

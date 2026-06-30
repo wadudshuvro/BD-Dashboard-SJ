@@ -110,6 +110,8 @@ $envLocal = @(
     "VITE_SUPABASE_ANON_KEY=`"$anonKey`""
     "VITE_SUPABASE_PROJECT_ID=`"$projectRef`""
     "VITE_API_BASE_URL=`"$supabaseUrl/functions/v1`""
+    "VITE_DEMO_LOGIN_EMAIL=test@example.com"
+    "VITE_DEMO_LOGIN_PASSWORD=TestPassword123!"
 ) -join "`n"
 Set-Content -Path (Join-Path $repoRoot ".env.local") -Value $envLocal -Encoding utf8NoBOM
 Write-Host "  .env.local created" -ForegroundColor Green
@@ -131,7 +133,9 @@ if (-not [string]::IsNullOrWhiteSpace($vercelToken)) {
         -e "VITE_SUPABASE_PUBLISHABLE_KEY=$anonKey" `
         -e "VITE_SUPABASE_ANON_KEY=$anonKey" `
         -e "VITE_SUPABASE_PROJECT_ID=$projectRef" `
-        -e "VITE_API_BASE_URL=$supabaseUrl/functions/v1"
+        -e "VITE_API_BASE_URL=$supabaseUrl/functions/v1" `
+        -e "VITE_DEMO_LOGIN_EMAIL=test@example.com" `
+        -e "VITE_DEMO_LOGIN_PASSWORD=TestPassword123!"
 } else {
     Write-Host "  No VERCEL_TOKEN — deploy manually at vercel.com with same env vars as .env.local" -ForegroundColor Gray
 }

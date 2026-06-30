@@ -63,6 +63,8 @@ $envLocal = @(
     "VITE_SUPABASE_ANON_KEY=`"$anonKey`""
     "VITE_SUPABASE_PROJECT_ID=`"$projectRef`""
     "VITE_API_BASE_URL=`"$supabaseUrl/functions/v1`""
+    "VITE_DEMO_LOGIN_EMAIL=test@example.com"
+    "VITE_DEMO_LOGIN_PASSWORD=TestPassword123!"
 ) -join "`n"
 $utf8NoBom = New-Object System.Text.UTF8Encoding $false
 [System.IO.File]::WriteAllText((Join-Path $repoRoot ".env.local"), $envLocal, $utf8NoBom)
