@@ -28,6 +28,42 @@ export interface ApproveTriagePayload {
 export const HACKATHON_DEMO_PROJECT_ID = "a0000002-0000-4000-8000-000000000002";
 export const HACKATHON_DEMO_TASK_ID = "a0000011-0000-4000-8000-000000000011";
 
+async function getFunctionInvokeErrorMessage(error: unknown, data: unknown): Promise<string> {
+  if (data && typeof data === "object" && data !== null) {
+    const record = data as Record<string, unknown>;
+    if (typeof record.error === "string") return record.error;
+    if (typeof record.message === "string") return record.message;
+  }
+
+  if (error && typeof error === "object" && error !== null) {
+    const err = error as { message?: string; context?: unknown };
+    const context = err.context;
+
+    if (context instanceof Response) {
+      try {
+        const body = (await context.clone().json()) as Record<string, unknown>;
+        if (typeof body.error === "string") return body.error;
+        if (typeof body.message === "string") return body.message;
+      } catch {
+        // Response body is not JSON
+      }
+    } else if (context && typeof context === "object") {
+      const ctx = context as Record<string, unknown>;
+      if (typeof ctx.error === "string") return ctx.error;
+      if (typeof ctx.message === "string") return ctx.message;
+    }
+
+    if (typeof err.message === "string" && err.message.length > 0) {
+      if (err.message.includes("non-2xx")) {
+        return "Edge Function failed. Deploy triage-project-task to this Supabase project and check function logs.";
+      }
+      return err.message;
+    }
+  }
+
+  return "Edge Function request failed. Deploy triage-project-task to this Supabase project.";
+}
+
 export type TriageQueueStatus = "needs_triage" | "pending_review" | "triaged";
 
 export interface TaskWithTriageStatus {
@@ -172,20 +208,10 @@ export function useRunTaskTriage() {
       });
 
       if (error) {
-        const context = (error as { context?: Response }).context;
-        if (context) {
-          try {
-            const body = await context.json() as { error?: string };
-            if (body?.error) throw new Error(body.error);
-          } catch (parseError) {
-            if (parseError instanceof Error && parseError.message !== error.message) {
-              throw parseError;
-            }
-          }
-        }
-        throw error;
+        throw new Error(await getFunctionInvokeErrorMessage(error, data));
       }
       if (data?.error) throw new Error(data.error as string);
+      if (!data?.result) throw new Error("Triage returned no result");
 
       return data.result as TaskTriageResult;
     },

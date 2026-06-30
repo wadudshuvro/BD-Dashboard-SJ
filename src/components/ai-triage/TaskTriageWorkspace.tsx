@@ -14,6 +14,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Bot, Copy, Loader2, Sparkles } from "lucide-react";
 import { useBDTeamMembers } from "@/hooks/useBDTeamMembers";
+import { useTaskDetail } from "@/hooks/useTaskDetail";
 import {
   useApproveTaskTriage,
   useRejectTaskTriage,
@@ -56,6 +57,14 @@ export function TaskTriageWorkspace({
   taskTitle,
   variant = "embedded",
 }: TaskTriageWorkspaceProps) {
+  const needsTaskFetch = Boolean(taskId && !projectId);
+  const { task: fetchedTask, isLoading: isLoadingTask } = useTaskDetail(
+    needsTaskFetch ? taskId : undefined
+  );
+
+  const resolvedProjectId = projectId ?? fetchedTask?.project_id ?? undefined;
+  const resolvedTitle = taskTitle ?? fetchedTask?.title;
+
   const { data: triageResult, isLoading } = useTaskTriageResult(taskId);
   const { data: teamMembers = [] } = useBDTeamMembers();
   const runTriage = useRunTaskTriage();
@@ -99,14 +108,14 @@ export function TaskTriageWorkspace({
   };
 
   const handleApprove = () => {
-    if (!triageResult || !taskId || !projectId) return;
+    if (!triageResult || !taskId || !resolvedProjectId) return;
 
     const selected = subtasks.filter((_, i) => selectedSubtasks[i]);
 
     approveTriage.mutate({
       triageId: triageResult.id,
       taskId,
-      projectId,
+      projectId: resolvedProjectId,
       priority,
       assigneeId: assigneeId || null,
       category,
@@ -119,13 +128,34 @@ export function TaskTriageWorkspace({
     rejectTriage.mutate({ triageId: triageResult.id, taskId });
   };
 
-  if (!taskId || !projectId) {
+  if (!taskId) {
     return (
       <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-violet-200 bg-violet-50/30 dark:border-violet-800 dark:bg-violet-950/20 p-12 text-center min-h-[320px]">
         <Bot className="h-12 w-12 text-violet-500 mb-4" />
         <h3 className="text-lg font-semibold mb-2">Select a task to triage</h3>
         <p className="text-sm text-muted-foreground max-w-sm">
           Choose a client task from the queue on the left. The AI agent will analyze it and suggest priority, owner, and follow-ups.
+        </p>
+      </div>
+    );
+  }
+
+  if (needsTaskFetch && isLoadingTask) {
+    return (
+      <div className="space-y-4 rounded-xl border p-6 min-h-[320px]">
+        <Skeleton className="h-6 w-48" />
+        <Skeleton className="h-32 w-full" />
+      </div>
+    );
+  }
+
+  if (!resolvedProjectId) {
+    return (
+      <div className="flex flex-col items-center justify-center rounded-xl border border-amber-200 bg-amber-50/50 p-12 text-center min-h-[320px]">
+        <Bot className="h-12 w-12 text-amber-600 mb-4" />
+        <h3 className="text-lg font-semibold mb-2">Task has no project</h3>
+        <p className="text-sm text-muted-foreground max-w-sm">
+          This task is not linked to a project, so triage cannot create follow-up subtasks. Link it to a project or use a demo task from the hackathon seed.
         </p>
       </div>
     );
@@ -148,8 +178,8 @@ export function TaskTriageWorkspace({
             <Sparkles className="h-4 w-4 text-violet-500" />
             Triage workspace
           </h3>
-          {taskTitle && (
-            <p className="text-sm text-muted-foreground mt-1 truncate">{taskTitle}</p>
+          {resolvedTitle && (
+            <p className="text-sm text-muted-foreground mt-1 truncate">{resolvedTitle}</p>
           )}
         </div>
         {isApproved && <Badge className="bg-green-100 text-green-800">Applied</Badge>}
